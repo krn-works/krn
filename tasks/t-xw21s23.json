@@ -1,0 +1,14 @@
+{
+  "id": "t-xw21s23",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-linter-configured pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-linter-configured` no longer fails s-linter-configured.",
+    "Why: adoption found this reflex standard failing: exit 1 from for f in biome.json biome.jsonc .eslintrc .eslintrc.* eslint.config.* .prettierrc .prettierrc.* prettier.config.* ruff.toml .ruff.toml .flake8 .pyli...",
+    "Proof: `krn standards check --record s-linter-configured`"
+  ]
+}
