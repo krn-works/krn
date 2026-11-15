@@ -1,0 +1,20 @@
+{
+  "id": "t-0x3pmx6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "unzip-http extracts zip members outside the target directory",
+  "after": [],
+  "body": [
+    "Bug (Zip Slip): member names come from the archive, so '../x', '/tmp/x' or 'sub/../../x' escape the target path in RemoteZipFile.extract() and in the CLI -f (full filepaths) branch.",
+    "Outcome: a member whose resolved path is outside the target directory raises an Exception whose message contains 'unsafe path' and writes nothing; members inside the target extract as before. Fix unzip_http.py and add a test."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
