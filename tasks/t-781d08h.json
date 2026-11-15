@@ -1,7 +1,11 @@
 {
   "id": "t-781d08h",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop refuses a clause set with no boundary clause, naming the class; fixture refused once then passes"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Stop refuses a clause set without a boundary clause",

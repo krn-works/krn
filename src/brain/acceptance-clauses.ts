@@ -118,6 +118,36 @@ export function statedClauses(
   return all.length >= 2 ? all : [];
 }
 
+const BOUNDARY =
+  /\b(?:empty|blank|missing|absent|nonexistent|non-existent|unauthori[sz]ed|forbidden|denied|duplicate[ds]?|twice|repeated|non-ascii|unicode|utf-?8|zero|null|boundary|edge)\b/iu;
+
+/** Whether a text names a boundary case from the stack list: empty, missing, unauthorised, duplicate, non-ASCII. */
+export function namesBoundary(text: string): boolean {
+  return BOUNDARY.test(text);
+}
+
+/**
+ * The boundary class a clause set lacks, or undefined when one clause covers a boundary. A clause covers it
+ * by its own text, or by the marker line of a changed test (a worker-written clause has no text of its own).
+ */
+export function missingBoundary(
+  clauses: readonly ClauseProof[],
+  tests: ReadonlyMap<string, string>,
+  messages = '',
+): string | undefined {
+  const lines = (n: number) =>
+    [...tests.values()].flatMap((text) =>
+      text.split('\n').filter((line) => clauseMarker(n).test(line)),
+    );
+  const covered = clauses.some(
+    (c) =>
+      namesBoundary(c.text) ||
+      lines(c.n).some(namesBoundary) ||
+      (c.declared && namesBoundary(messages)),
+  );
+  return covered ? undefined : EDGE_CASES;
+}
+
 /** The most clause numbers a worker-written list can carry. */
 const MAX_OWN = 30;
 

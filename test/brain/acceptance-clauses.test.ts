@@ -11,6 +11,8 @@ import {
   isBugBody,
   isTestFile,
   markedTests,
+  missingBoundary,
+  namesBoundary,
   splitClauses,
 } from '../../src/brain/acceptance-clauses.ts';
 import {
@@ -265,4 +267,26 @@ test('a clause marker reads identifier forms where a name cannot hold a space', 
     assert.ok(clauseMarker(1).test(name), name);
   for (const name of ['testClause12', 'subclause 1', 'testclause1x'])
     assert.ok(!clauseMarker(1).test(name), name);
+});
+
+test('clause 1: a boundary class is named by a clause text or a marked test line, and its absence is reported', () => {
+  const happy = clauseProof({
+    stated: ['Parse the header line', 'Print the parsed header'],
+    tests: new Map([['test/a.test.ts', '// clause 1 clause 2']]),
+    messages: '',
+  }).clauses;
+  assert.match(
+    missingBoundary(
+      happy,
+      new Map([['test/a.test.ts', '// clause 1 clause 2']]),
+    ) ?? '',
+    /empty input/u,
+  );
+  const named = clauseProof({
+    stated: ['Parse the header line', 'Reject an empty header'],
+    tests: new Map(),
+    messages: '',
+  }).clauses;
+  assert.equal(missingBoundary(named, new Map()), undefined);
+  assert.equal(namesBoundary('handles non-ASCII names'), true);
 });
