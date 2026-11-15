@@ -127,6 +127,20 @@ test('krn.json fields win and missing ones fall back to detection', () => {
   });
 });
 
+test('a declared test command does not inherit the related command of a detected stack', () => {
+  const root = fixture({
+    'composer.json': JSON.stringify({ require: { 'phpunit/phpunit': '*' } }),
+    'krn.json': JSON.stringify({ test: 'php tests/run.php' }),
+  });
+  const { contract } = resolveContract(root);
+  assert.equal(contract.test, 'php tests/run.php');
+  assert.equal(contract.related, undefined);
+  assert.equal(
+    relatedCommand(contract, ['tests/ATest.php']),
+    'php tests/run.php',
+  );
+});
+
 test('krn.json laneBudgetUsd sets the lane spend cap, default 3', () => {
   const withBudget = fixture({
     'go.mod': 'module x',
