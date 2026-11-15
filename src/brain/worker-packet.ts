@@ -200,11 +200,11 @@ export type Hit = {
 function globRegExp(glob: string): RegExp {
   const body = glob
     .replace(/[.+^${}()|[\]\\]/gu, '\\$&')
-    .replace(/\*\*\//gu, '\u0000')
-    .replace(/\*\*/gu, '\u0001')
+    .replace(/\*\*\//gu, '@@DIR@@')
+    .replace(/\*\*/gu, '@@ANY@@')
     .replace(/\*/gu, '[^/]*')
-    .replace(/\u0000/gu, '(?:.*/)?')
-    .replace(/\u0001/gu, '.*');
+    .replace(/@@DIR@@/gu, '(?:.*/)?')
+    .replace(/@@ANY@@/gu, '.*');
   return new RegExp(`^${body}$`, 'u');
 }
 
