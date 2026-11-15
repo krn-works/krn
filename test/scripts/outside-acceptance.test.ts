@@ -18,6 +18,7 @@ import {
   seedTask,
   workflowFiles,
 } from '../../scripts/outside-acceptance.ts';
+import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 
 test('only outside/<stack> branches can be named, so a cleanup never touches another branch', () => {
   assert.equal(outsideBranch('php'), 'outside/php');
@@ -193,7 +194,7 @@ test('the shipped task file holds one public fixed-issue row per stack and parse
   const rows = parseTaskFile(shippedRows);
   assert.deepEqual(
     rows.map((row) => row.stack),
-    ['php', 'npm', 'py'],
+    ['php', 'npm', 'py', 'php-red', 'npm-workspaces', 'wp-plugin'],
   );
   for (const row of rows) assert.match(row.fix, /^[0-9a-f]{7,40}$/u);
 });
@@ -232,6 +233,29 @@ test('the fixed-issue seed names the bug and verifies with the row test command,
     { verify: row.test, passes: false, exit: null },
   ]);
   assert.doesNotMatch(seed.text, /phpunit-shim/u);
+});
+
+test('a red-base row seeds the green-base task, so a red baseline admits it, and every shipped row parses', () => {
+  const rows = parseTaskFile(shippedRows);
+  const red = rows.find((row) => row.redBase === true);
+  if (red === undefined) throw new Error('no red-base row shipped');
+  const task = JSON.parse(hiddenSeedTask(red, '2026-11-15').text) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(task.title, GREEN_BASE_TASK_TITLE);
+  assert.deepEqual(task.body, [red.title, ...red.body]);
+  // The red row's hidden test is the red test itself: it is the same file on the base and on the fix.
+  assert.deepEqual(red.hidden, ['tests/GetInTest.php']);
+  for (const stack of ['npm-workspaces', 'wp-plugin'])
+    assert.ok(
+      rows.some((row) => row.stack === stack),
+      stack,
+    );
+  assert.notEqual(
+    JSON.parse(hiddenSeedTask(rows[0] as never, '2026-11-15').text).title,
+    GREEN_BASE_TASK_TITLE,
+  );
 });
 
 test('the hidden column grades pass, fail or none from the held-back test exit code', () => {

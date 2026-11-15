@@ -9,7 +9,10 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { BOOTSTRAP_TASK_TITLE } from '../src/adopt/adopt.ts';
+import {
+  BOOTSTRAP_TASK_TITLE,
+  GREEN_BASE_TASK_TITLE,
+} from '../src/adopt/adopt.ts';
 import { namedTests } from '../src/adopt/canary.ts';
 import { appendExposure, readExposures } from '../src/brain/exposures.ts';
 import { harvestCandidates, renderHarvest } from '../src/brain/proposals.ts';
@@ -224,6 +227,8 @@ export interface HiddenRow {
   related?: string;
   /** Files copied from this repository into the base (target path to source path), e.g. a test runner the stack lacks. */
   support?: Record<string, string>;
+  /** The base's own test command is red: the row's task is the green-base task, the one task a red baseline admits. */
+  redBase?: boolean;
 }
 
 /** The workflow files of a base: a GitHub App cannot push them, and adoption writes its own CI call. */
@@ -296,6 +301,7 @@ export function parseTaskFile(text: string): HiddenRow[] {
     if (install !== '') row.install = install;
     const related = text('related', true);
     if (related !== '') row.related = related;
+    if (field('redBase') === true) row.redBase = true;
     const support = field('support');
     if (support !== undefined) {
       if (typeof support !== 'object' || support === null)
@@ -345,8 +351,8 @@ export function hiddenSeedTask(
 ): { file: string; text: string } {
   const seed = seedTask(row.stack, row.test, created);
   const task = JSON.parse(seed.text) as Record<string, unknown>;
-  task.title = row.title;
-  task.body = row.body;
+  task.title = row.redBase === true ? GREEN_BASE_TASK_TITLE : row.title;
+  task.body = row.redBase === true ? [row.title, ...row.body] : row.body;
   return { file: seed.file, text: `${JSON.stringify(task, null, 2)}\n` };
 }
 
@@ -584,6 +590,9 @@ function acceptStack(
         throw new Error('clone failed');
     git(['remote', 'set-url', 'origin', remoteUrl]);
     git(['checkout', '--quiet', '-B', branch, base]);
+    // The upstream's own branch names must not leak into adoption: it would pick the stale tip as the base.
+    git(['branch', '-D', 'master', 'main']);
+    git(['remote', 'set-head', 'origin', '--delete']);
     for (const file of workflowFiles(git(['ls-files']).output.split('\n')))
       git(['rm', '--quiet', '--force', '--', file]);
     for (const [target, from] of Object.entries(hiddenRow?.support ?? {})) {
