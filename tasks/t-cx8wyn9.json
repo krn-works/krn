@@ -1,0 +1,12 @@
+{
+  "id": "t-cx8wyn9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A lane whose token mint fails after the work parks the commit and a resume ships it without rerunning the worker",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115d.md slice 6. Outcome: mint failure after work -> lane parks commit locally; resume ships without rerunning the worker. Proof: fake failing mint probe test. Free. src/cli/lane-run/delivery.ts."
+  ]
+}

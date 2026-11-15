@@ -1,0 +1,12 @@
+{
+  "id": "t-a3dsm8g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A first-day walkthrough script proves every printed next step runs and every failure names its remedy",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115d.md slice 5. Outcome: script runs init, adopt of a public clone, doctor, task create, lane brief (no worker); every printed next step runnable exit 0; each failure names its remedy; findings fixed or tasked; README Start here points to it. Free."
+  ]
+}
