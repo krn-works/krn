@@ -103,3 +103,15 @@ FAIL cells per row, before -> after: php 5 -> 0, npm 4 -> 1, py 3 -> 0. `s-ci-ru
 | s-skill-wp-runtime | n/a | n/a | n/a |
 
 FAIL cells per row: php=0, npm=1, py=0
+
+## Born-green new projects (`krn adopt <empty dir> --init --stack S`)
+
+Enforced failing records, measured with `krn standards check --root <dir>` after init.
+
+| stack | before | after |
+| --- | --- | --- |
+| ts | 0 | 0 |
+| php | 1 (s-php-composer-lock) | 0 |
+| python | 0 | 0 |
+
+Fix: php init writes `composer.lock` with `composer update --no-install`; when composer fails it warns instead of passing silently. Regression tests: `test/adopt/init.test.ts`.
