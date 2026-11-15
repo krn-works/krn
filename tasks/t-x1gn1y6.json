@@ -1,0 +1,14 @@
+{
+  "id": "t-x1gn1y6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-gitignore-deps pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-gitignore-deps` no longer fails s-gitignore-deps.",
+    "Why: adoption found this reflex standard failing: exit 1 from if [ -s package.json ]; then git check-ignore -q --no-index node_modules/probe; else git check-ignore -q --no-index __pycache__/probe.pyc && { git c...",
+    "Proof: `krn standards check --record s-gitignore-deps`"
+  ]
+}
