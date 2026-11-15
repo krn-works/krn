@@ -27,7 +27,7 @@ import {
   packetBrief,
   workerRecords,
 } from '../../src/brain/worker-packet.ts';
-import { laneBriefText } from '../../src/cli/lane-brief.ts';
+import { laneBrief, laneBriefText } from '../../src/cli/lane-brief.ts';
 import { contractConventions } from '../../src/repo/contract.ts';
 
 const repo = join(import.meta.dirname, '../..');
@@ -280,6 +280,28 @@ test('a record in the task holdout is not served and the same task withholds it 
     false,
   );
   assert.deepEqual(served?.records, ['r-new']);
+});
+
+test('withheld is the would-serve set intersected with the holdout, not every held-out candidate', (t) => {
+  const root = conventionsRepo(t, [
+    row('r-match', 'Format the parser with biome.', null),
+    row('r-other', 'Tune the database connection pool.', null),
+  ]);
+  // A task that holds out both records: only the one the brief matches would have been served.
+  const task = Array.from({ length: 2000 }, (_, i) => `unit-${i}`).find(
+    (id) => heldOut(id, 'r-match') && heldOut(id, 'r-other'),
+  );
+  assert.ok(task !== undefined);
+  const brief = laneBrief(
+    root,
+    'format the parser',
+    '2026-11-13',
+    task,
+    false,
+    120,
+  );
+  assert.deepEqual(brief.served, []);
+  assert.deepEqual(brief.withheld, ['r-match']);
 });
 
 test('the gates block names the stack-applicable enforced floor and finish records and the one check command within 150 tokens', () => {

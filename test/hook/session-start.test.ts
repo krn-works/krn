@@ -152,7 +152,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
     assert.match(effect.stdout, /^effect: 2 run\(s\), \d+ record\(s\)/u);
     assert.match(
       effect.stdout,
-      /^s-no-todo-markers: served 1 \(ok 0%, followed 0, violated 1\)/mu,
+      /^s-no-todo-markers: served 1 \(scoped 1, violated 100%\)/mu,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

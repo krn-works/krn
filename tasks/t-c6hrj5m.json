@@ -1,7 +1,11 @@
 {
   "id": "t-c6hrj5m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn.exposure/v1 rows with at, tokens, attempt and per-record violated; withheld is would-serve intersected with held-out; rework dropped; retire selects by Fisher rule (30 served, 10 withheld scoped diffs, p>=0.1); exposures and retire tests pass"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Exposure rows carry a per-record effect (S5)",

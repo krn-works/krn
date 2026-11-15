@@ -917,9 +917,8 @@ test('krn standards effect prints one row per record read from the exposure log'
       channel: 'lane',
       served: ['r-a'],
       withheld: ['r-b'],
-      outcome: { 'r-a': 'followed' },
+      violated: { 'r-a': false, 'r-b': true },
       lane_ok: true,
-      rework: 0,
     },
   ]
     .map((line) => JSON.stringify(line))
@@ -934,7 +933,7 @@ test('krn standards effect prints one row per record read from the exposure log'
     assert.equal(done.status, 0, done.stderr);
     assert.equal(
       done.stdout,
-      'effect: 1 run(s), 2 record(s)\nr-a: served 1 (ok 100%, followed 1, violated 0) withheld 0 (ok -)\nr-b: served 0 (ok -, followed 0, violated 0) withheld 1 (ok 100%)\n',
+      'effect: 1 run(s), 2 record(s)\nr-a: served 1 (scoped 1, violated 0%) withheld 0 (scoped 0, violated -)\nr-b: served 0 (scoped 0, violated -) withheld 1 (scoped 1, violated 100%)\n',
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -960,22 +959,24 @@ test('krn standards retire is a dry run until --write, then ends the record that
         },
       ]),
     );
-    const line = (served: string[], withheld: string[]) =>
+    const line = (n: number, arm: 'served' | 'withheld', bad: boolean) =>
       JSON.stringify({
-        run: 'x',
-        task: 't-1',
+        run: `x-${n}`,
+        task: `t-${n}`,
         channel: 'lane',
-        served,
-        withheld,
-        outcome: {},
+        served: arm === 'served' ? ['r-idle'] : [],
+        withheld: arm === 'withheld' ? ['r-idle'] : [],
+        violated: { 'r-idle': bad },
         lane_ok: true,
-        rework: 0,
       });
+    // 30 served scoped diffs (half violated) and 10 withheld (half violated): no benefit.
     writeFileSync(
       join(root, '.krn/brain/exposures.jsonl'),
       `${[
-        ...Array.from({ length: 27 }, () => line(['r-idle'], [])),
-        ...Array.from({ length: 3 }, () => line([], ['r-idle'])),
+        ...Array.from({ length: 30 }, (_, i) => line(i, 'served', i % 2 === 0)),
+        ...Array.from({ length: 10 }, (_, i) =>
+          line(100 + i, 'withheld', i % 2 === 0),
+        ),
       ].join('\n')}\n`,
     );
     const retire = (...extra: string[]) =>
@@ -992,7 +993,7 @@ test('krn standards retire is a dry run until --write, then ends the record that
     );
     assert.match(
       dry.stdout,
-      /r-idle: served 27 \(ok 27\) withheld 3 \(ok 3\)/u,
+      /r-idle: served 30 scoped \(violated 15\) withheld 10 scoped \(violated 5\)/u,
     );
     assert.match(
       readFileSync(join(root, '.krn/conventions.json'), 'utf8'),

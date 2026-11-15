@@ -9,7 +9,11 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isTestFile } from '../../brain/acceptance-clauses.ts';
-import { appendExposure, exposureOf } from '../../brain/exposures.ts';
+import {
+  appendExposure,
+  exposureOf,
+  readExposures,
+} from '../../brain/exposures.ts';
 import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
@@ -121,7 +125,11 @@ export async function laneVerdict(
           served: lane.servedIds,
           withheld: lane.withheldIds,
           laneOk,
-          rework: red === undefined ? 0 : 1,
+          tokens: lane.servedTokens,
+          attempt:
+            readExposures(main).filter(
+              (row) => row.task === task && row.channel === 'lane',
+            ).length + 1,
           proof: proved,
         }),
       );

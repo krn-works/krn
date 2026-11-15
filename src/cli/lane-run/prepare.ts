@@ -27,6 +27,8 @@ export interface PreparedLane extends LaneRequest {
   base: string;
   brief: string;
   packet: string | null;
+  /** Tokens of the packet the session served. */
+  servedTokens: number;
   /** Ids of the records the packet served and of those it could have served but did not. */
   servedIds: string[];
   withheldIds: string[];
@@ -138,6 +140,7 @@ export async function prepareLane(
     base,
     brief,
     packet: prompt.packet,
+    servedTokens: prompt.tokens,
     servedIds: prompt.served,
     withheldIds: prompt.withheld,
     served,

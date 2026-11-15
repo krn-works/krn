@@ -9,7 +9,7 @@ import {
   proposeArgs,
   refusedRecords,
 } from '../../scripts/lib/outside-harvest.ts';
-import { violatedExposure } from '../../src/brain/exposures.ts';
+import { exposureOf, violatedExposure } from '../../src/brain/exposures.ts';
 import { harvestCandidates, type Sourced } from '../../src/brain/proposals.ts';
 import { parseUnified } from '../../src/brain/record.ts';
 
@@ -68,16 +68,15 @@ test('a refused Stop yields one proposal per known record, once', () => {
 test('served-only exposures are no refusal', () => {
   assert.deepEqual(
     refusedRecords([
-      {
+      exposureOf({
         run: 'r',
-        task: null,
+        task: undefined,
         channel: 'session',
         served: ['s-a'],
         withheld: [],
-        outcome: { 's-a': 'followed' },
-        lane_ok: true,
-        rework: 0,
-      },
+        laneOk: true,
+        violated: { 's-a': false },
+      }),
     ]),
     [],
   );
