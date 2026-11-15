@@ -4,11 +4,11 @@
   "resolution": null,
   "created": "2026-11-15",
   "priority": 1,
-  "title": "The wordpress stack skill meets the stack-skill bar",
+  "title": "WordPress and frontend repos get the boilerplate-2026 skill set from one source",
   "after": [
     "t-6vn9c9j"
   ],
   "body": [
-    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 3 (wordpress)\nWhy: an adopted wordpress repository gets no procedure for writing good wordpress code; only a TypeScript skill exists and it is KRN-hand-kept.\nOutcome: src/adopt/skills/wordpress/SKILL.md meets the stack-skill bar enforced by test/adopt/stack-skills.test.ts: at most 40 lines, description with use and skip triggers, a compatibility field, every backticked command binary on the stack allowlist, no \"krn\" token; sources: the typescript skill, boilerplate-2026 skills (frontend/wordpress: cube-css, acf-component, wp-runtime), src/brain/first-test.ts recipes, standards/records.json.\nFiles: src/adopt/skills/wordpress/, test/adopt/stack-skills.test.ts\nProof: stack-skills test passes for wordpress; adopt on the wordpress outside scratch copy installs it.\nPredicted: outside hidden >= 1 in >= 1 rows"
+    "Source: operator 2026-11-15: the frontend approach lives in /mnt/storage/coding/krn/active/boilerplate-2026 (.agents/skills: acf-component, cube-css, cube-review, design-to-build, plesk-deploy, wp-runtime) and \"na pewno nie będzie jeden skill\"; per-language skills nobody uses are dropped (t-1anb38k, t-vrc1nvx, t-664sxme, t-z1htfen won't do).\nWhy: a WordPress or frontend repo adopted by KRN gets none of the operator's real frontend skills; copies would drift from their source.\nOutcome: the installer (src/adopt/skill-set.ts from t-6vn9c9j) installs the boilerplate-2026 skill set into WordPress/frontend repos from one pinned source (a recorded commit of boilerplate-2026, no hand copies), each skill whole (all files); deployment-specific ones (plesk-deploy) only where the repo deploys to Plesk; drift reports a source update; skill-creator's checks pass on every installed skill.\nFiles: src/adopt/skill-set.ts, src/adopt/skills/ or a source pin file, src/adopt/drift.ts, test/adopt/\nProof: adopt on the wp-plugin and frontend outside scratch copies installs the set; the wp-plugin row drains 0 with it.\nPredicted: outside drain == 0 in >= 2 rows"
   ]
 }

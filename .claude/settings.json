@@ -171,5 +171,8 @@
   "statusLine": {
     "type": "command",
     "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/plan-sample.ts\""
+  },
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true
   }
 }
