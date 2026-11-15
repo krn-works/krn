@@ -196,22 +196,28 @@ test('a lane brief requires the command and exit code behind every external-syst
   );
 });
 
+function armsOnRepo(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'lane-arms-on-'));
+  writeFileSync(join(dir, 'krn.json'), '{"test":"make check"}');
+  return dir;
+}
+
 test('the acceptance-clause section is in the brief by default and KRN_ACCEPTANCE_CLAUSES=0 drops it', () => {
   const body = '1. Parse the header line\n2. Reject an empty header';
   const before = process.env.KRN_ACCEPTANCE_CLAUSES;
   try {
     delete process.env.KRN_ACCEPTANCE_CLAUSES;
     assert.match(
-      laneBriefText(repo, body, BASE_DATE),
+      laneBriefText(armsOnRepo(), body, BASE_DATE),
       /Acceptance clauses \(cover every one\):\n1\. Parse the header line\n2\. Reject an empty header/u,
     );
-    const oneLine = laneBriefText(repo, 'Add a signup form', BASE_DATE);
+    const oneLine = laneBriefText(armsOnRepo(), 'Add a signup form', BASE_DATE);
     assert.match(oneLine, /Acceptance clauses \(write them first\)/u);
     assert.match(oneLine, /non-ASCII/u);
     assert.match(oneLine, /duplicate submit/u);
     process.env.KRN_ACCEPTANCE_CLAUSES = '0';
     assert.doesNotMatch(
-      laneBriefText(repo, body, BASE_DATE),
+      laneBriefText(armsOnRepo(), body, BASE_DATE),
       /Acceptance clauses/u,
     );
   } finally {
@@ -264,12 +270,39 @@ test('the lane brief of a goal without a Scope line prints a precedent section n
 });
 
 test('the clause section reads the task words only, never the delivery boilerplate around them', () => {
-  const text = laneBriefText(
-    repo,
-    'Task t-abc1234: x\n\nOutcome: o\n\nDeliver this task in the current worktree: commit it. Run the check; ship it.',
-    BASE_DATE,
-    't-abc1234',
-  );
-  assert.match(text, /Acceptance clauses \(write them first\)/u);
-  assert.doesNotMatch(text, /Acceptance clauses \(cover every one\)/u);
+  const dir = mkdtempSync(join(tmpdir(), 'lane-arms-on-'));
+  try {
+    writeFileSync(join(dir, 'krn.json'), '{"test":"make check"}');
+    const text = laneBriefText(
+      dir,
+      'Task t-abc1234: x\n\nOutcome: o\n\nDeliver this task in the current worktree: commit it. Run the check; ship it.',
+      BASE_DATE,
+      't-abc1234',
+    );
+    assert.match(text, /Acceptance clauses \(write them first\)/u);
+    assert.doesNotMatch(text, /Acceptance clauses \(cover every one\)/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a contract with arms off drops the test-first rule and the clause section from the brief', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lane-arms-'));
+  try {
+    const body = 'Task t-abc1234: x\n1. First thing.\n2. Second thing.\n';
+    const brief = (contract: string) => {
+      writeFileSync(join(dir, 'krn.json'), contract);
+      return laneBriefText(dir, body, BASE_DATE, 't-abc1234');
+    };
+    const on = brief('{"test":"make check"}');
+    assert.match(on, /Test first: prove red at base/u);
+    assert.match(on, /Acceptance clauses \(cover every one\)/u);
+    const off = brief(
+      '{"test":"make check","arms":{"red-first":false,"clauses":false}}',
+    );
+    assert.doesNotMatch(off, /Test first: prove red at base/u);
+    assert.doesNotMatch(off, /Acceptance clauses/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

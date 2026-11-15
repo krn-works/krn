@@ -28,6 +28,7 @@ import {
 import { appendExposure, violatedExposure } from '../brain/exposures.ts';
 import { standardsBlockers } from '../brain/standards-cli.ts';
 import {
+  armOn,
   ContractError,
   type RepoContract,
   relatedCommand,
@@ -620,7 +621,8 @@ export function inspect(
     (testFirstOn(env, contract)
       ? testFirstRefusal(root, from, run, shell, contract)
       : undefined) ??
-    (clausesOn(env, contract) || briefStatesClauses(env)
+    (clausesOn(env, contract) ||
+    (armOn(contract, 'clauses') && briefStatesClauses(env))
       ? clauseRefusal(root, from, run, shell, contract, env)
       : undefined);
   return reason === undefined ? outcome : { ...outcome, ok: false, reason };
@@ -658,6 +660,7 @@ export function clausesOn(
   if (env.KRN_ACCEPTANCE_CLAUSES === '0') return false;
   if (env.KRN_ACCEPTANCE_CLAUSES === '1') return true;
   return (
+    armOn(contract, 'clauses') &&
     contract !== undefined &&
     contract.test.trim() !== '' &&
     contract.vacuous !== true
@@ -795,6 +798,7 @@ export function testFirstOn(
   if (env.KRN_TEST_FIRST === '0') return false;
   if (env.KRN_TEST_FIRST === '1') return true;
   return (
+    armOn(contract, 'red-first') &&
     contract !== undefined &&
     contract.test.trim() !== '' &&
     contract.vacuous !== true

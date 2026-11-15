@@ -10,7 +10,7 @@ import {
   lanePacket,
   packetBrief,
 } from '../brain/worker-packet.ts';
-import { findContract } from '../repo/contract.ts';
+import { armOn, findContract } from '../repo/contract.ts';
 
 /**
  * What a worker is told about the tracker. D23 arm K refused five units because the record or the
@@ -34,7 +34,8 @@ const STOP_SCRIPT = 'src/hook/stop.ts';
  */
 export function workerRules(
   repo: string,
-  testFirst = process.env.KRN_TEST_FIRST !== '0',
+  testFirst = process.env.KRN_TEST_FIRST !== '0' &&
+    armOn(findContract(repo)?.contract, 'red-first'),
 ): string {
   const rules = baseWorkerRules(repo);
   return testFirst ? `${rules}\n- ${TEST_FIRST_RULE}` : rules;
@@ -106,7 +107,9 @@ export function laneBrief(
     findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';
   // The frozen FR-40 carrier (holdout false) stays byte-stable: no clause section.
   const clauses =
-    holdout && process.env.KRN_ACCEPTANCE_CLAUSES !== '0'
+    holdout &&
+    process.env.KRN_ACCEPTANCE_CLAUSES !== '0' &&
+    armOn(findContract(repo)?.contract, 'clauses')
       ? clauseSection(
           statedBody(brief),
           isBugBody(statedBody(brief)) ? callSiteSweep(repo, brief) : [],
