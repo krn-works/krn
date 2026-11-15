@@ -1,7 +1,11 @@
 {
   "id": "t-1dtcrj8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evals/standards-audit.md: 2 false-red records (4 cells) narrowed with regression tests in test/cli/standards.test.ts; rerun shows 0 false-red"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Brain audit against the adopted public rows",

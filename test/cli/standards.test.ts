@@ -1027,3 +1027,65 @@ test('standards check --record judges one record whatever else is red and fails 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+const checkRecord = (root: string, id: string) =>
+  spawnSync(
+    process.execPath,
+    [cli, 'standards', 'check', '--root', root, '--record', id],
+    { encoding: 'utf8', cwd: tmpdir() },
+  );
+
+test('s-semantic-commits judges the commits since krn was adopted, not the upstream history before it', () => {
+  const root = repository({ 'README.md': '# probe\n' });
+  const commit = (message: string) =>
+    git(
+      root,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '--allow-empty',
+      '-qm',
+      message,
+    );
+  try {
+    commit('Initial import of upstream');
+    writeFileSync(join(root, 'krn.json'), '{"tracker":"krn"}\n');
+    git(root, 'add', '-A');
+    commit('chore: adopt krn');
+    const adopted = checkRecord(root, 's-semantic-commits');
+    assert.equal(adopted.status, 0, adopted.stderr + adopted.stdout);
+    commit('wip stuff');
+    assert.equal(checkRecord(root, 's-semantic-commits').status, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('s-php-composer-lock asks for a lock only from a project that declares Composer packages', () => {
+  const library = repository({
+    'composer.json': JSON.stringify({
+      name: 'a/b',
+      require: { php: '^8.0', 'ext-json': '*' },
+      suggest: { 'psr/http-message': 'interfaces' },
+    }),
+  });
+  try {
+    const done = checkRecord(library, 's-php-composer-lock');
+    assert.equal(done.status, 0, done.stderr + done.stdout);
+  } finally {
+    rmSync(library, { recursive: true, force: true });
+  }
+  const dependent = repository({
+    'composer.json': JSON.stringify({
+      name: 'a/b',
+      require: { php: '^8.0', 'psr/log': '^3.0' },
+    }),
+  });
+  try {
+    assert.equal(checkRecord(dependent, 's-php-composer-lock').status, 1);
+  } finally {
+    rmSync(dependent, { recursive: true, force: true });
+  }
+});

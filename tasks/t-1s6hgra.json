@@ -1,0 +1,12 @@
+{
+  "id": "t-1s6hgra",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Public outside rows adopt fully (Stop hook and .krn ignore) so the delivery records measure real gaps",
+  "after": [],
+  "body": [
+    "evals/standards-audit.md: s-agent-state and s-finish-gate fail on every public row because rows hold only krn.json. The php row has no test, so krn adopt refuses; give it a real test or adopt with --no-canary. Owner of the row builder: scripts/outside-acceptance.ts."
+  ]
+}

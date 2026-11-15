@@ -818,7 +818,7 @@
     "layer": "universal",
     "audience": "worker",
     "tier": "reflex",
-    "text": "A PHP project that declares Composer dependencies tracks its composer.lock.",
+    "text": "A PHP project that declares Composer packages tracks its composer.lock.",
     "why": "Without the lock every checkout resolves WordPress, plugins and libraries afresh, so a green run says nothing about the next install.",
     "applies": {
       "stacks": ["php"],
@@ -828,7 +828,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "[ ! -f composer.json ] || git ls-files --error-unmatch composer.lock >/dev/null 2>&1"
+      "run": "[ ! -f composer.json ] || ! node -e 'const c=JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\"));const d=Object.keys({...c.require,...c[\"require-dev\"]}).filter(k=>!/^(php|php-.*|ext-.*|lib-.*|composer(-.*)?)$/.test(k));process.exit(d.length?0:1)' || git ls-files --error-unmatch composer.lock >/dev/null 2>&1"
     },
     "provenance": {
       "origin": "krn pack",
@@ -982,7 +982,7 @@
     "layer": "universal",
     "audience": "worker",
     "tier": "reflex",
-    "text": "Commit subjects are semantic: `type(scope): outcome` with a conventional type such as feat, fix, docs, chore or refactor.",
+    "text": "Commit subjects since the repository adopted krn are semantic: `type(scope): outcome` with a conventional type such as feat, fix, docs, chore or refactor.",
     "why": "A typed subject lets history, changelogs and review tooling classify a change without reading its diff.",
     "applies": {
       "stacks": [],
@@ -992,7 +992,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || ! git log --no-merges -n 20 --format=%s | grep -vE '^(Revert \"|(feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\\([^)]+\\))?!?: )' | grep -q ."
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || ! { a=$(git log --diff-filter=A --format=%H -- krn.json 2>/dev/null | tail -1); git log --no-merges -n 20 --format=%s ${a:+$a..HEAD}; } | grep -vE '^(Revert \"|(feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\\([^)]+\\))?!?: )' | grep -q ."
     },
     "provenance": {
       "origin": "krn pack",
