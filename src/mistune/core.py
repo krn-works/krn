@@ -129,6 +129,7 @@ class InlineState:
         self.tokens: List[Dict[str, Any]] = []
         self.in_image = False
         self.in_link = False
+        self.image_depth = 0
         self.no_close_bracket_before: int = 0  # high-water mark for DoS mitigation
         self.no_link_before: int = 0  # high-water mark for failed balanced link candidates
         self.link_brackets: Dict[int, Tuple[str, Dict[int, int]]] = {}
@@ -146,6 +147,7 @@ class InlineState:
         state = self.__class__(self.env)
         state.in_image = self.in_image
         state.in_link = self.in_link
+        state.image_depth = self.image_depth
         state.link_brackets = self.link_brackets
         return state
 
