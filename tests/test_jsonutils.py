@@ -97,3 +97,18 @@ def test_jsonl_relative_seek_binary_matches_text(tmp_path):
     path.write_bytes(b'{"n": 1}\n{"n": 2}\n{"n": 3}\n')
     with path.open('rb') as binary, path.open() as text:
         assert list(JSONLIterator(binary, rel_seek=0.4)) == list(JSONLIterator(text, rel_seek=0.4))
+
+
+def test_reverse_iter_lines_text_encoding_and_stream_usable(tmp_path):
+    path = tmp_path / 'latin.txt'
+    path.write_bytes('caf\xe9\nna\xefve\n'.encode('latin-1'))
+    with open(path, encoding='latin-1') as fo:
+        assert list(reverse_iter_lines(fo)) == ['', 'na\xefve', 'caf\xe9']
+        fo.seek(0)
+        assert fo.read() == 'caf\xe9\nna\xefve\n'
+
+
+def test_reverse_iter_lines_binary_with_encoding():
+    import io
+    bio = io.BytesIO('a\xe9\nb\xe9'.encode('latin-1'))
+    assert list(reverse_iter_lines(bio, encoding='latin-1')) == ['b\xe9', 'a\xe9']
