@@ -1,7 +1,11 @@
 {
   "id": "t-0vrv0t1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "promotion fixed in bytes.go and bigbytes.go"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "go-humanize prints 1000 kB instead of 1.0 MB for a rounded byte count",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "go test ./...",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

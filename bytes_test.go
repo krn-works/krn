@@ -1,6 +1,8 @@
 package humanize
 
 import (
+	"math"
+	"math/big"
 	"testing"
 )
 
@@ -116,13 +118,13 @@ func TestBytes(t *testing.T) {
 
 		{"bytes(1024)", Bytes(1024), "1.0 kB"},
 		{"bytes(9999)", Bytes(9999), "10 kB"},
-		{"bytes(1MB - 1)", Bytes(MByte - Byte), "1000 kB"},
+		{"bytes(1MB - 1)", Bytes(MByte - Byte), "1.0 MB"},
 
 		{"bytes(1MB)", Bytes(1024 * 1024), "1.0 MB"},
-		{"bytes(1GB - 1K)", Bytes(GByte - KByte), "1000 MB"},
+		{"bytes(1GB - 1K)", Bytes(GByte - KByte), "1.0 GB"},
 
 		{"bytes(1GB)", Bytes(GByte), "1.0 GB"},
-		{"bytes(1TB - 1M)", Bytes(TByte - MByte), "1000 GB"},
+		{"bytes(1TB - 1M)", Bytes(TByte - MByte), "1.0 TB"},
 		{"bytes(10MB)", Bytes(9999 * 1000), "10 MB"},
 
 		{"bytes(1TB)", Bytes(TByte), "1.0 TB"},
@@ -148,13 +150,13 @@ func TestBytes(t *testing.T) {
 		{"bytes(1023)", IBytes(1023), "1023 B"},
 
 		{"bytes(1024)", IBytes(1024), "1.0 KiB"},
-		{"bytes(1MB - 1)", IBytes(MiByte - IByte), "1024 KiB"},
+		{"bytes(1MB - 1)", IBytes(MiByte - IByte), "1.0 MiB"},
 
 		{"bytes(1MB)", IBytes(1024 * 1024), "1.0 MiB"},
-		{"bytes(1GB - 1K)", IBytes(GiByte - KiByte), "1024 MiB"},
+		{"bytes(1GB - 1K)", IBytes(GiByte - KiByte), "1.0 GiB"},
 
 		{"bytes(1GB)", IBytes(GiByte), "1.0 GiB"},
-		{"bytes(1TB - 1M)", IBytes(TiByte - MiByte), "1024 GiB"},
+		{"bytes(1TB - 1M)", IBytes(TiByte - MiByte), "1.0 TiB"},
 
 		{"bytes(1TB)", IBytes(TiByte), "1.0 TiB"},
 		{"bytes(1PB - 1T)", IBytes(PiByte - TiByte), "1023 TiB"},
@@ -184,5 +186,68 @@ func BenchmarkParseBytes(b *testing.B) {
 func BenchmarkBytes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Bytes(16.5 * GByte)
+	}
+}
+
+func TestBytesPromotionClause1(t *testing.T) {
+	if got := Bytes(1000*1000 - 1); got != "1.0 MB" {
+		t.Errorf("Bytes = %q", got)
+	}
+	if got := IBytes(1024*1024 - 1); got != "1.0 MiB" {
+		t.Errorf("IBytes = %q", got)
+	}
+}
+
+func TestBytesPromotionClause2(t *testing.T) {
+	if got := IBytesN(1024*1024-1, 4); got != "1.000 MiB" {
+		t.Errorf("IBytesN = %q", got)
+	}
+	if got := bbyte(1000*1000 - 1); got != "1.0 MB" {
+		t.Errorf("BigBytes = %q", got)
+	}
+	if got := bibyte(1024*1024 - 1); got != "1.0 MiB" {
+		t.Errorf("BigIBytes = %q", got)
+	}
+}
+
+func TestBytesPromotionClause3(t *testing.T) {
+	if got := BytesN(999500, 3); got != "1.00 MB" {
+		t.Errorf("BytesN = %q", got)
+	}
+}
+
+func TestBytesPromotionClause4(t *testing.T) {
+	if got := Bytes(999499); got != "999 kB" {
+		t.Errorf("Bytes = %q", got)
+	}
+	if got := bbyte(999499); got != "999 kB" {
+		t.Errorf("BigBytes = %q", got)
+	}
+}
+
+func TestBytesPromotionClause5(t *testing.T) {
+	if got := Bytes(math.MaxUint64); got != "18 EB" {
+		t.Errorf("Bytes = %q", got)
+	}
+}
+
+func TestBytesPromotionClause6(t *testing.T) {
+	if got := Bytes(999999999); got != "1.0 GB" {
+		t.Errorf("Bytes = %q", got)
+	}
+}
+
+func TestBytesPromotionClause7(t *testing.T) {
+	if got := bbyte(999999999); got != "1.0 GB" {
+		t.Errorf("BigBytes = %q", got)
+	}
+	if got := BigBytes(new(big.Int).Sub(BigQByte, big.NewInt(1))); got == "" {
+		t.Error("empty")
+	}
+}
+
+func TestBytesPromotionClause8(t *testing.T) {
+	if got := BytesN(999999, 5); got != "1.0000 MB" {
+		t.Errorf("BytesN = %q", got)
 	}
 }

@@ -108,13 +108,13 @@ func TestBigBytes(t *testing.T) {
 		{"bytes(999)", bbyte(999), "999 B"},
 
 		{"bytes(1024)", bbyte(1024), "1.0 kB"},
-		{"bytes(1MB - 1)", bbyte(MByte - Byte), "1000 kB"},
+		{"bytes(1MB - 1)", bbyte(MByte - Byte), "1.0 MB"},
 
 		{"bytes(1MB)", bbyte(1024 * 1024), "1.0 MB"},
-		{"bytes(1GB - 1K)", bbyte(GByte - KByte), "1000 MB"},
+		{"bytes(1GB - 1K)", bbyte(GByte - KByte), "1.0 GB"},
 
 		{"bytes(1GB)", bbyte(GByte), "1.0 GB"},
-		{"bytes(1TB - 1M)", bbyte(TByte - MByte), "1000 GB"},
+		{"bytes(1TB - 1M)", bbyte(TByte - MByte), "1.0 TB"},
 
 		{"bytes(1TB)", bbyte(TByte), "1.0 TB"},
 		{"bytes(1PB - 1T)", bbyte(PByte - TByte), "999 TB"},
@@ -132,13 +132,13 @@ func TestBigBytes(t *testing.T) {
 		{"bytes(1023)", bibyte(1023), "1023 B"},
 
 		{"bytes(1024)", bibyte(1024), "1.0 KiB"},
-		{"bytes(1MB - 1)", bibyte(MiByte - IByte), "1024 KiB"},
+		{"bytes(1MB - 1)", bibyte(MiByte - IByte), "1.0 MiB"},
 
 		{"bytes(1MB)", bibyte(1024 * 1024), "1.0 MiB"},
-		{"bytes(1GB - 1K)", bibyte(GiByte - KiByte), "1024 MiB"},
+		{"bytes(1GB - 1K)", bibyte(GiByte - KiByte), "1.0 GiB"},
 
 		{"bytes(1GB)", bibyte(GiByte), "1.0 GiB"},
-		{"bytes(1TB - 1M)", bibyte(TiByte - MiByte), "1024 GiB"},
+		{"bytes(1TB - 1M)", bibyte(TiByte - MiByte), "1.0 TiB"},
 
 		{"bytes(1TB)", bibyte(TiByte), "1.0 TiB"},
 		{"bytes(1PB - 1T)", bibyte(PiByte - TiByte), "1023 TiB"},

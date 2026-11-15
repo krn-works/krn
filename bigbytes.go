@@ -2,6 +2,7 @@ package humanize
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 	"unicode"
@@ -115,6 +116,10 @@ func humanateBigBytes(s, base *big.Int, sizes []string) string {
 	}
 	c := (&big.Int{}).Set(s)
 	val, mag := oomm(c, base, len(sizes)-1)
+	if val >= 10 && math.Floor(val+0.5) >= float64(base.Int64()) && mag < len(sizes)-1 {
+		val = 1
+		mag++
+	}
 	suffix := sizes[mag]
 	f := "%.0f %s"
 	if val < 10 {

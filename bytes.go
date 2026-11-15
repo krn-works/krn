@@ -93,6 +93,16 @@ func humanateBytes(s uint64, base float64, minDigits int, sizes []string) string
 	rounding := math.Pow10(digits)
 	val = math.Floor(val*rounding+0.5) / rounding
 
+	// Rounding may have reached the size of the next unit (e.g. 999.6 kB
+	// -> 1000 kB): print it in that unit with that unit's precision.
+	if val >= base && int(e) < len(sizes)-1 {
+		e++
+		suffix = sizes[int(e)]
+		val = 1
+		intDigits = 1
+		digits = max(minDigits-1, 0)
+	}
+
 	// Rounding may have carried into an additional integer digit (e.g.
 	// 9.996 -> 10.0), which means fewer decimal places should be shown
 	// than originally computed.
