@@ -1,0 +1,14 @@
+{
+  "id": "t-4f3r63r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 3,
+  "title": "Make standard s-release-notes pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-release-notes` no longer fails s-release-notes.",
+    "Why: adoption found this finish standard failing: exit 1 from if [ -s package.json ] && node -e 'let p={};try{p=JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\"))}catch{}process.exit(p.private===true...",
+    "Proof: `krn standards check --record s-release-notes`"
+  ]
+}
