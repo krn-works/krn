@@ -1,7 +1,11 @@
 {
   "id": "t-dy9de9n",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship merges directly on the verbatim 'Auto merge is not allowed for this repository' refusal; test red at base, green after"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Ship merges when the repository refuses auto-merge",

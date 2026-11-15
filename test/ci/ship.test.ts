@@ -694,6 +694,17 @@ test('a base with no branch protection rule merges the PR directly when auto-mer
   assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
 
+test('clause 5 and clause 8: a repository that disallows auto-merge gets a direct merge (verbatim 1115i refusal)', async () => {
+  const r = receiver({
+    pulls: [merged],
+    autoRefusal:
+      'GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+});
+
 test('any other auto-merge refusal still fails the ship', async () => {
   const r = receiver({ pulls: [merged], autoRefusal: 'GraphQL: not allowed' });
   await assert.rejects(shipCommand(args, r), /not allowed/u);
