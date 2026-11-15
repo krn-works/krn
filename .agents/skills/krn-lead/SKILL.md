@@ -22,7 +22,7 @@ Your context window is the scarcest resource: accuracy drops as inputs grow and 
 
 The operator grant ("wypierdol bramki po prostu koduj") covers this repository; never wait on the operator.
 
-1. **Resume.** SessionStart injects the handoff and its task: run its Verify, `timeout 30 git fetch --prune`, open PRs; never cat handoff, capsule, task or PR template. Lanes: `docs/program/lead-rules.md`.
+1. **Resume.** SessionStart injects the handoff and its task: run its Verify, `timeout 30 git fetch --prune`, open PRs; never cat handoff, capsule, task or PR template. Lanes: `docs/program/lead-rules.md`. Fable plan requests: `docs/program/fable-plan-brief.md` (attach `krn ledger --predictions`; one `Predicted:` line per slice).
    SessionStart injects the capability index (`docs/generated/capability-index.md`): before calling anything foreign, unknown or missing, grep the index and src; fast regenerates it.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Edit only this repository unless the operator asks otherwise. Say what you defer. `krn lane start <slug> --task <id> --actor lead` fetches, creates the worktree, claims.
 3. **Code** in that worktree, yourself. Commit with `Ticket: <id>` when a task exists and `krn task close <id> --as done --note <text>` in the same PR (`Refs: <id>` if the PR leaves it open). Task notes: `krn task edit <id> --append-body`, not `krn task comment`. Batch fixes into one PR.
