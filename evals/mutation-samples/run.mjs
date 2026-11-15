@@ -63,33 +63,40 @@ const modules = [
     ],
   },
   {
-    file: 'src/cli/lane-run.ts',
-    test: 'test/cli/lane-run.test.ts',
+    file: 'src/outcome/ledger.ts',
+    test: 'test/outcome/ledger.test.ts',
     mutants: [
       [
-        'the session timeout may exceed the token life',
-        'Math.min(wanted, defaultSessionTimeoutMs)',
-        'Math.max(wanted, defaultSessionTimeoutMs)',
+        'a negative duration is reported instead of unknown',
+        'b === null || b < a ? null',
+        'b === null || b > a ? null',
       ],
       [
-        'a failed token mint reads as success',
-        'if (result.status === 0) return undefined;',
-        'if (result.status !== 0) return undefined;',
+        'a duplicate ledger row counts again',
+        'if (seen.has(hash)) return false;',
+        'if (seen.has(hash)) return true;',
       ],
+    ],
+  },
+  {
+    file: 'src/task/claims.ts',
+    test: 'test/task/claims.test.ts',
+    mutants: [
       [
-        'a lane with no commit goes on to ship',
-        "commits.length === 0) return await stop('no commit')",
-        "commits.length === 99) return await stop('no commit')",
+        'a live claim is taken over without --takeover',
+        'if (!options.takeover) throw heldClaimError(current);',
+        'if (options.takeover) throw heldClaimError(current);',
       ],
+    ],
+  },
+  {
+    file: 'src/state/check.ts',
+    test: 'test/state/state.test.ts',
+    mutants: [
       [
-        'an open task no longer stops the ship',
-        "getTask(started.path, task).status !== 'closed'",
-        "getTask(started.path, task).status === 'closed'",
-      ],
-      [
-        'a merged ship exits as not delivered',
-        'exitCode: merged ? 0 : exitNoDelivery',
-        'exitCode: merged ? exitNoDelivery : 0',
+        'a divergent state reads as clean',
+        "errors.length > 0\n        ? 'divergent'",
+        "errors.length < 0\n        ? 'divergent'",
       ],
     ],
   },
@@ -126,3 +133,6 @@ for (const file of new Set(rows.map((row) => row.file))) {
   const killed = own.filter((row) => row.killed).length;
   console.log(`${file}: ${killed}/${own.length} killed`);
 }
+console.log(
+  `killed/total: ${rows.filter((row) => row.killed).length}/${rows.length}`,
+);

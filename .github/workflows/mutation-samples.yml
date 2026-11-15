@@ -1,0 +1,31 @@
+name: Mutation samples
+
+# Weekly sample of hand mutations over the critical modules. It is not part of
+# the required `Check` aggregate and never runs on pull requests.
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation-samples:
+    name: Mutation samples
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up KRN CI
+        uses: ./.github/actions/setup-ci
+        with:
+          isolation: 'true'
+
+      - name: Run the mutation samples
+        run: |
+          node evals/mutation-samples/run.mjs | tee "$RUNNER_TEMP/mutation.log"
+          grep -E '^killed/total: ' "$RUNNER_TEMP/mutation.log" >> "$GITHUB_STEP_SUMMARY"
