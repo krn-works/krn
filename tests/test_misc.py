@@ -333,3 +333,31 @@ class TestMiscCases(TestCase):
 
         pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
         self.assertIn('mistune = "mistune.__main__:cli"', pyproject)
+
+
+class TestImageDepthLimit(TestCase):
+    NESTED = "![" * 1000 + "a" + "](u)" * 1000
+
+    def _check(self, src, renderer):
+        import time
+
+        md = mistune.create_markdown(renderer=renderer)
+        start = time.time()
+        md(src)
+        self.assertLess(time.time() - start, 5)
+
+    def test_nested_images_finish_quickly(self):
+        for renderer in ("html", "ast"):
+            self._check(self.NESTED, renderer)
+            self._check("[" + self.NESTED + "](u)", renderer)
+
+    def test_max_image_depth_setting(self):
+        self.assertEqual(mistune.InlineParser().max_image_depth, 6)
+        self.assertEqual(mistune.create_markdown().inline.max_image_depth, 6)
+        md = mistune.Markdown(inline=mistune.InlineParser(max_image_depth=2))
+        self.assertEqual(md.inline.max_image_depth, 2)
+        tokens = md("![![![a](u)](u)](u)")
+        image = tokens[0]["children"][0]
+        self.assertEqual(image["type"], "image")
+        self.assertEqual(image["children"][0]["type"], "image")
+        self.assertEqual(image["children"][0]["children"][0]["type"], "text")
