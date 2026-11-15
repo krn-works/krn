@@ -1,0 +1,19 @@
+{
+  "id": "t-0u2jkay",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Several ordered multi-dict and one-to-one / many-to-many mapping operations misbehave",
+  "after": [],
+  "body": [
+    "Bugs seen in boltons mapping types: (1) OrderedMultiDict([(None, None)]) compares equal to OrderedMultiDict([(None, None), (None, None)]), also for QueryParamDict. (2) update() with an iterable that repeats a key not yet present keeps only one of its values: update([('a', 1), ('a', 3)]) gives getlist('a') == [1] or worse, not [1, 3]. (3) OneToOne.update(iter([...])) with a one-shot iterator misses entries, and an unhashable value part way through the input leaves the mapping half updated instead of unchanged with a TypeError. (4) oto |= {'c': 2, 'd': 1} does not update in place with the inverse kept consistent. (5) ManyToMany.add('new', []) with an unhashable value raises TypeError but leaves a stray key behind. (6) ManyToMany(other) copy shares state with the original, so adding to the copy changes the original. (7) ManyToMany.replace('a', 'new') where 'new' already exists loses or mixes up its values."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
