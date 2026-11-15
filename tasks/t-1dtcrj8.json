@@ -1,0 +1,12 @@
+{
+  "id": "t-1dtcrj8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Brain audit against the adopted public rows",
+  "after": [],
+  "body": [
+    "Why: Fable 1115a slice 5; nothing shows the served standards are right for outside repos.\nOutcome: krn standards check on each adopted public row; any accepted record red on base or never applying across rows is narrowed or retired.\nProof: per-record applies/pass table by row, zero false-red records. Free."
+  ]
+}
