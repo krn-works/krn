@@ -321,6 +321,14 @@ function buildLitter(commands: string): string[] {
       ? ['__pycache__/']
       : []),
     ...(/\bcargo\b/u.test(commands) ? ['target/'] : []),
+    // What the contract install writes into every worktree.
+    ...(/\bpip3?\s+install\b[^&|;]*(?:-e\b|\s\.(?:\s|$))/u.test(commands)
+      ? ['*.egg-info/']
+      : []),
+    ...(/\bcomposer\s+install\b/u.test(commands) ? ['vendor/'] : []),
+    ...(/\b(?:npm|pnpm|yarn|bun)\s+(?:ci|install)\b/u.test(commands)
+      ? ['node_modules/']
+      : []),
   ];
 }
 
