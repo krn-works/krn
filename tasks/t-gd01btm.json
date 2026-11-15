@@ -1,0 +1,14 @@
+{
+  "id": "t-gd01btm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-ci-runs-tests pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-ci-runs-tests` no longer fails s-ci-runs-tests.",
+    "Why: adoption found this reflex standard failing: exit 1 from ci=$(cat .github/workflows/*.yml .github/workflows/*.yaml .gitlab-ci.yml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE 'pull_request|merge_request' &...",
+    "Proof: `krn standards check --record s-ci-runs-tests`"
+  ]
+}
