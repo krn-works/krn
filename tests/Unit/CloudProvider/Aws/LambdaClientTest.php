@@ -282,4 +282,87 @@ class LambdaClientTest extends TestCase
 
         (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->resizeAttachmentImage($post, 42, 24);
     }
+
+    private function expectPhpCommand(string $expected): LambdaClient
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->anything(),
+                 $this->callback(function (array $args) use ($expected) {
+                     return json_decode($args['body'], true)['php'] === $expected;
+                 })
+             )
+             ->willReturn(['body' => '{"output": "Success: ok"}']);
+
+        return new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', "https://foo.bar/it's");
+    }
+
+    public function testRunWpCliCommandQuotesSiteUrlAndKeepsMultibyteText(): void
+    {
+        $client = $this->expectPhpCommand("bin/wp ymir x --url='https://foo.bar/it'\\''s'");
+        $client->runWpCliCommand('ymir x');
+    }
+
+    public function testRunWpCliCommandQuotesExplicitSiteUrlWithMultibyteText(): void
+    {
+        $client = $this->expectPhpCommand("bin/wp ymir x --url='https://foo.bar/żółć'");
+        $client->runWpCliCommand('ymir x', false, 'https://foo.bar/żółć');
+    }
+
+    public function testCreateCroppedAttachmentImageQuotesOptionValues(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->anything(),
+                 $this->callback(function (array $args) {
+                     return json_decode($args['body'], true)['php'] === "bin/wp ymir create-cropped-image 4 --width='1' --height='2' --x='3' --y='4' --context='a'\\''; rm -rf /; '\\''b' --url='https://foo.bar'";
+                 })
+             )
+             ->willReturn(['body' => '{"output": "Success: Created with ID 9"}']);
+
+        $client = new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar');
+
+        $this->assertSame(9, $client->createCroppedAttachmentImage(4, 1, 2, 3, 4, "a'; rm -rf /; 'b"));
+    }
+
+    public function testRunWpCliCommandRejectsNullByteInSiteUrl(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->runWpCliCommand('ymir x', false, "https://foo\0.bar");
+    }
+
+    public function testCreateCroppedAttachmentImageRejectsNullByteInOption(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->createCroppedAttachmentImage(4, 1, 2, 3, 4, "a\0b");
+    }
+
+    public function testEditAttachmentImageRejectsInvalidJson(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The given image "changes" must be valid JSON');
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->editAttachmentImage(4, "[{'r':90}]");
+    }
+
+    public function testEditAttachmentImageQuotesChangesContainingSingleQuote(): void
+    {
+        $client = $this->expectPhpCommand("bin/wp ymir edit-attachment-image 4 '[{\"r\":\"it'\\''s\"}]' --apply='all' --url='https://foo.bar/it'\\''s'");
+        $client->editAttachmentImage(4, '[{"r":"it\'s"}]');
+    }
 }
