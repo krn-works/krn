@@ -1014,6 +1014,28 @@ test('test-first: a test red at the base that is not green on head is refused', 
   }
 });
 
+for (const file of ['tests/GetInTest.php', 'test/parse-link-header.js']) {
+  test(`test-first: ${file} counts as a changed test, so a base-red one is accepted`, () => {
+    const dir = clone();
+    try {
+      mkdirSync(join(dir, file.split('/')[0] as string), { recursive: true });
+      writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+      writeFileSync(join(dir, file), 'plain test body\n');
+      sh(dir, 'add', '.');
+      sh(dir, 'commit', '-q', '-m', 'change');
+      const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+      const green = () => [];
+      const refused = judgeStop(payload(dir), env, green) ?? '';
+      assert.doesNotMatch(refused, /no test file changed/u);
+      assert.match(refused, /no changed test fails at the base/u);
+      const baseRed = (root: string) => (root === dir ? [] : [`${file}::t`]);
+      assert.equal(judgeStop(payload(dir), env, baseRed), undefined);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
 test('without KRN_TEST_FIRST a green branch with no base-red test still ends', () => {
   const dir = clone();
   try {

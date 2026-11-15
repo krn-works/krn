@@ -619,7 +619,10 @@ export function findContract(root: string): ResolvedContract | undefined {
   const detected = needsDetection ? detectStack(root) : undefined;
   const test = declared?.test ?? detected?.test;
   if (test === undefined) return undefined;
-  const related = declared?.related ?? detected?.related;
+  // A detected related command belongs to the detected test command, like install: a declared test runs through its own runner.
+  const related =
+    declared?.related ??
+    (declared?.test === undefined ? detected?.related : undefined);
   // A declared command is the operator's word; a detected workspace fallback with no member tests is vacuous.
   const vacuous =
     declared?.vacuous ??

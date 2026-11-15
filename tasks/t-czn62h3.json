@@ -1,7 +1,11 @@
 {
   "id": "t-czn62h3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "arm measured: K 3/3 hidden, K+test-first 3/3 hidden, /usr/bin/bash.38 each; no clear signal so opt-in; replay found and fixed two test-first hook defects"
+  },
   "created": "2026-11-12",
   "priority": 2,
   "title": "A worker proves a failing reproduction test before its fix and ends on green",

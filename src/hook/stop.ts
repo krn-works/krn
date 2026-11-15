@@ -67,6 +67,8 @@ const TEST_FILE = [
   /(?:^|\/)test_[^/]+\.py$/u,
   /_test\.(?:py|go)$/u,
   /_spec\.rb$/u,
+  /Test\.php$/u,
+  /(?:^|\/)tests?\/[^/]+\.[cm]?js$/u,
 ];
 const SPECIFIER =
   /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"]+)\1/gu;
