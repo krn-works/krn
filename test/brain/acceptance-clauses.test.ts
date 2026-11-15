@@ -249,9 +249,16 @@ test('a runner script directly under tests/ is a test file in php, python and js
     'test/run.py',
     'tests/run.js',
     'pkg/tests/run.php',
+    // Outside rust row 1115k3: a Rust integration test.
+    'tests/test_downcast.rs',
   ])
     assert.equal(isTestFile(path), true, path);
-  for (const path of ['src/run.php', 'tests/fixtures/data.php', 'run.py'])
+  for (const path of [
+    'src/run.php',
+    'tests/fixtures/data.php',
+    'run.py',
+    'src/lib.rs',
+  ])
     assert.equal(isTestFile(path), false, path);
 });
 

@@ -1,0 +1,16 @@
+{
+  "id": "t-zswmrjr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "TEST_FILE counts tests/<file>.rs; regression case tests/test_downcast.rs red before (fail 1), green after; rust outside row reruns after merge."
+  },
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "A Rust integration test under tests/ counts as a test file",
+  "after": [],
+  "body": [
+    "Source: outside rust row 1115k3 on 3e791ad (.krn/runs/outside/summary.txt, rust.log)\nWhy: the lane committed tests/test_downcast.rs and Stop answered no changed test file: TEST_FILE counts tests/<file> only for js, php and py, so a Rust integration test is no test file and the row ended 73.\nOutcome: a .rs file directly under tests/ counts as a test file for Stop and the lane proof.\nProof: regression test on tests/test_downcast.rs red before, green after; rust outside row drains 0 on the merged head.\nPredicted: outside drain == 0 in >= 1 rows"
+  ]
+}
