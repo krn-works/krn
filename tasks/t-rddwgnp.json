@@ -1,0 +1,12 @@
+{
+  "id": "t-rddwgnp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "npm run fast runs the tree-wide rule tests a new file or hook trips",
+  "after": [],
+  "body": [
+    "Source: PR for t-ctnaq2e, Check run 43741060768: five tests failed in CI that `npm run fast` passed locally (test/rules/context-budget.test.ts, test/tool-scope.test.ts boundaries BINARIES, test/cli/hook.test.ts, test/rules/host-path-guard.test.mjs, test/import-boundary.test.ts) after adding src/hook/edit-standards.ts, a PreToolUse entry in .claude/settings.json and a new fixture.\nWhy: fast's related-test selection misses the rule tests that read every file of the tree, so a new src module, hook or fixture costs one red CI round (~15 min) each time.\nOutcome: `npm run fast` runs the tree-wide rule tests (boundaries over untracked files, host-path guard, receivers registry, context-budget when .claude/settings.json changes, cli usage tests when src/cli/hook.ts changes) whenever a file is added or settings change.\nFiles: scripts/fast-check.ts, test/scripts/fast-check.test.ts\nProof: replaying the t-ctnaq2e first commit (cad4c51) through fast reports FAIL naming the five tests.\nPredicted: proof stop-refusals <= 1"
+  ]
+}
