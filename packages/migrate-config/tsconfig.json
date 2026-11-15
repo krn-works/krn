@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": ["src/migrate-config-cli.js"],
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "dist/esm"
+  }
+}

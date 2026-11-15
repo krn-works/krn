@@ -1,0 +1,56 @@
+{
+  "name": "@eslint/migrate-config",
+  "version": "3.0.2",
+  "description": "Configuration migration for ESLint",
+  "type": "module",
+  "bin": {
+    "eslint-migrate-config": "./src/migrate-config-cli.js"
+  },
+  "files": [
+    "src"
+  ],
+  "exports": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:coverage": "c8 npm run test:unit",
+    "test:unit": "mocha \"tests/**/*.test.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eslint/rewrite.git",
+    "directory": "packages/migrate-config"
+  },
+  "keywords": [
+    "eslint",
+    "compatibility",
+    "configuration",
+    "config",
+    "eslintplugin",
+    "eslint-plugin"
+  ],
+  "author": "Nicholas C. Zakas",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/eslint/rewrite/issues"
+  },
+  "homepage": "https://github.com/eslint/rewrite/tree/main/packages/migrate-config#readme",
+  "devDependencies": {
+    "@eslint/core": "^1.2.1"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "dependencies": {
+    "@eslint/config-helpers": "^0.7.0",
+    "@eslint/eslintrc": "^3.3.6",
+    "camelcase": "^8.0.0",
+    "espree": "^11.2.0",
+    "recast": "^0.23.7"
+  }
+}

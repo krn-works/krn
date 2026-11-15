@@ -1,0 +1,146 @@
+# Changelog
+
+## [3.0.5](https://github.com/eslint/rewrite/compare/object-schema-v3.0.4...object-schema-v3.0.5) (2026-04-08)
+
+
+### Bug Fixes
+
+* revert re-export ESM types in CommonJS ([#427](https://github.com/eslint/rewrite/issues/427)) ([9b16fe1](https://github.com/eslint/rewrite/commit/9b16fe1af3432e92bdb193a5d1f6c89c4b0e3093))
+
+## [3.0.4](https://github.com/eslint/rewrite/compare/object-schema-v3.0.3...object-schema-v3.0.4) (2026-04-03)
+
+
+### Bug Fixes
+
+* avoid mutating object schema definitions during construction ([#412](https://github.com/eslint/rewrite/issues/412)) ([f0fd9a2](https://github.com/eslint/rewrite/commit/f0fd9a2ff756b9d40699239d9f9ba9a31dac8339))
+* correct ValidationStrategy parameter types ([#406](https://github.com/eslint/rewrite/issues/406)) ([42a30ea](https://github.com/eslint/rewrite/commit/42a30eaae5d42fae1a6b888c7f34f396469c52ae))
+* re-export ESM types in CommonJS ([#416](https://github.com/eslint/rewrite/issues/416)) ([ef16f80](https://github.com/eslint/rewrite/commit/ef16f80b9221c412992a1e9d54b35d155db1b4ed))
+
+## [3.0.3](https://github.com/eslint/rewrite/compare/object-schema-v3.0.2...object-schema-v3.0.3) (2026-03-06)
+
+
+### Bug Fixes
+
+* align `object-schema` `PropertyDefinition` types with runtime ([#372](https://github.com/eslint/rewrite/issues/372)) ([6182ebf](https://github.com/eslint/rewrite/commit/6182ebf7979c96d9d9d763204341b4856105c3ce))
+
+## [3.0.2](https://github.com/eslint/rewrite/compare/object-schema-v3.0.1...object-schema-v3.0.2) (2026-02-19)
+
+
+### Bug Fixes
+
+* tighten types of `MergeStrategy` in `object-schema` ([#348](https://github.com/eslint/rewrite/issues/348)) ([9266041](https://github.com/eslint/rewrite/commit/9266041ba46fe7f19788c0aac9bd13f1691b6ea7))
+
+## [3.0.1](https://github.com/eslint/rewrite/compare/object-schema-v3.0.0...object-schema-v3.0.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* export BuiltInMergeStrategy and BuiltInValidationStrategy types ([#362](https://github.com/eslint/rewrite/issues/362)) ([d9646d6](https://github.com/eslint/rewrite/commit/d9646d69c516d69b551131b84d9503cefaaa5c63))
+
+## [3.0.0](https://github.com/eslint/rewrite/compare/object-schema-v2.1.7...object-schema-v3.0.0) (2025-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Require Node.js ^20.19.0 || ^22.13.0 || >=24 ([#297](https://github.com/eslint/rewrite/issues/297))
+
+### Features
+
+* Require Node.js ^20.19.0 || ^22.13.0 || &gt;=24 ([#297](https://github.com/eslint/rewrite/issues/297)) ([acc623c](https://github.com/eslint/rewrite/commit/acc623c807bf8237a26b18291f04dd99e4e4981a))
+
+## [2.1.7](https://github.com/eslint/rewrite/compare/object-schema-v2.1.6...object-schema-v2.1.7) (2025-10-17)
+
+
+### Bug Fixes
+
+* fix `config-array` and `object-schema` types ([#294](https://github.com/eslint/rewrite/issues/294)) ([a902bc4](https://github.com/eslint/rewrite/commit/a902bc4e27639ba5975b5d793314235737dc2c1a))
+* improve type support for isolated dependencies in pnpm ([#289](https://github.com/eslint/rewrite/issues/289)) ([f8df139](https://github.com/eslint/rewrite/commit/f8df139631694431ecfc651e656932e283d4d14f))
+
+## [2.1.6](https://github.com/eslint/rewrite/compare/object-schema-v2.1.5...object-schema-v2.1.6) (2025-01-31)
+
+
+### Bug Fixes
+
+* CommonJS types in all packages ([#148](https://github.com/eslint/rewrite/issues/148)) ([c91866c](https://github.com/eslint/rewrite/commit/c91866cc9fe16fb62bc48fc1cc7f9e18c6fea013))
+
+## [2.1.5](https://github.com/eslint/rewrite/compare/object-schema-v2.1.4...object-schema-v2.1.5) (2024-12-04)
+
+
+### Bug Fixes
+
+* Update RuleVisitor type ([#135](https://github.com/eslint/rewrite/issues/135)) ([156d601](https://github.com/eslint/rewrite/commit/156d601181deb362a2864c4d47d4e3da8609500b))
+
+## [2.1.4](https://github.com/eslint/rewrite/compare/object-schema-v2.1.3...object-schema-v2.1.4) (2024-06-12)
+
+
+### Bug Fixes
+
+* Add 'main' and 'types' entries to package.json ([#48](https://github.com/eslint/rewrite/issues/48)) ([16ee1fa](https://github.com/eslint/rewrite/commit/16ee1fad998cc654208628ccb06958d29f95a3a5))
+
+## [2.1.3](https://github.com/eslint/rewrite/compare/object-schema-v2.1.2...object-schema-v2.1.3) (2024-05-30)
+
+
+### Bug Fixes
+
+* Update and standardize READMEs ([#33](https://github.com/eslint/rewrite/issues/33)) ([75521f7](https://github.com/eslint/rewrite/commit/75521f7d2e4aac9e77310803e7569d9d5b39869c))
+
+## [2.1.2](https://github.com/eslint/rewrite/compare/object-schema-v2.1.1...object-schema-v2.1.2) (2024-05-30)
+
+
+### Bug Fixes
+
+* npm and JSR package contents ([#16](https://github.com/eslint/rewrite/issues/16)) ([3e9eb67](https://github.com/eslint/rewrite/commit/3e9eb67964327ef908ab27fa0f14990580ec801c))
+
+## [2.1.1](https://github.com/eslint/rewrite/compare/object-schema-v2.1.0...object-schema-v2.1.1) (2024-05-08)
+
+
+### Bug Fixes
+
+* Minor change to trigger new releases ([#13](https://github.com/eslint/rewrite/issues/13)) ([8184402](https://github.com/eslint/rewrite/commit/8184402d5efc8028380cbdd5669f600aea5c050a))
+
+## [2.1.0](https://github.com/eslint/rewrite/compare/object-schema-v2.0.3...object-schema-v2.1.0) (2024-05-08)
+
+### Features
+
+* Add types to config-array ([#3](https://github.com/eslint/rewrite/issues/3)) ([8b80e81](https://github.com/eslint/rewrite/commit/8b80e81cd0613ef1eccd15eacc0dbfad7a689dbf))
+* sync packages meta ([#12](https://github.com/eslint/rewrite/issues/12)) ([27fcd25](https://github.com/eslint/rewrite/commit/27fcd259dab40e4ac1742b5699b74701a6b3660e))
+* tsc + ESM for object-schema ([b865844](https://github.com/eslint/rewrite/commit/b8658440cc6e37e5392f32a33bdefb012bfd4290))
+
+## [2.0.3](https://github.com/humanwhocodes/object-schema/compare/v2.0.2...v2.0.3) (2024-04-01)
+
+
+### Bug Fixes
+
+* Ensure test files are not including in package ([6eeb32c](https://github.com/humanwhocodes/object-schema/commit/6eeb32cc76a3e37d76b2990bd603d72061c816e0)), closes [#19](https://github.com/humanwhocodes/object-schema/issues/19)
+
+## [2.0.2](https://github.com/humanwhocodes/object-schema/compare/v2.0.1...v2.0.2) (2024-01-10)
+
+
+### Bug Fixes
+
+* WrapperError should be an actual error ([2523f01](https://github.com/humanwhocodes/object-schema/commit/2523f014168167e5a40bb63e0cc03231b2c0f1bf))
+
+## [2.0.1](https://github.com/humanwhocodes/object-schema/compare/v2.0.0...v2.0.1) (2023-10-20)
+
+
+### Bug Fixes
+
+* Custom properties should be available on thrown errors ([6ca80b0](https://github.com/humanwhocodes/object-schema/commit/6ca80b001a4ffb678b9b5544fc53322117374376))
+
+## [2.0.0](https://github.com/humanwhocodes/object-schema/compare/v1.2.1...v2.0.0) (2023-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Throw custom errors instead of generics.
+
+### Features
+
+* Throw custom errors instead of generics. ([c6c01d7](https://github.com/humanwhocodes/object-schema/commit/c6c01d71eb354bf7b1fb3e883c40f7bd9b61647c))
+
+### [1.2.1](https://www.github.com/humanwhocodes/object-schema/compare/v1.2.0...v1.2.1) (2021-11-02)
+
+
+### Bug Fixes
+
+* Never return original object from individual config ([5463c5c](https://www.github.com/humanwhocodes/object-schema/commit/5463c5c6d2cb35a7b7948dffc37c899a41d1775f))

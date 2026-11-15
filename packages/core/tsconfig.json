@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": ["src/types.ts"],
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "dist/esm"
+  }
+}
