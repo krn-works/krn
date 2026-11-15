@@ -1,7 +1,11 @@
 {
   "id": "t-4kqzdw0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Clause N: characterizes line plus marked green test is accepted by Stop test-first; PHP outside rows rerun reported by lead"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The PHP column proves on head with a characterization clause",

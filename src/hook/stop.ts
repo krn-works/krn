@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  characterizingTests,
   clauseProof,
   isTestFile,
   LEGACY_TEST,
@@ -810,9 +811,15 @@ function testFirstRefusal(
   );
   const red = redAtBase(root, from, changed, run, shell, contract);
   const characterization = testsOnlyDiff(root, from);
+  const characterizing = new Set(
+    characterizingTests(
+      git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout,
+      new Map(changed.map((file) => [file, safeRead(join(root, file))])),
+    ),
+  );
   const proven = changed.find(
     (file) =>
-      (characterization || red.has(file)) &&
+      (characterization || characterizing.has(file) || red.has(file)) &&
       runTestFile(root, file, run, shell, contract).length === 0,
   );
   if (proven !== undefined) return undefined;
