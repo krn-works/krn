@@ -170,3 +170,18 @@ test('parsing a proper link header with a multi-word rel', function (t) {
   )
   t.end()
 })
+
+test('parsing a link header whose URL contains a semicolon', function (t) {
+  var linkHeader =
+    '<https://imaginary.url.notreal/segment;foo=bar;baz/item?name=What,+me+worry>; rel="next";'
+
+  t.deepEqual(
+      parse(linkHeader)
+    , { next:
+        { rel: 'next',
+          name: 'What, me worry',
+          url: 'https://imaginary.url.notreal/segment;foo=bar;baz/item?name=What,+me+worry' } }
+    , 'keeps the whole URL up to the closing >'
+  )
+  t.end()
+})
