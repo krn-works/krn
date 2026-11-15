@@ -64,6 +64,35 @@ test('fast check runs the repository rule tests for any change', () => {
   assert.deepEqual(selectTests([], withRules), []);
 });
 
+test('fast check runs the tree-wide tests a new src module, script or hook trips', () => {
+  const tree = new Map([
+    ['test/import-boundary.test.ts', ''],
+    ['test/tool-scope.test.ts', ''],
+    ['test/cli/hook.test.ts', ''],
+    ['test/other.test.ts', ''],
+  ]);
+  const edit = [
+    '.claude/settings.json',
+    'spec/receivers.json',
+    'src/hook/edit-standards.ts',
+    'test/hook/fixtures/pretooluse-edit-write-php.jsonl',
+  ];
+  assert.deepEqual(selectTests(edit, tree), [
+    'test/cli/hook.test.ts',
+    'test/import-boundary.test.ts',
+    'test/tool-scope.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['src/task/new.ts'], tree), [
+    'test/import-boundary.test.ts',
+    'test/tool-scope.test.ts',
+  ]);
+  assert.deepEqual(selectTests([], tree, ['src/gone.ts']), [
+    'test/import-boundary.test.ts',
+    'test/tool-scope.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['docs/x.md'], tree), []);
+});
+
 test('fast check selects prose rule tests only when the diff touches prose paths', () => {
   const rules = new Map([
     ['test/rules/host-path-guard.test.mjs', ''],

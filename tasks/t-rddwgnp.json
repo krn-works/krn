@@ -1,7 +1,11 @@
 {
   "id": "t-rddwgnp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "replay of cad4c51 file list through selectTests selects all five tests; test/fast-check.test.ts covers the tree-wide triggers"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "npm run fast runs the tree-wide rule tests a new file or hook trips",
