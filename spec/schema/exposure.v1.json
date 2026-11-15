@@ -4,14 +4,18 @@
   "title": "krn.exposure/v1: one line of .krn/brain/exposures.jsonl",
   "type": "object",
   "required": [
+    "schema",
+    "at",
     "run",
     "task",
     "channel",
+    "attempt",
     "served",
     "withheld",
+    "tokens",
+    "violated",
     "outcome",
-    "lane_ok",
-    "rework"
+    "lane_ok"
   ],
   "additionalProperties": false,
   "properties": {
@@ -47,15 +51,31 @@
     "lane_ok": {
       "type": "boolean"
     },
-    "rework": {
-      "type": "integer",
-      "minimum": 0
-    },
     "scope": {
       "type": "string"
     },
     "proof": {
       "type": "string"
+    },
+    "schema": {
+      "enum": ["krn.exposure/v1"]
+    },
+    "at": {
+      "type": "string"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "violated": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["boolean", "null"]
+      }
     }
   }
 }

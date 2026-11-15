@@ -92,12 +92,11 @@ test('an exposure line the writer produces conforms to krn.exposure/v1, and so d
     served: ['r-a'],
     withheld: [],
     laneOk: true,
-    rework: 0,
     proof: 'p',
   });
   assert.deepEqual(validate(schema('exposure'), written), []);
   const plain =
-    '{"run":"x","task":null,"channel":"session","served":[],"withheld":[],"outcome":{},"lane_ok":true,"rework":0}';
+    '{"schema":"krn.exposure/v1","at":"2026-11-15T10:00:00.000Z","run":"x","task":null,"channel":"session","attempt":1,"served":[],"withheld":[],"tokens":0,"violated":{},"outcome":{},"lane_ok":true}';
   assert.deepEqual(validate(schema('exposure'), JSON.parse(plain)), []);
 });
 
