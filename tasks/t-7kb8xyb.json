@@ -1,0 +1,12 @@
+{
+  "id": "t-7kb8xyb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "krn task create refuses a body that fails a task-quality rule",
+  "after": [],
+  "body": [
+    "Why: lead created t-zdcrewe with krn task create; the task-quality rule measurable-outcome turned main red after #1016 merged (lane npm-row-workflows PR #1017 blocked).\nOutcome: krn task create and krn task edit exit non-zero with the measurable-outcome message when the body violates a task-quality rule, so a bad record never reaches a commit.\nFiles: src/task/cli.ts, src/brain/task-quality.ts, test/cli/task-quality.test.ts or the task cli test.\nProof: a test where create with an unmeasurable Outcome exits non-zero and writes no tasks/*.json; a measurable one exits 0."
+  ]
+}
