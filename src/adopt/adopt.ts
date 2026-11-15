@@ -42,7 +42,12 @@ import {
   symlinkSync,
   writeFileSync,
 } from './journal.ts';
-import { legacyStopCommand, preToolGuards, stopCommand } from './stop-hook.ts';
+import {
+  legacyStopCommand,
+  preToolGuards,
+  sessionCommand,
+  stopCommand,
+} from './stop-hook.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -539,7 +544,7 @@ function readSettings(root: string): Record<string, unknown> {
   }
 }
 
-/** Adds the Stop hook and the worker PreToolUse guards that call `krn hook` (failing closed without krn on PATH), keeping every other setting and hook. */
+/** Adds the SessionStart standards hook, the Stop hook and the worker PreToolUse guards that call `krn hook` (failing closed without krn on PATH), keeping every other setting and hook. */
 function writeHooks(
   root: string,
   settings: Record<string, unknown>,
@@ -571,7 +576,21 @@ function writeHooks(
         matcher: guard.matcher,
         hooks: [{ type: 'command', command: guard.command }],
       } as HookEntry);
-  settings.hooks = { ...hooks, Stop: stop, PreToolUse: pre };
+  const start = Array.isArray(hooks.SessionStart)
+    ? (hooks.SessionStart as HookEntry[])
+    : [];
+  if (
+    !start.some((entry) =>
+      entry.hooks?.some((hook) => hook.command === sessionCommand),
+    )
+  )
+    start.push({ hooks: [{ type: 'command', command: sessionCommand }] });
+  settings.hooks = {
+    ...hooks,
+    SessionStart: start,
+    Stop: stop,
+    PreToolUse: pre,
+  };
   writeIfChanged(
     root,
     relative,

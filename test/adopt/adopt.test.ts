@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { stopCommand } from '../../src/adopt/stop-hook.ts';
+import { sessionCommand, stopCommand } from '../../src/adopt/stop-hook.ts';
 import { lanePacket } from '../../src/brain/worker-packet.ts';
 
 // KRN-12: runs the real `krn adopt` entry against a scratch git repository and
@@ -294,6 +294,8 @@ test('adopt merges the Stop hook into existing settings and writes a vacuous krn
   );
   assert.equal(settings.env.A, '1');
   assert.equal(settings.hooks.Stop.length, 2);
+  assert.equal(settings.hooks.SessionStart.length, 1);
+  assert.equal(settings.hooks.SessionStart[0].hooks[0].command, sessionCommand);
   assert.equal(adoptArgs(root).stdout.includes('wrote '), false);
 });
 

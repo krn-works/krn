@@ -8,12 +8,17 @@ export function guardCommand(name: string): string {
   const what =
     name === 'stop'
       ? 'Stop hook cannot check this tree'
-      : `${name} guard cannot check this call`;
+      : name === 'session'
+        ? 'SessionStart hook cannot serve the standards'
+        : `${name} guard cannot check this call`;
   return `command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN ${what}; put krn on PATH for this session' >&2; exit 2; }; exec krn hook ${name}`;
 }
 
 /** The Stop hook command: refuses the end of a session while the related tests are red. */
 export const stopCommand = guardCommand('stop');
+
+/** The SessionStart hook command: serves the brain's standards that match the session's task. */
+export const sessionCommand = guardCommand('session');
 
 /** The worker guards: tracker and main-checkout writes (scope) and stash-stack changes (stash), with their PreToolUse matchers. */
 export const preToolGuards: readonly { matcher: string; command: string }[] = [
