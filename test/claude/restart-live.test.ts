@@ -17,7 +17,7 @@ const script = fileURLToPath(
 );
 const day = 24 * 60 * 60 * 1000;
 
-test('restart block shows only live claims and counts the hidden ones', () => {
+test('restart block shows only live claims; stale ones never reach the model', () => {
   const root = mkdtempSync(join(tmpdir(), 'restart-live-'));
   const git = (args: string[], cwd = root, env: NodeJS.ProcessEnv = {}) => {
     const result = spawnSync('git', args, {
@@ -103,7 +103,6 @@ test('restart block shows only live claims and counts the hidden ones', () => {
       return JSON.parse(result.stdout).hookSpecificOutput
         .additionalContext as string;
     };
-    const hidden = 'Hidden: 3 idle claims (idle over 24h)';
     const text = run();
     for (const live of ['live-fresh', 'live-busy'])
       assert.ok(text.includes(live), `${live} is shown`);
@@ -113,11 +112,8 @@ test('restart block shows only live claims and counts the hidden ones', () => {
       .join('\n');
     // Dead share of the claim and capsule lines: the task target is below 0.10.
     assert.equal(dead, '', 'idle, gone and undated entries are hidden');
-    assert.ok(
-      text.includes(hidden),
-      'hidden entries are counted, not silently dropped',
-    );
-    // Live entries beyond the 8000-byte budget are truncated; the count survives.
+    assert.ok(!text.includes('Hidden:'), 'stale claims are not even counted');
+    // Live entries beyond the 8000-byte budget are truncated.
     for (let index = 0; index < 200; index += 1)
       writeFileSync(
         join(claims, `live-many-${String(index).padStart(3, '0')}.json`),
@@ -133,7 +129,6 @@ test('restart block shows only live claims and counts the hidden ones', () => {
         truncated.includes('live-many-000'),
     );
     assert.ok(!truncated.includes('live-many-199'), 'the block is truncated');
-    assert.ok(truncated.includes(hidden), 'the count survives truncation');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
