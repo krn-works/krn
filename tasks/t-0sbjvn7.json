@@ -1,7 +1,11 @@
 {
   "id": "t-0sbjvn7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "parse methods return null-prototype maps"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "ConfigCommentParser drops a __proto__ key from its results",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

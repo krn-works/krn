@@ -27,87 +27,122 @@ describe("ConfigCommentParser", () => {
 	describe("parseStringConfig", () => {
 		const comment = {};
 
+		it("should keep __proto__ as an own key on a null-prototype map", () => {
+			const result = commentParser.parseStringConfig(
+				"a:b __proto__:c",
+				comment,
+			);
+
+			assert.strictEqual(Object.getPrototypeOf(result), null);
+			assert.deepStrictEqual(Object.keys(result), ["a", "__proto__"]);
+			assert.strictEqual(result.__proto__, "c");
+		});
+
 		it("should parse String config with one item", () => {
 			const code = "a: true";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: "true",
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: "true",
+				},
+			);
 		});
 
 		it("should parse String config with one item and no value", () => {
 			const code = "a";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: null,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: null,
+				},
+			);
 		});
 
 		it("should parse String config with two items", () => {
 			const code = "a: five b:three";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: "five",
-				b: "three",
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: "five",
+					b: "three",
+				},
+			);
 		});
 
 		it("should parse String config with two comma-separated items", () => {
 			const code = "a: seventy, b:ELEVENTEEN";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: "seventy",
-				b: "ELEVENTEEN",
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: "seventy",
+					b: "ELEVENTEEN",
+				},
+			);
 		});
 
 		it("should parse String config with two comma-separated items and no values", () => {
 			const code = "a , b";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: null,
-				b: null,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: null,
+					b: null,
+				},
+			);
 		});
 
 		it("should return an empty object for an empty string", () => {
 			const code = "";
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {});
+			assert.deepStrictEqual({ ...result }, {});
 		});
 
 		it("should parse string config with one item, no value, and leading whitespace", () => {
 			const code = `${" ".repeat(100000)}a`;
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: null,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: null,
+				},
+			);
 		});
 
 		it("should parse string config with one item, no value, and trailing whitespace", () => {
 			const code = `a${" ".repeat(100000)}`;
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: null,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: null,
+				},
+			);
 		});
 
 		it("should parse string config with two items, no values, and whitespace in the middle", () => {
 			const code = `a${" ".repeat(100000)}b`;
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: null,
-				b: null,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: null,
+					b: null,
+				},
+			);
 		});
 
 		it("should parse string config with multiple items with values separated by commas and lots of whitespace", () => {
@@ -115,65 +150,91 @@ describe("ConfigCommentParser", () => {
 			const code = `a: 1${whitespace},${whitespace}b: 2${whitespace},${whitespace}c: 3${whitespace},${whitespace}d: 4`;
 			const result = commentParser.parseStringConfig(code, comment);
 
-			assert.deepStrictEqual(result, {
-				a: "1",
-				b: "2",
-				c: "3",
-				d: "4",
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: "1",
+					b: "2",
+					c: "3",
+					d: "4",
+				},
+			);
 		});
 	});
 
 	describe("parseListConfig", () => {
+		it("should keep __proto__ as an own key on a null-prototype map", () => {
+			const result = commentParser.parseListConfig("a, __proto__");
+
+			assert.strictEqual(Object.getPrototypeOf(result), null);
+			assert.deepStrictEqual(Object.keys(result), ["a", "__proto__"]);
+			assert.strictEqual(result.__proto__, true);
+		});
+
 		it("should parse list config with one item", () => {
 			const code = "a";
 			const result = commentParser.parseListConfig(code);
 
-			assert.deepStrictEqual(result, {
-				a: true,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: true,
+				},
+			);
 		});
 
 		it("should parse list config with two items", () => {
 			const code = "a, b";
 			const result = commentParser.parseListConfig(code);
 
-			assert.deepStrictEqual(result, {
-				a: true,
-				b: true,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: true,
+					b: true,
+				},
+			);
 		});
 
 		it("should parse list config with two items and extra whitespace", () => {
 			const code = "  a , b  ";
 			const result = commentParser.parseListConfig(code);
 
-			assert.deepStrictEqual(result, {
-				a: true,
-				b: true,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: true,
+					b: true,
+				},
+			);
 		});
 
 		it("should parse list config with quoted items", () => {
 			const code = "'a', \"b\", 'c\", \"d'";
 			const result = commentParser.parseListConfig(code);
 
-			assert.deepStrictEqual(result, {
-				a: true,
-				b: true,
-				"\"d'": true, // This result is correct because used mismatched quotes.
-				"'c\"": true, // This result is correct because used mismatched quotes.
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					a: true,
+					b: true,
+					"\"d'": true, // This result is correct because used mismatched quotes.
+					"'c\"": true, // This result is correct because used mismatched quotes.
+				},
+			);
 		});
 		it("should parse list config with spaced items", () => {
 			const code = " a b , 'c d' , \"e f\" ";
 			const result = commentParser.parseListConfig(code);
 
-			assert.deepStrictEqual(result, {
-				"a b": true,
-				"c d": true,
-				"e f": true,
-			});
+			assert.deepStrictEqual(
+				{ ...result },
+				{
+					"a b": true,
+					"c d": true,
+					"e f": true,
+				},
+			);
 		});
 	});
 
