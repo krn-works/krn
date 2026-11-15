@@ -275,3 +275,81 @@ export function queryStandards(root: string, query: Query): Hit[] {
   }
   return hits;
 }
+
+// Edit moment: the records scoped to the kind of file a session is about to edit.
+/** Token budget of the block one edit adds. */
+export const EDIT_BUDGET = 150;
+
+const STACK_OF_EXTENSION: Readonly<Record<string, string>> = {
+  php: 'php',
+  py: 'python',
+  go: 'go',
+  rs: 'rust',
+  ts: 'node',
+  tsx: 'node',
+  mts: 'node',
+  cts: 'node',
+  js: 'node',
+  jsx: 'node',
+  mjs: 'node',
+  cjs: 'node',
+};
+
+/** The stack a file belongs to by its extension (`php`, `python`, `node`, ...), undefined for any other kind. */
+export function fileStack(file: string): string | undefined {
+  const dot = file.lastIndexOf('.');
+  if (dot < 0 || dot < file.lastIndexOf('/')) return undefined;
+  return STACK_OF_EXTENSION[file.slice(dot + 1).toLowerCase()];
+}
+
+/**
+ * The records scoped to the kind of `file` (repository-relative): those naming a stack the file's
+ * extension belongs to or a path pattern the file matches, in force, not addressed to the lead or to
+ * adoption, strongest tier first. A record with neither stacks nor paths is session-start material
+ * and never returns here.
+ */
+export function editRecords(
+  root: string,
+  file: string,
+  asOf: string,
+): Standard[] {
+  const base = repositoryFacts(root);
+  const stack = fileStack(file);
+  const facts: Repository =
+    stack === undefined
+      ? { adopted: base.adopted, needs: base.needs }
+      : { stack, adopted: base.adopted, needs: base.needs };
+  const seen = new Set<string>();
+  return [...readPack(), ...readProject(root), ...conventions(root)]
+    .filter((standard) => {
+      if (seen.has(standard.id)) return false;
+      seen.add(standard.id);
+      const { stacks, paths } = standard.applies;
+      return (
+        (stacks.length > 0 || paths.length > 0) &&
+        standard.audience !== 'lead' &&
+        standard.audience !== 'adopt' &&
+        inForce(standard, asOf) &&
+        scoped(standard, facts, [file])
+      );
+    })
+    .sort((a, b) => tierEffect(packetRecord(b)) - tierEffect(packetRecord(a)));
+}
+
+/** The records of `ranked` whose rendered lines fit `budget` tokens together, in order. */
+export function withinBudget(
+  ranked: readonly Standard[],
+  budget: number,
+): Standard[] {
+  const kept: Standard[] = [];
+  for (const standard of ranked) {
+    const next = [...kept, standard];
+    if (tokens(next.map(editLine).join('\n')) <= budget) kept.push(standard);
+  }
+  return kept;
+}
+
+/** One record as the edit block prints it. */
+export function editLine(standard: Standard): string {
+  return `- [${standard.id}] ${standard.text}`;
+}

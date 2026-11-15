@@ -10,7 +10,9 @@ export function guardCommand(name: string): string {
       ? 'Stop hook cannot check this tree'
       : name === 'session'
         ? 'SessionStart hook cannot serve the standards'
-        : `${name} guard cannot check this call`;
+        : name === 'edit'
+          ? 'edit hook cannot serve the standards for this file'
+          : `${name} guard cannot check this call`;
   return `command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN ${what}; put krn on PATH for this session' >&2; exit 2; }; exec krn hook ${name}`;
 }
 
@@ -20,13 +22,17 @@ export const stopCommand = guardCommand('stop');
 /** The SessionStart hook command: serves the brain's standards that match the session's task. */
 export const sessionCommand = guardCommand('session');
 
-/** The worker guards: tracker and main-checkout writes (scope) and stash-stack changes (stash), with their PreToolUse matchers. */
+/** The PreToolUse edit hook: the first edit of a file kind brings the records scoped to it. */
+export const editStandardsCommand = guardCommand('edit');
+
+/** The PreToolUse hooks with their matchers: the worker guards on tracker and main-checkout writes (scope) and stash-stack changes (stash), and the edit moment that brings the records scoped to the edited file's kind (edit). */
 export const preToolGuards: readonly { matcher: string; command: string }[] = [
   {
     matcher: 'Write|Edit|NotebookEdit|Bash',
     command: guardCommand('scope'),
   },
   { matcher: 'Bash', command: guardCommand('stash') },
+  { matcher: 'Edit|Write|MultiEdit', command: editStandardsCommand },
 ];
 
 /** The bare command earlier adoptions installed; adopt replaces it with {@link stopCommand}. */

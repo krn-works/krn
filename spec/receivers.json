@@ -219,6 +219,10 @@
       "receivers": ["git"],
       "real": "test/claude/context-restart.test.ts"
     },
+    "src/hook/edit-standards.ts": {
+      "receivers": ["git"],
+      "real": "test/hook/edit-standards.test.ts"
+    },
     "src/hook/session-start.ts": {
       "receivers": ["git"],
       "real": "test/hook/session-start.test.ts"

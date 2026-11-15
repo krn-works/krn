@@ -124,6 +124,7 @@ src/fs/read-regular-file.ts: (no header) ex
 src/harness/claude.ts: Claude Code specific
 src/harness/memory-directory.ts: (no header
 src/harness/transcripts.ts: (no header) exp
+src/hook/edit-standards.ts: PreToolUse hook
 src/hook/lead-file-read.ts: Lead file-read
 src/hook/outcome-judge.ts: The outcome arm
 src/hook/scope.ts: (no header) exports guar
