@@ -290,3 +290,11 @@ test('namedTests expands globs from the repository root and reports commands tha
   assert.equal(namedTests('npm test', files).named, false);
   assert.equal(namedTests('.venv/bin/python -m pytest', files).named, false);
 });
+
+test('namedTests counts a plain script in a test directory as a test file', () => {
+  const files = ['index.js', 'test/parse-link-header.js', 'example/use.js'];
+  assert.deepEqual(namedTests('tap test/*.js', files), {
+    named: true,
+    matched: ['test/parse-link-header.js'],
+  });
+});
