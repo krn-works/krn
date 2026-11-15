@@ -115,3 +115,7 @@ Enforced failing records, measured with `krn standards check --root <dir>` after
 | python | 0 | 0 |
 
 Fix: php init writes `composer.lock` with `composer update --no-install`; when composer fails it warns instead of passing silently. Regression tests: `test/adopt/init.test.ts`.
+
+## Coverage pass (52 records)
+
+The 13 new records and the 5 converted advisories (`s-no-shared-stash`, `s-secrets-redacted`, `s-exit-codes`, `s-role-names`, `s-ticket-trailer`) were run over the adopted php, npm and py rows (before draining): 0 false-red cells. The one new FAIL is `s-release-notes` on npm, a real gap (version 2.0.0, no changelog file). New and converted records pass on every applicable row; stack-scoped ones are `n/a` elsewhere. See `evals/standards-coverage.md` for the area x stack matrix.

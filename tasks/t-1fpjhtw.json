@@ -1,7 +1,11 @@
 {
   "id": "t-1fpjhtw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "13 enforced records with red and green fixtures, 5 advisories converted (8 to 3), audit on php/npm/py rows: 0 false-red"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Standards coverage map and ten new enforced records for uncovered areas and stacks",

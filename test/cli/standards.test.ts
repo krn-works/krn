@@ -66,6 +66,7 @@ const python = {
     '[project]\nname = "probe"\nversion = "0.1.0"\n\n[tool.ruff]\nline-length = 100\n',
   'uv.lock': 'version = 1\n',
   '.gitignore': '__pycache__/\n.venv/\n',
+  'CHANGELOG.md': '# Changelog\n\n## 0.1.0\n',
   'README.md': '# probe\n\nRun the tests with `uv run pytest`.\n',
   '.github/workflows/ci.yml': workflow('uv run pytest'),
   'probe/__init__.py': '',
@@ -571,7 +572,7 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
       );
       assert.match(
         agents,
-        /^- \*\*s-role-names\*\* .*_\(advisory, not checked\)_$/mu,
+        /^- \*\*s-plainest-input\*\* .*_\(advisory, not checked\)_$/mu,
       );
       // The generated block does not leak into the conventions the lane packet reads.
       const conventions = join(root, '.krn/conventions.json');
