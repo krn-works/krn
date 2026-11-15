@@ -40,3 +40,7 @@ Options:
 
 - [python-remotezip](https://github.com/gtsystem/python-remotezip)
 - [PyRemoteZip](https://github.com/fcvarela/pyremotezip)
+
+## Tests
+
+    python -m pytest -q tests
