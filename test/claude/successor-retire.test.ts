@@ -145,7 +145,7 @@ function launch(
   const { root, bin } = temporary(t);
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  const ledgerPath = join(cwd, '.krn', 'successors', 'launches.jsonl');
+  const ledgerPath = join(cwd, '.krn', 'successors', 'panes.jsonl');
   if (options.records) {
     mkdirSync(dirname(ledgerPath), { recursive: true });
     writeFileSync(
@@ -409,7 +409,7 @@ test('fallback launch makes no Herdr agent calls and writes no ledger', (t) => {
   );
   assert.equal(readCalls(agentCalls).length, 1);
   assert.equal(
-    existsSync(join(root, '.krn', 'successors', 'launches.jsonl')),
+    existsSync(join(root, '.krn', 'successors', 'panes.jsonl')),
     false,
   );
 });

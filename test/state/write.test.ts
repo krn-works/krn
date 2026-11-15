@@ -54,7 +54,6 @@ function openRoadmap(root: string) {
 
 test('set, accept and handoff round-trip through state check and handoff-requests', () => {
   const root = realpathSync(buildCaseRepo('active'));
-  const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
   openRoadmap(root);
   try {
     const set = krn(
@@ -121,13 +120,12 @@ test('set, accept and handoff round-trip through state check and handoff-request
     assert.match(text, /1\. deliver t-fixture1/);
     const verdict = spawnSync(
       process.execPath,
-      [requests, path, '--root', root, '--memory', memory],
+      [requests, path, '--root', root],
       { encoding: 'utf8' },
     );
     assert.equal(verdict.status, 0, verdict.stdout + verdict.stderr);
   } finally {
     rmSync(root, { recursive: true, force: true });
-    rmSync(memory, { recursive: true, force: true });
   }
 });
 
@@ -195,7 +193,6 @@ test('set refuses a cleanup value that drops entries unless --replace; add-clean
 
 test('handoff lists merged commits since the previous SHA and retro measures the task', () => {
   const root = realpathSync(buildCaseRepo('active'));
-  const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
   openRoadmap(root);
   const commit = (subject: string) => {
     const result = spawnSync(
@@ -235,7 +232,7 @@ test('handoff lists merged commits since the previous SHA and retro measures the
     );
     const verdict = spawnSync(
       process.execPath,
-      [requests, path, '--root', root, '--memory', memory],
+      [requests, path, '--root', root],
       { encoding: 'utf8' },
     );
     assert.equal(verdict.status, 0, verdict.stdout + verdict.stderr);
@@ -252,7 +249,6 @@ test('handoff lists merged commits since the previous SHA and retro measures the
     assert.equal(krn(root, 'retro').status, 64);
   } finally {
     rmSync(root, { recursive: true, force: true });
-    rmSync(memory, { recursive: true, force: true });
   }
 });
 

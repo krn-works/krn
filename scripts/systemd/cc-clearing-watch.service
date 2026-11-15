@@ -1,0 +1,7 @@
+[Unit]
+Description=Check whether Claude Code tool-result clearing became reachable
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/coding/krn/active/krn
+ExecStart=/usr/bin/env node scripts/claude/cc-clearing-watch.ts

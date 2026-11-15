@@ -480,7 +480,7 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
     false,
   );
   assert.equal(
-    existsSync(join(cwd, '.krn', 'successors', 'launches.jsonl')),
+    existsSync(join(cwd, '.krn', 'successors', 'panes.jsonl')),
     false,
   );
 });
@@ -545,7 +545,7 @@ test('a successor held on a startup dialog is reported with its pane and the han
     ['tab', 'rename', caller.tab_id, 'handed off → Next slice'],
   ]);
   assert.equal(
-    existsSync(join(cwd, '.krn', 'successors', 'launches.jsonl')),
+    existsSync(join(cwd, '.krn', 'successors', 'panes.jsonl')),
     true,
   );
 });
@@ -739,6 +739,51 @@ test('missing Herdr falls back to claude background launch once', (t) => {
       'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
     ],
   ]);
+});
+
+test('every launch appends one row to launches.jsonl, through Herdr and through the --bg fallback', (t) => {
+  const { root, bin } = temporary(t);
+  installHerdr(bin, herdrReplies());
+  installAgent(bin, 'successor-agent', join(root, 'agent-calls'));
+  const cwd = join(root, 'project');
+  mkdirSync(cwd);
+  const log = join(cwd, '.krn', 'successors', 'launches.jsonl');
+  const launch = (name: string, env: NodeJS.ProcessEnv) =>
+    spawnSync(
+      process.execPath,
+      [
+        script,
+        '--operator-token',
+        '--name',
+        name,
+        '--prompt',
+        'x',
+        '--cwd',
+        cwd,
+      ],
+      { cwd: root, env, encoding: 'utf8' },
+    );
+  const lines = () => readFileSync(log, 'utf8').trimEnd().split('\n');
+
+  assert.equal(launch('First', launcherEnvironment(bin)).status, 0);
+  assert.equal(lines().length, 1);
+  assert.equal(launch('Second', launcherEnvironment(bin)).status, 0);
+  assert.equal(lines().length, 2);
+
+  const fallbackBin = join(root, 'fallback-bin');
+  mkdirSync(fallbackBin);
+  installAgent(fallbackBin, 'successor-agent', join(root, 'fallback-calls'));
+  assert.equal(launch('Third', launcherEnvironment(fallbackBin)).status, 0);
+  const rows = lines().map((line) => JSON.parse(line));
+  assert.deepEqual(
+    rows.map((row) => [row.name, row.via]),
+    [
+      ['First', 'herdr'],
+      ['Second', 'herdr'],
+      ['Third', 'background'],
+    ],
+  );
+  assert.match(rows[0].launched_at, /^\d{4}-\d\d-\d\dT/u);
 });
 
 test('a failed Herdr server probe falls back without creating a tab', (t) => {

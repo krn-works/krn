@@ -13,6 +13,7 @@ import {
   launcherPrompt,
   tabEnvironment,
 } from './compose.ts';
+import { logLaunch } from './launch-log.ts';
 import {
   parseArgs,
   START_SECONDS,
@@ -122,6 +123,11 @@ export function main(
       },
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
+    logLaunch(options.cwd, {
+      name: options.name,
+      agent: harness,
+      via: 'background',
+    });
     process.stdout.write(
       `successor: claude --bg (herdr unavailable: ${unavailable})\n`,
     );
@@ -165,6 +171,14 @@ export function main(
 
   // Herdr names claude and codex itself; an override's binary may be a
   // wrapper, so only Herdr's own kinds are matched by name.
+  logLaunch(options.cwd, {
+    name: options.name,
+    agent: harness,
+    via: 'herdr',
+    tab_id: ids.tab,
+    pane_id: ids.session,
+  });
+
   const expected = harness === 'other' ? undefined : harness;
   const seconds = options.startSeconds ?? START_SECONDS;
   const successor = awaitAgent(

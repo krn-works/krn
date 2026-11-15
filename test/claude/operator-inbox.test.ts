@@ -84,11 +84,9 @@ function fixture() {
       file,
       '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n\n## Operator requests\n- none\n',
     );
-    return spawnSync(
-      process.execPath,
-      [handoffCheck, file, '--root', root, '--memory', join(root, 'memory')],
-      { encoding: 'utf8' },
-    );
+    return spawnSync(process.execPath, [handoffCheck, file, '--root', root], {
+      encoding: 'utf8',
+    });
   };
   return { root, submit, run, handoff };
 }

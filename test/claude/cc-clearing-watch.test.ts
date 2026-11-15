@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -58,36 +64,20 @@ test('transcripts count only recent files with a clear edit', async () => {
   assert.equal(await countTranscriptHits(dir), 1);
 });
 
-test('hook prints once for a new version, then nothing; changes print and exit 1 in cli mode', async () => {
+test('the timer run prints one verdict line, exits 0 while unreachable and 1 once changed', async () => {
   const dir = tmp();
+  const base = { cacheDir: join(dir, 'cache'), transcripts: join(dir, 'none') };
   const bin = join(dir, '2.9.9', 'claude');
-  const { mkdirSync } = await import('node:fs');
   mkdirSync(join(dir, '2.9.9'));
   writeFileSync(bin, readFileSync(fx('overrides-null.txt')));
-  const base = {
-    cacheDir: join(dir, 'cache'),
-    transcripts: join(dir, 'none'),
-    binary: bin,
-  };
-  const first = await run({ ...base, hook: true });
-  assert.match(first.output, /new claude 2\.9\.9/u);
-  assert.equal((await run({ ...base, hook: true })).output, '');
-  const cli = await run({ ...base, hook: false });
-  assert.equal(cli.code, 0);
-  assert.match(cli.output, /unchanged/u);
-  writeFileSync(bin, readFileSync(fx('overrides-live.txt')));
+  const quiet = await run({ ...base, binary: bin });
+  assert.equal(quiet.code, 0);
+  assert.match(quiet.output, /^claude 2\.9\.9 .* unchanged$/u);
   const other = join(dir, '2.9.10');
   mkdirSync(other);
   writeFileSync(join(other, 'claude'), readFileSync(fx('overrides-live.txt')));
-  const live = await run({
-    ...base,
-    binary: join(other, 'claude'),
-    hook: false,
-  });
+  const live = await run({ ...base, binary: join(other, 'claude') });
   assert.equal(live.code, 1);
   assert.match(live.output, /CHANGED/u);
-  assert.match(
-    (await run({ ...base, binary: join(other, 'claude'), hook: true })).output,
-    /^$/u,
-  );
+  assert.equal((await run({ ...base, binary: null })).code, 1);
 });

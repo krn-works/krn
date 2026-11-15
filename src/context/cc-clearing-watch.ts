@@ -134,12 +134,12 @@ function readCache(file: string): Verdict | null {
   }
 }
 
-// hook: print only when the verdict is new-and-changed or differs from the
-// cached one; the binary scan is cached per version, transcripts are not.
+// A timer runs this once a day: it prints one verdict line and exits 1 when
+// clearing became reachable, so the failed unit is the signal. The binary scan
+// is cached per version; transcripts are counted on every run.
 export async function run(options: {
   cacheDir: string;
   transcripts: string;
-  hook: boolean;
   binary?: string | null;
 }): Promise<{ output: string; code: number }> {
   const binary =
@@ -147,41 +147,24 @@ export async function run(options: {
   if (!binary) return { output: 'claude binary not found on PATH', code: 1 };
   const version = versionOf(binary);
   const file = join(options.cacheDir, `${version}.json`);
-  const cached = readCache(file);
-  const facts = cached ?? (await scanFile(binary));
-  const transcriptHits =
-    options.hook && cached
-      ? cached.transcriptHits
-      : await countTranscriptHits(options.transcripts);
+  const facts = readCache(file) ?? (await scanFile(binary));
+  const transcriptHits = await countTranscriptHits(options.transcripts);
   const verdict: Verdict = { ...facts, version, transcriptHits };
   mkdirSync(options.cacheDir, { recursive: true });
   writeFileSync(file, JSON.stringify(verdict));
-  const code = changed(verdict) ? 1 : 0;
-  if (!options.hook) return { output: line(verdict), code };
-  const differs =
-    cached === null ||
-    changed(cached) !== changed(verdict) ||
-    cached.overrides !== verdict.overrides;
-  if (cached === null && !changed(verdict))
-    return {
-      output: `cc-watch: new claude ${version} scanned, still unreachable`,
-      code: 0,
-    };
-  return { output: differs ? `cc-watch: ${line(verdict)}` : '', code: 0 };
+  return { output: line(verdict), code: changed(verdict) ? 1 : 0 };
 }
 
 export async function main(): Promise<void> {
-  const root = hookProjectDir();
   const { output, code } = await run({
-    cacheDir: join(root, '.krn', 'runs', 'cc-watch'),
+    cacheDir: join(hookProjectDir(), '.krn', 'runs', 'cc-watch'),
     transcripts: join(
       homedir(),
       claudeDir,
       'projects',
       '-mnt-storage-coding-krn-active-krn',
     ),
-    hook: process.argv.includes('--hook'),
   });
-  if (output) console.log(output);
-  process.exit(process.argv.includes('--hook') ? 0 : code);
+  console.log(output);
+  process.exit(code);
 }
