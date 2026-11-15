@@ -90,10 +90,7 @@ const cargoRuns =
   spawnSync('cargo', ['--version'], { encoding: 'utf8' }).status === 0;
 
 for (const c of cases) {
-  test(`the ${c.stack} recipe names its stack and its fixture goes from vacuous to red-on-mutation`, {
-    skip:
-      c.stack === 'rust' && !cargoRuns ? 'no usable cargo on this host' : false,
-  }, () => {
+  test(`the ${c.stack} recipe names its stack and its fixture goes from vacuous to red-on-mutation`, () => {
     const root = fixture(c.files);
     try {
       assert.equal(firstTestStack(root), c.stack);
@@ -102,6 +99,8 @@ for (const c of cases) {
         /First-test recipe/u,
       );
       assert.match(firstTestRecipe(c.stack), /krn\.json "test"/u);
+      // Without a usable cargo the stack and recipe checks above are all this host can prove.
+      if (c.stack === 'rust' && !cargoRuns) return;
       for (const [name, text] of Object.entries(c.tests)) {
         mkdirSync(join(root, name, '..'), { recursive: true });
         writeFileSync(join(root, name), text);
