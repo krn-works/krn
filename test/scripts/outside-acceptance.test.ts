@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   adoptArgs,
@@ -6,11 +7,16 @@ import {
   defaultScratch,
   drainFacts,
   gradedRow,
+  hiddenResult,
+  hiddenSeedTask,
   outsideBranch,
   parseOptions,
+  parseTaskFile,
   pick,
   publishRefusal,
+  rowGreen,
   seedTask,
+  workflowFiles,
 } from '../../scripts/outside-acceptance.ts';
 
 test('only outside/<stack> branches can be named, so a cleanup never touches another branch', () => {
@@ -92,7 +98,7 @@ test('a row is graded all merged only for exit 0 with every PR merged', () => {
   );
   assert.match(
     gradedRow({ stack: 'py', adoptExit: 0, firstPr: '#5', drain: green }),
-    /^krn-works\/krn outside\/py \| py \| 0 \| #5 \| 0 \| #5 \(all merged\) \| 1 \| \$0\.00$/u,
+    /^krn-works\/krn outside\/py \| py \| 0 \| #5 \| 0 \| #5 \(all merged\) \| 1 \| \$0\.00 \| none$/u,
   );
   const red = drainFacts(73, 't-a t-a exit=73 1s\nPR #5');
   assert.match(
@@ -107,7 +113,7 @@ test('a row is graded all merged only for exit 0 with every PR merged', () => {
       drain: undefined,
       note: 'push failed',
     }),
-    /\| not run \| none \| 0 \| \$0\.00 \| push failed$/u,
+    /\| not run \| none \| 0 \| \$0\.00 \| none \| push failed$/u,
   );
 });
 
@@ -133,7 +139,7 @@ test('the drain output of a real merged run is graded all merged with its commit
   assert.equal(facts.merged, 1);
   assert.match(
     gradedRow({ stack: 'php', adoptExit: 0, firstPr: '510b485', drain: facts }),
-    /\| 0 \| 510b485 \(all merged\) \| 1 \| \$0\.12$/u,
+    /\| 0 \| 510b485 \(all merged\) \| 1 \| \$0\.12 \| none$/u,
   );
 });
 
@@ -176,4 +182,140 @@ test('a public or unknown remote takes only a copy with a public upstream and an
     ) ?? '',
     /open "license"/u,
   );
+});
+
+const shippedRows = readFileSync(
+  new URL('../../scripts/outside-hidden/tasks.json', import.meta.url),
+  'utf8',
+);
+
+test('the shipped task file holds one public fixed-issue row per stack and parses', () => {
+  const rows = parseTaskFile(shippedRows);
+  assert.deepEqual(
+    rows.map((row) => row.stack),
+    ['php', 'npm', 'py'],
+  );
+  for (const row of rows) assert.match(row.fix, /^[0-9a-f]{7,40}$/u);
+});
+
+test('a task file refuses a malformed, private or escaping row before anything is pushed', () => {
+  const row = JSON.parse(shippedRows).rows[0];
+  const text = (patch: Record<string, unknown>) =>
+    JSON.stringify({ rows: [{ ...row, ...patch }] });
+  assert.throws(() => parseTaskFile('nope'), /not JSON/u);
+  assert.throws(() => parseTaskFile('{}'), /"rows" array/u);
+  assert.throws(() => parseTaskFile(text({ fix: 'main' })), /not a commit/u);
+  assert.throws(
+    () => parseTaskFile(text({ hidden: ['../x'] })),
+    /leaves the repository/u,
+  );
+  assert.throws(
+    () => parseTaskFile(text({ license: 'proprietary' })),
+    /open "license"/u,
+  );
+  assert.throws(
+    () => parseTaskFile(text({ upstream: 'git@github.com:a/b.git' })),
+    /https "url"/u,
+  );
+  assert.throws(() => parseTaskFile(text({ title: '' })), /needs "title"/u);
+});
+
+test('the fixed-issue seed names the bug and verifies with the row test command, never the hidden one', () => {
+  const [row] = parseTaskFile(shippedRows);
+  if (row === undefined) throw new Error('no row');
+  const seed = hiddenSeedTask(row, '2026-11-15');
+  const task = JSON.parse(seed.text) as Record<string, unknown>;
+  assert.equal(task.priority, 0);
+  assert.equal(task.title, row.title);
+  assert.deepEqual(task.body, row.body);
+  assert.deepEqual(task.acceptance, [
+    { verify: row.test, passes: false, exit: null },
+  ]);
+  assert.doesNotMatch(seed.text, /phpunit-shim/u);
+});
+
+test('the hidden column grades pass, fail or none from the held-back test exit code', () => {
+  assert.equal(hiddenResult(0), 'pass');
+  assert.equal(hiddenResult(1), 'fail');
+  assert.equal(hiddenResult(undefined), 'none');
+  const green = drainFacts(
+    0,
+    't-a t-a exit=0 1s\nPR #5\nverdict: merged abc1234def',
+  );
+  const row = (hidden: 'pass' | 'fail' | 'none') =>
+    gradedRow({
+      stack: 'php',
+      adoptExit: 0,
+      firstPr: '#5',
+      drain: green,
+      hidden,
+      note: 'merged abc1234',
+    });
+  assert.match(row('pass'), /\| \$0\.00 \| pass \| merged abc1234$/u);
+  assert.equal(rowGreen(row('pass')), true);
+  assert.equal(rowGreen(row('none')), true);
+  assert.equal(rowGreen(row('fail')), false);
+});
+
+test('a task file option is read and a row with a red drain is never green', () => {
+  assert.equal(
+    parseOptions(['--task-file', 'rows.json'], '/repo').taskFile,
+    `${process.cwd()}/rows.json`,
+  );
+  const red = drainFacts(73, 't-a t-a exit=73 1s\nPR #5');
+  assert.equal(
+    rowGreen(
+      gradedRow({
+        stack: 'py',
+        adoptExit: 0,
+        firstPr: '#5',
+        drain: red,
+        hidden: 'pass',
+      }),
+    ),
+    false,
+  );
+});
+
+test('workflow files are dropped from an outside base because a GitHub App cannot push them', () => {
+  assert.deepEqual(
+    workflowFiles([
+      'README.md',
+      '.github/workflows/main.yml',
+      '.github/dependabot.yml',
+      '.github/workflows/b.yaml',
+    ]),
+    ['.github/workflows/main.yml', '.github/workflows/b.yaml'],
+  );
+});
+
+test('a row may carry support files for its base and refuses paths that escape', () => {
+  const row = JSON.parse(shippedRows).rows[0];
+  const text = (support: unknown) =>
+    JSON.stringify({ rows: [{ ...row, support }] });
+  assert.deepEqual(
+    parseTaskFile(text({ 'tests/a.php': 'scripts/x.php' }))[0]?.support,
+    {
+      'tests/a.php': 'scripts/x.php',
+    },
+  );
+  assert.throws(
+    () => parseTaskFile(text({ '../a': 'x' })),
+    /leaves the repository/u,
+  );
+  assert.throws(
+    () => parseTaskFile(text({ a: '/etc/passwd' })),
+    /leaves the repository/u,
+  );
+  assert.equal(
+    JSON.parse(shippedRows).rows[0].support['tests/shim.php'],
+    'scripts/outside-hidden/phpunit-shim.php',
+  );
+});
+
+test('a row carries the related-test command of a stack whose detected one the host cannot run', () => {
+  const rows = parseTaskFile(shippedRows);
+  const py = rows.find((row) => row.stack === 'py');
+  assert.match(String(py?.related), /pytest -q \{files\}$/u);
+  assert.equal(rows.find((row) => row.stack === 'php')?.related, undefined);
 });

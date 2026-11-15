@@ -18,7 +18,7 @@ import { namedTests } from '../src/adopt/canary.ts';
 
 export const remoteUrl = 'https://github.com/krn-works/krn.git';
 export const summaryHeader =
-  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx)';
+  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden';
 const defaultStacks = ['php', 'npm', 'py'];
 
 export interface RunOptions {
@@ -27,6 +27,8 @@ export interface RunOptions {
   max: number;
   windowHours: number;
   summary: string;
+  /** A task file of fixed-issue rows, each graded by its held-back upstream test. */
+  taskFile?: string;
 }
 
 /** The only branches this script may push or delete: orphan bases outside/<stack>. */
@@ -67,6 +69,7 @@ export function parseOptions(
       options.stacks.push(stack);
     } else if (arg === '--scratch') options.scratch = resolve(value());
     else if (arg === '--summary') options.summary = resolve(value());
+    else if (arg === '--task-file') options.taskFile = resolve(value());
     else if (arg === '--window-hours') {
       const text = value();
       if (!/^[1-9]\d*$/u.test(text))
@@ -156,8 +159,12 @@ export interface RowInput {
   adoptExit: number;
   firstPr: string;
   drain: DrainFacts | undefined;
+  hidden?: HiddenResult;
   note?: string;
 }
+
+/** The held-back upstream test on the merged tree: it passed, failed, or the row has none. */
+export type HiddenResult = 'pass' | 'fail' | 'none';
 
 /** One graded summary row; the PR cell says whether every listed PR merged. */
 export function gradedRow(input: RowInput): string {
@@ -180,9 +187,154 @@ export function gradedRow(input: RowInput): string {
     prs,
     drain === undefined ? '0' : String(drain.sessions),
     `$${(drain?.usd ?? 0).toFixed(2)}`,
+    input.hidden ?? 'none',
   ];
   const row = cells.join(' | ');
   return input.note === undefined ? row : `${row} | ${input.note}`;
+}
+
+/** A fixed-issue row: a small real upstream bug, its base the parent of the fix commit. */
+export interface HiddenRow {
+  stack: string;
+  upstream: string;
+  license: string;
+  fix: string;
+  title: string;
+  body: string[];
+  /** Upstream files the fix commit's test touches: held back from the base, restored from the fix after the drain. */
+  hidden: string[];
+  /** Run in the merged tree after the hidden files are restored; exit 0 is a pass. KRN_ROOT names this repository. */
+  hiddenVerify: string;
+  test?: string;
+  install?: string;
+  /** The related-test command (with {files}) the Stop gate runs, when detection would pick one the host cannot run. */
+  related?: string;
+  /** Files copied from this repository into the base (target path to source path), e.g. a test runner the stack lacks. */
+  support?: Record<string, string>;
+}
+
+/** The workflow files of a base: a GitHub App cannot push them, and adoption writes its own CI call. */
+export function workflowFiles(files: readonly string[]): string[] {
+  return files.filter((file) => file.startsWith('.github/workflows/'));
+}
+
+/** Read and check a task file: `{ "rows": [ ... ] }`; any malformed row is refused before anything is pushed. */
+export function parseTaskFile(text: string): HiddenRow[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('outside-acceptance: the task file is not JSON');
+  }
+  const rows =
+    typeof data === 'object' && data !== null
+      ? Reflect.get(data, 'rows')
+      : undefined;
+  if (!Array.isArray(rows) || rows.length === 0)
+    throw new Error('outside-acceptance: the task file needs a "rows" array');
+  return rows.map((raw: unknown, index) => {
+    const field = (key: string): unknown =>
+      typeof raw === 'object' && raw !== null
+        ? Reflect.get(raw, key)
+        : undefined;
+    const text = (key: string, optional = false): string => {
+      const value = field(key);
+      if (typeof value === 'string' && value.trim() !== '') return value;
+      if (optional && value === undefined) return '';
+      throw new Error(`outside-acceptance: row ${index} needs "${key}"`);
+    };
+    const list = (key: string): string[] => {
+      const value = field(key);
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        value.some((item) => typeof item !== 'string' || item.trim() === '')
+      )
+        throw new Error(
+          `outside-acceptance: row ${index} needs "${key}" as a list of strings`,
+        );
+      return value as string[];
+    };
+    const stack = text('stack');
+    outsideBranch(stack);
+    const fix = text('fix');
+    if (!/^[0-9a-f]{7,40}$/u.test(fix))
+      throw new Error(`outside-acceptance: row ${index} "fix" is not a commit`);
+    const hidden = list('hidden');
+    for (const path of hidden)
+      if (path.startsWith('/') || path.split('/').includes('..'))
+        throw new Error(
+          `outside-acceptance: row ${index} hidden path ${path} leaves the repository`,
+        );
+    const upstream = text('upstream');
+    const row: HiddenRow = {
+      stack,
+      upstream,
+      license: text('license'),
+      fix,
+      title: text('title'),
+      body: list('body'),
+      hidden,
+      hiddenVerify: text('hiddenVerify'),
+    };
+    const test = text('test', true);
+    if (test !== '') row.test = test;
+    const install = text('install', true);
+    if (install !== '') row.install = install;
+    const related = text('related', true);
+    if (related !== '') row.related = related;
+    const support = field('support');
+    if (support !== undefined) {
+      if (typeof support !== 'object' || support === null)
+        throw new Error(
+          `outside-acceptance: row ${index} "support" is not a map`,
+        );
+      for (const [target, from] of Object.entries(support))
+        if (
+          typeof from !== 'string' ||
+          [target, from].some(
+            (path) => path.startsWith('/') || path.split('/').includes('..'),
+          )
+        )
+          throw new Error(
+            `outside-acceptance: row ${index} support path leaves the repository`,
+          );
+      row.support = support as Record<string, string>;
+    }
+    const refusal = publishRefusal(
+      JSON.stringify({ url: upstream, license: row.license }),
+      'public',
+    );
+    if (refusal !== undefined)
+      throw new Error(`outside-acceptance: row ${index}: ${refusal}`);
+    return row;
+  });
+}
+
+/** The held-back test grades the merged tree: its exit code is the verdict. */
+export function hiddenResult(exitCode: number | undefined): HiddenResult {
+  return exitCode === undefined ? 'none' : exitCode === 0 ? 'pass' : 'fail';
+}
+
+/** A summary row is green when the drain exits 0 with every PR merged and any hidden test passes. */
+export function rowGreen(row: string): boolean {
+  return (
+    /\| 0 \| [^|]*\(all merged\) \| [^|]* \| [^|]* \| (?:pass|none)(?: \||$)/u.test(
+      row,
+    ) && !/\| fail(?: \||$)/u.test(row)
+  );
+}
+
+/** The task a fixed-issue row seeds: the upstream bug in words, acceptance the row's own test command. */
+export function hiddenSeedTask(
+  row: HiddenRow,
+  created: string,
+): { file: string; text: string } {
+  const seed = seedTask(row.stack, row.test, created);
+  const task = JSON.parse(seed.text) as Record<string, unknown>;
+  task.title = row.title;
+  task.body = row.body;
+  return { file: seed.file, text: `${JSON.stringify(task, null, 2)}\n` };
 }
 
 /**
@@ -316,10 +468,28 @@ function remoteVisibility(root: string): string | undefined {
   return result.status === 0 && value !== '' ? value : undefined;
 }
 
-function acceptStack(stack: string, options: RunOptions, root: string): string {
+function acceptStack(
+  stack: string,
+  options: RunOptions,
+  root: string,
+  hiddenRow?: HiddenRow,
+): string {
   const branch = outsideBranch(stack);
-  const source = join(options.scratch, stack);
-  if (!existsSync(source))
+  const source = hiddenRow
+    ? join(options.scratch, 'runs', `${stack}-upstream-${Date.now()}`)
+    : join(options.scratch, stack);
+  if (hiddenRow) {
+    mkdirSync(dirname(source), { recursive: true });
+    const cloned = run(
+      'git',
+      ['clone', '--quiet', hiddenRow.upstream, source],
+      options.scratch,
+    );
+    if (cloned.status !== 0)
+      throw new Error(
+        `outside-acceptance: ${stack}: clone of ${hiddenRow.upstream} failed: ${cloned.output.trim()}`,
+      );
+  } else if (!existsSync(source))
     throw new Error(
       `outside-acceptance: no scratch copy ${source}; pass --scratch DIR or set KRN_OUTSIDE_SCRATCH to the directory holding the ${stack} copy`,
     );
@@ -333,7 +503,11 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     );
   const manifestPath = join(source, 'UPSTREAM.json');
   const refusal = publishRefusal(
-    existsSync(manifestPath) ? readFileSync(manifestPath, 'utf8') : undefined,
+    hiddenRow
+      ? JSON.stringify({ url: hiddenRow.upstream, license: hiddenRow.license })
+      : existsSync(manifestPath)
+        ? readFileSync(manifestPath, 'utf8')
+        : undefined,
     remoteVisibility(root),
   );
   if (refusal !== undefined)
@@ -346,7 +520,13 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
       const [sha = '', parent] = head.split(' ');
       return { sha, parent: parent || undefined, subject };
     });
-  const base = baseCommit(log);
+  const base = hiddenRow
+    ? run('git', ['rev-parse', `${hiddenRow.fix}^`], source).output.trim()
+    : baseCommit(log);
+  if (!/^[0-9a-f]{40}$/u.test(base))
+    throw new Error(
+      `outside-acceptance: ${stack}: no parent of the fix commit`,
+    );
   let pushed = false;
   try {
     mkdirSync(dirname(dir), { recursive: true });
@@ -355,6 +535,13 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         throw new Error('clone failed');
     git(['remote', 'set-url', 'origin', remoteUrl]);
     git(['checkout', '--quiet', '-B', branch, base]);
+    for (const file of workflowFiles(git(['ls-files']).output.split('\n')))
+      git(['rm', '--quiet', '--force', '--', file]);
+    for (const [target, from] of Object.entries(hiddenRow?.support ?? {})) {
+      mkdirSync(dirname(join(dir, target)), { recursive: true });
+      writeFileSync(join(dir, target), readFileSync(join(root, from)));
+      git(['add', '--', target]);
+    }
     // An orphan checkout keeps the base tree in the index; the commit has no parent.
     git(['checkout', '--quiet', '--orphan', `${branch}-orphan`]);
     git(['commit', '--quiet', '-m', `chore: orphan base for ${stack}`]);
@@ -365,7 +552,11 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     if (!pushed) throw new Error('push of the orphan base failed');
     let config: AdoptFlags = {};
     const configPath = join(source, 'krn.json');
-    if (existsSync(configPath))
+    if (hiddenRow) {
+      if (hiddenRow.test !== undefined) config.test = hiddenRow.test;
+      if (hiddenRow.install !== undefined) config.install = hiddenRow.install;
+      if (hiddenRow.related !== undefined) config.related = hiddenRow.related;
+    } else if (existsSync(configPath))
       config = JSON.parse(readFileSync(configPath, 'utf8')) as AdoptFlags;
     // The test command is the delivery's own result when the base has no test file it names (the first task adds it):
     // adopt then detects the base's contract instead of being handed a command that runs nothing.
@@ -395,12 +586,10 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     const vacuous =
       existsSync(clonePath) &&
       JSON.parse(readFileSync(clonePath, 'utf8')).vacuous === true;
-    const seed = seedTask(
-      stack,
-      config.test,
-      new Date().toISOString().slice(0, 10),
-      vacuous,
-    );
+    const created = new Date().toISOString().slice(0, 10);
+    const seed = hiddenRow
+      ? hiddenSeedTask(hiddenRow, created)
+      : seedTask(stack, config.test, created, vacuous);
     writeFileSync(join(dir, seed.file), seed.text);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
@@ -419,7 +608,35 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
       dir,
     );
     keep('drain', drain.output);
+    let hidden: HiddenResult = 'none';
+    let note: string | undefined;
+    if (hiddenRow) {
+      // The upstream fix's test files are restored over the merged tree, then run: the drain never saw them.
+      git(['fetch', '--quiet', 'origin', branch]);
+      git(['checkout', '--quiet', '--force', '--detach', 'FETCH_HEAD']);
+      const merged = git(['rev-parse', 'HEAD']).output.trim().slice(0, 7);
+      for (const path of hiddenRow.hidden) {
+        const shown = run('git', ['show', `${hiddenRow.fix}:${path}`], source);
+        if (shown.status !== 0)
+          throw new Error(
+            `outside-acceptance: ${stack}: ${path} not in the fix`,
+          );
+        mkdirSync(dirname(join(dir, path)), { recursive: true });
+        writeFileSync(join(dir, path), shown.output);
+      }
+      const graded = spawnSync('sh', ['-c', hiddenRow.hiddenVerify], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...process.env, KRN_ROOT: root },
+        maxBuffer: 1 << 28,
+      });
+      keep('hidden', `${graded.stdout ?? ''}${graded.stderr ?? ''}`);
+      hidden = hiddenResult(graded.status ?? 70);
+      note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
+    }
     return gradedRow({
+      hidden,
+      ...(note === undefined ? {} : { note }),
       stack,
       adoptExit: adopt.status,
       firstPr: drainFacts(0, drain.output).prs[0] ?? 'none',
@@ -433,14 +650,31 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
 if (import.meta.main) {
   const root = resolve(import.meta.dirname, '..');
   const options = parseOptions(process.argv.slice(2), root);
+  const explicitStacks = process.argv
+    .slice(2)
+    .flatMap((arg, i, all) =>
+      arg === '--stack' ? [all[i + 1] as string] : [],
+    );
   mkdirSync(dirname(options.summary), { recursive: true });
   if (!existsSync(options.summary))
     appendFileSync(options.summary, `${summaryHeader}\n`);
   let failed = 0;
-  for (const stack of options.stacks) {
+  const hiddenRows = options.taskFile
+    ? parseTaskFile(readFileSync(options.taskFile, 'utf8'))
+    : undefined;
+  const picked =
+    hiddenRows === undefined
+      ? options.stacks.map((stack) => ({ stack, hidden: undefined }))
+      : hiddenRows
+          .filter(
+            (row) =>
+              explicitStacks.length === 0 || explicitStacks.includes(row.stack),
+          )
+          .map((row) => ({ stack: row.stack, hidden: row }));
+  for (const { stack, hidden } of picked) {
     let row: string;
     try {
-      row = acceptStack(stack, options, root);
+      row = acceptStack(stack, options, root, hidden);
     } catch (error) {
       row = gradedRow({
         stack,
@@ -452,7 +686,7 @@ if (import.meta.main) {
     }
     appendFileSync(options.summary, `${row}\n`);
     console.log(row);
-    if (/\| 0 \| [^|]*\(all merged\)/u.test(row) === false) failed += 1;
+    if (!rowGreen(row)) failed += 1;
   }
   // A red row keeps its clone: the session transcript and lane logs there are the evidence.
   if (failed === 0)
