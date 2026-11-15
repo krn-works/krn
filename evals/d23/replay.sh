@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# usage: replay.sh <pr> <K|KT|P|PB>   one arm of one unit, then its measures
-# P is the plain clone, PB the plain clone given the same requirements text K gets, K the KRN product.
+# usage: replay.sh <pr> <K|KT|P|PB|PC>   one arm of one unit, then its measures
+# P is the plain clone, PC the plain clone given the clause section `krn lane brief` builds from the task's own words (no requirements text), PB the plain clone given the same requirements text K gets, K the KRN product.
 # RUN names a repeat: results land in $OUT/run$RUN; work dirs carry it so repeats can run side by side.
 # IFACE: text appended for K and PB; IFACE_BASE (default IFACE): text appended for P.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -17,7 +17,8 @@ OUT=${OUT:-$REPO/.krn/runs/d23-comparison/results}
 mkdir -p $OUT
 n=$1; arm=$2; tag=$n.$arm
 # KT is arm K plus the test-first Stop rule (exploratory arm): every K branch below keys on $kind.
-kind=$arm; if [ $arm = KT ]; then kind=K; export KRN_TEST_FIRST=1; else unset KRN_TEST_FIRST; fi
+kind=$arm; if [ $arm = PC ]; then kind=P; fi
+if [ $arm = KT ]; then kind=K; export KRN_TEST_FIRST=1; else unset KRN_TEST_FIRST; fi
 sha=$(git -C $REPO log --first-parent --format='%H %s' | grep -E "\(#$n\)\$" | cut -d' ' -f1)
 parent=$(git -C $REPO rev-parse $sha^)
 task=$(git -C $REPO log -1 --format=%s $sha | grep -oE 't-[a-z0-9]{7}' | tail -1)
@@ -29,6 +30,7 @@ t=json.load(sys.stdin)
 print("Task %s: %s\n\n%s" % (t["id"],t["title"],"\n".join(t["body"])))' > $OUT/$tag.task.txt
 text=${IFACE:-}; [ $kind = P ] && text=${IFACE_BASE:-${IFACE:-}}
 if [ -n "$text" ] && [ -f "$text/$n.txt" ]; then cat "$text/$n.txt" >> $OUT/$tag.task.txt; fi
+if [ $arm = PC ]; then { echo; node $HERE/clauses.ts $OUT/$tag.task.txt; } >> $OUT/$tag.task.txt; fi
 # Both arms get the whole history up to the parent and nothing after it: the fetch names only the parent.
 cd $D && git init -q . && git fetch -q file://$REPO $parent && git checkout -q FETCH_HEAD && git checkout -q -b replay
 git config user.name replay; git config user.email replay@invalid

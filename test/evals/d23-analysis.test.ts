@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   armSecondary,
   discordantUnits,
@@ -199,5 +201,35 @@ test('arm KT is a known arm and alone sets KRN_TEST_FIRST for its session', asyn
   const { ARMS, armEnv } = await import('../../evals/d23/runs.ts');
   assert.ok(ARMS.includes('KT'));
   assert.deepEqual(armEnv('KT'), { KRN_TEST_FIRST: '1' });
-  for (const arm of ['K', 'P', 'PB']) assert.deepEqual(armEnv(arm), {});
+  for (const arm of ['K', 'P', 'PB', 'PC']) assert.deepEqual(armEnv(arm), {});
+});
+
+test('the analysis command prints the clause-arm delta with its CI for P and PC', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'd23-analysis-'));
+  try {
+    const file = join(dir, 'obs.json');
+    const obs = ['a', 'b', 'c', 'd'].flatMap((u, i) =>
+      [1, 2].flatMap((r) => [o(u, 'P', r, false), o(u, 'PC', r, i < 1)]),
+    );
+    writeFileSync(file, JSON.stringify(obs));
+    const r = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../../evals/d23/analysis.ts', import.meta.url)),
+        '--arms',
+        'P,PC',
+        '--observations',
+        file,
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.equal(r.status, 0);
+    assert.match(r.stdout, /PC - P: 25\.0 pp over 4 units/u);
+    assert.match(
+      r.stdout,
+      /clause-arm-delta-pp: 25\.0 \(95% CI \[[-\d.]+, [-\d.]+\], n=4 units\)/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

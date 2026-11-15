@@ -445,3 +445,74 @@ echo '{"session_id":"s"}'
     }
   });
 }
+
+test('arm PC starts a plain clone whose prompt carries the clause section built from the brief', () => {
+  const root = mkdtempSync(join(tmpdir(), 'd23-replay-'));
+  try {
+    const repo = join(root, 'repo');
+    const git = (...a: string[]) =>
+      execFileSync('git', a, { cwd: repo, encoding: 'utf8' }).trim();
+    mkdirSync(join(repo, 'tasks'), { recursive: true });
+    execFileSync('git', ['init', '-q', '-b', 'main', repo]);
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@invalid');
+    writeFileSync(join(repo, 'package.json'), '{"scripts":{"test":"true"}}\n');
+    writeFileSync(join(repo, 'CLAUDE.md'), 'harness file\n');
+    git('add', '.');
+    git('commit', '-qm', 'parent');
+    writeFileSync(
+      join(repo, 'tasks/t-abc1234.json'),
+      JSON.stringify({
+        id: 't-abc1234',
+        title: 'Fix it',
+        body: ['(1) It rejects an empty list. (2) It keeps order of items.'],
+      }),
+    );
+    git('add', '.');
+    git('commit', '-qm', 'fix(x): it is fixed (t-abc1234) (#7)');
+
+    const bin = join(root, 'bin');
+    mkdirSync(bin);
+    const seen = join(root, 'prompt');
+    writeFileSync(
+      join(bin, 'claude'),
+      `#!/usr/bin/env bash
+for a in "$@"; do last="$a"; done
+printf '%s' "$last" > ${seen}
+test -e CLAUDE.md && echo present > ${root}/harness
+echo x > made.txt; git add made.txt; git commit -qm "feat: made (t-abc1234)"
+echo '{"session_id":"s"}'
+`,
+    );
+    chmodSync(join(bin, 'claude'), 0o755);
+    const iface = join(root, 'iface');
+    mkdirSync(iface);
+    writeFileSync(
+      join(iface, '7.txt'),
+      '\n\nInterface the acceptance tests use (keep these module paths and export names):\n- `src/x.ts` exports `parseList`\n',
+    );
+
+    const out = join(root, 'out');
+    const r = spawnSync('bash', [replay, '7', 'PC'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        REPO: repo,
+        OUT: out,
+        IFACE: iface,
+        D23_TMP: join(root, 'work'),
+        HOME: join(root, 'home'),
+      },
+    });
+    assert.equal(r.status, 0, r.stderr);
+    const prompt = readFileSync(seen, 'utf8');
+    assert.match(prompt, /Acceptance clauses \(cover every one\):/u);
+    assert.match(prompt, /1\. It rejects an empty list\./u);
+    assert.match(prompt, /parseList/u);
+    assert.equal(existsSync(join(root, 'harness')), false);
+    assert.match(readFileSync(join(out, '7.PC.meas'), 'utf8'), /^measured$/m);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
