@@ -1,0 +1,12 @@
+{
+  "id": "t-yby141f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Scripts never write scratch repositories into the host adopted registry, and registry reads prune missing paths",
+  "after": [],
+  "body": [
+    "Why: Fable 1115f slice 2; ~/.krn/adopted.json holds 165 scratch paths, 146 gone, so adopt --refresh-all and doctor pack-stale serve no real project (doctor on the host exits 65 for a scratch py row).\nOutcome: outside-acceptance, standards-audit and first-day-walkthrough set KRN_ADOPTED_REGISTRY to a scratch file; registry reads prune missing paths and report the count.\nFiles: src/brain/adopted-registry.ts, scripts/outside-acceptance.ts, scripts/standards-audit.ts, scripts/first-day-walkthrough.ts, tests.\nProof: a test; the host registry is unchanged after a row run and has 0 missing entries."
+  ]
+}
