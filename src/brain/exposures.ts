@@ -11,6 +11,7 @@ import {
   readFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { metricReader } from './metrics.ts';
 
 /** Where the log lives, relative to the main checkout. */
 export const EXPOSURES_FILE = '.krn/brain/exposures.jsonl';
@@ -196,7 +197,8 @@ type Claim =
       value: number;
       rowsOp: Op;
       rows: number;
-    };
+    }
+  | { source: 'metric'; field: string; op: Op; value: number };
 
 const OP = '(>=|<=|==|>|<)';
 const PROOF_FIELDS = [
@@ -232,6 +234,11 @@ const OUTSIDE_CLAIM = new RegExp(
   'u',
 );
 
+const METRIC_CLAIM = new RegExp(
+  `^metric\\s+([a-z][a-z0-9-]*)\\s*${OP}\\s*(\\d+(?:\\.\\d+)?)$`,
+  'u',
+);
+
 /** The claim of a `Predicted:` line, or undefined when the line is absent or not measurable. */
 export function parseClaim(text: string): Claim | undefined {
   const line = /^[ \t]*Predicted:[ \t]*(.*)$/imu.exec(text)?.[1]?.trim();
@@ -246,6 +253,14 @@ export function parseClaim(text: string): Claim | undefined {
       field: proof[1] as string,
       op: proof[2] as Op,
       value: Number(proof[3]),
+    };
+  const metric = METRIC_CLAIM.exec(line);
+  if (metric !== null)
+    return {
+      source: 'metric',
+      field: metric[1] as string,
+      op: metric[2] as Op,
+      value: Number(metric[3]),
     };
   const outside = OUTSIDE_CLAIM.exec(line);
   if (
@@ -314,6 +329,8 @@ export type Records = {
    * descends from its task's merge; a task without a merge commit is unmeasured.
    */
   merges?: ReadonlyMap<string, string>;
+  /** A registered metric's current value (`spec/metrics.json`); undefined when unregistered or its command fails. */
+  metric?: (name: string) => number | undefined;
   /** True when `commit` is `ancestor` or contains it; required with `merges`. */
   descends?: (ancestor: string, commit: string) => boolean;
 };
@@ -323,6 +340,11 @@ export function judge(claim: Claim, taskId: string, records: Records): Verdict {
   if (claim.source === 'proof') {
     const counts = parseProofLine(records.proofs.get(taskId) ?? '');
     const actual = counts?.[claim.field];
+    if (actual === undefined) return 'unmeasured';
+    return holds(actual, claim.op, claim.value) ? 'hit' : 'miss';
+  }
+  if (claim.source === 'metric') {
+    const actual = records.metric?.(claim.field);
     if (actual === undefined) return 'unmeasured';
     return holds(actual, claim.op, claim.value) ? 'hit' : 'miss';
   }
@@ -426,6 +448,7 @@ export function readRecords(root: string): Records {
     outside: existsSync(path)
       ? parseOutsideRows(readFileSync(path, 'utf8'))
       : undefined,
+    metric: metricReader(root),
     merges: mergeCommits(root),
     descends: (ancestor, commit) => isAncestor(root, ancestor, commit),
   };
@@ -475,4 +498,25 @@ export function renderScorecard(card: Scorecard): string {
 
 export function predictionScorecard(root: string): string {
   return renderScorecard(scoreTasks(readTaskTexts(root), readRecords(root)));
+}
+
+/** Share of the plan's tasks (ids in `docs/program/plan.md` rows) that are closed and scored hit or miss. */
+export function planScoredShare(root: string): number {
+  const planPath = join(root, 'docs/program/plan.md');
+  if (!existsSync(planPath)) return 0;
+  const ids = new Set(
+    [
+      ...readFileSync(planPath, 'utf8').matchAll(/\[S\d+ (t-[0-9a-z]+)\]/gu),
+    ].map((m) => m[1] as string),
+  );
+  if (ids.size === 0) return 0;
+  const records = readRecords(root);
+  let scored = 0;
+  for (const task of readTaskTexts(root)) {
+    if (!ids.has(task.id) || task.status !== 'closed') continue;
+    const claim = parseClaim(task.text);
+    if (claim !== undefined && judge(claim, task.id, records) !== 'unmeasured')
+      scored++;
+  }
+  return scored / ids.size;
 }

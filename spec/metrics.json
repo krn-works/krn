@@ -1,0 +1,72 @@
+{
+  "metrics": {
+    "abc-c-minus-a-pp": {
+      "command": "node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report --metric c-minus-a-pp"
+    },
+    "abc-screen-a-pass-rate": {
+      "command": "node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report --metric screen-a-pass-rate"
+    },
+    "adopted-duplicate-ci": {
+      "command": "bin/krn adopt --verify | sed -n 's/^duplicate-ci: //p'"
+    },
+    "chore-tasks-commit-share": {
+      "command": "git log --since=14.days --format=%s | awk '/^chore\\(tasks\\)/{c++}{n++}END{printf \"%.3f\\n\", n?c/n:0}'"
+    },
+    "clause-arm-delta-pp": {
+      "command": "node evals/d23/analysis.ts --arms P,PC --metric delta-pp"
+    },
+    "delivery-fix-commits-30d": {
+      "command": "git log --since=30.days --oneline --grep='^fix' -- src/ci src/deliver 'src/cli/lane*' | wc -l | tr -d ' '"
+    },
+    "durable-stores": {
+      "command": "bin/krn standards query --type decision --count-stores"
+    },
+    "hardcoded-tasks-paths": {
+      "command": "git grep -lE \"['\\\"\\`]tasks/\" -- src ':!src/task' | wc -l | tr -d ' '"
+    },
+    "hook-tool-p50-ms": { "command": "bin/krn doctor --hooks --metric p50-ms" },
+    "lead-mandatory-bytes": {
+      "command": "node -e \"const f=JSON.parse(require('fs').readFileSync('spec/context-budget.json','utf8')).files;console.log(Object.values(f).reduce((a,b)=>a+b,0))\""
+    },
+    "memory-dangling-links": {
+      "command": "bin/krn memory check --count-dangling"
+    },
+    "new-tasks-with-kind-share": {
+      "command": "bin/krn task list --json --kind-share"
+    },
+    "plan-slices-scored-share": {
+      "command": "bin/krn ledger --predictions --share"
+    },
+    "query-calls-per-session": {
+      "command": "bin/krn ledger --unused --metric query-calls-per-session"
+    },
+    "real-adopted-repos": {
+      "command": "node -e \"const a=JSON.parse(require('fs').readFileSync(require('os').homedir()+'/.krn/adopted.json','utf8'));const l=Array.isArray(a)?a:Object.keys(a.repos??a);console.log(l.filter((p)=>!String(p.path??p).startsWith('/mnt/storage/tmp')).length)\""
+    },
+    "recall-at-5-task-start": {
+      "command": "node evals/retrieval/run.ts --metric recall-at-5-task-start"
+    },
+    "records-with-30-scoped-diffs": {
+      "command": "bin/krn standards effect --json --count-scoped 30"
+    },
+    "records-with-external-provenance": {
+      "command": "node -e \"let n=0;for(const f of ['standards/records.json','.agents/records.json']){try{const r=JSON.parse(require('fs').readFileSync(f,'utf8'));for(const x of Array.isArray(r)?r:r.records??[])if(/^https?:|arxiv/i.test(x?.provenance?.origin??''))n++}catch{}}console.log(n)\""
+    },
+    "served-set-overlap": { "command": "bin/krn standards effect --overlap" },
+    "session-start-bytes": {
+      "command": "node scripts/claude/context-restart.ts < test/fixtures/claude/session-start.json | wc -c | tr -d ' '"
+    },
+    "src-lines": {
+      "command": "find src -name '*.ts' | xargs cat | wc -l | tr -d ' '"
+    },
+    "successor-launches-logged-share": {
+      "command": "bin/krn successor-launch --logged-share"
+    },
+    "task-show-ms": {
+      "command": "s=$(date +%s%N); bin/krn task show t-k3jmgax >/dev/null && echo $((($(date +%s%N)-s)/1000000))"
+    },
+    "trial-records-proposed-30d": {
+      "command": "git log -p --since=30.days -- standards/records.json .agents/records.json | grep -c '\"status\": \"trial\"'"
+    }
+  }
+}
