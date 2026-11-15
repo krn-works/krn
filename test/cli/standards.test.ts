@@ -148,7 +148,7 @@ for (const [name, files, stack] of fixtures) {
         match.map(Number);
       assert.equal(match[6], stack);
       assert.ok((enforced ?? 0) >= 8, `${enforced} enforced`);
-      assert.ok((advisory ?? 0) >= 1);
+      assert.equal(advisory, 0);
       assert.equal(applied, inherited);
       // krn-delivery standards need KRN adopted, so not every pack record applies.
       assert.ok((inherited ?? 0) < (total ?? 0));
@@ -578,10 +578,8 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
         agents,
         /^- \*\*s-tests-tracked\*\* The repository tracks automated tests.* _\(checked by `krn standards check`: `git ls-files /mu,
       );
-      assert.match(
-        agents,
-        /^- \*\*s-plainest-input\*\* .*_\(advisory, not checked\)_$/mu,
-      );
+      assert.doesNotMatch(agents, /advisory, not checked/u);
+      assert.doesNotMatch(agents, /\*\*s-plainest-input\*\*/u);
       // The generated block does not leak into the conventions the lane packet reads.
       const conventions = join(root, '.krn/conventions.json');
       if (existsSync(conventions))

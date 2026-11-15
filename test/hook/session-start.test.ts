@@ -93,7 +93,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
       context.additionalContext,
       /^Standards for this task \(\d+\):/u,
     );
-    assert.match(context.additionalContext, /- \[s-[a-z-]+\]/u);
+    assert.match(context.additionalContext, /- \[[sr]-[a-z0-9-]+\]/u);
 
     const worker = run(
       root,

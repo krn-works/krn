@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -88,6 +94,12 @@ const go: Files = {
   'probe.go': 'package probe\n\nfunc One() int {\n\treturn 1\n}\n',
   'probe_test.go':
     'package probe\n\nimport "testing"\n\nfunc TestOne(t *testing.T) {\n\tif One() != 1 {\n\t\tt.Fatal("one")\n\t}\n}\n',
+};
+const theme: Files = {
+  ...node,
+  'composer.json': '{"require":{"roots/bedrock":"^1"}}\n',
+  'web/app/themes/probe/style.css':
+    '/* Theme Name: Probe */\n.card { color: red; }\n',
 };
 const tracked: Files = { ...node, 'krn.json': '{"tracker":"krn"}\n' };
 
@@ -432,6 +444,60 @@ const cases: Case[] = [
     green: { 'src/parser.ts': 'export const p = 1;\n' },
   },
   {
+    id: 's-regression-lowest-layer',
+    base: node,
+    red: {},
+    green: {},
+    commits: [
+      ['chore: adopt krn', 'fix(parser): accept the short form'],
+      [
+        'chore: adopt krn',
+        'fix(parser): accept the short form\n\nNo-test: wording only',
+      ],
+    ],
+  },
+  {
+    id: 's-skill-acf-component',
+    base: theme,
+    red: {
+      'web/app/themes/probe/acf-json/group_hero.json': '{"title": "Hero"}\n',
+    },
+    green: {
+      'web/app/themes/probe/acf-json/group_hero.json':
+        '{"key": "group_hero", "title": "Hero"}\n',
+    },
+  },
+  {
+    id: 's-skill-cube-css',
+    base: theme,
+    red: {
+      'web/app/themes/probe/blocks/card.css':
+        '.card { color: red !important; }\n',
+    },
+    green: {
+      'web/app/themes/probe/blocks/card.css':
+        '.card { color: red !important; /* forced-colors override */ }\n',
+    },
+  },
+  {
+    id: 's-skill-plesk-deploy',
+    base: theme,
+    red: {
+      '.github/workflows/deploy.yml':
+        'jobs:\n  deploy:\n    steps:\n      - run: ssh -o StrictHostKeyChecking=no host\n',
+    },
+    green: {
+      '.github/workflows/deploy.yml':
+        'jobs:\n  deploy:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          path: .release-tooling\n          ref: 0123456789abcdef0123456789abcdef01234567\n',
+    },
+  },
+  {
+    id: 's-skill-wp-runtime',
+    base: theme,
+    red: { '.env': 'DB_PASSWORD=secret\n' },
+    green: { '.env.example': 'DB_PASSWORD=\n' },
+  },
+  {
     id: 's-ticket-trailer',
     base: tracked,
     red: {},
@@ -473,4 +539,87 @@ test('s-ticket-trailer ignores a commit that names no task and a repository with
     verdict('s-ticket-trailer', merged(tracked), ['chore: tidy']),
     0,
   );
+});
+
+test('an unpinned release-tooling workflow fails', () => {
+  assert.equal(
+    verdict(
+      's-skill-plesk-deploy',
+      merged(theme, {
+        '.github/workflows/deploy.yml':
+          'steps:\n  - run: git clone tooling .release-tooling\n',
+      }),
+    ),
+    1,
+  );
+});
+
+test('a fix commit that touches a test file satisfies s-regression-lowest-layer', () => {
+  const root = repository(merged(node));
+  try {
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    git('commit', '-qm', 'chore: adopt krn');
+    mkdirSync(join(root, 'test'), { recursive: true });
+    writeFileSync(join(root, 'test/index.test.ts'), 'export {};\n');
+    git('add', '-A');
+    git('commit', '-qm', 'fix(parser): accept the short form');
+    const done = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'standards',
+        'check',
+        '--root',
+        root,
+        '--record',
+        's-regression-lowest-layer',
+      ],
+      { encoding: 'utf8', cwd: tmpdir() },
+    );
+    assert.equal(done.status, 0, done.stdout + done.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('no pack record stays advisory: a retired one carries its reason and applies nowhere', () => {
+  const pack = JSON.parse(
+    readFileSync(
+      new URL('../../standards/records.json', import.meta.url),
+      'utf8',
+    ),
+  ) as {
+    id: string;
+    status: string;
+    why: string;
+    valid_to: string | null;
+    enforcement: { kind: string };
+  }[];
+  const advisory = pack.filter((r) => r.enforcement.kind === 'advisory');
+  assert.deepEqual(
+    advisory.filter((r) => r.status !== 'retired').map((r) => r.id),
+    [],
+  );
+  for (const r of advisory) {
+    assert.match(r.why, /^Retired: .{20,}/u, r.id);
+    assert.notEqual(r.valid_to, null, r.id);
+    const done = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'standards',
+        'check',
+        '--root',
+        repository(merged(node)),
+        '--record',
+        r.id,
+      ],
+      { encoding: 'utf8', cwd: tmpdir() },
+    );
+    assert.match(done.stdout + done.stderr, /not found/u, r.id);
+  }
 });
