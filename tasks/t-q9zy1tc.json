@@ -1,0 +1,12 @@
+{
+  "id": "t-q9zy1tc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "The pack enforces WordPress and TypeScript correctness records with plants",
+  "after": [],
+  "body": [
+    "Why: Fable 1115g slice 5; privilege holes in client plugins cost 4-8 h plus an incident.\nOutcome: enforced records for REST permission_callback, capability check beside nonce, sanitised input before update_option or meta, and TS floating promises, each with a plant.\nFiles: standards/records.json, test/scripts/planted-records.test.ts, scripts/standards-audit.ts.\nProof: planted matrix N/N, false-red 0 on one public WordPress plugin clone.\nSerial: changes the enforced set and planted matrix."
+  ]
+}

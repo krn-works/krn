@@ -1,0 +1,12 @@
+{
+  "id": "t-qjqsdvj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Red-first proof is on by default in every non-vacuous adopted repository",
+  "after": [],
+  "body": [
+    "Why: Fable 1115g slice 1; the test-first Stop arm (src/hook/stop.ts:621-624) runs only under KRN_TEST_FIRST, so lanes can ship fixes without a test or with a test that passes without the fix.\nOutcome: the test-first arm is on by default where the repo has a test command; the Stop refusal names the missing red-at-base proof; KRN_TEST_FIRST=0 opts out.\nFiles: src/hook/stop.ts, src/cli/lane-brief.ts, src/repo/agents-render.ts, tests.\nProof: a Stop test is red without a red-at-base test and green with one; three outside rows drain 0 with at least 1 red-at-base test each."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-svzyda1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "krn standards review prints the applicable records per changed file before Stop",
+  "after": [],
+  "body": [
+    "Why: Fable 1115g slice 4; a Stop refusal is the worker's first feedback on standards, costing turns.\nOutcome: krn standards review lists applicable enforced records per changed file with the offending line and exits 1 on a violation; the worker brief orders it before Stop.\nFiles: src/brain/standards-cli.ts, src/brain/worker-packet.ts, tests.\nProof: a fixture diff with a planted violation exits 1 naming file:line; Stop refusals per lane are 0 on the three outside rows."
+  ]
+}
