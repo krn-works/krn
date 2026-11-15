@@ -448,9 +448,19 @@ export function standardsBlockers(
   const why = new Map(
     applicable.map((standard) => [standard.id, standard.why]),
   );
+  // The diff's offending lines of the records that stop the session: a waived reflex and a finish record are skipped.
+  const stopping = applicable.filter(
+    (standard) =>
+      standard.tier === 'floor' ||
+      (standard.tier === 'reflex' && standard.waiver === undefined),
+  );
+  const at = new Map<string, string[]>();
+  for (const hit of reviewStandards(root, stopping).violations)
+    at.set(hit.id, [...(at.get(hit.id) ?? []), `${hit.file}:${hit.line}`]);
   return report.blocking.map((failure) => {
     const reason = why.get(failure.id);
-    return `${failure.id} (${failure.tier ?? 'standard'}): ${failure.message}${reason ? `\n  why: ${reason}` : ''}`;
+    const where = at.get(failure.id);
+    return `${failure.id} (${failure.tier ?? 'standard'}): ${failure.message}${where ? `\n  at: ${where.join(', ')}` : ''}${reason ? `\n  why: ${reason}` : ''}`;
   });
 }
 
