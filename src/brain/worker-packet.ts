@@ -73,8 +73,50 @@ export function workerRecords(records: readonly BrainRecord[]): BrainRecord[] {
   );
 }
 
+const squash = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, ' ')
+    .trim();
+
+/** The always-loaded rule files of a repository, squashed to words: what the model already holds. */
+function alwaysLoaded(repo: string): string {
+  return ['AGENTS.md', 'CLAUDE.md']
+    .map((name) => join(repo, name))
+    .filter((path) => existsSync(path))
+    .map((path) => ` ${squash(readFileSync(path, 'utf8'))} `)
+    .join('');
+}
+
+/** Drops the records AGENTS.md or CLAUDE.md already state, by id or by text: serving them again costs tokens and adds nothing. */
+export function withoutAlwaysLoaded(
+  repo: string,
+  records: readonly BrainRecord[],
+): BrainRecord[] {
+  const loaded = alwaysLoaded(repo);
+  if (loaded === '') return [...records];
+  return records.filter(
+    (record) =>
+      !loaded.includes(` ${squash(record.id)} `) &&
+      !loaded.includes(` ${squash(record.text)} `),
+  );
+}
+
+/** Who a packet is for: a worker never receives a lead record; the lead receives both. */
+export type PacketAudience = 'worker' | 'lead';
+
+/** The records a lead's own session may carry: everything but adoption records and enforced records. */
+export function leadRecords(records: readonly BrainRecord[]): BrainRecord[] {
+  return records.filter(
+    (record) => record.audience !== 'adopt' && record.enforced !== true,
+  );
+}
+
 /** Every record a lane packet could carry for this repository: the candidates the packet selects from. */
-export function laneCandidates(repo: string): BrainRecord[] {
+export function laneCandidates(
+  repo: string,
+  audience: PacketAudience = 'worker',
+): BrainRecord[] {
   assertFormat(repo, 'krn.record');
   const path = recordsPath(repo);
   const own = existsSync(path)
@@ -84,7 +126,11 @@ export function laneCandidates(repo: string): BrainRecord[] {
   const standards = readProject(repo)
     .map(packetRecord)
     .filter((record) => !ids.has(record.id));
-  return workerRecords([...own, ...standards]);
+  const all = [...own, ...standards];
+  return withoutAlwaysLoaded(
+    repo,
+    audience === 'lead' ? leadRecords(all) : workerRecords(all),
+  );
 }
 
 /**
@@ -100,8 +146,9 @@ export function lanePacket(
   task: string,
   budget = LANE_BUDGET,
   holdout = true,
+  audience: PacketAudience = 'worker',
 ): Packet | null {
-  const candidates = laneCandidates(repo);
+  const candidates = laneCandidates(repo, audience);
   if (candidates.length === 0) return null;
   return brainPacket({
     task,

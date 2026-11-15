@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { clauseSection, isBugBody } from '../brain/acceptance-clauses.ts';
 import { firstTestSection } from '../brain/first-test.ts';
 import { callSiteSweep, precedentSection } from '../brain/precedent.ts';
+import { taskKey, taskQueryText } from '../brain/task-query.ts';
 import {
   gatesBlock,
   heldOut,
@@ -97,12 +98,16 @@ export function laneBrief(
   /** False only for the frozen FR-40 carrier, which withholds nothing. */
   holdout = true,
 ): LaneBrief {
-  const packet = lanePacket(repo, brief, asOf, task, budget, holdout);
+  // A named task keys the packet by its title, Outcome, Files, stack and area as well as the brief's words.
+  const key = taskKey(repo, task);
+  const query =
+    key === undefined ? brief : `${brief}\n${taskQueryText(key, [])}`;
+  const packet = lanePacket(repo, query, asOf, task, budget, holdout);
   const served = packet?.records ?? [];
   // Withheld is what the packet would have served without the holdout, intersected with the holdout.
   const withheld = holdout
     ? (
-        lanePacket(repo, brief, asOf, task, budget, false)?.records ?? []
+        lanePacket(repo, query, asOf, task, budget, false)?.records ?? []
       ).filter((id) => heldOut(task, id))
     : [];
   const text = packetBrief(packet, brief);

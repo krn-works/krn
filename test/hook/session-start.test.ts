@@ -73,6 +73,65 @@ const session = (root: string, id: string) =>
 test('an adopted fresh repository serves the brain standards at session start, teaches a seeded violation at Stop and shows both in standards effect', () => {
   const root = adopted();
   try {
+    const bare = run(
+      root,
+      process.execPath,
+      [cli, 'hook', 'session'],
+      session(root, 'sess-bare'),
+    );
+    assert.equal(bare.status, 0, bare.stderr);
+    assert.doesNotMatch(
+      bare.stdout,
+      /Standards for this task/u,
+      'a session with no claimed task is served no standards',
+    );
+    const advisory = join(root, '.agents/standards.json');
+    writeFileSync(
+      advisory,
+      JSON.stringify([
+        ...(JSON.parse(readFileSync(advisory, 'utf8')) as unknown[]),
+        {
+          id: 's-commit-after-linter',
+          type: 'standard',
+          area: 'tests',
+          layer: 'universal',
+          audience: 'worker',
+          tier: 'reflex',
+          text: 'Commit a change only after the linter and the tests pass, with a Ticket trailer.',
+          why: 'A red commit costs a CI round.',
+          provenance: { origin: 'test', evidence: ['index.js'], proposals: [] },
+          enforcement: { kind: 'advisory' },
+          applies: { stacks: [], needs: [], paths: [], terms: [] },
+          status: 'accepted',
+          supersedes: [],
+          recorded_at: '2026-01-01',
+          valid_from: '2026-01-01',
+          valid_to: null,
+        },
+      ]),
+    );
+    mkdirSync(join(root, 'tasks'));
+    mkdirSync(join(root, '.krn/task-claims'), { recursive: true });
+    writeFileSync(
+      join(root, 'tasks/t-fix.json'),
+      JSON.stringify({
+        id: 't-fix',
+        status: 'open',
+        title: 'Commit a change after the linter and the tests pass',
+        body: ['Outcome: a commit with a Ticket trailer\nFiles: index.js'],
+      }),
+    );
+    writeFileSync(
+      join(root, '.krn/task-claims/t-fix.json'),
+      JSON.stringify({
+        id: 't-fix',
+        actor: 'lead',
+        worktree: root,
+        branch: 'work',
+        claimed: '2026-01-01T00:00:00.000Z',
+        reason: null,
+      }),
+    );
     const start = run(
       root,
       process.execPath,
@@ -94,6 +153,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
       /^Standards for this task \(\d+\):/u,
     );
     assert.match(context.additionalContext, /- \[[sr]-[a-z0-9-]+\]/u);
+    rmSync(join(root, 'tasks'), { recursive: true, force: true });
 
     const worker = run(
       root,

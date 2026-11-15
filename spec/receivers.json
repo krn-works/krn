@@ -37,6 +37,10 @@
       "receivers": ["git"],
       "real": "test/brain/precedent.test.ts"
     },
+    "src/brain/task-query.ts": {
+      "receivers": ["git"],
+      "real": "test/brain/task-query.test.ts"
+    },
     "src/brain/standards-cli.ts": {
       "receivers": ["git"],
       "real": "test/cli/standards.test.ts"

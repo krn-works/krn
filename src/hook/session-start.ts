@@ -2,7 +2,6 @@
 // brain that match the session's task and logs the exposure. Worker sessions already hold the
 // packet in their brief and get nothing. Any failure leaves the session untouched.
 import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { emitContext, hookInput } from '../harness/claude.ts';
 import { isWorkerSession } from './session.ts';
@@ -28,8 +27,7 @@ export function sessionContext(
     .trim()
     .split('\n');
   const main = dirname(resolve(project, commonDirectory));
-  const query = [branch, ...readdirSync(project)].join('\n');
-  return sessionStandards(project, main, sessionId, query);
+  return sessionStandards(project, main, sessionId, branch);
 }
 
 export function main(): void {

@@ -226,6 +226,38 @@ export function effectRows(exposures: readonly Exposure[]): string[] {
     );
 }
 
+/** The channels whose packets are keyed by a task: the session start and the lane brief. */
+const TASK_PACKETS = new Set(['session', 'lane']);
+
+/**
+ * Mean Jaccard overlap of the served record sets of different tasks: each task's set is the union of
+ * its session and lane packets (a run without a task counts as its own). Null when fewer than two sets exist.
+ */
+export function servedOverlap(
+  exposures: readonly Exposure[],
+): { mean: number; pairs: number; tasks: number } | null {
+  const sets = new Map<string, Set<string>>();
+  for (const row of exposures) {
+    if (!TASK_PACKETS.has(row.channel) || row.served.length === 0) continue;
+    const key = row.task ?? `run:${row.run}`;
+    const set = sets.get(key) ?? new Set<string>();
+    for (const id of row.served) set.add(id);
+    sets.set(key, set);
+  }
+  const all = [...sets.values()];
+  let total = 0;
+  let pairs = 0;
+  for (let i = 0; i < all.length; i += 1)
+    for (let j = i + 1; j < all.length; j += 1) {
+      const a = all[i] as Set<string>;
+      const b = all[j] as Set<string>;
+      const shared = [...a].filter((id) => b.has(id)).length;
+      total += shared / (a.size + b.size - shared);
+      pairs += 1;
+    }
+  return pairs === 0 ? null : { mean: total / pairs, pairs, tasks: all.length };
+}
+
 /** A served packet whose outcome is not known yet (the session has just started): no per-record result. */
 export function servedExposure(
   run: string,

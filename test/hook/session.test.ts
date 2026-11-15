@@ -108,6 +108,32 @@ test('SessionStart injects the matching standards of an adopted repository and l
         record('s-other', 'Database migrations run inside one transaction.'),
       ]),
     );
+    // No claimed task: no standards block, however well a record matches the branch.
+    assert.doesNotMatch(context(start({}).stdout), /Standards for this task/u);
+    mkdirSync(join(root, 'tasks'));
+    mkdirSync(join(root, '.krn/task-claims'), { recursive: true });
+    writeFileSync(
+      join(root, 'tasks/t-widget.json'),
+      JSON.stringify({
+        id: 't-widget',
+        status: 'open',
+        title: 'Stabilise the flaky widget',
+        body: [
+          'Outcome: flaky widget tests stop failing\nFiles: src/widget.ts',
+        ],
+      }),
+    );
+    writeFileSync(
+      join(root, '.krn/task-claims/t-widget.json'),
+      JSON.stringify({
+        id: 't-widget',
+        actor: 'lead',
+        worktree: root,
+        branch: 'fix-flaky-widget',
+        claimed: '2026-01-01T00:00:00.000Z',
+        reason: null,
+      }),
+    );
     const served = context(start({}).stdout);
     assert.match(served, /Standards for this task \(1\)/u);
     assert.match(served, /\[s-widget\]/u);
@@ -119,6 +145,7 @@ test('SessionStart injects the matching standards of an adopted repository and l
       .trim()
       .split('\n');
     assert.equal(JSON.parse(line ?? '{}').channel, 'session');
+    assert.equal(JSON.parse(line ?? '{}').task, 't-widget');
     assert.deepEqual(JSON.parse(line ?? '{}').served, ['s-widget']);
     assert.doesNotMatch(
       context(start({ KRN_ROLE: 'worker' }).stdout),

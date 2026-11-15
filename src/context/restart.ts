@@ -281,10 +281,7 @@ export function restartText(
   // An adopted repository's interactive session gets the standards that match its task; a worker's brief already has them.
   if (sessionId !== undefined && !isWorkerSession()) {
     try {
-      const query = [branch, ...lines.slice(1), ...readdirSync(project)].join(
-        '\n',
-      );
-      const block = sessionStandards(project, main, sessionId, query);
+      const block = sessionStandards(project, main, sessionId, branch);
       if (block) lines.splice(next, 0, block);
     } catch {
       /* Standards must never interrupt startup. */
