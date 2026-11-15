@@ -100,6 +100,25 @@
       "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
     },
     {
+      "stack": "py-fs-sweep",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "922e7b2bfae226efa569b4441abbe7a0fb3d47de",
+      "title": "File, path and named-tuple helpers each have a bug",
+      "body": [
+        "Bugs seen in boltons: (1) FilePerms.from_int(0o007) does not round-trip through int(), and from_int(0o070) gives user permissions where only group should have them; revoking a permission from a FilePerms leaves the integer value wrong (a user write bit revoked from 0o600 style permissions must leave 0o400). (2) When flushing the part file of an AtomicSaver fails, the part file is left open and on disk and the failure is not cleaned up, so it should close and remove the part file and never create the destination. (3) iter_find_files given a directory path that ends with a path separator returns a different set of files than the same path without the trailing separator. (4) namedtuple and namedlist with rename=True do not rename a field such as 'value\\u00b2' that is alphanumeric but not a valid identifier. (5) pathutils.shrinkuser when the home directory is the filesystem root '/' does not shorten paths under it to '~/project/file' and the root itself to '~'."
+      ],
+      "hidden": [
+        "tests/test_fileutils.py",
+        "tests/test_namedutils.py",
+        "tests/test_pathutils.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_fileutils.py tests/test_namedutils.py tests/test_pathutils.py -k \"test_fileperms_from_int_leading_zero_groups or test_fileperms_revoke or test_atomicsaver_flush_failure_cleans_up or test_iter_find_files_trailing_sep or test_non_identifier_alnum_name or test_shrinkuser_root_home\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
       "stack": "py-osc-hang",
       "upstream": "https://github.com/tartley/colorama.git",
       "license": "BSD-3-Clause",
@@ -110,9 +129,12 @@
       ],
       "hidden": ["colorama/tests/ansitowin32_test.py"],
       "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama/tests/ansitowin32_test.py -k \"test_osc_codes\"",
-      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama",
-      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama",
-      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --ignore=colorama/tests/initialise_test.py",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --ignore=colorama/tests/initialise_test.py",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}",
+      "support": {
+        "mock.py": "scripts/outside-hidden/py-mock-shim.py"
+      }
     }
   ]
 }

@@ -477,3 +477,23 @@ test('a task row may name the existing suite whose failures count as regressions
   );
   assert.equal(parseTaskFile(row({}))[0]?.suite, undefined);
 });
+
+test('every support file of the discriminating rows exists and the mock shim serves the mock package API', () => {
+  const rows = parseTaskFile(
+    readFileSync('scripts/outside-hidden/discriminating-tasks.json', 'utf8'),
+  );
+  for (const row of rows)
+    for (const source of Object.values(row.support ?? {}))
+      assert.ok(readFileSync(source, 'utf8').length > 0, source);
+  const dir = mkdtempSync(join(tmpdir(), 'mock-shim-'));
+  writeFileSync(
+    join(dir, 'mock.py'),
+    readFileSync('scripts/outside-hidden/py-mock-shim.py'),
+  );
+  const run = spawnSync(
+    'python3',
+    ['-c', 'import mock; assert mock.Mock and mock.patch'],
+    { encoding: 'utf8', cwd: dir },
+  );
+  assert.equal(run.status, 0, run.stderr);
+});
