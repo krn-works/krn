@@ -333,3 +333,37 @@ class TestMiscCases(TestCase):
 
         pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
         self.assertIn('mistune = "mistune.__main__:cli"', pyproject)
+
+
+class TestImageDepth(TestCase):
+    CASES = [
+        "![" * 1000 + "a" + "](u)" * 1000,
+        "[" + "![" * 1000 + "a" + "](u)" * 1000 + "](u)",
+    ]
+
+    def test_default_attribute(self):
+        self.assertEqual(mistune.create_markdown().inline.max_image_depth, 20)
+
+    def test_deep_images_finish(self):
+        import time
+
+        for renderer in ("html", "ast"):
+            md = mistune.create_markdown(renderer=renderer)
+            for text in self.CASES:
+                start = time.time()
+                md(text)
+                self.assertLess(time.time() - start, 5)
+
+    def test_limit_is_configurable(self):
+        from mistune.inline_parser import InlineParser
+
+        inline = InlineParser(max_image_depth=2)
+        self.assertEqual(inline.max_image_depth, 2)
+        md = mistune.Markdown(None, inline=inline)
+        tokens = md.parse("![![![a](u)](u)](u)")[0]
+        depth = 0
+        node = tokens[0]["children"][0]
+        while node["type"] == "image":
+            depth += 1
+            node = node["children"][0]
+        self.assertEqual(depth, 2)

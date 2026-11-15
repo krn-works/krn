@@ -1,7 +1,11 @@
 {
   "id": "t-0muny2s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "max_image_depth (default 20) bounds nested images"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "Deeply nested image markup makes mistune recurse without a limit",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
