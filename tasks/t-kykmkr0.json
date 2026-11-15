@@ -1,0 +1,12 @@
+{
+  "id": "t-kykmkr0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Outside rows run the checkout's krn hook and fail on a hook version mismatch",
+  "after": [],
+  "body": [
+    "Why: Fable 1115b slice 1; rows ran the installed krn hook, not the checkout (test-first replay attempt 2).\nOutcome: the row harness puts the checkout krn first on PATH, records the hook version in the summary; mismatch fails the row.\nProof: regression test with a stale shim goes red. Free. Touches scripts/outside-acceptance.ts."
+  ]
+}

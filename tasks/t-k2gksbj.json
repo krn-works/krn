@@ -1,0 +1,14 @@
+{
+  "id": "t-k2gksbj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Harvest proposes from hidden failures, red drains, cross-repo audit fails and fix commits",
+  "after": [
+    "t-saj44em"
+  ],
+  "body": [
+    "Why: Fable 1115b slice 5; harvest is empty because only Stop refusals feed it.\nOutcome: proposals also from hidden failures, non-zero drains, audit FAILs in >=2 repos, backfilled KRN fix commits #893-#900.\nProof: >=1 candidate promoted into an enforced record with a check; evals/outside-harvest.md. Free. Merge after the discriminating-row slice."
+  ]
+}

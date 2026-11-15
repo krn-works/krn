@@ -1,0 +1,12 @@
+{
+  "id": "t-3zqj578",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Adopt files one remediation task per failed standard and a row drains them",
+  "after": [],
+  "body": [
+    "Why: Fable 1115b slice 4; evals/standards-audit.md shows s-ci-runs-tests, s-linter-configured, s-readme-test-command red 3/3; brain reports but never closes the gap.\nOutcome: krn adopt files one remediation task per failed record; a row drains them.\nProof: audit FAIL cells drop on >=2 rows, zero false-red; WordPress row measures s-skill-* records. ~$0.5."
+  ]
+}

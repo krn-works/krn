@@ -1,0 +1,15 @@
+{
+  "id": "t-saj44em",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Discriminating outside rows where the worker sometimes fails, with graded hidden metrics",
+  "after": [
+    "t-abe0fm1",
+    "t-kykmkr0"
+  ],
+  "body": [
+    "Why: Fable 1115b slice 2; easy rows ceiling at K 3/3 so no arm differs.\nOutcome: 6-8 public fixed-issue candidates (fix spans >=2 files, body symptom-only, existing suite); K once per row; summary gains hidden-case fraction, suite regressions, Stop refusals, turns, cost.\nProof: >=3 rows with K below 100%; each harness failure fixed with a regression test. ~$2-3. Touches scripts/outside-acceptance.ts and scripts/outside-hidden/tasks.json."
+  ]
+}

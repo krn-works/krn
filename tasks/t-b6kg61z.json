@@ -1,0 +1,12 @@
+{
+  "id": "t-b6kg61z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "A worker's own test is graded red on base and green on merge across merged outside rows",
+  "after": [],
+  "body": [
+    "Why: Fable 1115b slice 3; gives test-first a signal without new runs.\nOutcome: new scripts/outside-testgrade.ts checks each merged row: worker's own test red on base, green on merge.\nProof: table in evals/ over >=9 merged row SHAs. Free."
+  ]
+}
