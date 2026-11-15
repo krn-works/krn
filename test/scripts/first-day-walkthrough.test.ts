@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   namesRemedy,
   nextSteps,
+  packRemedyCommand,
   stepCommands,
   summarize,
 } from '../../scripts/lib/first-day-walkthrough.ts';
@@ -49,4 +50,11 @@ test('the summary exits 0 only when every step held', () => {
   ]);
   assert.equal(bad.exitCode, 1);
   assert.match(bad.text, /FAIL b: boom/u);
+});
+
+test('the pack remedy is the command in the doctor pack-remedy line', () => {
+  const out =
+    'pack-stale=/r lacks 1 pack records: s-x\npack-remedy=run `krn adopt --refresh-all` (or `krn adopt <repo> --refresh`)\n';
+  assert.equal(packRemedyCommand(out), 'krn adopt --refresh-all');
+  assert.equal(packRemedyCommand('pack=current\n'), undefined);
 });

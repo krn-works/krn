@@ -3,14 +3,17 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import {
   namesRemedy,
   nextSteps,
+  packRemedyCommand,
   type StepResult,
   stepCommands,
   summarize,
@@ -74,6 +77,80 @@ function runSteps(label: string, dir: string, output: string) {
     }
 }
 
+// Day two in the adopted directory: the pack grew (one pack record is missing
+// from .agents/standards.json), doctor names the remedy, the remedy refreshes,
+// and the task opened on day one is still open and its lane brief resumes it.
+// Doctor ORs the host entry-pin exit (78 while the host's Product entry lags
+// origin/main) into its own; that host state is not the pack's, so the pack
+// lines decide and the exit must equal the wanted code only on a fresh entry.
+function exitIs(run: { code: number; out: string }, want: number) {
+  return /^status=stale$|^entry=unconfigured$/mu.test(run.out)
+    ? run.code === 78
+    : run.code === want;
+}
+
+function secondDay(dir: string, id: string | undefined) {
+  const file = join(dir, '.agents', 'standards.json');
+  const records = JSON.parse(readFileSync(file, 'utf8')) as {
+    id: string;
+    layer: string;
+  }[];
+  const dropped = records.find((record) => record.layer === 'universal');
+  expect('second day: a pack record to drop exists', !!dropped, file);
+  writeFileSync(
+    file,
+    `${JSON.stringify(
+      records.filter((record) => record !== dropped),
+      null,
+      2,
+    )}\n`,
+  );
+  const stale = sh(dir, 'krn doctor');
+  expect(
+    'second day: doctor on a stale pack exits 65 naming the record',
+    exitIs(stale, 65) &&
+      stale.out.includes('pack-stale=') &&
+      stale.out.includes(dropped?.id ?? '?'),
+    `exit ${stale.code}: ${stale.out}`,
+  );
+  const remedy = packRemedyCommand(stale.out);
+  expect(
+    'second day: doctor prints the refresh command',
+    remedy !== undefined,
+    stale.out,
+  );
+  if (remedy !== undefined) {
+    const refreshed = sh(dir, remedy);
+    expect(
+      `second day: remedy \`${remedy}\` exits 0`,
+      refreshed.code === 0,
+      `exit ${refreshed.code}: ${refreshed.out}`,
+    );
+  }
+  const after = sh(dir, 'krn doctor');
+  expect(
+    'second day: doctor is current after the refresh',
+    exitIs(after, 0) && after.out.includes('pack=current'),
+    `exit ${after.code}: ${after.out}`,
+  );
+  const shown = sh(dir, `krn task show ${id ?? 't-none'}`);
+  expect(
+    'second day: the day-one task is still open',
+    shown.code === 0 && /Status: open/u.test(shown.out),
+    shown.out,
+  );
+  const brief = sh(
+    dir,
+    `krn lane brief --task ${id ?? 't-none'}`,
+    'Resume the first task.',
+  );
+  expect(
+    'second day: lane brief resumes the open task',
+    brief.code === 0 && brief.out.includes(`Ticket: ${id}`),
+    brief.out,
+  );
+}
+
 function walk() {
   const empty = join(work, 'empty');
   mkdirSync(empty);
@@ -114,6 +191,7 @@ function walk() {
     brief.code === 0 && brief.out.includes(`Ticket: ${id}`),
     brief.out,
   );
+  secondDay(empty, id);
 
   const clone = join(work, 'clone');
   const cloned = sh(work, `git clone -q --depth 1 ${url} clone`);

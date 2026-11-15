@@ -23,6 +23,12 @@ export function stepCommands(step: string): string[] {
   return /^(git|krn|npm|command)\b/u.test(tail) ? [tail] : [];
 }
 
+/** The command a `pack-remedy=` line of `krn doctor` names: its first backticked span. */
+export function packRemedyCommand(output: string): string | undefined {
+  const line = output.split('\n').find((l) => l.startsWith('pack-remedy='));
+  return line === undefined ? undefined : /`([^`]+)`/u.exec(line)?.[1];
+}
+
 /** True when a failure message names something the operator can do next. */
 export function namesRemedy(message: string): boolean {
   return /\b(pass|run|use|set|add|install|create|pipe|write|see|try|start|put|check)\b|--[a-z]|`krn /iu.test(
