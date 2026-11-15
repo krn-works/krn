@@ -1,7 +1,11 @@
 {
   "id": "t-zjekzhw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight names remedy; regression in lane-run test; walkthrough probe PASS"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "lane run preflight names the remedy when origin is unreachable",
