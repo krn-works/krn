@@ -282,6 +282,8 @@ export async function laneVerdict(
         exitCredentialUnavailable,
       );
     }
+    // Ship removes the worktree of a merged lane, so the proof is counted from the tree before it ships.
+    const proved = proofOfLane();
     const shipped = await steps.ship([
       '--worktree',
       path,
@@ -303,7 +305,6 @@ export async function laneVerdict(
       rmSync(redFile, { force: true });
       rmSync(parkedFile(main, slug), { force: true });
     }
-    const proved = proofOfLane();
     expose(merged, proved);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,

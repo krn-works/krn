@@ -1,7 +1,11 @@
 {
   "id": "t-76ghj58",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Merged-lane proof line was read from the worktree ship had removed (always 0/N); counted before ship. Stop itself refused correctly: the 1115i transcript shows clause markers present and Stop passing."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Stop refuses unproven clauses in a live outside lane session, not only in unit tests",

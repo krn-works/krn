@@ -100,6 +100,7 @@ function fixture(
   action: string,
   files: Record<string, string> = {},
   sessionCapture = capture,
+  taskBody: string[] = ['Outcome: o'],
 ) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-lane-run-')));
   const origin = join(base, 'origin.git');
@@ -121,7 +122,7 @@ function fixture(
         priority: 3,
         title: 'Lane run task',
         after: [],
-        body: ['Outcome: o'],
+        body: taskBody,
       },
       null,
       2,
@@ -2200,6 +2201,66 @@ process.exit(1);
   try {
     assert.equal(prepareWorktree(repo, 'main', repo)?.exitCode, 72);
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// The merged outside lane of rerun 1115i (npm, t-0lpk5qu): the task body and the test file are verbatim from its
+// session transcript; ship removed the lane worktree, and the proof line then read an empty tree and printed 0/4.
+const outsideBody = [
+  'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',
+  'Why: the base declares no test command, and lane run admits only this task on it.',
+  'Proof: the test command exits 0 and runs at least one test.',
+];
+const outsideTest = `import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const krn = JSON.parse(readFileSync(new URL("../krn.json", import.meta.url), "utf8"));
+
+test("clause 1: sha256 hashes a hand-written input", () => {
+  assert.equal(1, 1);
+});
+
+test("clause 2: krn.json no longer carries vacuous", () => {
+  assert.equal("vacuous" in krn, false);
+});
+
+test("clause 3: krn.json declares a real test command", () => {
+  assert.match(krn.test, /node --test/);
+});
+
+test("clause 4: the declared command targets this test file", () => {
+  assert.equal(krn.test, "node --test test/*.test.mjs");
+});
+`;
+
+test('clause 8: a merged lane prints the proof of the tree it shipped, though ship removed its worktree', async () => {
+  const { base, repo, claude } = fixture(
+    `mkdir -p test; cat > test/shell-hash.test.mjs <<'EOF'\n${outsideTest}EOF\ngit add test; ${deliver()}`,
+    {},
+    capture,
+    outsideBody,
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        // The real ship merges, then removes the lane worktree and branch.
+        ship: async (args) => {
+          const worktree = args[args.indexOf('--worktree') + 1] ?? '';
+          git(repo, 'worktree', 'remove', '--force', worktree);
+          return 'merged\nverdict: merged abc1234';
+        },
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 0, verdict.line);
+    assert.match(verdict.proof ?? '', /^proof: clauses 4\/4, /u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
 });
