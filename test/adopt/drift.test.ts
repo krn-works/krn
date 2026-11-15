@@ -115,6 +115,7 @@ function readdirSkill(root: string): string {
 }
 
 import { missingPackRecords } from '../../src/adopt/drift.ts';
+import { pruneRegistry } from '../../src/brain/adopted-registry.ts';
 import { packsReport } from '../../src/cli/doctor-packs.ts';
 
 function dropRecords(root: string, count: number): string[] {
@@ -184,6 +185,31 @@ test('refresh-all and doctor skip a registered path that is not a git repository
   );
   writeFileSync(registry, JSON.stringify([gone]));
   assert.equal(packsReport(registry).exitCode, 0);
+  const run = spawnSync(process.execPath, [cli, 'adopt', '--refresh-all'], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_ADOPTED_REGISTRY: registry },
+  });
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /^skipped .*: not a git repository$/mu);
+});
+
+test('registry reads drop a path that no longer exists, rewrite the file and report the count', () => {
+  const live = mkdtempSync(join(tmpdir(), 'krn-live-'));
+  const gone = join(tmpdir(), 'krn-never-existed-registry-entry');
+  const registry = join(
+    mkdtempSync(join(tmpdir(), 'krn-reg-')),
+    'adopted.json',
+  );
+  writeFileSync(registry, JSON.stringify([gone, live, `${gone}-2`]));
+  assert.deepEqual(pruneRegistry(registry), { roots: [live], pruned: 2 });
+  assert.deepEqual(JSON.parse(readFileSync(registry, 'utf8')), [live]);
+  assert.deepEqual(pruneRegistry(registry), { roots: [live], pruned: 0 });
+
+  writeFileSync(registry, JSON.stringify([gone, live]));
+  assert.match(
+    packsReport(registry).text,
+    /^registry-pruned=1 missing paths/mu,
+  );
   const run = spawnSync(process.execPath, [cli, 'adopt', '--refresh-all'], {
     encoding: 'utf8',
     env: { ...process.env, KRN_ADOPTED_REGISTRY: registry },

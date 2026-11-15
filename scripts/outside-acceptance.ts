@@ -315,6 +315,13 @@ export function hookPath(root: string, pathEnv: string | undefined): string {
   return [join(root, 'bin'), ...(pathEnv ? [pathEnv] : [])].join(delimiter);
 }
 
+/** A row's adopted registry is a scratch file, never the host's `~/.krn/adopted.json`. */
+export function scratchRegistryEnv(scratch: string): {
+  KRN_ADOPTED_REGISTRY: string;
+} {
+  return { KRN_ADOPTED_REGISTRY: join(scratch, 'registry.json') };
+}
+
 /**
  * The environment of `krn adopt`: the test-first arm applies to the worker's session, not to the
  * canary, whose clean tree changes no test and would be refused by the test-first Stop check.
@@ -814,6 +821,7 @@ function acceptStack(
     ...process.env,
     PATH: hookPath(root, process.env.PATH),
     KRN_APP_REPOSITORY: repo,
+    ...scratchRegistryEnv(options.scratch),
   };
   const git = (args: string[], cwd = dir) =>
     run('git', [...appCredentialArgs(repo), ...args], cwd);

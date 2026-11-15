@@ -21,7 +21,7 @@ import {
 } from '../adopt/init.ts';
 import { verifyRepository } from '../adopt/verify.ts';
 import {
-  readRegistry,
+  pruneRegistry,
   registerAdopted,
   registryPath,
 } from '../brain/adopted-registry.ts';
@@ -80,7 +80,9 @@ const flags = [
 /** Refreshes every repository of the host registry; a registered path that is not a git repository is skipped; exit 1 when a refresh fails; a usage error when none is registered. */
 function refreshAll(): void {
   const file = registryPath();
-  const roots = readRegistry(file);
+  const { roots, pruned } = pruneRegistry(file);
+  if (pruned > 0)
+    process.stdout.write(`pruned ${pruned} missing paths from ${file}\n`);
   if (roots.length === 0)
     throw new CliUsageError(`no adopted repository registered in ${file}`);
   for (const root of roots) {

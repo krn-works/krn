@@ -35,6 +35,14 @@ const cli = join(repoRoot, 'src/cli/main.ts');
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 type PackRecord = { id: string; enforcement: { kind: string } };
 
+/** The environment of an adopt run: its registry is a scratch file, never the host's `~/.krn/adopted.json`. */
+export function scratchRegistry(scratch: string): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    KRN_ADOPTED_REGISTRY: join(scratch, 'registry.json'),
+  };
+}
+
 /**
  * A full adoption of a row: a throwaway clone that `krn adopt` has written (Stop hook, `.krn` ignore, session
  * settings, instruction files), with the test command taken from the row's krn.json. The row itself is untouched.
@@ -55,7 +63,10 @@ export function adoptedCopy(
     : {};
   const args = [cli, 'adopt', dir, '--tracker'];
   if (config.test !== undefined) args.push('--test', config.test);
-  const adopted = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  const adopted = spawnSync(process.execPath, args, {
+    encoding: 'utf8',
+    env: scratchRegistry(scratch),
+  });
   return adopted.status === 0
     ? { dir }
     : { error: adopted.stdout + adopted.stderr };
@@ -156,7 +167,7 @@ export function initProject(stack: Stack, scratch: string): string {
   const done = spawnSync(
     process.execPath,
     [cli, 'adopt', dir, '--init', '--stack', stack, '--tracker'],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', env: scratchRegistry(scratch) },
   );
   if (done.status !== 0)
     throw new Error(`adopt --init ${stack}: ${done.stdout}${done.stderr}`);
