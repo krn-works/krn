@@ -272,3 +272,38 @@ export function siblingSection(
   }
   return text;
 }
+
+const SWEEP_MAX = 4;
+const SWEEP_LINE_CAP = 100;
+
+/**
+ * Sibling call sites of a defect: the source files (tests excluded) at HEAD that mention the goal
+ * identifiers of a bug brief, best match first, one `file:line` clause each. The lane must fix each
+ * one or declare `Clause N: not affected: <reason>`.
+ */
+export function callSiteSweep(repo: string, brief: string): string[] {
+  const ids = goalIdentifiers(brief);
+  const hits = new Map<string, { ids: Set<string>; line: string }>();
+  for (const id of ids) {
+    const out = git(repo, ['grep', '-n', '-w', '-F', '-e', id, 'HEAD', '--']);
+    for (const row of out.split('\n')) {
+      const m = /^HEAD:([^:]+):(\d+):(.*)$/u.exec(row);
+      if (m === null) continue;
+      const file = m[1] as string;
+      if (!SOURCE_EXT.test(file) || TEST_PATH.test(file)) continue;
+      const entry = hits.get(file) ?? {
+        ids: new Set<string>(),
+        line: `${file}:${m[2]}: ${(m[3] as string).trim().slice(0, SWEEP_LINE_CAP)}`,
+      };
+      entry.ids.add(id);
+      hits.set(file, entry);
+    }
+  }
+  return [...hits.entries()]
+    .sort((a, b) => b[1].ids.size - a[1].ids.size || a[0].localeCompare(b[0]))
+    .slice(0, SWEEP_MAX)
+    .map(
+      ([, hit]) =>
+        `Sibling call site ${hit.line} (fix it the same way, or commit a line "Clause N: not affected: <reason>")`,
+    );
+}

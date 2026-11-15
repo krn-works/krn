@@ -712,7 +712,7 @@ function clauseRefusal(
   if (own && clauses.length < OWN_CLAUSES)
     return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): the task body states under 2 clauses, so write at least ${OWN_CLAUSES} numbered clauses (edge cases: empty, missing, unauthorised, duplicate submit, non-ASCII) and commit a test per clause whose name contains "clause N" that passes on your commit; ${clauses.length} found. Or end with a line \`BLOCKER: <what stops you>\`.`;
   if (uncovered.length === 0) return undefined;
-  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a changed test whose name contains "clause N" that passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
+  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a changed test whose name contains "clause N" that passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\` (a sibling call site: \`Clause N: not affected: <reason>\`), or end with a line \`BLOCKER: <what stops you>\`.`;
 }
 
 function runTestFile(

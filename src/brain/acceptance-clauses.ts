@@ -46,6 +46,21 @@ export function declaresNotReproducible(message: string, n: number): boolean {
   ).test(message);
 }
 
+/** Whether a commit message declares clause `n` not affected: a sibling call site the defect cannot reach, with a reason. */
+export function declaresNotAffected(message: string, n: number): boolean {
+  return new RegExp(
+    `^\\s*clause[ _-]?${n}\\s*:\\s*not affected\\b.{3,}`,
+    'imu',
+  ).test(message);
+}
+
+/** Whether a task body describes a defect: the arm that sweeps the sibling call sites applies to it. */
+export function isBugBody(body: string): boolean {
+  return /\b(?:bugs?|defects?|regressions?|wrong|incorrect(?:ly)?|misbehav\w*|crash\w*)\b/iu.test(
+    body,
+  );
+}
+
 /** Whether a commit message declares clause `n` characterized: the behaviour already works, so its test is green at the base. */
 export function declaresCharacterizes(message: string, n: number): boolean {
   return new RegExp(
@@ -74,11 +89,26 @@ const EDGE_CASES =
  * The brief section for the acceptance-clause arm. A body with under two clauses makes the worker
  * write numbered clauses first, edge cases included, then prove each one.
  */
-export function clauseSection(body: string): string {
-  const clauses = splitClauses(body);
+export function clauseSection(
+  body: string,
+  sweep: readonly string[] = [],
+): string {
+  const clauses = statedClauses(body, sweep);
   if (clauses.length === 0)
     return `Acceptance clauses (write them first):\nThe task states under 2 clauses. Before any code, write at least 3 numbered clauses ("1. ...") for what it must do, covering the stack edge cases that apply (${EDGE_CASES}). For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end until at least 3 clauses are proven.`;
   return `Acceptance clauses (cover every one):\n${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n- For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end while a clause is uncovered.`;
+}
+
+/**
+ * The clauses a brief states: the task's own, then one per sibling call site of a defect (`sweep`),
+ * so the Stop hook and the proof line demand each of them. Under two clauses in all, there are none.
+ */
+export function statedClauses(
+  body: string,
+  sweep: readonly string[] = [],
+): string[] {
+  const all = [...splitClauses(body), ...sweep];
+  return all.length >= 2 ? all : [];
 }
 
 /** The most clause numbers a worker-written list can carry. */
@@ -92,7 +122,7 @@ export type ClauseProof = {
   proven: boolean;
   /** A changed test file marked with the clause that passes on head, else undefined. */
   test?: string;
-  /** The commit message declares the clause not reproducible. */
+  /** The commit message declares the clause not reproducible, or its call site not affected. */
   declared: boolean;
 };
 
@@ -118,13 +148,15 @@ export function clauseProof(input: {
   const own = input.stated.length === 0;
   const marked = (n: number) =>
     [...input.tests].filter(([, text]) => clauseMarker(n).test(text));
-  const covered = (n: number) =>
-    marked(n).length > 0 || declaresNotReproducible(input.messages, n);
+  const excused = (n: number) =>
+    declaresNotReproducible(input.messages, n) ||
+    declaresNotAffected(input.messages, n);
+  const covered = (n: number) => marked(n).length > 0 || excused(n);
   const numbers = own
     ? Array.from({ length: MAX_OWN }, (_, i) => i + 1).filter(covered)
     : input.stated.map((_, i) => i + 1);
   const clauses = numbers.map((n, i): ClauseProof => {
-    const declared = declaresNotReproducible(input.messages, n);
+    const declared = excused(n);
     const test = marked(n)
       .map(([file]) => file)
       .find((file) => !input.headFailing?.has(file));

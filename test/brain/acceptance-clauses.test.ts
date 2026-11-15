@@ -6,11 +6,17 @@ import {
   clauseProof,
   clauseSection,
   declaresCharacterizes,
+  declaresNotAffected,
   declaresNotReproducible,
+  isBugBody,
   markedTests,
   splitClauses,
 } from '../../src/brain/acceptance-clauses.ts';
-import { proofLine, proofOf } from '../../src/brain/proof-line.ts';
+import {
+  briefClauses,
+  proofLine,
+  proofOf,
+} from '../../src/brain/proof-line.ts';
 
 test('numbered clauses in parentheses, with a bracket or with a dot split in order', () => {
   const expected = ['Parse the header line', 'Reject an empty header'];
@@ -190,4 +196,44 @@ test('clause 9: a characterizes line needs a reason and names the marked test fi
     clauseSection('1. Parse the header line\n2. Reject an empty header'),
     /characterizes/u,
   );
+});
+
+test('clause 7: sweep call sites join the stated clauses, are read back from the brief, and a not-affected line proves one', () => {
+  const sweep = [
+    'Sibling call site src/a.py:3: roundTotal(x)',
+    'Sibling call site src/b.py:9: roundTotal(y)',
+  ];
+  const text = clauseSection(
+    'Bug: roundTotal truncates the total value.',
+    sweep,
+  );
+  const brief = text;
+  const stated = briefClauses(brief);
+  assert.equal(stated.length, 2);
+  const { clauses } = clauseProof({
+    stated,
+    tests: new Map([['tests/test_a.py', '# clause 1']]),
+    messages: 'Clause 2: not affected: src/b.py already rounds up',
+  });
+  assert.deepEqual(
+    clauses.map((c) => c.proven),
+    [true, true],
+  );
+  assert.equal(declaresNotAffected('Clause 2: not affected', 2), false);
+  assert.equal(
+    proofOf({
+      brief,
+      tests: new Map(),
+      messages: '',
+      firstCommitFiles: [],
+      redAtBase: [],
+      stopRefusals: 0,
+    }).clausesTotal,
+    2,
+  );
+});
+
+test('clause 6: a bug body is told apart from a feature body', () => {
+  assert.equal(isBugBody('Bug: the total is wrong when empty'), true);
+  assert.equal(isBugBody('Add a --json flag to the list command'), false);
 });
