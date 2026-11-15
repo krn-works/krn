@@ -8,6 +8,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isTestFile } from '../../brain/acceptance-clauses.ts';
 import { appendExposure, exposureOf } from '../../brain/exposures.ts';
 import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { releaseClaim } from '../../task/claims.ts';
@@ -74,7 +75,7 @@ export async function laneVerdict(
         .split('\n')
         .filter((file) => file !== '');
       const tests = new Map<string, string>();
-      for (const file of changed)
+      for (const file of changed.filter(isTestFile))
         try {
           tests.set(file, readFileSync(join(path, file), 'utf8'));
         } catch {

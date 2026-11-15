@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { briefClauses } from '../../brain/proof-line.ts';
 import { contractBase } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
@@ -76,12 +77,17 @@ export async function prepareLane(
   const served =
     prompt.packet === null ? '' : ` packet ${prompt.packet.slice(0, 12)}`;
 
+  const clauses = briefClauses(brief);
   const repository = originRepository(origin);
   const environment = sessionEnvironment(
     process.env,
     join(main, '.krn', 'tmp', 'app-cache'),
     {
       lane,
+      // Stop reads the clauses the brief states, the same list the proof line counts.
+      ...(clauses.length === 0
+        ? {}
+        : { body: clauses.map((text, i) => `${i + 1}. ${text}`).join('\n') }),
       ...(task === undefined ? {} : { task }),
       ...(repository === undefined ? {} : { repository }),
     },
