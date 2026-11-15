@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { clauseSection } from '../brain/acceptance-clauses.ts';
 import { firstTestSection } from '../brain/first-test.ts';
 import { precedentSection } from '../brain/precedent.ts';
 import {
@@ -101,7 +102,9 @@ export function laneBrief(
   const precedent = precedentSection(repo, brief);
   const recipe =
     findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';
-  const body = [text, precedent, recipe]
+  const clauses =
+    process.env.KRN_ACCEPTANCE_CLAUSES === '1' ? clauseSection(brief) : '';
+  const body = [text, precedent, recipe, clauses]
     .filter((part) => part !== '')
     .map((part) => part.trimEnd())
     .join('\n\n');

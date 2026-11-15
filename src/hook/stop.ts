@@ -15,6 +15,11 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  clauseMarker,
+  declaresNotReproducible,
+  splitClauses,
+} from '../brain/acceptance-clauses.ts';
 import { appendExposure, violatedExposure } from '../brain/exposures.ts';
 import { standardsBlockers } from '../brain/standards-cli.ts';
 import {
@@ -608,16 +613,117 @@ export function inspect(
   env: NodeJS.ProcessEnv = process.env,
 ): Outcome & { ignored: number; modified?: string[] } {
   const outcome = inspectTests(root, run, shell, env);
-  if (!outcome.ok || env.KRN_TEST_FIRST !== '1') return outcome;
+  if (!outcome.ok) return outcome;
   const { contract } = loadContract(root);
-  const reason = testFirstRefusal(
-    root,
-    base(root, contract),
-    run,
-    shell,
-    contract,
-  );
+  const from = base(root, contract);
+  const reason =
+    (env.KRN_TEST_FIRST === '1'
+      ? testFirstRefusal(root, from, run, shell, contract)
+      : undefined) ??
+    (env.KRN_ACCEPTANCE_CLAUSES === '1'
+      ? clauseRefusal(root, from, run, shell, contract, env)
+      : undefined);
   return reason === undefined ? outcome : { ...outcome, ok: false, reason };
+}
+
+/** The task body as clauses: the record's body (KRN_TASK), else the brief text in KRN_TASK_BODY. */
+function taskClauses(root: string, env: NodeJS.ProcessEnv): string[] {
+  const raw = taskText(root, env);
+  let body = env.KRN_TASK_BODY ?? '';
+  if (raw !== '')
+    try {
+      const parsed = JSON.parse(raw) as { body?: unknown };
+      body = Array.isArray(parsed.body)
+        ? parsed.body.join('\n')
+        : typeof parsed.body === 'string'
+          ? parsed.body
+          : raw;
+    } catch {
+      body = raw;
+    }
+  return splitClauses(body);
+}
+
+/**
+ * Acceptance-clause arm (KRN_ACCEPTANCE_CLAUSES=1): every numbered clause of the task body has a
+ * changed test marked `clause N` that fails at the base and passes on head, or a commit message
+ * line `Clause N: not reproducible: <reason>`. A body with under two clauses is never refused.
+ */
+function clauseRefusal(
+  root: string,
+  from: string,
+  run: Runner,
+  shell: CommandRunner,
+  contract: RepoContract | undefined,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const clauses = taskClauses(root, env);
+  if (clauses.length === 0) return undefined;
+  const changed = changedSinceBase(root, from).filter(
+    (path) => isTestFile(path) && existsSync(join(root, path)),
+  );
+  const contents = new Map(
+    changed.map((file) => [file, safeRead(join(root, file))]),
+  );
+  const messages = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
+  const marked = (n: number) =>
+    changed.filter((file) => clauseMarker(n).test(contents.get(file) ?? ''));
+  const candidates = new Set(
+    clauses.flatMap((_, i) =>
+      declaresNotReproducible(messages, i + 1) ? [] : marked(i + 1),
+    ),
+  );
+  const red = redAtBase(root, from, [...candidates], run, shell, contract);
+  const uncovered = clauses.flatMap((text, i) => {
+    const n = i + 1;
+    if (declaresNotReproducible(messages, n)) return [];
+    const proven = marked(n).some(
+      (file) =>
+        red.has(file) &&
+        runTestFile(root, file, run, shell, contract).length === 0,
+    );
+    return proven ? [] : [`clause ${n}: ${text.slice(0, 80)}`];
+  });
+  if (uncovered.length === 0) return undefined;
+  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a test whose name contains "clause N" that fails at the base and passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
+}
+
+function runTestFile(
+  dir: string,
+  file: string,
+  run: Runner,
+  shell: CommandRunner,
+  contract?: RepoContract,
+): string[] {
+  return LEGACY_TEST.test(file) || !contract
+    ? run(dir, [file])
+    : shell(
+        dir,
+        relatedCommand(contract, withinPackage(contract.related ?? '', [file])),
+      );
+}
+
+/** The files among `changed` that fail against the base source, run with the head file in place in a detached worktree. */
+function redAtBase(
+  root: string,
+  from: string,
+  changed: string[],
+  run: Runner,
+  shell: CommandRunner,
+  contract?: RepoContract,
+): Set<string> {
+  const red = new Set<string>();
+  if (changed.length > 0)
+    failuresAtBase(root, from, (dir) => {
+      for (const file of changed) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true });
+        copyFileSync(join(root, file), join(dir, file));
+        if (runTestFile(dir, file, run, shell, contract).length > 0)
+          red.add(file);
+      }
+      return [];
+    });
+  return red;
 }
 
 /**
@@ -636,28 +742,11 @@ function testFirstRefusal(
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
-  const runFile = (dir: string, file: string): string[] =>
-    LEGACY_TEST.test(file) || !contract
-      ? run(dir, [file])
-      : shell(
-          dir,
-          relatedCommand(
-            contract,
-            withinPackage(contract.related ?? '', [file]),
-          ),
-        );
-  const red = new Set<string>();
-  if (changed.length > 0)
-    failuresAtBase(root, from, (dir) => {
-      for (const file of changed) {
-        mkdirSync(dirname(join(dir, file)), { recursive: true });
-        copyFileSync(join(root, file), join(dir, file));
-        if (runFile(dir, file).length > 0) red.add(file);
-      }
-      return [];
-    });
+  const red = redAtBase(root, from, changed, run, shell, contract);
   const proven = changed.find(
-    (file) => red.has(file) && runFile(root, file).length === 0,
+    (file) =>
+      red.has(file) &&
+      runTestFile(root, file, run, shell, contract).length === 0,
   );
   if (proven !== undefined) return undefined;
   const why =

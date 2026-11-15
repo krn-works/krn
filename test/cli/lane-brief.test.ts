@@ -182,3 +182,23 @@ test('a lane brief requires the command and exit code behind every external-syst
     /every claim about an external system[^\n]*exact command you ran and its exit code/u,
   );
 });
+
+test('the acceptance-clause section is in the brief only with KRN_ACCEPTANCE_CLAUSES=1', () => {
+  const body = '1. Parse the header line\n2. Reject an empty header';
+  const before = process.env.KRN_ACCEPTANCE_CLAUSES;
+  try {
+    delete process.env.KRN_ACCEPTANCE_CLAUSES;
+    assert.doesNotMatch(
+      laneBriefText(repo, body, BASE_DATE),
+      /Acceptance clauses/u,
+    );
+    process.env.KRN_ACCEPTANCE_CLAUSES = '1';
+    assert.match(
+      laneBriefText(repo, body, BASE_DATE),
+      /Acceptance clauses \(cover every one\):\n1\. Parse the header line\n2\. Reject an empty header/u,
+    );
+  } finally {
+    if (before === undefined) delete process.env.KRN_ACCEPTANCE_CLAUSES;
+    else process.env.KRN_ACCEPTANCE_CLAUSES = before;
+  }
+});

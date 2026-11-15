@@ -1425,3 +1425,97 @@ test('Stop ends green on a standard that was already red at the base and refuses
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+function clauseBranch(dir: string, tests: Record<string, string>) {
+  writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+  for (const [file, body] of Object.entries(tests))
+    writeFileSync(join(dir, file), body);
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+}
+
+const clauseEnv = (dir: string) => ({
+  ...lane(dir),
+  KRN_ACCEPTANCE_CLAUSES: '1',
+  KRN_TASK_BODY: '1. Parse the header line\n2. Reject an empty header',
+});
+
+test('clauses: Stop refuses an uncovered clause and names it', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, { 'test/a.test.ts': '// clause 1\n' });
+    const baseRed = (root: string) =>
+      root === dir ? [] : ['test/a.test.ts::a'];
+    const reason = judgeStop(payload(dir), clauseEnv(dir), baseRed) ?? '';
+    assert.match(reason, /Acceptance-clause rule/u);
+    assert.match(reason, /clause 2: Reject an empty header/u);
+    assert.doesNotMatch(reason, /clause 1:/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clauses: a marked test green at the base does not cover its clause', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, { 'test/a.test.ts': '// clause 1 clause 2\n' });
+    const reason = judgeStop(payload(dir), clauseEnv(dir), () => []) ?? '';
+    assert.match(reason, /2 of 2 clause/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clauses: red-to-green tests per clause, or a written not-reproducible, let Stop end', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, {
+      'test/a.test.ts': '// clause 1\n',
+      'test/b.test.ts': '// clause 2\n',
+    });
+    const baseRed = (root: string) =>
+      root === dir ? [] : ['test/a.test.ts::a', 'test/b.test.ts::b'];
+    assert.equal(judgeStop(payload(dir), clauseEnv(dir), baseRed), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const other = clone();
+  try {
+    writeFileSync(join(other, 'src/a.ts'), 'export const a = 2;\n');
+    writeFileSync(join(other, 'test/a.test.ts'), '// clause 1\n');
+    sh(other, 'add', '.');
+    sh(
+      other,
+      'commit',
+      '-q',
+      '-m',
+      'change\n\nClause 2: not reproducible: the base already rejects it',
+    );
+    const baseRed = (root: string) =>
+      root === other ? [] : ['test/a.test.ts::a'];
+    assert.equal(
+      judgeStop(payload(other), clauseEnv(other), baseRed),
+      undefined,
+    );
+  } finally {
+    rmSync(other, { recursive: true, force: true });
+  }
+});
+
+test('clauses: the arm off leaves Stop unchanged', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, { 'test/a.test.ts': '// nothing\n' });
+    const { KRN_ACCEPTANCE_CLAUSES: _on, ...off } = clauseEnv(dir);
+    assert.equal(
+      judgeStop(
+        payload(dir),
+        { ...off, KRN_ACCEPTANCE_CLAUSES: '0' },
+        () => [],
+      ),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

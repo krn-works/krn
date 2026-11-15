@@ -31,6 +31,7 @@ src/adopt/init.ts: krn adopt --init: git init a
 src/adopt/journal.ts: A write journal for adopt
 src/adopt/stop-hook.ts: The hook command `krn a
 src/adopt/verify.ts: `krn adopt <path> --verify
+src/brain/acceptance-clauses.ts: Smallest piece
 src/brain/adopted-registry.ts: The host registr
 src/brain/exposures.ts: The exposure log: one a
 src/brain/first-test.ts: First-test recipes (th
