@@ -1,0 +1,204 @@
+{
+  "rows": [
+    {
+      "stack": "py-omd-compare",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "c463d1633a075c398d6ffad7d8653064a615b696",
+      "title": "An ordered multi-dict compares equal to a plain dict whose values differ",
+      "body": [
+        "Bug: an OrderedMultiDict built from [('a', 1), ('b', 2)] reports == True against {'a': 999, 'b': 2} when the multi-dict is on the left of the comparison, and != against it is False. The same happens for the multi-dict behind URL query parameters (QueryParamDict). Comparing a dict on the left already behaves."
+      ],
+      "hidden": ["tests/test_dictutils.py", "tests/test_urlutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py tests/test_urlutils.py -k \"test_eq_with_dict or test_query_param_dict_eq_with_dict\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-omd-addlist",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "a1ea1030ed85137e999c0bd9b11d16368d3ab241",
+      "title": "Adding an iterator of values to an ordered multi-dict corrupts it",
+      "body": [
+        "Bug: OrderedMultiDict.addlist('a', iter([1, 2, 3])) or with a generator leaves the dict inconsistent: keys() and repr() show the key while getlist('a') returns [] and get('a') raises IndexError. An empty generator records the key with no values so len() disagrees with keys(). Lists and tuples work."
+      ],
+      "hidden": ["tests/test_dictutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py -k \"test_addlist_iterator\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-dict-updates",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "bbadc7ae1dcfbb0e71ec3a852e8bca3a6f75199b",
+      "title": "Several ordered multi-dict and one-to-one / many-to-many mapping operations misbehave",
+      "body": [
+        "Bugs seen in boltons mapping types: (1) OrderedMultiDict([(None, None)]) compares equal to OrderedMultiDict([(None, None), (None, None)]), also for QueryParamDict. (2) update() with an iterable that repeats a key not yet present keeps only one of its values: update([('a', 1), ('a', 3)]) gives getlist('a') == [1] or worse, not [1, 3]. (3) OneToOne.update(iter([...])) with a one-shot iterator misses entries, and an unhashable value part way through the input leaves the mapping half updated instead of unchanged with a TypeError. (4) oto |= {'c': 2, 'd': 1} does not update in place with the inverse kept consistent. (5) ManyToMany.add('new', []) with an unhashable value raises TypeError but leaves a stray key behind. (6) ManyToMany(other) copy shares state with the original, so adding to the copy changes the original. (7) ManyToMany.replace('a', 'new') where 'new' already exists loses or mixes up its values."
+      ],
+      "hidden": ["tests/test_dictutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py -k \"test_eq_none_items or test_update_iterable_repeated_new_key or test_one_to_one_update_iterator or test_one_to_one_ior or test_many_to_many_add_unhashable or test_many_to_many_copy_independent or test_many_to_many_replace_existing_key\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-gc-types",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "f898d8f81aa85a3a7c3b187b5d45b329bc471a72",
+      "title": "gc, type and trace helpers lose state or miss objects",
+      "body": [
+        "Bugs seen in boltons: (1) gcutils.get_all(Base) misses live instances of subclasses of Base; get_all(Base, include_subtypes=False) must still return only exact instances. (2) Using the toggle_gc context manager, or nesting one GCToggler inside itself, leaves the garbage collector enabled or disabled the wrong way after exit: the state before entering must come back. (3) typeutils.get_all_subclasses fails for a class whose metaclass defines its own subclasses behaviour (a class with a custom metaclass). (4) debugutils.wrap_trace with a hook that returns a truthy value for a 'raise' event should suppress the exception and make the traced method return None, but the call still raises or misbehaves."
+      ],
+      "hidden": [
+        "tests/test_gcutils.py",
+        "tests/test_typeutils.py",
+        "tests/test_debugutils_trace.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_gcutils.py tests/test_typeutils.py tests/test_debugutils_trace.py -k \"test_get_all_subtypes or test_toggle_gc_restores_state or test_get_all_subclasses_metaclass or test_trace_raise_suppressed\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-barrel-list",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "e00c10a809525027b8167fbb7ac233cfc25a01f5",
+      "title": "BarrelList indexing and insertion go wrong once it is split into sublists",
+      "body": [
+        "Bug: after BarrelList(range(30000)) has been mutated (bl.pop(0); bl.insert(0, 0)) so that it holds several sublists: bl[len(bl)] returns an element from the middle instead of raising IndexError; bl.insert(len(bl), 'x') inserts mid-list instead of appending (insert past either end must clamp like list.insert); and pop() raises IndexError on a non-empty list after indexed pops emptied the last sublist."
+      ],
+      "hidden": ["tests/test_listutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_listutils.py -k \"test_barrel_list_getitem_past_end or test_barrel_list_insert_at_end or test_barrel_list_pop_after_tail_drained\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-sweep",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "1216b467c10b852d08aa6895c80b6b9ec8f990d8",
+      "title": "Cache, counter, JSON line, size and URL helpers each have a bug",
+      "body": [
+        "Bugs seen in boltons: (1) ThresholdCounter.update({'a': 3, 'b': 2, 'zero': 0}) and update(['a'], a=3, b=2) do not add the mapping counts or keyword counts (zero counts must not create items) and total is wrong; compaction after a mapping update must match the same data fed one by one; most_common(0) returns something other than []. (2) LRI/LRU .update() with no source, only keywords, or with the cache itself as source raises TypeError or mishandles keys. (3) jsonutils.reverse_iter_lines ignores the encoding of a text file opened with encoding='latin-1', ignores encoding= on a binary stream, and detaches a text stream so it cannot be read afterwards. (4) strutils.bytes2human(1024 ** 8) is wrong for the largest unit (should be '1Y'). (5) URL('http://:secret@example.com/path') with a password but no username drops the password in to_text() and get_authority(with_userinfo=True), and setting url.password = 'p@ss' must round-trip percent-quoted."
+      ],
+      "hidden": [
+        "tests/test_cacheutils.py",
+        "tests/test_jsonutils.py",
+        "tests/test_strutils.py",
+        "tests/test_urlutils.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_cacheutils.py tests/test_jsonutils.py tests/test_strutils.py tests/test_urlutils.py -k \"test_threshold_counter or test_cache_update_optional_source or test_reverse_iter_lines_uses_file_encoding or test_reverse_iter_lines_uses_explicit_binary_encoding or test_reverse_iter_lines_keeps_text_stream_attached or test_bytes2human or test_password_without_username\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-fs-sweep",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "922e7b2bfae226efa569b4441abbe7a0fb3d47de",
+      "title": "File, path and named-tuple helpers each have a bug",
+      "body": [
+        "Bugs seen in boltons: (1) FilePerms.from_int(0o007) does not round-trip through int(), and from_int(0o070) gives user permissions where only group should have them; revoking a permission from a FilePerms leaves the integer value wrong (a user write bit revoked from 0o600 style permissions must leave 0o400). (2) When flushing the part file of an AtomicSaver fails, the part file is left open and on disk and the failure is not cleaned up, so it should close and remove the part file and never create the destination. (3) iter_find_files given a directory path that ends with a path separator returns a different set of files than the same path without the trailing separator. (4) namedtuple and namedlist with rename=True do not rename a field such as 'value\\u00b2' that is alphanumeric but not a valid identifier. (5) pathutils.shrinkuser when the home directory is the filesystem root '/' does not shorten paths under it to '~/project/file' and the root itself to '~'."
+      ],
+      "hidden": [
+        "tests/test_fileutils.py",
+        "tests/test_namedutils.py",
+        "tests/test_pathutils.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_fileutils.py tests/test_namedutils.py tests/test_pathutils.py -k \"test_fileperms_from_int_leading_zero_groups or test_fileperms_revoke or test_atomicsaver_flush_failure_cleans_up or test_iter_find_files_trailing_sep or test_non_identifier_alnum_name or test_shrinkuser_root_home\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-osc-hang",
+      "upstream": "https://github.com/tartley/colorama.git",
+      "license": "BSD-3-Clause",
+      "fix": "bfa8c22e8f9b51ad3428c165087540cea5d44a1f",
+      "title": "Certain terminal title escape sequences make colorama hang or mishandle",
+      "body": [
+        "Bug: writing an OSC (operating system command) sequence to a colorama-wrapped stream with conversion on misbehaves: '\\x1b]' followed by 64 semicolons and a terminator that is not BEL makes the regex hang or crash; '\\x1b]0\\x07' with no title argument and '\\x1b]1;title\\x07' must not set the window title; only OSC 0 and OSC 2 with exactly one title argument may."
+      ],
+      "hidden": ["colorama/tests/ansitowin32_test.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama/tests/ansitowin32_test.py -k \"test_osc_codes\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnEmulatedWindows --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnNonWindows",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnEmulatedWindows --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnNonWindows",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}",
+      "support": {
+        "mock.py": "scripts/outside-hidden/py-mock-shim.py"
+      }
+    },
+    {
+      "stack": "py-mistune-render",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "614b019c07f6ff1d5341b6d2eefa1cb24928bbbd",
+      "title": "The Markdown renderer cannot render nodes that plugins add",
+      "body": [
+        "Bugs seen in mistune: (1) create_markdown(renderer=MarkdownRenderer(), plugins=['task_lists']) fails with an AttributeError on 'list_item' for '- [x] a task' instead of returning '- [x] a task\\n'; a MarkdownRenderer subclass that defines task_list_item must have it used. (2) With the table plugin, MarkdownRenderer cannot render a table: '| A | B |\\n|---|---|\\n| 1 | 2 |\\n' must give '| A | B |\\n| --- | --- |\\n| 1 | 2 |\\n'. (3) Rendering a standalone list_item token (type 'list_item' with a paragraph child) through render_token with a BlockState fails; it should give '- x\\n\\n'. The RST renderer has the same gap for the list item and table nodes."
+      ],
+      "hidden": ["tests/test_renderers.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_renderers.py -k \"test_standalone_list_item or test_table_markdown or test_task_list_item_can_be_overridden or test_task_list_item_default_markdown\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-toc",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "4a382986bf6ea948d2bed9ac433d493019f3299e",
+      "title": "Table of contents heading ids collide or overwrite existing ids",
+      "body": [
+        "Bugs seen in mistune: (1) With escape=False and the fenced toc directive, a document that already contains <div id=\"toc_1\"></div> and <div id=\"toc_1_1\"></div> before a '# title' heading gets a heading id that collides with them; the heading should get the next free id, 'toc_1_2', and the toc link should point to it. (2) A before-render hook that sets token['attrs']['id'] = 'existing' on headings is overwritten by the toc: the heading must keep id 'existing', the toc link must be href=\"#existing\", and no generated 'toc_1' appears. This holds both for the directive and for add_toc_hook used alone. (3) Two toc sections in one document must still share the same heading ids."
+      ],
+      "hidden": ["tests/test_security_toc.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_security_toc.py -k \"test_directive_toc_avoids_sequential_html_id_collisions or test_hook_preserves_existing_heading_id or test_toc_hooks_preserve_existing_heading_id or test_two_toc_sections_share_heading_ids\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-image-depth",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "cca5ee6d17a458b115d5e63ab95ddedcfb7a15e4",
+      "title": "Deeply nested image markup makes mistune recurse without a limit",
+      "body": [
+        "Bug: converting the input '![' * 1000 + 'a' + '](u)' * 1000, and the same wrapped in a link '[' + '![' * 1000 + 'a' + '](u)' * 1000 + '](u)', takes far too long or overflows the stack, both to HTML and with renderer='ast'. Nesting of images must be bounded so such input finishes quickly, and the limit must be a setting of the inline parser that can be read and changed when the parser is built."
+      ],
+      "hidden": ["tests/test_misc.py", "tests/test_security_inline.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_misc.py tests/test_security_inline.py -k \"test_max_image_depth_setting or test_deep_image_input_does_not_recurse_forever or test_link_with_deep_image_input_does_not_recurse_forever\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-url-escape",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "f4237046816a05999792f292ea1212144d48519e",
+      "title": "URLs with an ampersand are escaped in the wrong places",
+      "body": [
+        "Bugs seen in mistune: (1) with the fenced image directive, '~~~{image} https://example.com/picture.png?foo=qux&test=me' and a ':target: https://example.com/rickroll?a=1&b=2' option do not produce valid HTML: the ampersand in the img src and in the link href must appear as &amp;. (2) With renderer=None (the AST), a link '[hi &<>\"](https://example.com/foo?a=1&b=2)' has its url attribute altered by HTML escaping; the AST must carry the url exactly as written."
+      ],
+      "hidden": [
+        "tests/test_directives.py",
+        "tests/fixtures/fenced_image.txt",
+        "tests/test_misc.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_directives.py tests/fixtures/fenced_image.txt tests/test_misc.py -k \"test_ampersand_in_source_001 or test_ampersand_in_target_001 or test_ast_url\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    }
+  ]
+}
