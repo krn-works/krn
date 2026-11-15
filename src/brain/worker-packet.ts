@@ -13,11 +13,19 @@ import {
   type Packet,
   packetRecord,
   parseRecords,
+  tokens,
 } from './packet.ts';
-import { readProject } from './standards-cli.ts';
+import { appliesTo, inForce } from './standards.ts';
+import { readPack, readProject, repositoryFacts } from './standards-cli.ts';
 
 /** Token budget of the one lane packet; the frozen FR-40 arms stay at BUDGET. */
 export const LANE_BUDGET = 600;
+
+/** Token budget of the gates block a lane brief names before the work starts. */
+export const GATES_BUDGET = 150;
+
+/** The one command that runs every gate the block names. */
+export const GATES_COMMAND = 'krn standards check';
 
 /** Token budget of the packet SessionStart injects into an interactive session. */
 export const SESSION_BUDGET = 400;
@@ -102,4 +110,52 @@ export { clauseSection } from './acceptance-clauses.ts';
 export function packetBrief(packet: Packet | null, brief: string): string {
   if (packet === null || packet.records.length === 0) return brief;
   return `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}):\n${packet.text}\n\n${brief}`;
+}
+
+/**
+ * The gates block: the enforced floor and finish records that apply to this repository's stack and
+ * are in force, named by id (floor first, then finish, each by id) within GATES_BUDGET tokens, with
+ * the one command that runs them. The lane packet omits enforced records because the check teaches
+ * them when it fails; this block names them before the work, so a refused Stop is never the first
+ * time a worker meets a gate. Undefined when no such record applies.
+ */
+export function gatesBlock(repo: string, asOf: string): string | undefined {
+  let ids: string[];
+  try {
+    const repository = repositoryFacts(repo);
+    const gates = [
+      ...readPack().filter((standard) => appliesTo(standard, repository)),
+      ...readProject(repo),
+    ].filter(
+      (standard) =>
+        standard.enforcement.kind !== 'advisory' &&
+        (standard.tier === 'floor' || standard.tier === 'finish') &&
+        standard.audience !== 'lead' &&
+        standard.audience !== 'adopt' &&
+        inForce(standard, asOf),
+    );
+    const rank = (tier: string): number => (tier === 'floor' ? 0 : 1);
+    ids = [
+      ...new Set(
+        gates
+          .sort(
+            (a, b) =>
+              rank(a.tier) - rank(b.tier) ||
+              (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+          )
+          .map((standard) => standard.id),
+      ),
+    ];
+  } catch {
+    return undefined;
+  }
+  if (ids.length === 0) return undefined;
+  const head = `Gates run at Stop (check them with '${GATES_COMMAND}'): `;
+  const kept: string[] = [];
+  for (const id of ids) {
+    const next = `${head}${[...kept, id].join(', ')}`;
+    if (tokens(next) > GATES_BUDGET) break;
+    kept.push(id);
+  }
+  return kept.length === 0 ? undefined : `${head}${kept.join(', ')}`;
 }

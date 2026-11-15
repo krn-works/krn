@@ -4,6 +4,7 @@ import { clauseSection } from '../brain/acceptance-clauses.ts';
 import { firstTestSection } from '../brain/first-test.ts';
 import { precedentSection } from '../brain/precedent.ts';
 import {
+  gatesBlock,
   heldOut,
   laneCandidates,
   lanePacket,
@@ -105,7 +106,9 @@ export function laneBrief(
     findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';
   const clauses =
     process.env.KRN_ACCEPTANCE_CLAUSES === '1' ? clauseSection(brief) : '';
-  const body = [text, precedent, recipe, clauses]
+  // The frozen FR-40 carrier (holdout false) never gets the gates block.
+  const gates = holdout ? (gatesBlock(repo, asOf) ?? '') : '';
+  const body = [text, gates, precedent, recipe, clauses]
     .filter((part) => part !== '')
     .map((part) => part.trimEnd())
     .join('\n\n');
