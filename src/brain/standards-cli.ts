@@ -667,7 +667,7 @@ function retireCommand(rest: readonly string[]): void {
   const totals = effectTotals(exposures);
   const lines = ids.map((id) => {
     const t = totals.get(id);
-    return `${id}: served ${t?.served ?? 0} (ok ${t?.servedOk ?? 0}) withheld ${t?.withheld ?? 0} (ok ${t?.withheldOk ?? 0})`;
+    return `${id}: served ${t?.servedScoped ?? 0} scoped (violated ${t?.servedViolated ?? 0}) withheld ${t?.withheldScoped ?? 0} scoped (violated ${t?.withheldViolated ?? 0})`;
   });
   const set = new Set(ids);
   const changed = write

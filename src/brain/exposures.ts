@@ -18,23 +18,48 @@ export const EXPOSURES_FILE = '.krn/brain/exposures.jsonl';
 
 export type Outcome = 'followed' | 'violated';
 
+/** The row schema: one line per run, carrying a per-record effect. */
+export const EXPOSURE_SCHEMA = 'krn.exposure/v1';
+
 export type Exposure = {
+  schema: typeof EXPOSURE_SCHEMA;
+  /** ISO time the row was written. */
+  at: string;
   run: string;
   task: string | null;
   channel: string;
+  /** The n-th run of this task on this channel (1 for the first). */
+  attempt: number;
   served: string[];
+  /** Exactly the records the packet would have served without the holdout that the holdout kept out. */
   withheld: string[];
-  /** Per served record: followed when the lane delivered without rework, else violated. */
+  /** Tokens of the packet the run was served. */
+  tokens: number;
+  /** Per served or withheld record: did its own check fail on the final diff. Null when the record has no check or the diff was not checked. */
+  violated: Record<string, boolean | null>;
+  /** Derived from `violated`: followed or violated for the served records that were checked. */
   outcome: Record<string, Outcome>;
   lane_ok: boolean;
-  rework: number;
   /** The file kind an edit-moment exposure served (`php`, `*.css`), so the moment fires once per kind and session. */
   scope?: string;
   /** The lane's proof line (clauses, red-first, precedent, Stop refusals), when the run ended with one. */
   proof?: string;
 };
 
-/** The exposure of one finished run: every served record shares the run's outcome. */
+const outcomeOf = (
+  served: readonly string[],
+  violated: Readonly<Record<string, boolean | null>>,
+): Record<string, Outcome> =>
+  Object.fromEntries(
+    served.flatMap((id) => {
+      const value = violated[id];
+      return value === null || value === undefined
+        ? []
+        : [[id, value ? 'violated' : 'followed'] as const];
+    }),
+  );
+
+/** The exposure of one finished run. A served record is violated only when its own check says so; the run outcome is never copied onto it. */
 export function exposureOf(input: {
   run: string;
   task: string | undefined;
@@ -42,20 +67,32 @@ export function exposureOf(input: {
   served: readonly string[];
   withheld: readonly string[];
   laneOk: boolean;
-  rework: number;
+  attempt?: number;
+  tokens?: number;
+  /** Per-record check results; a served record missing here is null. */
+  violated?: Readonly<Record<string, boolean | null>>;
+  at?: string;
   proof?: string;
 }): Exposure {
-  const result: Outcome =
-    input.laneOk && input.rework === 0 ? 'followed' : 'violated';
+  const violated = Object.fromEntries(
+    [...input.served, ...input.withheld].map((id) => [
+      id,
+      input.violated?.[id] ?? null,
+    ]),
+  );
   return {
+    schema: EXPOSURE_SCHEMA,
+    at: input.at ?? new Date().toISOString(),
     run: input.run,
     task: input.task ?? null,
     channel: input.channel,
+    attempt: input.attempt ?? 1,
     served: [...input.served],
     withheld: [...input.withheld],
-    outcome: Object.fromEntries(input.served.map((id) => [id, result])),
+    tokens: input.tokens ?? 0,
+    violated,
+    outcome: outcomeOf(input.served, violated),
     lane_ok: input.laneOk,
-    rework: input.rework,
     ...(input.proof === undefined ? {} : { proof: input.proof }),
   };
 }
@@ -73,6 +110,37 @@ export function appendExposure(main: string, exposure: Exposure): void {
   appendFileSync(path, `${JSON.stringify(exposure)}\n`);
 }
 
+/** A row of the log, with the fields older rows lack filled in: only a refused Stop recorded per-record violations then. */
+function normalized(row: Partial<Exposure>): Exposure {
+  const served = row.served ?? [];
+  const violated =
+    row.violated ??
+    Object.fromEntries(
+      [...served, ...(row.withheld ?? [])].map((id) => [
+        id,
+        row.channel === 'stop' && row.outcome?.[id] === 'violated'
+          ? true
+          : null,
+      ]),
+    );
+  return {
+    schema: EXPOSURE_SCHEMA,
+    at: row.at ?? '',
+    run: row.run ?? '',
+    task: row.task ?? null,
+    channel: row.channel ?? '',
+    attempt: row.attempt ?? 1,
+    served: [...served],
+    withheld: [...(row.withheld ?? [])],
+    tokens: row.tokens ?? 0,
+    violated,
+    outcome: outcomeOf(served, violated),
+    lane_ok: row.lane_ok ?? true,
+    ...(row.scope === undefined ? {} : { scope: row.scope }),
+    ...(row.proof === undefined ? {} : { proof: row.proof }),
+  };
+}
+
 /** Every exposure of the log, in order; blank lines are skipped and a malformed line is an error. */
 export function readExposures(main: string): Exposure[] {
   const path = join(main, EXPOSURES_FILE);
@@ -82,89 +150,96 @@ export function readExposures(main: string): Exposure[] {
     .filter((line) => line.trim() !== '')
     .map((line, index) => {
       try {
-        return JSON.parse(line) as Exposure;
+        return normalized(JSON.parse(line) as Partial<Exposure>);
       } catch {
         throw new Error(`${EXPOSURES_FILE}:${index + 1}: not JSON`);
       }
     });
 }
 
-const rate = (ok: number, n: number): string =>
-  n === 0 ? '-' : `${Math.round((100 * ok) / n)}%`;
-
+/** Per record, over distinct (task, record, arm): runs served or withheld, and among them those whose own check ran on the diff. */
 export type EffectTotals = {
   served: number;
-  servedOk: number;
+  /** Served runs whose check ran (violated is not null). */
+  servedScoped: number;
+  servedViolated: number;
   withheld: number;
-  withheldOk: number;
-  followed: number;
-  violated: number;
+  withheldScoped: number;
+  withheldViolated: number;
 };
 
-/** Per record: served and withheld runs, the lanes that delivered in each, and the followed/violated counts. */
+/**
+ * Per record: served and withheld runs with their check results. A run of a task counts once per
+ * (task, record, arm), its latest attempt, so a rerun does not count a record twice. Rows without a
+ * task count each.
+ */
 export function effectTotals(
   exposures: readonly Exposure[],
 ): Map<string, EffectTotals> {
+  type Cell = { id: string; arm: 'served' | 'withheld'; value: boolean | null };
+  const cells = new Map<string, Cell>();
+  exposures.forEach((exposure, index) => {
+    const add = (id: string, arm: Cell['arm']): void => {
+      const key =
+        exposure.task === null
+          ? `#${index}\0${id}\0${arm}`
+          : `${exposure.task}\0${id}\0${arm}`;
+      cells.set(key, { id, arm, value: exposure.violated[id] ?? null });
+    };
+    for (const id of exposure.served) add(id, 'served');
+    for (const id of exposure.withheld) add(id, 'withheld');
+  });
   const rows = new Map<string, EffectTotals>();
-  const row = (id: string) => {
-    let value = rows.get(id);
-    if (value === undefined) {
-      value = {
+  for (const { id, arm, value } of cells.values()) {
+    let row = rows.get(id);
+    if (row === undefined) {
+      row = {
         served: 0,
-        servedOk: 0,
+        servedScoped: 0,
+        servedViolated: 0,
         withheld: 0,
-        withheldOk: 0,
-        followed: 0,
-        violated: 0,
+        withheldScoped: 0,
+        withheldViolated: 0,
       };
-      rows.set(id, value);
+      rows.set(id, row);
     }
-    return value;
-  };
-  for (const exposure of exposures) {
-    for (const id of exposure.served) {
-      const value = row(id);
-      value.served++;
-      if (exposure.lane_ok) value.servedOk++;
-      if (exposure.outcome[id] === 'followed') value.followed++;
-      if (exposure.outcome[id] === 'violated') value.violated++;
-    }
-    for (const id of exposure.withheld) {
-      const value = row(id);
-      value.withheld++;
-      if (exposure.lane_ok) value.withheldOk++;
-    }
+    row[arm]++;
+    if (value === null) continue;
+    row[`${arm}Scoped`]++;
+    if (value) row[`${arm}Violated`]++;
   }
   return rows;
 }
 
-/** One row per record: served and withheld runs with the share of lanes that delivered, and the followed/violated counts. */
+const rate = (bad: number, n: number): string =>
+  n === 0 ? '-' : `${Math.round((100 * bad) / n)}%`;
+
+/** One row per record: served and withheld runs, and how often the record's own check failed in each arm. */
 export function effectRows(exposures: readonly Exposure[]): string[] {
-  const rows = effectTotals(exposures);
-  return [...rows.entries()]
+  return [...effectTotals(exposures).entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(
       ([id, v]) =>
-        `${id}: served ${v.served} (ok ${rate(v.servedOk, v.served)}, followed ${v.followed}, violated ${v.violated}) withheld ${v.withheld} (ok ${rate(v.withheldOk, v.withheld)})`,
+        `${id}: served ${v.served} (scoped ${v.servedScoped}, violated ${rate(v.servedViolated, v.servedScoped)}) withheld ${v.withheld} (scoped ${v.withheldScoped}, violated ${rate(v.withheldViolated, v.withheldScoped)})`,
     );
 }
 
-/** A served packet whose outcome is not known yet (the session has just started): no per-record outcome. */
+/** A served packet whose outcome is not known yet (the session has just started): no per-record result. */
 export function servedExposure(
   run: string,
   channel: string,
   served: readonly string[],
+  tokens = 0,
 ): Exposure {
-  return {
+  return exposureOf({
     run,
-    task: null,
+    task: undefined,
     channel,
-    served: [...served],
+    served,
     withheld: [],
-    outcome: {},
-    lane_ok: true,
-    rework: 0,
-  };
+    laneOk: true,
+    tokens,
+  });
 }
 
 /** A refused Stop: each record the session still violated, so the effect report counts the violation. */
@@ -172,16 +247,15 @@ export function violatedExposure(
   run: string,
   ids: readonly string[],
 ): Exposure {
-  return {
+  return exposureOf({
     run,
-    task: null,
+    task: undefined,
     channel: 'stop',
-    served: [...ids],
+    served: ids,
     withheld: [],
-    outcome: Object.fromEntries(ids.map((id) => [id, 'violated' as const])),
-    lane_ok: false,
-    rework: 1,
-  };
+    laneOk: false,
+    violated: Object.fromEntries(ids.map((id) => [id, true])),
+  });
 }
 
 export type Verdict = 'hit' | 'miss' | 'unmeasured';

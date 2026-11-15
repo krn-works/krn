@@ -6,7 +6,6 @@ import { callSiteSweep, precedentSection } from '../brain/precedent.ts';
 import {
   gatesBlock,
   heldOut,
-  laneCandidates,
   lanePacket,
   packetBrief,
 } from '../brain/worker-packet.ts';
@@ -79,9 +78,11 @@ export function laneBriefText(
 export type LaneBrief = {
   text: string;
   packet: string | null;
+  /** Tokens of the packet the brief carries. */
+  tokens: number;
   /** Ids of the records the packet served. */
   served: string[];
-  /** Ids of the records the task's holdout kept out of the packet, so their effect can be measured. */
+  /** Ids of the records the packet would have served that the task's holdout kept out, so their effect can be measured. */
   withheld: string[];
 };
 
@@ -98,9 +99,12 @@ export function laneBrief(
 ): LaneBrief {
   const packet = lanePacket(repo, brief, asOf, task, budget, holdout);
   const served = packet?.records ?? [];
-  const withheld = laneCandidates(repo)
-    .map((record) => record.id)
-    .filter((id) => holdout && heldOut(task, id));
+  // Withheld is what the packet would have served without the holdout, intersected with the holdout.
+  const withheld = holdout
+    ? (
+        lanePacket(repo, brief, asOf, task, budget, false)?.records ?? []
+      ).filter((id) => heldOut(task, id))
+    : [];
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
   const recipe =
@@ -125,6 +129,7 @@ export function laneBrief(
     text: `${body.trimEnd()}\n\n${workerRules(repo)}${closure ? `\n${closureRule(task)}` : ''}\n`,
     packet:
       packet === null || packet.records.length === 0 ? null : packet.sha256,
+    tokens: packet?.tokens ?? 0,
     served: [...served],
     withheld,
   };

@@ -659,9 +659,13 @@ test('a lane run appends the served standards and the outcome to the exposure lo
     assert.deepEqual(entry?.served, ['r-trailer']);
     // Only the task's deterministic holdout is withheld; a record that merely did not match is not.
     assert.ok(!(entry?.withheld ?? []).includes('r-trailer'));
-    assert.deepEqual(entry?.outcome, { 'r-trailer': 'followed' });
+    // The record has no check of its own, so the run outcome is not copied onto it.
+    assert.deepEqual(entry?.violated, { 'r-trailer': null });
+    assert.equal(entry?.schema, 'krn.exposure/v1');
+    assert.equal(entry?.attempt, 1);
+    assert.ok((entry?.tokens ?? 0) > 0);
     assert.equal(entry?.lane_ok, true);
-    assert.equal(entry?.rework, 0);
+    assert.ok(!('rework' in (entry ?? {})));
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });

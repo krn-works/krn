@@ -120,7 +120,9 @@ export function editContext(
     (standard) => !shown.has(standard.id),
   );
   if (fresh.length === 0) return undefined;
-  const withheld = fresh
+  // The would-serve set is what the budget admits without the holdout; withheld is that set's held-out part.
+  const wouldServe = withinBudget(fresh, EDIT_BUDGET);
+  const withheld = wouldServe
     .filter((standard) => heldOut(sessionId, standard.id))
     .map((standard) => standard.id);
   const served = withinBudget(
