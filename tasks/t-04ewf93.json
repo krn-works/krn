@@ -1,7 +1,11 @@
 {
   "id": "t-04ewf93",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "get_in/update_in stop at non-array"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "get_in and update_in must stop at a value that is not an array",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "php tests/shim.php src/get_in.php tests/GetInTest.php",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

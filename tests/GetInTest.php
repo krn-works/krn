@@ -31,6 +31,53 @@ class GetInTest extends \PHPUnit_Framework_TestCase
         ];
     }
 
+    function testClause1GetInThroughNullReturnsDefault()
+    {
+        $this->assertSame('default', get_in(['foo' => null], ['foo', 'bar'], 'default'));
+        $this->assertSame(null, get_in(['foo' => null], ['foo', 'bar']));
+        $this->assertSame('default', get_in(['key' => 'value'], ['key', 'x'], 'default'));
+    }
+
+    function testClause2GetInThroughNonArrayReturnsDefault()
+    {
+        foreach ([null, 'str', 5, 1.5, true] as $scalar) {
+            $this->assertSame('d', get_in(['a' => $scalar], ['a', 'b', 'c'], 'd'));
+        }
+    }
+
+    function testClause3UpdateInThroughNonArrayThrows()
+    {
+        $id = function ($x) { return $x; };
+        foreach ([[['foo' => null], ['foo', 'bar']], [['key' => 'value'], ['key', 'x']]] as $case) {
+            $thrown = false;
+            try {
+                update_in($case[0], $case[1], $id);
+            } catch (\InvalidArgumentException $e) {
+                $thrown = true;
+            }
+            $this->assertSame(true, $thrown);
+        }
+    }
+
+    function testClause4ExistingBehaviourUnchanged()
+    {
+        $nested = ['foo' => ['bar' => 1], 'n' => null];
+        $this->assertSame(1, get_in($nested, ['foo', 'bar']));
+        $this->assertSame(null, get_in($nested, ['n'], 'err'));
+        $this->assertSame('d', get_in($nested, ['foo', 'zip'], 'd'));
+        $this->assertSame(['foo' => ['bar' => 2], 'n' => null], update_in($nested, ['foo', 'bar'], function ($x) { return $x + 1; }));
+    }
+
+    function testClause5GetInAndUpdateInStopAtScalar()
+    {
+        $this->assertSame('d', get_in(['a' => 'x'], ['a', 'b'], 'd'));
+    }
+
+    function testClause6GetInCallSiteFixed()
+    {
+        $this->assertSame('default', get_in(['key' => 'value'], ['key', 'x'], 'default'));
+    }
+
     /** @dataProvider provideUpdateIn */
     function testUpdateIn($expected, $array, $keys, $fn, array $args = [])
     {
