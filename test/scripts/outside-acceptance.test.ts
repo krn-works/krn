@@ -1,14 +1,26 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import {
   adoptArgs,
   baseCommit,
   defaultScratch,
   drainFacts,
+  entryCommit,
   gradedRow,
   hiddenResult,
   hiddenSeedTask,
+  hookCell,
+  hookPath,
   outsideBranch,
   parseOptions,
   parseTaskFile,
@@ -99,7 +111,7 @@ test('a row is graded all merged only for exit 0 with every PR merged', () => {
   );
   assert.match(
     gradedRow({ stack: 'py', adoptExit: 0, firstPr: '#5', drain: green }),
-    /^krn-works\/krn outside\/py \| py \| 0 \| #5 \| 0 \| #5 \(all merged\) \| 1 \| \$0\.00 \| none$/u,
+    /^krn-works\/krn outside\/py \| py \| 0 \| #5 \| 0 \| #5 \(all merged\) \| 1 \| \$0\.00 \| none \| none$/u,
   );
   const red = drainFacts(73, 't-a t-a exit=73 1s\nPR #5');
   assert.match(
@@ -114,7 +126,7 @@ test('a row is graded all merged only for exit 0 with every PR merged', () => {
       drain: undefined,
       note: 'push failed',
     }),
-    /\| not run \| none \| 0 \| \$0\.00 \| none \| push failed$/u,
+    /\| not run \| none \| 0 \| \$0\.00 \| none \| none \| push failed$/u,
   );
 });
 
@@ -140,7 +152,7 @@ test('the drain output of a real merged run is graded all merged with its commit
   assert.equal(facts.merged, 1);
   assert.match(
     gradedRow({ stack: 'php', adoptExit: 0, firstPr: '510b485', drain: facts }),
-    /\| 0 \| 510b485 \(all merged\) \| 1 \| \$0\.12 \| none$/u,
+    /\| 0 \| 510b485 \(all merged\) \| 1 \| \$0\.12 \| none \| none$/u,
   );
 });
 
@@ -275,7 +287,7 @@ test('the hidden column grades pass, fail or none from the held-back test exit c
       hidden,
       note: 'merged abc1234',
     });
-  assert.match(row('pass'), /\| \$0\.00 \| pass \| merged abc1234$/u);
+  assert.match(row('pass'), /\| \$0\.00 \| pass \| none \| merged abc1234$/u);
   assert.equal(rowGreen(row('pass')), true);
   assert.equal(rowGreen(row('none')), true);
   assert.equal(rowGreen(row('fail')), false);
@@ -342,4 +354,58 @@ test('a row carries the related-test command of a stack whose detected one the h
   const py = rows.find((row) => row.stack === 'py');
   assert.match(String(py?.related), /pytest -q \{files\}$/u);
   assert.equal(rows.find((row) => row.stack === 'php')?.related, undefined);
+});
+
+const head = 'a'.repeat(40);
+const stale = 'b'.repeat(40);
+
+/** A krn on PATH whose `doctor` prints the commit it was built from, like the real entry. */
+function fakeKrn(dir: string, commit: string): string {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'krn'), `#!/bin/sh\necho "entry-commit=${commit}"\n`);
+  chmodSync(join(dir, 'krn'), 0o755);
+  return dir;
+}
+
+const doctorCommit = (pathEnv: string) =>
+  entryCommit(
+    spawnSync('krn', ['doctor'], {
+      encoding: 'utf8',
+      env: { PATH: pathEnv },
+    }).stdout,
+  );
+
+test('the checkout bin comes first on PATH, so a stale installed shim cannot serve the hooks', () => {
+  const work = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'hook-skew-'));
+  const shim = fakeKrn(join(work, 'shim'), stale);
+  fakeKrn(join(work, 'root/bin'), head);
+  const path = hookPath(join(work, 'root'), `${shim}:/usr/bin:/bin`);
+  assert.equal(path.split(':')[0], join(work, 'root/bin'));
+  assert.equal(doctorCommit(path), head);
+  assert.equal(doctorCommit(`${shim}:/usr/bin:/bin`), stale);
+});
+
+test('a row whose hook commit differs from the checkout HEAD is skewed and not green', () => {
+  assert.equal(entryCommit(`entry-commit=${head}\nstatus=fresh\n`), head);
+  assert.equal(entryCommit('entry-commit=unknown\n'), undefined);
+  assert.equal(hookCell({ commit: head, head }), 'aaaaaaa');
+  assert.equal(hookCell({ commit: stale, head }), 'skew bbbbbbb != aaaaaaa');
+  assert.equal(
+    hookCell({ commit: undefined, head }),
+    'skew unknown != aaaaaaa',
+  );
+  const drain = drainFacts(
+    0,
+    't-a t-a exit=0 1s\nPR #5\nverdict: merged abc1234def',
+  );
+  const row = (commit: string) =>
+    gradedRow({
+      stack: 'py',
+      adoptExit: 0,
+      firstPr: '#5',
+      drain,
+      hook: { commit, head },
+    });
+  assert.equal(rowGreen(row(head)), true);
+  assert.equal(rowGreen(row(stale)), false);
 });

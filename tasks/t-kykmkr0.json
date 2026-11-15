@@ -1,7 +1,11 @@
 {
   "id": "t-kykmkr0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rows put checkout bin first on PATH, record hook commit column, skew fails row; stale-shim test"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Outside rows run the checkout's krn hook and fail on a hook version mismatch",
