@@ -73,7 +73,15 @@ const MEASURED_OPEN = [
 export const REQUIRES_TOOL: Record<string, string> = {
   's-go-gofmt': "printf 'package p\\n' | gofmt -l",
   's-rust-fmt-check': 'cargo fmt --version',
+  // The contract gates run the stack's toolchain; a version-less mise shim exits 1, not 127.
+  's-gate-typecheck-runs:go': 'go version',
+  's-gate-typecheck-runs:rust': 'cargo --version',
 };
+
+/** The probe of a record in one stack: a stack-specific entry wins over the record-wide one. */
+export function toolProbe(id: string, stack: Stack): string | undefined {
+  return REQUIRES_TOOL[`${id}:${stack}`] ?? REQUIRES_TOOL[id];
+}
 
 /** The plant of every enforced record of the pack, by record id. */
 export const PLANTS: Record<string, Plant> = {
@@ -310,9 +318,15 @@ export const PLANTS: Record<string, Plant> = {
   's-php-no-eval': () => ({
     write: { 'src/dynamic.php': '<?php eval($code);\n' },
   }),
-  's-php-autoload-declared': () => ({
-    write: { 'src/Thing.php': '<?php class Thing {}\n' },
-  }),
+  's-php-autoload-declared': (c) => {
+    const { autoload: _dropped, ...composer } = json(c, 'composer.json');
+    return {
+      write: {
+        'composer.json': jsonText(composer),
+        'src/Thing.php': '<?php class Thing {}\n',
+      },
+    };
+  },
   's-php-composer-no-wildcard': (c) => ({
     write: {
       'composer.json': jsonText({
@@ -360,7 +374,13 @@ export const PLANTS: Record<string, Plant> = {
   's-go-gofmt': () => ({
     write: { 'unformatted.go': 'package p\nfunc  f( ){}\n' },
   }),
-  's-go-vet-run': () => ({ write: { '.golangci.yml': null } }),
+  's-go-vet-run': () => ({
+    write: {
+      '.golangci.yml': null,
+      '.github/workflows/ci.yml':
+        'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test ./...\n',
+    },
+  }),
   's-go-sum-committed': () => ({
     write: {
       'go.mod':
