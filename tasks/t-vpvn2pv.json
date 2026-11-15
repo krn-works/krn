@@ -1,7 +1,11 @@
 {
   "id": "t-vpvn2pv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "seed write creates tasks/ when adopt left none; test writeSeedTask on a bare clone"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Outside acceptance rows never fail setup with a missing task file",
