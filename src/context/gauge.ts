@@ -106,7 +106,7 @@ function tail(path: string): string {
 // Above the ceiling a session may only hand off. The replay of host
 // transcripts showed steps running 20-128k past a single advisory and, with
 // Bash and Read left open, sessions growing a further 116k past the ceiling,
-// so the ceiling admits only what krn-handoff runs: Skill and ToolSearch,
+// so the ceiling admits only what delivery-handoff runs: Skill and ToolSearch,
 // writes under agent state or memory, reads of agent state or memory (or
 // bounded reads elsewhere), and Bash commands built from handoff commands.
 const handoffTools = new Set(['Skill', 'ToolSearch']);
@@ -230,7 +230,7 @@ export async function main(): Promise<void> {
     if (host && wiresOwnGauge(input.project)) process.exit(0);
     const handoff = host
       ? 'hand off with the context-relay skill'
-      : 'run krn-handoff';
+      : 'run delivery-handoff';
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
     const fallbackWindow = host ? 400000 : 200000;

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -13,6 +14,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { universalSkills } from '../../src/adopt/adopt.ts';
+import { UNIVERSAL_SKILLS } from '../../src/brain/global-standards.ts';
 
 // KRN-12: the universal skills are scanned for KRN-repository literals, then
 // installed by the real `krn adopt` into a pytest fixture, where every `krn`
@@ -34,6 +37,13 @@ const krnOnly = [
   'krn-lead',
   'krn-handoff',
   'krn state',
+  'krn-reader',
+  'krn-research',
+  'krn-retro',
+  'scripts/claude',
+  '.krn/runs/lead',
+  'KRN-',
+  'FR-40',
 ];
 
 function skillFiles(dir: string): string[] {
@@ -131,4 +141,53 @@ test('every universal skill declares the Agent Skills compatibility field', () =
       `${file} compatibility`,
     );
   }
+});
+
+const repo = fileURLToPath(new URL('../..', import.meta.url));
+
+test('the core skills carry the full procedure with no KRN-only or operator text', () => {
+  assert.deepEqual(
+    [
+      'architecture',
+      'delivery-handoff',
+      'delivery-lead',
+      'delivery-retro',
+    ].filter((name) => !universalSkills().includes(name)),
+    [],
+  );
+  assert.ok(existsSync(join(source, 'delivery-lead', 'lanes.md')));
+  for (const file of skillFiles(source)) {
+    const text = readFileSync(file, 'utf8');
+    assert.equal(/operator/iu.test(text), false, `${file} names the operator`);
+    assert.equal(
+      /\b20\d\d-\d\d-\d\d\b/u.test(text),
+      false,
+      `${file} holds a date`,
+    );
+  }
+  const lead = readFileSync(join(source, 'delivery-lead', 'SKILL.md'), 'utf8');
+  assert.match(lead, /delivery-lead\/lanes\.md/u);
+  assert.match(lead, /delivery-handoff/u);
+  assert.match(lead, /delivery-retro/u);
+});
+
+test('every skill a hook or successor prompt names is an installable universal skill', () => {
+  const installable = new Set(universalSkills());
+  for (const file of [
+    'src/context/gauge.ts',
+    'scripts/codex/context-hook.ts',
+    'src/successor/watchdog.ts',
+  ]) {
+    const text = readFileSync(join(repo, file), 'utf8');
+    assert.equal(
+      /krn-(?:lead|handoff|retro)/u.test(text.replace(/\/\/.*$/gmu, '')),
+      false,
+      `${file} names a KRN-only skill`,
+    );
+    for (const [, name] of text.matchAll(/(?:run|the) (delivery-[a-z]+)/gu))
+      assert.ok(installable.has(name as string), `${file} names ${name}`);
+  }
+  for (const name of UNIVERSAL_SKILLS)
+    assert.ok(installable.has(name), `${name} is installable`);
+  assert.deepEqual([...UNIVERSAL_SKILLS], ['architecture']);
 });

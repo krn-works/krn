@@ -56,3 +56,12 @@ Use Conventional Commits for authored commits, PR titles and squash subjects. Co
 At every terminal PR, `$delivery-loop` records each owned branch and worktree as retired under recorded deletion authority after preserving needed evidence, or retained with one owner, consumer, and removal trigger. A merged head branch is retired locally and remotely and its worktree removed in the same closeout. For a closed unmerged or superseded PR, retain a branch or worktree only while a named successor or evidence consumer needs it; otherwise preserve needed evidence and retire it under deletion authority. PR closure grants no deletion authority. Do not delete another owner's ref or worktree, and leave none unowned.
 
 Keep the minimal set of true, current docs. Delete outdated docs; Git history is the archive. Stale instructions lose to current code and passing tests.
+
+## Delivery skills in this repository
+
+The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository adds the following on top of them; the project skills `krn-lead`, `krn-handoff` and `krn-retro` carry the same additions until this repository installs the universal set.
+
+- **Handoff:** the capsule is written only with `krn state set` and `krn state accept` and checked with `krn state check --root .`; `krn state handoff` generates `handoff.md` beside it. The handoff holds one `## Operator requests` section checked by `node scripts/claude/handoff-requests.ts <handoff path>`, and `node scripts/claude/operator-inbox.ts open` lists prompts without a disposition. The next session starts with `node scripts/claude/successor-launch.ts --name "<slice purpose>" --model claude-opus-5-5 --effort medium --prompt "<prompt>"` and retires its predecessor with `--retire`.
+- **Retro:** `krn state retro --task <id>` prints the skeleton; rules go through `spec/rules.json`; refresh the generated roadmap with `node scripts/claude/roadmap-prune.ts`.
+- **Ship:** run `bin/krn pr ship`; the required check is defined in [lead rules](lead-rules.md).
+- **Hooks:** `src/context/gauge.ts` and `scripts/codex/context-hook.ts` advise `delivery-handoff`; the watchdog successor prompt names `delivery-lead`.

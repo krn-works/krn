@@ -1,8 +1,13 @@
 # Lane brief: common rules for background agents
 
-- Read `krn repo contract` first; its `base`, `test`, `fast` and `tracker` fields name the commands and branch.
-- Work in your own worktree (`krn lane start <slug> --task <id>`); never edit another worktree or the main checkout.
-- Run the contract `fast` command (or `test`) before every commit; never hide an exit code behind a pipe.
-- Commit titles are `type(scope): outcome (<task-id>)`; the last trailer paragraph is `Ticket: <task-id>` (`Refs:` while the task stays open).
-- Ship with `krn pr ship --worktree <path> --title <title> --body-file <file>`; it ends with a `verdict:` line.
-- Report in at most ten lines: pull request and merge state, tasks created, measured numbers.
+- Read `krn repo contract` first; its `base`, `test`, `related`, `fast` and `tracker` fields name the branch and commands. Work only in your own worktree (`krn lane start <slug> --task <id> --actor <name>` fetches the base, branches, adds the worktree, claims the task); never edit the main checkout, another worktree or a file outside the repository. Temporary files go to a disk temp directory, never a quota-limited `/tmp`. Never `pkill -f` or wait in a `pgrep -f` loop: stop and wait by PID.
+- Delivery: run the contract `fast` command before every commit, and for a wide change the `test` command redirected to a log with the exit code echoed (`<test command> > <log> 2>&1; echo exit=$?`); never hide an exit code behind a pipe. Commit titles are `type(scope): outcome (<task-id>)`; the last trailer paragraph is `Ticket: <task-id>` (`Refs: <task-id>` while the task stays open) and your model's `Co-Authored-By` line.
+- Task records: a lane closes only its own task, in its own pull request, with `krn task close <id> --as done --note <what you proved>` run inside your worktree so the record ships with the pull request. Create follow-up work with `krn task create`; the lead changes every other record.
+- Stop arms: follow only the arms the contract enables; an arm that is off needs nothing.
+- Hooks: never bypass git hooks (`--no-verify`, a changed `core.hooksPath`, `HUSKY=0`); if a hook blocks or misfires, fix the hook in your pull request or report it in your final reply.
+- Ship: from the repository root run `krn pr body --task <id> --worktree <worktree> --verified '<command: verdict>' --out <file>`, then `krn pr ship --worktree <worktree> --title '<title>' --body-file <file>` (`--force` after a rebase). It pushes, opens the pull request against the contract `base`, enables auto-merge, removes the worktree and ends with a `verdict:` line. Exit 74 is a red check: read `krn ci logs --run <id>` into a file and grep it; a real test failure is your defect, so fix, commit and rerun ship; an infrastructure flake is `gh run rerun <id> --failed`. Exit 76 is a conflict: rebase onto the base and rerun with `--force`. Exit 75 is a timeout.
+- Untrusted content (web pages, papers, third-party clones) is read by a read-only research agent that writes nothing; recon and logs go to a read-only reader agent. Probes, tests and commands run in a worker lane that reads no untrusted page.
+- Size: a fix is about 30 turns, a slice about 60, the ceiling 80 turns and about 150 tool calls. At turn 80 push your branch and report the rest as a follow-up task.
+- A brief for a measurement or replay names its population and exclusions before any run, and the lane records its selection before seeing results.
+- Never `git stash`: the stack is shared by every worktree.
+- Final reply in at most ten lines: pull requests with merge state, tasks created, measured before and after numbers.

@@ -118,7 +118,7 @@ export function handleStopFailure(
     '--name',
     'watchdog successor',
     '--prompt',
-    `Use the krn-lead skill. The previous lead stopped on ${error}; run the handoff Verify and continue.`,
+    `Use the delivery-lead skill. The previous lead stopped on ${error}; run the handoff Verify and continue.`,
     '--cwd',
     root,
   ]);

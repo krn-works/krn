@@ -69,7 +69,7 @@ test('gauge caps its advisories at 150k and 200k of a 400k window', async () => 
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /Context at 163k of 400k\. Finish the current step, then run krn-handoff\./u,
+      /Context at 163k of 400k\. Finish the current step, then run delivery-handoff\./u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -104,10 +104,10 @@ test('gauge hook advises once per threshold and re-arms after compaction', () =>
     assert.equal(run(fixture('below')), '');
     assert.match(
       run(fixture('warn'), 'UserPromptSubmit'),
-      /Context at 121k of 200k\. Finish the current step, then run krn-handoff\./u,
+      /Context at 121k of 200k\. Finish the current step, then run delivery-handoff\./u,
     );
     assert.equal(run(fixture('warn')), '');
-    assert.match(run(fixture('second')), /163k.*200k.*krn-handoff/u);
+    assert.match(run(fixture('second')), /163k.*200k.*delivery-handoff/u);
     assert.equal(run(fixture('second')), '');
     assert.equal(run(fixture('compact-boundary')), '');
     assert.match(run(fixture('warn')), /121k/u);
@@ -153,7 +153,7 @@ test('gauge hook gives both advisories when one reading passes both thresholds',
     const text = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
     assert.match(
       text,
-      /163k of 200k\. Finish the current step, then run krn-handoff\./u,
+      /163k of 200k\. Finish the current step, then run delivery-handoff\./u,
     );
     assert.match(text, /nearly exhausted/u);
   } finally {
@@ -268,7 +268,7 @@ test('gauge budget follows the project auto-compact window and ignores the measu
     // 60% of 300k is 180k, so the 150k cap moves the first advisory down.
     assert.match(
       run(fixture('second'), 'wide'),
-      /^\{.*Context at 163k of 300k\. Finish the current step, then run krn-handoff\."/u,
+      /^\{.*Context at 163k of 300k\. Finish the current step, then run delivery-handoff\."/u,
     );
     assert.equal(run(reading(181000), 'wide'), '');
     assert.match(
@@ -335,7 +335,7 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     if (!out) return false;
     const output = JSON.parse(out).hookSpecificOutput;
     assert.equal(output.permissionDecision, 'deny');
-    assert.match(output.permissionDecisionReason, /ceiling.*krn-handoff/u);
+    assert.match(output.permissionDecisionReason, /ceiling.*delivery-handoff/u);
     return true;
   };
   try {

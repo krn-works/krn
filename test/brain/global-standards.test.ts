@@ -75,7 +75,7 @@ test('the import line and skill links are added, other CLAUDE.md content is kept
     readFileSync(join(home, '.claude', 'CLAUDE.md'), 'utf8'),
     `${own}\n${IMPORT_LINE}\n`,
   );
-  for (const name of ['architecture', 'typescript']) {
+  for (const name of ['architecture']) {
     const link = join(home, '.claude', 'skills', name);
     assert.ok(lstatSync(link).isSymbolicLink());
     assert.equal(readlinkSync(link), join(product, '.agents', 'skills', name));
