@@ -44,6 +44,7 @@ test('clause 6: the proof line prints the four counts in the stated shape', () =
       ]),
       messages: 'Clause 2: not reproducible: process step',
       firstCommitFiles: ['test/a.test.ts'],
+      redAtBase: ['test/a.test.ts'],
       stopRefusals: 2,
     }),
   );
@@ -59,6 +60,7 @@ test('clause 7: counts come from the lane records, not estimates', () => {
     tests: new Map(),
     messages: '',
     firstCommitFiles: ['src/a.ts'],
+    redAtBase: [],
     stopRefusals: 0,
   });
   assert.deepEqual(none, {
@@ -74,6 +76,7 @@ test('clause 7: counts come from the lane records, not estimates', () => {
     tests: new Map([['test/a.test.ts', "test('clause 12 only', () => {})"]]),
     messages: '',
     firstCommitFiles: [],
+    redAtBase: [],
     stopRefusals: 0,
   });
   assert.equal(partial.clauses, 0);
@@ -102,8 +105,31 @@ test('clause 8: a brief with under two clauses counts the clauses the worker wro
     ]),
     messages: '',
     firstCommitFiles: [],
+    redAtBase: [],
     stopRefusals: 0,
   });
   assert.equal(written.clauses, 2);
   assert.equal(written.clausesTotal, 2);
+});
+
+test('clause 12: a first-commit test that passes at the base is not red-first (the php capture)', () => {
+  // outside php run, lane t-04ewf93: the lane's test was green at the base, yet the line said red-first 1.
+  const capture = proofOf({
+    brief,
+    tests: new Map([['tests/GetInTest.php', '// clause 1']]),
+    messages: '',
+    firstCommitFiles: ['tests/GetInTest.php'],
+    redAtBase: [],
+    stopRefusals: 1,
+  });
+  assert.equal(capture.redFirst, 0);
+  const red = proofOf({
+    brief,
+    tests: new Map(),
+    messages: '',
+    firstCommitFiles: ['tests/GetInTest.php'],
+    redAtBase: ['tests/GetInTest.php'],
+    stopRefusals: 1,
+  });
+  assert.equal(red.redFirst, 1);
 });

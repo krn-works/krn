@@ -7,7 +7,7 @@ export type Proof = {
   clauses: number;
   /** Clauses the brief stated, or the clauses the worker wrote when the brief stated under two. */
   clausesTotal: number;
-  /** 1 when the lane's first commit changed a test file, else 0. */
+  /** 1 when the lane's first commit changed a test file that fails at the base, else 0 (a test already green at the base is not red-first). */
   redFirst: number;
   /** Modules the brief's Precedent section named. */
   precedent: number;
@@ -70,6 +70,8 @@ export function proofOf(input: {
   tests: ReadonlyMap<string, string>;
   messages: string;
   firstCommitFiles: readonly string[];
+  /** Changed test files that fail against the base source. */
+  redAtBase: readonly string[];
   stopRefusals: number;
 }): Proof {
   const stated = briefClauseNumbers(input.brief);
@@ -85,7 +87,11 @@ export function proofOf(input: {
   return {
     clauses: numbers.filter(proven).length,
     clausesTotal: numbers.length,
-    redFirst: input.firstCommitFiles.some((f) => TEST_PATH.test(f)) ? 1 : 0,
+    redFirst: input.firstCommitFiles.some(
+      (f) => TEST_PATH.test(f) && input.redAtBase.includes(f),
+    )
+      ? 1
+      : 0,
     precedent: precedentModules(input.brief),
     stopRefusals: input.stopRefusals,
   };

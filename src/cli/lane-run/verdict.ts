@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
   lstatSync,
   mkdirSync,
@@ -6,6 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { appendExposure, exposureOf } from '../../brain/exposures.ts';
 import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { releaseClaim } from '../../task/claims.ts';
@@ -35,6 +37,20 @@ import {
 import type { SessionOutcome } from './session.ts';
 import type { LaneRunSteps, LaneVerdict } from './steps.ts';
 import { commitsSinceRed } from './worktree.ts';
+
+const stopHook = fileURLToPath(new URL('../../hook/stop.ts', import.meta.url));
+
+/** The lane's changed test files that fail against the base source, from the Stop hook's `--red` mode run in its worktree. */
+function redTestsOf(worktree: string): string[] {
+  const run = spawnSync(process.execPath, [stopHook, '--red'], {
+    cwd: worktree,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: worktree },
+    encoding: 'utf8',
+  });
+  return run.status === 0
+    ? run.stdout.split('\n').filter((file) => file !== '')
+    : [];
+}
 
 /** Stage four: judge the session's tree and ship it, or stop with the reason and free the claim. */
 export async function laneVerdict(
@@ -76,6 +92,7 @@ export async function laneVerdict(
               : git(path, ['show', '--name-only', '--format=', first])
                   .split('\n')
                   .filter((file) => file !== ''),
+          redAtBase: redTestsOf(path),
           stopRefusals: result.stopRefusals ?? 0,
         }),
       );
@@ -86,6 +103,7 @@ export async function laneVerdict(
           tests: new Map(),
           messages: '',
           firstCommitFiles: [],
+          redAtBase: [],
           stopRefusals: result.stopRefusals ?? 0,
         }),
       );

@@ -1053,6 +1053,77 @@ for (const file of ['tests/GetInTest.php', 'test/parse-link-header.js']) {
   });
 }
 
+test('clause 10: characterization, a tests-only diff passing at the base and head satisfies test-first', () => {
+  const dir = clone();
+  try {
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "import { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'characterize');
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.equal(
+      judgeStop(payload(dir), env, () => []),
+      undefined,
+    );
+    // Red on head is still refused.
+    assert.match(
+      judgeStop(payload(dir), env, () => ['test/a.test.ts::a']) ?? '',
+      /red|fail/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clause 12: the --red mode prints a test red at the base and nothing for one green at the base', () => {
+  const dir = clone();
+  try {
+    const body =
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from '../src/a.ts';\ntest('a', () => assert.equal(a, 2));\n";
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    writeFileSync(join(dir, 'test/a.test.ts'), body);
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'fix');
+    const red = spawnSync(process.execPath, [hook, '--red'], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+    });
+    assert.equal(red.status, 0, red.stderr);
+    assert.equal(red.stdout.trim(), 'test/a.test.ts');
+    sh(dir, 'checkout', '-q', '-B', 'main');
+    sh(dir, 'checkout', '-q', '-b', 'char');
+    writeFileSync(join(dir, 'test/b.test.ts'), body);
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'characterize');
+    const green = spawnSync(process.execPath, [hook, '--red'], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+    });
+    assert.equal(green.status, 0, green.stderr);
+    assert.equal(green.stdout.trim(), '');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clause 11: a source change with no red-at-base test stays refused', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.match(
+      judgeStop(payload(dir), env, () => []) ?? '',
+      /no changed test fails at the base/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('Stop refuses a green branch with no base-red test by default and names the missing red-at-base proof', () => {
   const dir = clone();
   try {
