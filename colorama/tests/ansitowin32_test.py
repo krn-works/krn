@@ -203,6 +203,35 @@ class AnsiToWin32Test(TestCase):
             [a[0][0] for a in listener.call_args_list],
             [33, 11, 22] )
 
+    def _osc(self, text):
+        stream = AnsiToWin32(StringIO(), convert=True, strip=True)
+        with patch('colorama.ansitowin32.winterm') as term:
+            stream.write(text)
+        return term, stream.wrapped.getvalue()
+
+    def testOscTitleSetByZeroAndTwo(self):
+        for n in '02':
+            term, out = self._osc('\x1b]%s;hello\x07' % n)
+            term.set_title.assert_called_once_with('hello')
+            self.assertEqual(out, '')
+
+    def testOscNoTitleArgumentDoesNotSetTitle(self):
+        term, out = self._osc('\x1b]0\x07')
+        term.set_title.assert_not_called()
+        self.assertEqual(out, '')
+
+    def testOscIconDoesNotSetTitle(self):
+        term, out = self._osc('\x1b]1;title\x07')
+        term.set_title.assert_not_called()
+
+    def testOscExtraArgumentsDoNotSetTitle(self):
+        term, out = self._osc('\x1b]0;a;b\x07')
+        term.set_title.assert_not_called()
+
+    def testOscManySemicolonsWithoutBelReturnsPromptly(self):
+        term, out = self._osc('\x1b]' + ';' * 64 + '\x1b\\')
+        term.set_title.assert_not_called()
+
 
 if __name__ == '__main__':
     main()
