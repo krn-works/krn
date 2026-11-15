@@ -1,7 +1,11 @@
 {
   "id": "t-xmmvdwy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt installs the pinned boilerplate-2026 skill set (6 skills, 15 files, commit 30778b5) by stack; plesk-deploy only with a Plesk workflow; test/adopt/skill-set.test.ts proves selection, whole-file install, pin equality, drift, skill-creator field checks. Outside rows not re-run in this lane."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "WordPress and frontend repos get the boilerplate-2026 skill set from one source",

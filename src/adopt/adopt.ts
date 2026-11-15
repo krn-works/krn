@@ -41,7 +41,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from './journal.ts';
-import { skillSet } from './skill-set.ts';
+import { SITE_SKILLS_DIR, siteSkillNames, skillSet } from './skill-set.ts';
 import {
   legacyStopCommand,
   preToolGuards,
@@ -491,8 +491,9 @@ function filesUnder(dir: string, prefix = ''): string[] {
 
 /** Installs the skill set of this repository's stack, every file of each skill directory, under .agents/skills, linking .claude/skills to it when neither exists. */
 function writeSkills(root: string, report: AdoptionReport): void {
-  for (const name of skillSet(root, universalSkills())) {
-    const from = join(skillsSource, name);
+  const sites = new Set(siteSkillNames());
+  for (const name of skillSet(root, [...universalSkills(), ...sites])) {
+    const from = join(sites.has(name) ? SITE_SKILLS_DIR : skillsSource, name);
     for (const file of filesUnder(from).sort())
       writeIfChanged(
         root,
