@@ -228,7 +228,7 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   // The venv every worktree install creates stays out of git.
   assert.deepEqual(
     readFileSync(join(root, '.gitignore'), 'utf8').split('\n').filter(Boolean),
-    ['.krn/', '.venv/', '__pycache__/'],
+    ['.krn/', '.venv/', '__pycache__/', '*.egg-info/'],
   );
   assert.equal(read.contract.test, '.venv/bin/python -m pytest');
   assert.equal(read.contract.related, '.venv/bin/python -m pytest {files}');
@@ -238,6 +238,25 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   const stop = stopAsLane(root);
   assert.equal(stop.status, 2, stop.stderr);
   assert.match(stop.stderr, /Stop refused/u);
+});
+
+test('adopt ignores the dependency directory the detected install creates', () => {
+  const php = fixture({
+    'composer.json': '{"require-dev":{"phpunit/phpunit":"^10"}}',
+  });
+  assert.equal(adoptArgs(php).status, 0);
+  assert.match(readFileSync(join(php, '.gitignore'), 'utf8'), /^vendor\/$/mu);
+  const npm = fixture({
+    'package.json': JSON.stringify({
+      scripts: { test: 'tap test/*.js' },
+      devDependencies: { tap: '^1' },
+    }),
+  });
+  assert.equal(adoptArgs(npm).status, 0);
+  assert.match(
+    readFileSync(join(npm, '.gitignore'), 'utf8'),
+    /^node_modules\/$/mu,
+  );
 });
 
 test('adopt on an npm repository detects its runner, seeds the tracker on request and keeps an edited krn.json', () => {
