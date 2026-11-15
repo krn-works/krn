@@ -1,0 +1,15 @@
+{
+  "id": "t-3vz8xqx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-go-vet-run pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-go-vet-run` no longer fails s-go-vet-run.",
+    "Why: adoption found this reflex standard failing: exit 1 from git ls-files | grep -qE '(^|/)\\.golangci\\.(yml|yaml|toml|json)$' || git grep -qIE 'go vet|golangci|staticcheck' -- .github Makefile makefile GNUmake...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-go-vet-run`"
+  ]
+}

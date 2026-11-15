@@ -1,0 +1,20 @@
+{
+  "id": "t-0vrv0t1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "go-humanize prints 1000 kB instead of 1.0 MB for a rounded byte count",
+  "after": [],
+  "body": [
+    "Bug: Bytes(1000*1000-1) returns \"1000 kB\" and IBytes(1024*1024-1) returns \"1024 KiB\": the value is rounded to the digits shown, reaches the size of the next unit, and keeps the smaller unit suffix. BytesN and IBytesN with other digit counts, BigBytes and BigIBytes do the same.",
+    "Outcome: a value that rounds up to the size of the next unit is printed in that unit with the precision of the new unit (\"1.0 MB\", \"1.0 MiB\", BytesN(999500, 3) is \"1.00 MB\"); a value that stays below the boundary after rounding is unchanged (Bytes(999499) is \"999 kB\"); the largest unit never promotes (Bytes of the largest uint64 is \"18 EB\"). Fix bytes.go and bigbytes.go and add tests."
+  ],
+  "acceptance": [
+    {
+      "verify": "go test ./...",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

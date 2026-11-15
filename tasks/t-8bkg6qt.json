@@ -1,0 +1,15 @@
+{
+  "id": "t-8bkg6qt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-go-no-library-panic pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-go-no-library-panic` no longer fails s-go-no-library-panic.",
+    "Why: adoption found this reflex standard failing: exit 1 from bad=$(git ls-files '*.go' | grep -vE '(_test\\.go$|(^|/)(vendor|testdata|cmd|tools|examples?)/)' | while IFS= read -r f; do grep -qE '^package main$'...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-go-no-library-panic`"
+  ]
+}
