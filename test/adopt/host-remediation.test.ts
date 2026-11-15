@@ -34,7 +34,7 @@ test('a failing CI standard gets the stack workflow from the skeleton, with the 
     'package-lock.json': '{}\n',
   });
   try {
-    const done = remediateHost(root, [fail('s-ci-runs-tests')]);
+    const done = remediateHost(root, [fail('s-gate-in-ci')]);
     assert.deepEqual(done.written, ['.github/workflows/ci.yml']);
     const text = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
     assert.match(text, /pull_request:/u);
@@ -51,7 +51,7 @@ test('a python repository gets the unittest workflow and an existing ci.yml is k
     '.github/workflows/ci.yml': 'name: own\non: push\n',
   });
   try {
-    const done = remediateHost(root, [fail('s-ci-runs-tests')]);
+    const done = remediateHost(root, [fail('s-gate-in-ci')]);
     assert.deepEqual(done.written, ['.github/workflows/krn-ci.yml']);
     assert.match(
       readFileSync(join(root, '.github/workflows/krn-ci.yml'), 'utf8'),
@@ -116,13 +116,13 @@ test('adopt gaps: an npm repository with neither workflow nor lockfile ends with
     ]);
     assert.ok(
       !gaps.lines.some((line) =>
-        /s-ci-runs-tests|s-lockfile-committed/u.test(line),
+        /s-gate-in-ci|s-lockfile-committed/u.test(line),
       ),
       gaps.lines.join('\n'),
     );
     assert.ok(
       !gaps.tasks.some((title) =>
-        /s-ci-runs-tests|s-lockfile-committed/u.test(title),
+        /s-gate-in-ci|s-lockfile-committed/u.test(title),
       ),
     );
   } finally {
@@ -175,7 +175,7 @@ test('a vacuous contract gets a workflow that runs the stack test command, not t
     assert.doesNotMatch(text, /no test command/u);
     assert.match(text, /npm ci && npm test/u);
     assert.ok(
-      !gaps.tasks.some((title) => /s-ci-runs-tests/u.test(title)),
+      !gaps.tasks.some((title) => /s-gate-in-ci/u.test(title)),
       gaps.tasks.join('\n'),
     );
   } finally {

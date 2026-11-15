@@ -102,7 +102,7 @@ export const PLANTS: Record<string, Plant> = {
   's-test-exit-code': () => ({
     write: { Makefile: 'test:\n\ttrue || true\n' },
   }),
-  's-ci-runs-tests': () => ({
+  's-gate-in-ci': () => ({
     write: {
       '.github/workflows/ci.yml':
         'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hello\n',
@@ -116,22 +116,13 @@ export const PLANTS: Record<string, Plant> = {
     write: { 'node_modules/left-pad/index.js': 'module.exports = 1;\n' },
   }),
   's-gitignore-deps': () => ({ write: { '.gitignore': '.krn/\n' } }),
-  's-linter-configured': (c) => {
-    if (c.stack === 'ts') return { write: { 'biome.json': null } };
-    if (c.stack === 'python')
-      return { write: { 'pyproject.toml': '[tool.mypy]\nstrict = true\n' } };
-    if (c.stack === 'go') return { write: { '.golangci.yml': null } };
-    if (c.stack === 'rust')
-      return {
-        write: {
-          '.github/workflows/ci.yml':
-            'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: cargo test\n',
-        },
-      };
-    return { write: { '.prettierrc': null } };
-  },
-  's-typescript-strict': () => ({
-    write: { 'tsconfig.json': '{ "compilerOptions": {} }\n' },
+  's-gate-lint-runs': (c) => ({
+    write: { 'krn.json': jsonText({ ...json(c, 'krn.json'), lint: 'false' }) },
+  }),
+  's-gate-typecheck-runs': (c) => ({
+    write: {
+      'krn.json': jsonText({ ...json(c, 'krn.json'), typecheck: 'false' }),
+    },
   }),
   's-readme-test-command': () => ({
     write: { 'README.md': '# project\n\nNothing to see here.\n' },

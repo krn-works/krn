@@ -450,6 +450,10 @@ function writeContract(
     base: contract?.base ?? detectBase(root),
     ...(install === undefined ? {} : { install }),
     test,
+    ...(options.lint === undefined ? {} : { lint: options.lint }),
+    ...(options.typecheck === undefined
+      ? {}
+      : { typecheck: options.typecheck }),
     ...(contract?.related && options.test === undefined
       ? { related: contract.related }
       : {}),

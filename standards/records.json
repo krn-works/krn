@@ -119,10 +119,10 @@
       ],
       "proposals": []
     },
-    "status": "accepted",
+    "status": "retired",
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "universal": true,
     "harvested": {
@@ -276,10 +276,10 @@
       "evidence": ["AGENTS.md#npm run fast"],
       "proposals": []
     },
-    "status": "accepted",
+    "status": "retired",
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "universal": true,
     "harvested": {
@@ -311,10 +311,10 @@
       "evidence": ["tsconfig.json#strict"],
       "proposals": []
     },
-    "status": "accepted",
+    "status": "retired",
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": []
   },
   {
@@ -3647,5 +3647,103 @@
     "valid_to": null,
     "supersedes": [],
     "area": "node"
+  },
+  {
+    "id": "s-gate-lint-runs",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "The lint command named in krn.json exits 0 on the base branch.",
+    "why": "A configured linter that nobody runs checks nothing; the contract command is what agents and CI run.",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const fs=require(\"fs\");let c;try{c=JSON.parse(fs.readFileSync(\"krn.json\",\"utf8\"))}catch{process.exit(1)};const k=process.argv[1];if(!c[k]){console.error(\"krn.json names no \"+k+\" command\");process.exit(1)};const r=require(\"child_process\").spawnSync(c[k],{shell:true,stdio:\"inherit\"});process.exit(r.status===0?0:1)' lint"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["docs/adr/0023-onboarding-installs-gates-that-run.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": ["s-linter-configured"],
+    "harvested": {
+      "origins": ["php", "npm", "py"],
+      "occurrences": 3
+    }
+  },
+  {
+    "id": "s-gate-typecheck-runs",
+    "type": "standard",
+    "area": "types",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "The typecheck command named in krn.json exits 0 on the base branch.",
+    "why": "A type setting that is never compiled accepts the errors it exists to catch; the contract command is what agents and CI run.",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const fs=require(\"fs\");let c;try{c=JSON.parse(fs.readFileSync(\"krn.json\",\"utf8\"))}catch{process.exit(1)};const k=process.argv[1];if(!c[k]){console.error(\"krn.json names no \"+k+\" command\");process.exit(1)};const r=require(\"child_process\").spawnSync(c[k],{shell:true,stdio:\"inherit\"});process.exit(r.status===0?0:1)' typecheck"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["docs/adr/0023-onboarding-installs-gates-that-run.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": ["s-typescript-strict"]
+  },
+  {
+    "id": "s-gate-in-ci",
+    "type": "standard",
+    "area": "integration",
+    "layer": "universal",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "A workflow that runs on pull requests invokes every test, lint and typecheck command the contract in krn.json names.",
+    "why": "Only a check on the proposed head proves the merged tree, and only the contract's own commands prove the gates agents run locally.",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const fs=require(\"fs\"),path=require(\"path\");let c;try{c=JSON.parse(fs.readFileSync(\"krn.json\",\"utf8\"))}catch{process.exit(1)};const d=\".github/workflows\";let t=\"\";try{t=fs.readdirSync(d).filter(f=>/\\.ya?ml$/.test(f)).map(f=>fs.readFileSync(path.join(d,f),\"utf8\")).join(\"\\n\")}catch{process.exit(1)};if(!/pull_request|merge_request/.test(t)){console.error(\"no workflow runs on pull requests\");process.exit(1)};const miss=[\"test\",\"lint\",\"typecheck\"].filter(k=>c[k]&&!t.includes(c[k]));if(!c.test)miss.unshift(\"test\");if(miss.length){console.error(\"CI does not run the contract commands: \"+miss.join(\", \"));process.exit(1)}\\"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["docs/adr/0023-onboarding-installs-gates-that-run.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": ["s-ci-runs-tests"],
+    "harvested": {
+      "origins": ["php", "npm", "py"],
+      "occurrences": 3
+    }
   }
 ]

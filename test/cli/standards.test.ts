@@ -299,7 +299,7 @@ test('a project standard that reuses a pack id is refused, so a project cannot n
   const root = repository({
     ...python,
     '.agents/standards.json': JSON.stringify([
-      projectRecord({ id: 's-ci-runs-tests' }),
+      projectRecord({ id: 's-gate-in-ci' }),
     ]),
   });
   try {
@@ -307,7 +307,7 @@ test('a project standard that reuses a pack id is refused, so a project cannot n
     assert.equal(done.status, 65);
     assert.match(
       done.stdout,
-      /^FAIL standards: \.agents\/standards\.json redefines pack standard s-ci-runs-tests;/u,
+      /^FAIL standards: \.agents\/standards\.json redefines pack standard s-gate-in-ci;/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -568,7 +568,7 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
         assert.equal(record.layer, 'universal');
       }
       const ids = records.map((record) => record.id);
-      assert.equal(ids.includes('s-typescript-strict'), stack === 'node/npm');
+      assert.ok(ids.includes('s-gate-typecheck-runs'));
 
       const done = check(root);
       assert.equal(done.status, 0, `${done.stderr}${done.stdout}`);
@@ -585,7 +585,7 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
       // Command-enforced records are omitted: the check teaches them.
       assert.doesNotMatch(brief.stdout, /^Repository standards /mu);
       assert.doesNotMatch(brief.stdout, /\[s-tests-tracked\]/u);
-      assert.doesNotMatch(brief.stdout, /\[s-ci-runs-tests\]/u); // lead audience
+      assert.doesNotMatch(brief.stdout, /\[s-gate-in-ci\]/u); // lead audience
 
       const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
       assert.equal(agents.split('<!-- krn-standards:start -->').length, 2);

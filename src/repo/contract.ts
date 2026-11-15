@@ -19,6 +19,10 @@ export interface RepoContract {
   readonly install?: string;
   /** Quick local check before a commit; the test command when absent. */
   readonly fast?: string;
+  /** Lint command a gate runs on the base branch; none when absent. */
+  readonly lint?: string;
+  /** Typecheck command a gate runs on the base branch; none when absent. */
+  readonly typecheck?: string;
   /** Whole-tree invariant tests the Stop check runs on every change: space-separated paths or path prefixes. */
   readonly guard?: string;
   /** JSON file of the repository's conventions (brain records) the lane packet reads, relative to the root. */
@@ -66,6 +70,8 @@ const FIELDS = [
   'test',
   'related',
   'fast',
+  'lint',
+  'typecheck',
   'guard',
   'conventions',
   'tracker',
@@ -686,6 +692,8 @@ export function findContract(root: string): ResolvedContract | undefined {
     test,
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
+    ...(declared?.lint ? { lint: declared.lint } : {}),
+    ...(declared?.typecheck ? { typecheck: declared.typecheck } : {}),
     ...(install ? { install } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
     ...(declared?.conventions ? { conventions: declared.conventions } : {}),

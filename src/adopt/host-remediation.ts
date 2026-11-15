@@ -18,7 +18,7 @@ export interface HostRemediation {
   unfixed: string[];
 }
 
-const CI_STANDARD = 's-ci-runs-tests';
+const CI_STANDARD = 's-gate-in-ci';
 const LOCKFILE_STANDARD = 's-lockfile-committed';
 
 /** The commands an existing project's CI needs besides the skeleton test command. */
@@ -118,7 +118,7 @@ function writeLockfile(root: string): string | undefined {
 }
 
 /**
- * Writes the CI workflow of a failing `s-ci-runs-tests` and the lockfile of a failing
+ * Writes the CI workflow of a failing `s-gate-in-ci` and the lockfile of a failing
  * `s-lockfile-committed` into the working tree. Nothing is committed or pushed: the files are the
  * adopter's to review, and a refused workflow push is a decide record at ship, not a lane BLOCKER.
  */

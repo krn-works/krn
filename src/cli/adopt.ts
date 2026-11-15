@@ -20,6 +20,7 @@ import {
 import { adoptionGaps } from '../adopt/gaps.ts';
 import {
   initDirectory,
+  initGates,
   initInstallCommand,
   initTestCommand,
 } from '../adopt/init.ts';
@@ -232,6 +233,8 @@ export function adoptCommand(args: string[]): void | Promise<void> {
     if (values.test === '') delete values.test;
     const install = initInstallCommand(init.stack);
     if (install !== undefined) values.install ??= install;
+    values.lint ??= initGates(init.stack).lint;
+    values.typecheck ??= initGates(init.stack).typecheck;
   }
   delete values.stack;
   let report: ReturnType<typeof adopt>;
