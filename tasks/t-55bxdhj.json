@@ -1,7 +1,11 @@
 {
   "id": "t-55bxdhj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-ps5sgv9",
+    "note": "north-star item 2: no per-language prose skills; stack content becomes records"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The typescript stack skill meets the stack-skill bar",

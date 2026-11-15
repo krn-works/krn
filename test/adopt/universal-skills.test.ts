@@ -71,8 +71,8 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
 
   const installed = join(root, '.agents', 'skills');
   const names = readdirSync(installed).sort();
-  // core skills plus the python stack skill, and no other stack skill
-  assert.deepEqual(names, ['delivery-lead', 'delivery-retro', 'python']);
+  // core skills only: a language gets stack-tagged records, never a prose skill
+  assert.deepEqual(names, ['delivery-lead', 'delivery-retro']);
   assert.equal(
     readFileSync(join(installed, 'delivery-lead', 'lanes.md'), 'utf8'),
     readFileSync(join(source, 'delivery-lead', 'lanes.md'), 'utf8'),

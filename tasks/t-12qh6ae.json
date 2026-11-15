@@ -1,0 +1,12 @@
+{
+  "id": "t-12qh6ae",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "The rust outside row drains 0 or names why it cannot",
+  "after": [],
+  "body": [
+    "Source: lane rerun of the rust outside row 2026-11-15 ~18:12 after 4611aaf (t-27myh15): push ok, adopt exit 0, drain exit 74, hidden fail; earlier 18:08 attempt exit 73 on a missing boundary clause (/mnt/storage/tmp/rrp-rerun.log; runs /mnt/storage/tmp/krn-outside-public/runs/rust-1794762168617 and rust-1794762425378).\nWhy: no row note or log keeps the drain's stderr or the hidden-test output for the 18:12 run, so the cause of exit 74 (session failure or ship verdict not merged, src/cli/lane-run/verdict.ts:136/168/311) is unknown.\nOutcome: rerun the rust row on main after fcb6aab (t-dz8ma27 boundary words); the row note carries the drain failure cause and the hidden-test assertion; the rust row drains 0 with hidden pass, or the defect it exposes becomes a fix with a regression test.\nFiles: scripts/outside-acceptance.ts, src/cli/lane-run/verdict.ts\nProof: `node scripts/outside-acceptance.ts --stack rust --scratch /mnt/storage/tmp/krn-outside-public --task-file scripts/outside-hidden/tasks.json --window-hours 2` drains 0 with hidden pass.\nPredicted: outside drain == 0 in >= 1 rows"
+  ]
+}
