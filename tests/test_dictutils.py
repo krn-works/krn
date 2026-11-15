@@ -542,3 +542,19 @@ def test_frozendict_api():
 
     import copy
     assert copy.copy(fd) is fd
+
+
+def test_omd_eq_plain_dict_differing_values():
+    omd = OMD([('a', 1), ('b', 2)])
+    assert omd == {'a': 1, 'b': 2}
+    assert not (omd == {'a': 999, 'b': 2})
+    assert omd != {'a': 999, 'b': 2}
+    assert {'a': 999, 'b': 2} != omd
+
+
+def test_query_param_dict_eq_plain_dict_differing_values():
+    from boltons.urlutils import QueryParamDict
+    q = QueryParamDict.from_text('a=1&b=2')
+    assert q == {'a': '1', 'b': '2'}
+    assert not (q == {'a': '999', 'b': '2'})
+    assert q != {'a': '999', 'b': '2'}

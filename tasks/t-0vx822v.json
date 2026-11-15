@@ -1,7 +1,11 @@
 {
   "id": "t-0vx822v",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fixed OMD == dict value comparison"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "An ordered multi-dict compares equal to a plain dict whose values differ",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
