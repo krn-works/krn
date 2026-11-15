@@ -77,6 +77,16 @@ function runSteps(label: string, dir: string, output: string) {
 function walk() {
   const empty = join(work, 'empty');
   mkdirSync(empty);
+  const plain = join(work, 'plain');
+  mkdirSync(plain);
+  const nonRepo = sh(plain, 'krn adopt .');
+  expect(
+    'adopt on a non-repository names git init and --init --stack',
+    nonRepo.code !== 0 &&
+      /git init/u.test(nonRepo.out) &&
+      /--init --stack/u.test(nonRepo.out),
+    nonRepo.out,
+  );
   const noStack = sh(empty, 'krn adopt . --init');
   expect(
     'empty dir without a stack fails naming --stack',
