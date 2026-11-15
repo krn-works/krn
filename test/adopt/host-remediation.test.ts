@@ -38,7 +38,7 @@ test('a failing CI standard gets the stack workflow from the skeleton, with the 
     assert.deepEqual(done.written, ['.github/workflows/ci.yml']);
     const text = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
     assert.match(text, /pull_request:/u);
-    assert.match(text, /npm ci && npm test/u);
+    assert.match(text, /- run: npm ci\n\s+- run: npm test/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -55,7 +55,7 @@ test('a python repository gets the unittest workflow and an existing ci.yml is k
     assert.deepEqual(done.written, ['.github/workflows/krn-ci.yml']);
     assert.match(
       readFileSync(join(root, '.github/workflows/krn-ci.yml'), 'utf8'),
-      /pip install -r requirements\.txt && python -m unittest discover -s tests/u,
+      /pip install -r requirements\.txt\n\s+- run: python -m unittest discover -s tests/u,
     );
     assert.equal(
       readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'),
@@ -173,7 +173,7 @@ test('a vacuous contract gets a workflow that runs the stack test command, not t
     assert.ok(gaps.remediated.includes('.github/workflows/ci.yml'));
     const text = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
     assert.doesNotMatch(text, /no test command/u);
-    assert.match(text, /npm ci && npm test/u);
+    assert.match(text, /- run: npm ci\n\s+- run: npm test/u);
     assert.ok(
       !gaps.tasks.some((title) => /s-gate-in-ci/u.test(title)),
       gaps.tasks.join('\n'),

@@ -217,7 +217,8 @@ const phpunitXml = [
   '',
 ].join('\n');
 
-const phpstanNeon = 'parameters:\n  level: 6\n  paths:\n    - src\n    - tests\n';
+const phpstanNeon =
+  'parameters:\n  level: 6\n  paths:\n    - src\n    - tests\n';
 
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
@@ -549,6 +550,24 @@ export function initDirectory(root: string, named?: string): InitReport {
     else
       warnings.push(
         `composer.lock not written (composer update exited ${locked.status ?? 'without a status'}): run \`composer update\` and commit it`,
+      );
+  }
+  if (stack === 'ts' && !existsSync(join(root, 'package-lock.json'))) {
+    const locked = spawnSync(
+      'npm',
+      [
+        'install',
+        '--package-lock-only',
+        '--ignore-scripts',
+        '--no-audit',
+        '--no-fund',
+      ],
+      { cwd: root, encoding: 'utf8' },
+    );
+    if (locked.status === 0) written.push('package-lock.json');
+    else
+      warnings.push(
+        `package-lock.json not written (npm exited ${locked.status ?? 'without a status'}): run \`npm install\` and commit it`,
       );
   }
   const configured = git(root, ['config', 'user.name']).stdout.trim() !== '';

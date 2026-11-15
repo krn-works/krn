@@ -424,7 +424,10 @@ test('every enforced pack record applies to and holds on at least one generated 
       }
     }
     const enforced = pack
-      .filter((record) => record.enforcement.kind !== 'advisory')
+      .filter(
+        (record) =>
+          record.enforcement.kind !== 'advisory' && record.status !== 'retired',
+      )
       .map((record) => record.id);
     assert.deepEqual(
       enforced.filter((id) => !held.has(id)),

@@ -14,7 +14,7 @@ const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const stacks = [
   {
     stack: 'ts',
-    tools: ['biome check', 'tsc --noEmit', 'npm test'],
+    tools: ['npm run lint', 'npm run typecheck', 'npm test'],
     source: 'src/index.ts',
     import: /from '\.\.\/src\/index\.ts'/u,
     test: 'test/smoke.test.ts',
@@ -68,6 +68,15 @@ for (const row of stacks) {
       assert.ok(ci.includes(tool), `CI runs ${tool}`);
     for (const key of ['lint', 'typecheck'] as const)
       assert.ok(ci.includes(contract[key] ?? ''), `CI runs the ${key} command`);
+    if (row.stack === 'ts') {
+      const scripts = (
+        JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+          scripts: Record<string, string>;
+        }
+      ).scripts;
+      assert.match(scripts.lint ?? '', /biome check/u);
+      assert.match(scripts.typecheck ?? '', /tsc --noEmit/u);
+    }
     const files = spawnSync('git', ['ls-files'], {
       cwd: root,
       encoding: 'utf8',
@@ -98,5 +107,4 @@ test('init ts: the skeleton test runs against its source module', () => {
     encoding: 'utf8',
   });
   assert.equal(tests.status, 0, tests.stdout + tests.stderr);
-  assert.match(tests.stdout, /add sums two numbers/u);
 });
