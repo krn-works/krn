@@ -145,3 +145,4 @@ bun.lockb
 
 # pnpm
 pnpm-lock.yaml
+.krn/

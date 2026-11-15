@@ -1,0 +1,20 @@
+{
+  "id": "t-0sbjvn7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "ConfigCommentParser drops a __proto__ key from its results",
+  "after": [],
+  "body": [
+    "Bug (npm workspaces monorepo, package packages/plugin-kit): parseStringConfig and parseListConfig build their result as a plain object literal, so a '__proto__' item in the comment is lost instead of being kept as an own property.",
+    "Outcome: both methods return a map with a null prototype (Object.create(null)), so '__proto__' is an ordinary own key; the keys and values are otherwise unchanged. Fix packages/plugin-kit/src/config-comment-parser.js and add tests in packages/plugin-kit/tests/config-comment-parser.test.js."
+  ],
+  "acceptance": [
+    {
+      "verify": "npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
