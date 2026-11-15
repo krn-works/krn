@@ -117,7 +117,9 @@ test('canary passes on a pytest repository and fails with the gate disabled', ()
   assert.equal(krn(root, '--canary').status, 1);
 });
 
-test('canary passes on a cargo repository whose integration test it breaks, and fails with the gate disabled', () => {
+test('canary passes on a cargo repository whose integration test it breaks, and fails with the gate disabled', {
+  skip: spawnSync('cargo', ['--version']).status !== 0,
+}, () => {
   const root = fixture({
     'krn.json': JSON.stringify({
       base: 'main',
