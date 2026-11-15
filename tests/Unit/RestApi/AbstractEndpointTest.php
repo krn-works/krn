@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of Ymir WordPress plugin.
+ *
+ * (c) Carl Alexander <support@ymirapp.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Ymir\Plugin\Tests\Unit\RestApi;
+
+use Ymir\Plugin\RestApi\AbstractEndpoint;
+use Ymir\Plugin\Tests\Mock\WPRESTRequestMockTrait;
+use Ymir\Plugin\Tests\Unit\TestCase;
+
+class AbstractEndpointTest extends TestCase
+{
+    use WPRESTRequestMockTrait;
+
+    public function testGetCallback(): void
+    {
+        $endpoint = $this->getMockForAbstractClass(AbstractEndpoint::class);
+
+        $this->assertSame([$endpoint, 'respond'], $endpoint->getCallback());
+    }
+
+    public function testGetPermissionCallback(): void
+    {
+        $endpoint = $this->getMockForAbstractClass(AbstractEndpoint::class);
+
+        $this->assertSame([$endpoint, 'validateRequest'], $endpoint->getPermissionCallback());
+    }
+
+    public function testValidateRequest(): void
+    {
+        $endpoint = $this->getMockForAbstractClass(AbstractEndpoint::class);
+        $request = $this->getWPRESTRequestMock();
+
+        $this->assertTrue($endpoint->validateRequest($request));
+    }
+}

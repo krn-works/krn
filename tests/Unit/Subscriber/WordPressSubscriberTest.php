@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of Ymir WordPress plugin.
+ *
+ * (c) Carl Alexander <support@ymirapp.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Ymir\Plugin\Tests\Unit\Subscriber;
+
+use Ymir\Plugin\Subscriber\WordPressSubscriber;
+use Ymir\Plugin\Tests\Unit\TestCase;
+
+class WordPressSubscriberTest extends TestCase
+{
+    public function testEnableUrlRewriteWithOtherServerSoftware(): void
+    {
+        $this->assertFalse((new WordPressSubscriber('PHP', 'https://'.$this->faker->domainName))->enableUrlRewrite(false));
+    }
+
+    public function testEnableUrlRewriteWithYmirServerSoftware(): void
+    {
+        $this->assertTrue((new WordPressSubscriber('YMIR', 'https://'.$this->faker->domainName))->enableUrlRewrite(false));
+    }
+
+    public function testEnableVisualEditorWithOtherServerSoftware(): void
+    {
+        $this->assertFalse((new WordPressSubscriber('PHP', 'https://'.$this->faker->domainName))->enableVisualEditor(false));
+    }
+
+    public function testEnableVisualEditorWithYmirServerSoftware(): void
+    {
+        $this->assertTrue((new WordPressSubscriber('YMIR', 'https://'.$this->faker->domainName))->enableVisualEditor(false));
+    }
+
+    public function testGetSubscribedEvents(): void
+    {
+        $callbacks = WordPressSubscriber::getSubscribedEvents();
+
+        foreach ($callbacks as $callback) {
+            $this->assertTrue(method_exists(WordPressSubscriber::class, is_array($callback) ? $callback[0] : $callback));
+        }
+
+        $subscribedEvents = [
+            'got_url_rewrite' => 'enableUrlRewrite',
+            'sanitize_file_name_chars' => 'sanitizeFileNameCharacters',
+            'user_can_richedit' => 'enableVisualEditor',
+        ];
+
+        $this->assertSame($subscribedEvents, $callbacks);
+    }
+
+    public function testSanitizeFileNameCharacters(): void
+    {
+        $this->assertSame(
+            ['?', '[', ']', '/', '\\', '=', '<', '>', ':', ';', ',', "'", '"', '&', '$', '#', '*', '(', ')', '|', '~', '`', '!', '{', '}', '+', chr(0)],
+            (new WordPressSubscriber('YMIR', 'https://'.$this->faker->domainName))->sanitizeFileNameCharacters()
+        );
+    }
+}

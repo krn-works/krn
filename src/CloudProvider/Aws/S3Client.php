@@ -1,0 +1,237 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of Ymir WordPress plugin.
+ *
+ * (c) Carl Alexander <support@ymirapp.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Ymir\Plugin\CloudProvider\Aws;
+
+use Ymir\Plugin\CloudStorage\CloudStorageClientInterface;
+use Ymir\Plugin\Http\ClientInterface;
+
+/**
+ * The client for AWS S3 API.
+ */
+class S3Client extends AbstractClient implements CloudStorageClientInterface
+{
+    /**
+     * The S3 bucket.
+     *
+     * @var string
+     */
+    private $bucket;
+
+    /**
+     * Constructor.
+     */
+    public function __construct(ClientInterface $client, string $bucket, string $key, string $region, string $secret, string $securityToken = '')
+    {
+        parent::__construct($client, $key, $region, $secret, $securityToken);
+
+        $this->bucket = $bucket;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function copyObject(string $sourceKey, string $targetKey, string $acl = 'public-read'): void
+    {
+        $response = $this->request('put', $targetKey, null, [
+            'x-amz-acl' => $acl,
+            'x-amz-copy-source' => '/'.$this->bucket.$this->createRequestUri($sourceKey),
+        ]);
+
+        if (200 !== $this->parseResponseStatusCode($response)) {
+            throw new \RuntimeException($this->createExceptionMessage(sprintf('Could not copy object "%s"', $sourceKey), $response));
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function createPutObjectRequest(string $key, string $acl = 'public-read'): string
+    {
+        return $this->createPresignedRequest($this->createRequestUri($key), 'put', [
+            'x-amz-acl' => $acl,
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deleteObject(string $key): void
+    {
+        $response = $this->request('delete', $key);
+
+        if (204 !== $this->parseResponseStatusCode($response)) {
+            throw new \RuntimeException($this->createExceptionMessage(sprintf('Unable to delete object "%s"', $key), $response));
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getObject(string $key): string
+    {
+        $response = $this->request('get', $key);
+
+        if (200 !== $this->parseResponseStatusCode($response)) {
+            throw new \RuntimeException($this->createExceptionMessage(sprintf('Object "%s" not found', $key), $response));
+        }
+
+        return $response['body'] ?? '';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getObjectDetails(string $key): array
+    {
+        $response = $this->request('head', $key);
+
+        if (200 !== $this->parseResponseStatusCode($response)) {
+            throw new \RuntimeException($this->createExceptionMessage(sprintf('Object "%s" not found', $key), $response));
+        }
+
+        $details = [];
+
+        if (isset($response['headers']['content-type'])) {
+            $details['type'] = $response['headers']['content-type'];
+        }
+        if (isset($response['headers']['content-length'])) {
+            $details['size'] = $response['headers']['content-length'];
+        }
+        if (isset($response['headers']['last-modified'])) {
+            $details['last-modified'] = $response['headers']['last-modified'];
+        }
+
+        return $details;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getObjects(string $prefix, int $limit = 0): array
+    {
+        if ($limit < 0) {
+            throw new \InvalidArgumentException('Given limit must be greater than 0');
+        } elseif ($limit > 1000) {
+            throw new \InvalidArgumentException('Given limit cannot be greater than 1000');
+        }
+
+        $parameters = [
+            'list-type' => 2,
+        ];
+        $prefix = ltrim($this->createRequestUri($prefix), '/');
+
+        if (!empty($prefix)) {
+            $parameters['prefix'] = $prefix;
+        }
+
+        if (!empty($limit)) {
+            $parameters['max-keys'] = $limit;
+        }
+
+        $objects = [];
+        $continuationToken = '';
+
+        do {
+            if (!empty($continuationToken)) {
+                $parameters['continuation-token'] = $continuationToken;
+            }
+
+            ksort($parameters);
+
+            $response = $this->request('get', '/?'.http_build_query($parameters));
+
+            if (200 !== $this->parseResponseStatusCode($response)) {
+                throw new \RuntimeException($this->createExceptionMessage(sprintf('Unable to list objects with prefix "%s"', $prefix), $response));
+            } elseif (empty($response['body'])) {
+                throw new \RuntimeException('No content returned from S3 API');
+            }
+
+            $xml = simplexml_load_string($response['body']);
+
+            foreach ($xml->Contents as $object) {
+                $objects[] = (array) $object;
+            }
+
+            $continuationToken = empty($limit) && isset($xml->NextContinuationToken) ? (string) $xml->NextContinuationToken : '';
+        } while (!empty($continuationToken));
+
+        return $objects;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function objectExists(string $key): bool
+    {
+        try {
+            $this->getObjectDetails($key);
+        } catch (\Exception $exception) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function putObject(string $key, string $object, string $acl = 'public-read', string $contentType = ''): void
+    {
+        $headers = [
+            'x-amz-acl' => $acl,
+        ];
+
+        if (!empty($contentType)) {
+            $headers['content-type'] = $contentType;
+        }
+
+        $response = $this->request('put', $key, $object, $headers);
+
+        if (200 !== $this->parseResponseStatusCode($response)) {
+            throw new \RuntimeException($this->createExceptionMessage(sprintf('Unable to save object "%s"', $key), $response));
+        }
+    }
+
+    /**
+     * Create the request URI using the object key.
+     */
+    protected function createRequestUri(string $key): string
+    {
+        return '/'.ltrim($key, '/');
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function getEndpointName(): string
+    {
+        return $this->bucket.'.'.$this->getService();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function getService(): string
+    {
+        return 's3';
+    }
+
+    /**
+     * Makes a request to the AWS S3 API for the given object key.
+     */
+    protected function request(string $method, string $key, ?string $body = null, array $headers = []): array
+    {
+        return parent::request($method, $this->createRequestUri($key), $body, $headers);
+    }
+}

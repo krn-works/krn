@@ -1,0 +1,377 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of Ymir WordPress plugin.
+ *
+ * (c) Carl Alexander <support@ymirapp.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Ymir\Plugin\Tests\Unit\CloudProvider\Aws;
+
+use Ymir\Plugin\CloudProvider\Aws\CloudFrontClient;
+use Ymir\Plugin\Support\Collection;
+use Ymir\Plugin\Tests\Mock\FunctionMockTrait;
+use Ymir\Plugin\Tests\Mock\HttpClientMockTrait;
+use Ymir\Plugin\Tests\Unit\TestCase;
+
+class CloudFrontClientTest extends TestCase
+{
+    use FunctionMockTrait;
+    use HttpClientMockTrait;
+
+    public function provideFilterUniquePaths(): array
+    {
+        return [
+            [
+                ['/foo', '/bar', '/foo/bar', '/foo/*', '/bar', '/baz/*', '/foo/bar/*'],
+                ['/baz/*', '/foo/*', '/foo', '/bar'],
+            ],
+            [
+                ['/foo', '/bar', '/foo/bar', '/foo/*', '/bar', '/*', '/baz/*', '/foo/bar/*'],
+                ['/*'],
+            ],
+            [
+                ['/foo', '/bar', '/foo/bar', '/foo/*', '/bar', '*', '/baz/*', '/foo/bar/*'],
+                ['*'],
+            ],
+            [
+                ['/foo'],
+                ['/foo'],
+            ],
+        ];
+    }
+
+    public function provideGenerateInvalidationPayload(): array
+    {
+        return [
+            [
+                ['/foo'],
+                '0YZjRydzgMgvDbZ7',
+                1637682966,
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InvalidationBatch xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><CallerReference>0YZjRydzgMgvDbZ7-1637682966</CallerReference><Paths><Items><Path>/foo</Path></Items><Quantity>1</Quantity></Paths></InvalidationBatch>\n",
+            ],
+        ];
+    }
+
+    public function testClearAllAddsWildcardPath(): void
+    {
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearAll();
+
+        $this->assertSame(['/*'], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearAllRemovesPreviouslyAddedPaths(): void
+    {
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+
+        $invalidationPathsProperty->setValue($client, ['/path']);
+
+        $client->clearAll();
+
+        $this->assertSame(['/*'], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlAddsSlashToPath(): void
+    {
+        $path = $this->faker->slug;
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrl($path);
+
+        $this->assertSame(['/'.$path], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlsWithArray(): void
+    {
+        $urls = [$this->faker->url, $this->faker->url];
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrls($urls);
+
+        $this->assertSame([parse_url($urls[0], PHP_URL_PATH), parse_url($urls[1], PHP_URL_PATH)], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlsWithCollection(): void
+    {
+        $urls = new Collection([$this->faker->url, $this->faker->url]);
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrls($urls);
+
+        $this->assertSame([parse_url($urls[0], PHP_URL_PATH), parse_url($urls[1], PHP_URL_PATH)], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlsWithString(): void
+    {
+        $url = $this->faker->url;
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrls($url);
+
+        $this->assertSame([parse_url($url, PHP_URL_PATH)], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlWithAPath(): void
+    {
+        $path = parse_url($this->faker->url, PHP_URL_PATH);
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrl($path);
+
+        $this->assertSame([$path], $invalidationPathsProperty->getValue($client));
+    }
+
+    public function testClearUrlWithAUrl(): void
+    {
+        $url = $this->faker->url;
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret');
+        $client->clearUrl($url);
+
+        $this->assertSame([parse_url($url, PHP_URL_PATH)], $invalidationPathsProperty->getValue($client));
+    }
+
+    /**
+     * @dataProvider provideFilterUniquePaths
+     */
+    public function testFilterUniquePaths(array $paths, array $expectedPaths): void
+    {
+        $filterUniquePathsMethod = new \ReflectionMethod(CloudFrontClient::class, 'filterUniquePaths');
+        $filterUniquePathsMethod->setAccessible(true);
+
+        $this->assertSame($expectedPaths, $filterUniquePathsMethod->invoke(new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret'), $paths));
+    }
+
+    /**
+     * @dataProvider provideGenerateInvalidationPayload
+     */
+    public function testGenerateInvalidationPayload(array $paths, string $prefix, int $time, string $expectedXml): void
+    {
+        $generateInvalidationPayloadMethod = new \ReflectionMethod(CloudFrontClient::class, 'generateInvalidationPayload');
+        $generateInvalidationPayloadMethod->setAccessible(true);
+
+        $base64_encode = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'base64_encode');
+        $base64_encode->expects($this->once())
+                      ->willReturn($prefix);
+
+        $timeFunction = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'time');
+        $timeFunction->expects($this->once())
+                     ->willReturn($time);
+
+        $this->assertSame($expectedXml, $generateInvalidationPayloadMethod->invoke(new CloudFrontClient($this->getHttpClientMock(), 'distribution-id', 'aws-key', 'aws-secret'), $paths));
+    }
+
+    public function testSendClearRequestWithGuardReturningFalse(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())
+             ->method('request');
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($http, 'distribution-id', 'aws-key', 'aws-secret');
+
+        $invalidationPathsProperty->setValue($client, ['/path']);
+
+        $client->sendClearRequest(function (array $paths) {
+            $this->assertSame(['/path'], $paths);
+
+            return false;
+        });
+
+        $this->assertEmpty($invalidationPathsProperty->getValue($client));
+    }
+
+    public function testSendClearRequestWithMultiplePathsAndASuccessfulResponse(): void
+    {
+        $base64_encode = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'base64_encode');
+        $base64_encode->expects($this->once())
+                      ->willReturn('0YZjRydzgMgvDbZ7');
+
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->identicalTo('https://cloudfront.amazonaws.com/2020-05-31/distribution/distribution-id/invalidation'),
+                 $this->identicalTo([
+                     'headers' => [
+                         'host' => 'cloudfront.amazonaws.com',
+                         'x-amz-content-sha256' => 'fea9d8347f1e8e39183e41004cdefc1d966e99d6cf1ece1521ab0c2e1fd8abff',
+                         'x-amz-date' => '20200515T181004Z',
+                         'authorization' => 'AWS4-HMAC-SHA256 Credential=aws-key/20200515/us-east-1/cloudfront/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=6ef2dafe353ff87f034676182bd0270fcac5faf96b9b01feeffcd25911a86c56',
+                         'content-length' => 284,
+                     ],
+                     'method' => 'POST',
+                     'timeout' => 300,
+                     'body' => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InvalidationBatch xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><CallerReference>0YZjRydzgMgvDbZ7-20200515</CallerReference><Paths><Items><Path>/path</Path><Path>/path2</Path></Items><Quantity>2</Quantity></Paths></InvalidationBatch>\n",
+                 ])
+             )
+             ->willReturn([
+                 'response' => ['code' => 201],
+             ]);
+
+        $gmdate = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'gmdate');
+        $gmdate->expects($this->exactly(5))
+               ->withConsecutive(
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd')]
+               )
+               ->willReturnOnConsecutiveCalls('20200515T181004Z', '20200515', '20200515T181004Z', '20200515', '20200515');
+
+        $timeFunction = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'time');
+        $timeFunction->expects($this->once())
+                     ->willReturn('20200515');
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($http, 'distribution-id', 'aws-key', 'aws-secret');
+
+        $invalidationPathsProperty->setValue($client, ['/path', '/path2']);
+
+        $client->sendClearRequest();
+    }
+
+    public function testSendClearRequestWithSuccessfulResponse(): void
+    {
+        $base64_encode = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'base64_encode');
+        $base64_encode->expects($this->once())
+                      ->willReturn('0YZjRydzgMgvDbZ7');
+
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->identicalTo('https://cloudfront.amazonaws.com/2020-05-31/distribution/distribution-id/invalidation'),
+                 $this->identicalTo([
+                     'headers' => [
+                         'host' => 'cloudfront.amazonaws.com',
+                         'x-amz-content-sha256' => '0bfce47169864e4e072e14d7ad5fda263ecffcf1b40245c2b0fa1f8ed750b02c',
+                         'x-amz-date' => '20200515T181004Z',
+                         'authorization' => 'AWS4-HMAC-SHA256 Credential=aws-key/20200515/us-east-1/cloudfront/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=71a81381134e6c45a29116f59b96334ae990a0220b04bf6c2540b4216797048c',
+                         'content-length' => 265,
+                     ],
+                     'method' => 'POST',
+                     'timeout' => 300,
+                     'body' => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InvalidationBatch xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><CallerReference>0YZjRydzgMgvDbZ7-20200515</CallerReference><Paths><Items><Path>/path</Path></Items><Quantity>1</Quantity></Paths></InvalidationBatch>\n",
+                 ])
+             )
+             ->willReturn([
+                 'response' => ['code' => 201],
+             ]);
+
+        $gmdate = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'gmdate');
+        $gmdate->expects($this->exactly(5))
+               ->withConsecutive(
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd')]
+               )
+               ->willReturnOnConsecutiveCalls('20200515T181004Z', '20200515', '20200515T181004Z', '20200515', '20200515');
+
+        $timeFunction = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'time');
+        $timeFunction->expects($this->once())
+                     ->willReturn('20200515');
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($http, 'distribution-id', 'aws-key', 'aws-secret');
+
+        $invalidationPathsProperty->setValue($client, ['/path']);
+
+        $client->sendClearRequest();
+    }
+
+    public function testSendClearRequestWithUnsuccessfulResponse(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalidation request failed');
+
+        $base64_encode = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'base64_encode');
+        $base64_encode->expects($this->once())
+                      ->willReturn('0YZjRydzgMgvDbZ7');
+
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->identicalTo('https://cloudfront.amazonaws.com/2020-05-31/distribution/distribution-id/invalidation'),
+                 $this->identicalTo([
+                     'headers' => [
+                         'host' => 'cloudfront.amazonaws.com',
+                         'x-amz-content-sha256' => '0bfce47169864e4e072e14d7ad5fda263ecffcf1b40245c2b0fa1f8ed750b02c',
+                         'x-amz-date' => '20200515T181004Z',
+                         'authorization' => 'AWS4-HMAC-SHA256 Credential=aws-key/20200515/us-east-1/cloudfront/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=71a81381134e6c45a29116f59b96334ae990a0220b04bf6c2540b4216797048c',
+                         'content-length' => 265,
+                     ],
+                     'method' => 'POST',
+                     'timeout' => 300,
+                     'body' => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InvalidationBatch xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><CallerReference>0YZjRydzgMgvDbZ7-20200515</CallerReference><Paths><Items><Path>/path</Path></Items><Quantity>1</Quantity></Paths></InvalidationBatch>\n",
+                 ])
+             )
+             ->willReturn([
+                 'response' => ['code' => 400],
+             ]);
+
+        $gmdate = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'gmdate');
+        $gmdate->expects($this->exactly(5))
+               ->withConsecutive(
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd\THis\Z')],
+                   [$this->identicalTo('Ymd')],
+                   [$this->identicalTo('Ymd')]
+               )
+               ->willReturnOnConsecutiveCalls('20200515T181004Z', '20200515', '20200515T181004Z', '20200515', '20200515');
+
+        $timeFunction = $this->getFunctionMock($this->getNamespace(CloudFrontClient::class), 'time');
+        $timeFunction->expects($this->once())
+                     ->willReturn('20200515');
+
+        $invalidationPathsProperty = new \ReflectionProperty(CloudFrontClient::class, 'invalidationPaths');
+        $invalidationPathsProperty->setAccessible(true);
+
+        $client = new CloudFrontClient($http, 'distribution-id', 'aws-key', 'aws-secret');
+
+        $invalidationPathsProperty->setValue($client, ['/path']);
+
+        $client->sendClearRequest();
+    }
+}

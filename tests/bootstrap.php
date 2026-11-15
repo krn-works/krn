@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of Ymir WordPress plugin.
+ *
+ * (c) Carl Alexander <support@ymirapp.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Dotenv\Dotenv;
+
+/**
+ * PHPUnit bootstrap file for Ymir WordPress plugin.
+ */
+require_once dirname(__DIR__).'/vendor/autoload.php';
+
+$dotEnvFilePath = dirname(__DIR__).'/.env';
+
+if (file_exists($dotEnvFilePath)) {
+    Dotenv::createImmutable(dirname(__DIR__))->load();
+}
+
+$_tests_dir = getenv('WP_TESTS_DIR');
+if (!$_tests_dir) {
+    $_tests_dir = '/tmp/wordpress-tests-lib';
+}
+
+$_core_dir = getenv('WP_CORE_DIR');
+if (!$_core_dir) {
+    $_core_dir = '/tmp/wordpress';
+}
+
+require_once __DIR__.'/constants.php';
+
+DG\BypassFinals::enable();
+
+// Core files
+require_once $_core_dir.'/wp-includes/formatting.php';
+require_once $_core_dir.'/wp-includes/functions.php';
+require_once $_core_dir.'/wp-includes/l10n.php';
+require_once $_core_dir.'/wp-includes/load.php';
+require_once $_core_dir.'/wp-includes/plugin.php';
+require_once $_core_dir.'/wp-includes/pomo/translations.php';
+
+// Class files
+require_once $_core_dir.'/wp-admin/includes/class-wp-filesystem-base.php';
+require_once $_core_dir.'/wp-admin/includes/class-wp-filesystem-direct.php';
+require_once $_core_dir.'/wp-admin/includes/class-wp-site-icon.php';
+require_once $_core_dir.'/wp-includes/class-phpmailer.php';
+require_once $_core_dir.'/wp-includes/class-wp-error.php';
+require_once $_core_dir.'/wp-includes/class-wp-image-editor.php';
+require_once $_core_dir.'/wp-includes/class-wp-post.php';
+require_once $_core_dir.'/wp-includes/class-wp-post-type.php';
+require_once $_core_dir.'/wp-includes/class-wp-site.php';
+require_once $_core_dir.'/wp-includes/class-wp-site-query.php';
+require_once $_core_dir.'/wp-includes/class-wp-taxonomy.php';
+require_once $_core_dir.'/wp-includes/class-wp-term.php';
+require_once $_core_dir.'/wp-includes/class-wp.php';
+require_once $_core_dir.'/wp-includes/class.wp-dependencies.php';
+require_once $_core_dir.'/wp-includes/class.wp-scripts.php';
+require_once $_core_dir.'/wp-includes/rest-api/class-wp-rest-request.php';
