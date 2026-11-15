@@ -542,3 +542,20 @@ def test_frozendict_api():
 
     import copy
     assert copy.copy(fd) is fd
+
+
+def test_omd_unequal_to_plain_dict_with_different_values():
+    from boltons.dictutils import OrderedMultiDict
+    omd = OrderedMultiDict([('a', 1), ('b', 2)])
+    assert not (omd == {'a': 999, 'b': 2})
+    assert omd != {'a': 999, 'b': 2}
+    assert {'a': 999, 'b': 2} != omd
+    assert omd == {'a': 1, 'b': 2}
+
+
+def test_query_param_dict_unequal_to_plain_dict_with_different_values():
+    from boltons.urlutils import QueryParamDict
+    qp = QueryParamDict.from_text('a=1&b=2')
+    assert qp != {'a': '999', 'b': '2'}
+    assert not (qp == {'a': '999', 'b': '2'})
+    assert qp == {'a': '1', 'b': '2'}
