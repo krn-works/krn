@@ -118,12 +118,29 @@ export function statedClauses(
   return all.length >= 2 ? all : [];
 }
 
-const BOUNDARY =
-  /\b(?:empty|blank|missing|absent|nonexistent|non-existent|unauthori[sz]ed|forbidden|denied|duplicate[ds]?|twice|repeated|non-ascii|unicode|utf-?8|zero|null|boundary|edge)\b/iu;
+const BODY_LINES = 5;
 
-/** Whether a text names a boundary case from the stack list: empty, missing, unauthorised, duplicate, non-ASCII. */
+const BOUNDARY =
+  /\b(?:empty|blank|missing|absent|nonexistent|non[- ]?existent|unauthori[sz]ed|forbidden|denied|duplicate[ds]?|twice|repeated|non[- ]?ascii|unicode|utf[- ]?8|zero|null|boundary|edge)\b|(?<!\w)(?:""|'')(?!\w)/iu;
+
+/** The words `namesBoundary` accepts, as the refusal prints them. */
+export const BOUNDARY_WORDS =
+  'empty, blank, missing, absent, nonexistent, unauthorized, forbidden, denied, duplicate, twice, repeated, non-ASCII, unicode, utf-8, zero, null, boundary, edge, or an empty string literal ("" or \'\')';
+
+/** Splits identifier styles into words: snake_case, kebab-case, camelCase and digit runs. */
+function spaceIdentifiers(text: string): string {
+  return text
+    .replace(/_/gu, ' ')
+    .replace(/(?<=[a-z])(?=[A-Z])/gu, ' ')
+    .replace(/(?<=[0-9])(?=[A-Za-z])|(?<=[A-Za-z])(?=[0-9])/gu, ' ');
+}
+
+/**
+ * Whether a text names a boundary case from the stack list: empty, missing, unauthorised, duplicate,
+ * non-ASCII. Identifier styles count: `test_clause_3_empty_input`, `testClause3EmptyInput`, `non_ascii`.
+ */
 export function namesBoundary(text: string): boolean {
-  return BOUNDARY.test(text);
+  return BOUNDARY.test(text) || BOUNDARY.test(spaceIdentifiers(text));
 }
 
 /**
@@ -136,9 +153,15 @@ export function missingBoundary(
   messages = '',
 ): string | undefined {
   const lines = (n: number) =>
-    [...tests.values()].flatMap((text) =>
-      text.split('\n').filter((line) => clauseMarker(n).test(line)),
-    );
+    [...tests.values()].flatMap((text) => {
+      const all = text.split('\n');
+      // the marker line and the few lines under it: a test body or comment names the class
+      return all.flatMap((line, i) =>
+        clauseMarker(n).test(line)
+          ? [all.slice(i, i + BODY_LINES).join('\n')]
+          : [],
+      );
+    });
   const covered = clauses.some(
     (c) =>
       namesBoundary(c.text) ||

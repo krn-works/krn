@@ -1,7 +1,11 @@
 {
   "id": "t-dz8ma27",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "boundary class is recognised in snake_case, camelCase and empty-literal test names; refusal lists accepted words; regression on verbatim pytest capture"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "A boundary clause named in a Python test is recognised",

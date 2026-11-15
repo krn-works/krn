@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
+  BOUNDARY_WORDS,
   characterizingTests,
   clauseMarker,
   clauseProof,
@@ -296,4 +298,31 @@ test('clause 1: a boundary class is named by a clause text or a marked test line
   }).clauses;
   assert.equal(missingBoundary(named, new Map()), undefined);
   assert.equal(namesBoundary('handles non-ASCII names'), true);
+});
+
+test('clause 2: a pytest file whose clause tests name empty input and non-ASCII text covers the boundary, and the refusal lists the accepted words', () => {
+  // verbatim capture of the tests a lane committed in an outside Python run
+  const pytest = readFileSync(
+    new URL('./fixtures/pytest-clause-tests.txt', import.meta.url),
+    'utf8',
+  );
+  const proof = clauseProof({
+    stated: [],
+    tests: new Map([['tests/test_import.py', pytest]]),
+    messages: 'Clause 3: boundary cases covered.\n',
+  }).clauses;
+  assert.ok(proof.length >= 3);
+  assert.equal(
+    missingBoundary(proof, new Map([['tests/test_import.py', pytest]])),
+    undefined,
+  );
+  for (const name of [
+    'def test_clause_3_empty_input():',
+    'def test_clause_3_non_ascii_names():',
+    'testClause3EmptyInput',
+    'it("clause 3 rejects \'\'")',
+  ])
+    assert.equal(namesBoundary(name), true, name);
+  assert.equal(namesBoundary('def test_clause_3_parses():'), false);
+  assert.match(BOUNDARY_WORDS, /empty.*non-ASCII.*unicode/u);
 });
