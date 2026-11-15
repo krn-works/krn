@@ -1,0 +1,14 @@
+{
+  "id": "t-t2mgp91",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A lane regenerates the lockfile on the host when the worker changes a manifest",
+  "after": [
+    "t-rtwwwye"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115d.md slice 2. Outcome: host step regenerates lockfile before ship after a manifest change. Proof: red test on the real lane step with a fake worker. Free; one $0.3 row when the vault opens."
+  ]
+}

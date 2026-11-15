@@ -1,0 +1,12 @@
+{
+  "id": "t-89s6d98",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "PHP and WordPress brain: eight enforced records with red and green fixtures",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115d.md slice 3. Outcome: >=8 enforced records (PHP error handling, architecture, releases; WordPress escaping, nonces, prepared queries, text domain), red+green fixture each; audit the public WP row. Proof: zero false-red, non-n/a site cells. Free. Closes t-19ghpsk."
+  ]
+}

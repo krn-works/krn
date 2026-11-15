@@ -1,0 +1,14 @@
+{
+  "id": "t-swx5eqw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "krn adopt --init yields born-green wp-plugin and go projects",
+  "after": [
+    "t-89s6d98"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115d.md slice 4. Outcome: init stacks wp-plugin and go. Proof: empty-directory tests show audit 0 FAIL. Free."
+  ]
+}

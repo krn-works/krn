@@ -1,7 +1,11 @@
 {
   "id": "t-j85bgcd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Not adopted (Fable 1115d): no discriminating row below 100% after row-body fixes (evals/outside-per-case-reps.md, b205ea3); skipped-clause misses did not reproduce. KRN_ACCEPTANCE_CLAUSES stays opt-in. Reopen if harvest shows >=2 reproducing skipped-clause misses."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The worker covers each numbered acceptance clause with a red-to-green test and Stop refuses an uncovered clause",
