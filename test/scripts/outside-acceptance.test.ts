@@ -16,6 +16,7 @@ import {
   publishRefusal,
   rowGreen,
   seedTask,
+  workflowFiles,
 } from '../../scripts/outside-acceptance.ts';
 
 test('only outside/<stack> branches can be named, so a cleanup never touches another branch', () => {
@@ -274,4 +275,47 @@ test('a task file option is read and a row with a red drain is never green', () 
     ),
     false,
   );
+});
+
+test('workflow files are dropped from an outside base because a GitHub App cannot push them', () => {
+  assert.deepEqual(
+    workflowFiles([
+      'README.md',
+      '.github/workflows/main.yml',
+      '.github/dependabot.yml',
+      '.github/workflows/b.yaml',
+    ]),
+    ['.github/workflows/main.yml', '.github/workflows/b.yaml'],
+  );
+});
+
+test('a row may carry support files for its base and refuses paths that escape', () => {
+  const row = JSON.parse(shippedRows).rows[0];
+  const text = (support: unknown) =>
+    JSON.stringify({ rows: [{ ...row, support }] });
+  assert.deepEqual(
+    parseTaskFile(text({ 'tests/a.php': 'scripts/x.php' }))[0]?.support,
+    {
+      'tests/a.php': 'scripts/x.php',
+    },
+  );
+  assert.throws(
+    () => parseTaskFile(text({ '../a': 'x' })),
+    /leaves the repository/u,
+  );
+  assert.throws(
+    () => parseTaskFile(text({ a: '/etc/passwd' })),
+    /leaves the repository/u,
+  );
+  assert.equal(
+    JSON.parse(shippedRows).rows[0].support['tests/shim.php'],
+    'scripts/outside-hidden/phpunit-shim.php',
+  );
+});
+
+test('a row carries the related-test command of a stack whose detected one the host cannot run', () => {
+  const rows = parseTaskFile(shippedRows);
+  const py = rows.find((row) => row.stack === 'py');
+  assert.match(String(py?.related), /pytest -q \{files\}$/u);
+  assert.equal(rows.find((row) => row.stack === 'php')?.related, undefined);
 });

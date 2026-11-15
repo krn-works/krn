@@ -11,8 +11,11 @@
         "Outcome: get_in returns its default when the path goes through a value that is not an array; update_in throws InvalidArgumentException for the same path. Existing behaviour is unchanged. Fix src/get_in.php and add a test."
       ],
       "hidden": ["tests/GetInTest.php"],
-      "hiddenVerify": "php \"$KRN_ROOT/scripts/outside-hidden/phpunit-shim.php\" src/get_in.php tests/GetInTest.php",
-      "test": "php -l src/get_in.php"
+      "hiddenVerify": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+      "test": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+      "support": {
+        "tests/shim.php": "scripts/outside-hidden/phpunit-shim.php"
+      }
     },
     {
       "stack": "npm",
@@ -40,8 +43,12 @@
         "Outcome: a member whose resolved path is outside the target directory raises an Exception whose message contains 'unsafe path' and writes nothing; members inside the target extract as before. Fix unzip_http.py and add a test."
       ],
       "hidden": ["tests/test_unzip_http.py"],
-      "hiddenVerify": "python3 -m pytest -q tests",
-      "test": "python3 -c \"import unzip_http\""
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "support": {
+        "tests/test_import.py": "scripts/outside-hidden/py-smoke-test.py"
+      },
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
     }
   ]
 }

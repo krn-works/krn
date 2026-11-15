@@ -207,6 +207,15 @@ export interface HiddenRow {
   hiddenVerify: string;
   test?: string;
   install?: string;
+  /** The related-test command (with {files}) the Stop gate runs, when detection would pick one the host cannot run. */
+  related?: string;
+  /** Files copied from this repository into the base (target path to source path), e.g. a test runner the stack lacks. */
+  support?: Record<string, string>;
+}
+
+/** The workflow files of a base: a GitHub App cannot push them, and adoption writes its own CI call. */
+export function workflowFiles(files: readonly string[]): string[] {
+  return files.filter((file) => file.startsWith('.github/workflows/'));
 }
 
 /** Read and check a task file: `{ "rows": [ ... ] }`; any malformed row is refused before anything is pushed. */
@@ -272,6 +281,26 @@ export function parseTaskFile(text: string): HiddenRow[] {
     if (test !== '') row.test = test;
     const install = text('install', true);
     if (install !== '') row.install = install;
+    const related = text('related', true);
+    if (related !== '') row.related = related;
+    const support = field('support');
+    if (support !== undefined) {
+      if (typeof support !== 'object' || support === null)
+        throw new Error(
+          `outside-acceptance: row ${index} "support" is not a map`,
+        );
+      for (const [target, from] of Object.entries(support))
+        if (
+          typeof from !== 'string' ||
+          [target, from].some(
+            (path) => path.startsWith('/') || path.split('/').includes('..'),
+          )
+        )
+          throw new Error(
+            `outside-acceptance: row ${index} support path leaves the repository`,
+          );
+      row.support = support as Record<string, string>;
+    }
     const refusal = publishRefusal(
       JSON.stringify({ url: upstream, license: row.license }),
       'public',
@@ -506,6 +535,13 @@ function acceptStack(
         throw new Error('clone failed');
     git(['remote', 'set-url', 'origin', remoteUrl]);
     git(['checkout', '--quiet', '-B', branch, base]);
+    for (const file of workflowFiles(git(['ls-files']).output.split('\n')))
+      git(['rm', '--quiet', '--force', '--', file]);
+    for (const [target, from] of Object.entries(hiddenRow?.support ?? {})) {
+      mkdirSync(dirname(join(dir, target)), { recursive: true });
+      writeFileSync(join(dir, target), readFileSync(join(root, from)));
+      git(['add', '--', target]);
+    }
     // An orphan checkout keeps the base tree in the index; the commit has no parent.
     git(['checkout', '--quiet', '--orphan', `${branch}-orphan`]);
     git(['commit', '--quiet', '-m', `chore: orphan base for ${stack}`]);
@@ -519,6 +555,7 @@ function acceptStack(
     if (hiddenRow) {
       if (hiddenRow.test !== undefined) config.test = hiddenRow.test;
       if (hiddenRow.install !== undefined) config.install = hiddenRow.install;
+      if (hiddenRow.related !== undefined) config.related = hiddenRow.related;
     } else if (existsSync(configPath))
       config = JSON.parse(readFileSync(configPath, 'utf8')) as AdoptFlags;
     // The test command is the delivery's own result when the base has no test file it names (the first task adds it):
