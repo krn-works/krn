@@ -150,6 +150,7 @@ class FilePerms:
             for symbol in value:
                 bit = 2 ** key.index(symbol)
                 mode |= (bit << (self.offset * 3))
+            fp_obj._integer &= ~(7 << (self.offset * 3))
             fp_obj._integer |= mode
 
     def __init__(self, user='', group='', other=''):
@@ -169,7 +170,7 @@ class FilePerms:
         i &= FULL_PERMS
         key = ('', 'x', 'w', 'xw', 'r', 'rx', 'rw', 'rwx')
         parts = []
-        while i:
+        for _ in range(3):
             parts.append(key[i & _SINGLE_FULL_PERM])
             i >>= 3
         parts.reverse()
@@ -466,8 +467,19 @@ class AtomicSaver:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.part_file:
             # Ensure data is flushed and synced to disk before closing
-            self.part_file.flush()
-            os.fsync(self.part_file.fileno())
+            try:
+                self.part_file.flush()
+                os.fsync(self.part_file.fileno())
+            except BaseException:
+                try:
+                    self.part_file.close()
+                except Exception:
+                    pass
+                try:
+                    os.unlink(self.part_path)
+                except Exception:
+                    pass
+                raise
             self.part_file.close()
         if exc_type:
             if self.rm_part_on_exc:
@@ -531,6 +543,8 @@ def iter_find_files(directory, patterns, ignored=None, include_dirs=False, max_d
         ignored = [ignored]
     ign_re = re.compile('|'.join([fnmatch.translate(p) for p in ignored]))
     directory = os.fspath(directory)
+    if len(directory) > 1 and directory.endswith(os.path.sep):
+        directory = directory.rstrip(os.path.sep) or os.path.sep
     start_depth = len(directory.split(os.path.sep))
     for root, dirs, files in os.walk(directory):
         if max_depth is not None and (len(root.split(os.path.sep)) - start_depth) > max_depth:

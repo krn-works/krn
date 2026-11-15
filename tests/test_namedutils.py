@@ -46,3 +46,9 @@ def test_empty_type_name_raises_value_error(factory):
 def test_invalid_character_still_raises_value_error(factory):
     with pytest.raises(ValueError):
         factory('Point', ['x', 'y-z'])
+
+
+def test_rename_non_identifier_alnum_field():
+    from boltons.namedutils import namedtuple, namedlist
+    assert namedtuple('T', ['value²', 'b'], rename=True)._fields == ('_0', 'b')
+    assert namedlist('L', ['value²', 'b'], rename=True)._fields == ('_0', 'b')

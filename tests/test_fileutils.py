@@ -104,3 +104,53 @@ def test_rotate_file_full_rotation_no_ext(tmp_path):
 
     assert not (tmp_path / 'test_file.5').exists()
 
+
+
+def test_fileperms_from_int_roundtrip_and_positions():
+    from boltons.fileutils import FilePerms
+    fp = FilePerms.from_int(0o007)
+    assert int(fp) == 0o007 and (fp.user, fp.group, fp.other) == ('', '', 'rwx')
+    fp = FilePerms.from_int(0o070)
+    assert (fp.user, fp.group, fp.other) == ('', 'rwx', '')
+    assert int(FilePerms.from_int(0o640)) == 0o640
+
+
+def test_fileperms_revoke_updates_integer():
+    from boltons.fileutils import FilePerms
+    fp = FilePerms.from_int(0o600)
+    fp.user = 'r'
+    assert int(fp) == 0o400
+
+
+def test_atomic_saver_flush_failure_cleans_up(tmp_path):
+    import pytest
+    from boltons.fileutils import AtomicSaver
+    dest = tmp_path / 'out.txt'
+    saver = AtomicSaver(str(dest))
+    saver.setup()
+    f = saver.part_file
+
+    def boom():
+        raise OSError('flush failed')
+    class W:
+        def __init__(self, f): self._f = f
+        def flush(self): boom()
+        def fileno(self): return self._f.fileno()
+        def close(self): self._f.close()
+    saver.part_file = W(f)
+    with pytest.raises(OSError):
+        saver.__exit__(None, None, None)
+    assert f.closed
+    assert not os.path.exists(saver.part_path)
+    assert not dest.exists()
+
+
+def test_iter_find_files_trailing_separator(tmp_path):
+    from boltons.fileutils import iter_find_files
+    (tmp_path / 'sub').mkdir()
+    (tmp_path / 'a.txt').write_text('x')
+    (tmp_path / 'sub' / 'b.txt').write_text('x')
+    base = str(tmp_path)
+    plain = sorted(iter_find_files(base, '*.txt', max_depth=1))
+    slashed = sorted(iter_find_files(base + os.sep, '*.txt', max_depth=1))
+    assert plain == slashed and len(plain) == 2
