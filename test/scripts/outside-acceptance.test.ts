@@ -25,6 +25,7 @@ import {
   hookCell,
   hookPath,
   hookTreeCommit,
+  hostCredentialArgs,
   metricsCells,
   outsideBranch,
   ownedLaneBranches,
@@ -35,6 +36,7 @@ import {
   remoteVisibility,
   repoFor,
   repoUrl,
+  rowCredentialArgs,
   rowGreen,
   seedTask,
   workflowFiles,
@@ -727,4 +729,20 @@ test('the visibility lookup asks for an App token scoped to the row repository, 
     'private',
   );
   assert.deepEqual(seen, ['krn-works/outside-php']);
+});
+
+test('the seed push of a private row uses the host login and every lane push or public remote keeps the App token', () => {
+  const repo = 'krn-works/outside-php';
+  const host = rowCredentialArgs(repo, 'private', true);
+  assert.deepEqual(host, hostCredentialArgs());
+  assert.ok(host.some((a) => a.endsWith('=!/usr/bin/gh auth git-credential')));
+  assert.ok(host.every((a) => !a.includes('github-app-token')));
+  for (const args of [
+    rowCredentialArgs(repo, 'private', false),
+    rowCredentialArgs(repo, 'public', true),
+    rowCredentialArgs(repo, undefined, true),
+  ]) {
+    assert.ok(args.some((a) => a.includes('github-app-token')));
+    assert.ok(args.every((a) => !a.includes('gh auth')));
+  }
 });
