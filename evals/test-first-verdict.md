@@ -15,3 +15,19 @@ Decision rule:
 - Close the arm (record closure, default stays off, no further replays) if K+tf is equal or worse than K on total mean hidden cases.
 - Anything between (better on one row, or on two without meeting the margin) is no signal: the arm stays opt-in and the table is the evidence.
 - Own-test red-on-base is reported as the mechanism check (K+tf should reach red-on-base more often than K); it does not decide by itself.
+
+## Result
+
+Raw summaries and logs: `.krn/runs/` is not used; the run files were kept under `/mnt/storage/tmp/tfv/` (ignored). Hidden-case fraction is passed over total; a dash is a cell not run.
+
+| row | K rep 1 | K rep 2 | K+tf rep 1 | K+tf rep 2 |
+| --- | --- | --- | --- | --- |
+| py-sweep | 11/11 ($0.23) | 11/11 ($0.22) | 11/11 ($0.24) | 11/11 ($0.22) |
+| py-fs-sweep | 5/7 ($0.19) | - | 0/7 ($0.22) | - |
+| py-mistune-image-depth | 2/3 ($0.15) | 2/3 ($0.13) | 2/3 ($0.18) | - |
+
+Existing-suite regressions 0 and Stop refusals 0 in all nine graded runs. Spend $1.78 for the nine graded runs plus one killed K rep 2 py-fs-sweep run (not graded, under $0.20), at the $2 cap: three cells (K rep 2 and K+tf rep 2 py-fs-sweep, K+tf rep 2 py-mistune-image-depth) were not run. Own-test red-on-base was not graded: the hook cell reads `skew` in every run (the host entry is the release checkout), so the Stop check was not the lane's own and a red-on-base grade would not measure the arm.
+
+Defect found and fixed first: with `KRN_TEST_FIRST=1` in the environment, `krn adopt` ran its canary under the test-first Stop check, which refuses the clean tree, so every K+tf run failed at adopt ($0.00, first attempt of all three rows recorded). `adoptEnv` in `scripts/outside-acceptance.ts` now removes the arm from the adopt environment, with a test.
+
+Rule applied: K+tf does not exceed K on any row, and py-fs-sweep is lower (0/7 against 5/7, the worker's change did not fix the symptom). The adoption condition fails ("no row has a lower K+tf mean") and the totals are equal-or-worse, so the arm is closed: the default stays off, `KRN_TEST_FIRST=1` remains an opt-in switch, and no further replay is planned on these rows. The missing cells cannot flip it: adoption needs a gain on two rows, and py-sweep is already at 11/11 for both arms.
