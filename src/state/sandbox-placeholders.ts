@@ -72,3 +72,14 @@ export function mainCheckoutPlaceholders(root: string): string[] {
   );
   return emptyReadOnlyFile(lock) ? [...inTree, lock] : inTree;
 }
+
+/** True for an untracked-listing path that is an empty regular file under a name the sandbox masks. */
+export function isSandboxPlaceholder(root: string, path: string): boolean {
+  if (!rootNames.includes(path) && !/^\.env(\..+)?$/u.test(path)) return false;
+  try {
+    const info = lstatSync(join(root, path));
+    return info.isFile() && info.size === 0;
+  } catch {
+    return false;
+  }
+}

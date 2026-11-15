@@ -1,7 +1,11 @@
 {
   "id": "t-t9yry9p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "changedSinceBase drops empty sandbox placeholders via the shared list; tests-only diff with placeholders is characterization (red at base)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Sandbox placeholder files never count as a lane's changes",
