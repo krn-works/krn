@@ -24,3 +24,7 @@ unzip_http = "unzip_http:main"
 
 [tool.setuptools]
 py-modules = ["unzip_http"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
