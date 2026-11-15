@@ -1,0 +1,933 @@
+[
+  {
+    "id": "s-tests-tracked",
+    "type": "standard",
+    "text": "The repository tracks automated tests next to the code they cover.",
+    "why": "Untested code has no executable statement of what it must do, so every change is a guess.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)(tests?|__tests__|spec)/|(_test\\.go|_test\\.py|(^|/)test_[^/]*\\.py|\\.(test|spec)\\.[cm]?[jt]sx?)$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "AGENTS.md#KRN-14",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "tests",
+    "layer": "universal"
+  },
+  {
+    "id": "s-test-command",
+    "type": "standard",
+    "text": "The repository declares one test command that runs its tests, never a placeholder.",
+    "why": "Agents and CI run what the repository declares; a missing or placeholder test command makes every run a silent no-op.",
+    "audience": "worker",
+    "tier": "floor",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "if [ -s package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then git ls-files | grep -qE '(^|/)tests/[^/]+\\.rs$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "src/repo/contract.ts#no test command"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "tests",
+    "layer": "universal"
+  },
+  {
+    "id": "s-test-exit-code",
+    "type": "standard",
+    "text": "The test command exits non-zero when a test fails: no `|| true`, `; exit 0` or leading `-` masks its status.",
+    "why": "A test run whose failure exits 0 turns every red tree into a delivered one.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "{ [ ! -s package.json ] || node -e 'const s=JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{};const bad=Object.entries(s).filter(([k,v])=>/^test/.test(k)&&/\\|\\|\\s*(true|:|exit 0)|;\\s*exit 0\\s*$/.test(String(v)));if(bad.length){console.error(\"masked: \"+bad.map(b=>b[0]).join(\", \"));process.exit(1)}'; } && { [ ! -f Makefile ] || awk '/^test[a-zA-Z0-9_-]*:/{t=1;next} /^[^\\t]/{t=0} t&&(/\\|\\| *(true|:)/||/^\\t-/){bad=1} END{exit bad}' Makefile; }"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "scripts/claude/piped-check.ts#fail 0"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "tests",
+    "layer": "universal"
+  },
+  {
+    "id": "s-ci-runs-tests",
+    "type": "standard",
+    "text": "Continuous integration runs the tests on every pull request.",
+    "why": "Only a check on the proposed head proves the merged tree; local green on another tree proves nothing.",
+    "audience": "lead",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "ci=$(cat .github/workflows/*.yml .github/workflows/*.yaml .gitlab-ci.yml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE 'pull_request|merge_request' && printf '%s\\n' \"$ci\" | grep -qE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run|phpunit|composer( run)? test)|uses: *[^ ]*/[^ ]*ci\\.ya?ml'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "AGENTS.md#KRN-07",
+        "docs/adr/0016-pull-request-is-the-delivery-record.md"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "integration",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "php",
+        "npm",
+        "py"
+      ],
+      "occurrences": 3
+    }
+  },
+  {
+    "id": "s-no-secrets-tracked",
+    "type": "standard",
+    "text": "No tracked file is a credential file or holds a private key or provider token.",
+    "why": "A secret in git history leaks to every clone and stays there after the file is deleted.",
+    "audience": "worker",
+    "tier": "floor",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git ls-files | grep -vE '\\.env\\.(example|sample|template|dist)$' | grep -qE '(^|/)(\\.env(\\.[^/]*)?|id_rsa|id_ecdsa|id_ed25519|[^/]*\\.pem|[^/]*\\.p12|\\.netrc|\\.git-credentials)$' && ! git grep -qIE -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'AKIA[0-9A-Z]{16}' -e 'gh[pousr]_[A-Za-z0-9]{36}' -e 'xox[abp]-[0-9A-Za-z-]{20,}'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md#secrets"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "secrets",
+    "layer": "universal"
+  },
+  {
+    "id": "s-no-dependency-dirs-tracked",
+    "type": "standard",
+    "text": "Installed dependencies, caches and bytecode are never tracked.",
+    "why": "Tracked install output bloats every clone and drifts from the lockfile it should come from.",
+    "audience": "worker",
+    "tier": "floor",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git ls-files | grep -qE '(^|/)(node_modules|__pycache__|\\.venv|venv|\\.pytest_cache|\\.mypy_cache|\\.ruff_cache|\\.tox)/|\\.py[co]$'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "src/adopt/adopt.ts#.gitignore"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "dependencies",
+    "layer": "universal"
+  },
+  {
+    "id": "s-linter-configured",
+    "type": "standard",
+    "text": "A formatter or linter is configured for the stack, so style is checked by a tool, not by review.",
+    "why": "Style left to review costs a round trip per nit and is applied unevenly.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in biome.json biome.jsonc .eslintrc .eslintrc.* eslint.config.* .prettierrc .prettierrc.* prettier.config.* ruff.toml .ruff.toml .flake8 .pylintrc .golangci.yml .golangci.yaml .golangci.toml rustfmt.toml .rustfmt.toml phpcs.xml phpcs.xml.dist .phpcs.xml phpstan.neon phpstan.neon.dist .php-cs-fixer.php .php-cs-fixer.dist.php pint.json psalm.xml; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(ruff|black|flake8|pylint)' pyproject.toml 2>/dev/null || grep -qE '\"(@biomejs/biome|eslint|prettier)\"' package.json 2>/dev/null || cat .github/workflows/*.y*ml 2>/dev/null | grep -qE 'gofmt|go vet|golangci|cargo fmt|cargo clippy'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "AGENTS.md#npm run fast"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "style",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "php",
+        "npm",
+        "py"
+      ],
+      "occurrences": 3
+    }
+  },
+  {
+    "id": "s-readme-test-command",
+    "type": "standard",
+    "text": "The README states how to run the tests.",
+    "why": "A newcomer or agent that cannot find the test command ships untested changes.",
+    "audience": "adopt",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "cat README* readme* 2>/dev/null | grep -qiE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run|phpunit|composer( run)? test)'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "src/repo/contract.ts#no test command"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "docs",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "php",
+        "npm",
+        "py"
+      ],
+      "occurrences": 3
+    }
+  },
+  {
+    "id": "s-no-conflict-markers",
+    "type": "standard",
+    "text": "No tracked file holds an unresolved merge conflict marker.",
+    "why": "A committed conflict marker breaks the build or, in prose and data, silently ships both sides.",
+    "audience": "worker",
+    "tier": "floor",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '^(<<<<<<<|>>>>>>>) '"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "https://git-scm.com/docs/git-merge#_how_conflicts_are_presented"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "integration",
+    "layer": "universal"
+  },
+  {
+    "id": "s-one-instruction-file",
+    "type": "standard",
+    "text": "A repository keeps one instruction file for agents, AGENTS.md; any other agent instruction file is a link to it or points to it.",
+    "why": "Two instruction files drift apart and agents follow whichever they read first.",
+    "audience": "adopt",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do [ ! -e \"$f\" ] || [ \"$(readlink \"$f\")\" = AGENTS.md ] || grep -q 'AGENTS.md' \"$f\" || { echo \"$f does not point to AGENTS.md\" >&2; exit 1; }; done"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/adr/0001-product-krn.md#generate `AGENTS.md`"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "instructions",
+    "layer": "universal"
+  },
+  {
+    "id": "s-clean-checkout-tests",
+    "type": "standard",
+    "text": "The test suite gives the same verdict on a clean checkout: no test depends on untracked local state such as an earlier build or the enclosing repository.",
+    "why": "A suite that reads a local build or the surrounding repository is green on one machine and red in CI or in a fresh worktree, so its verdict proves nothing about the change.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -s package.json ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const s=JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).scripts||{};if(/\\b(build|tsc|tsup|esbuild|rollup|webpack)\\b/.test([s.pretest,s.test].join(\" \")))process.exit(0);const files=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{encoding:\"utf8\"}).split(\"\\0\");if(files.some(f=>/(^|\\/)dist\\//.test(f)))process.exit(0);const bad=files.filter(f=>/\\.(test|spec)\\.[cm]?[jt]sx?$|(^|\\/)(tests?|__tests__)\\/.*\\.[cm]?[jt]sx?$/.test(f)&&fs.existsSync(f)&&/[\"\\x27`][^\"\\x27`\\s]*\\bdist\\/[^\"\\x27`\\s]*\\.[cm]?js[\"\\x27`]/.test(fs.readFileSync(f,\"utf8\")));if(bad.length){console.error(\"tests read untracked dist/ output but the test script builds nothing: \"+bad.slice(0,3).join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "https://github.com/krn-works/seo-audit-harness/pull/76",
+        "https://github.com/krn-works/seo-audit-harness/pull/83",
+        "https://github.com/krn-works/seo-audit-harness/commit/6f58fc4",
+        "#702",
+        "d8399da",
+        ".agents/standards-proposals/the-test-suite-gives-the-same-6553558c.json"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "tests",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "krn-works/seo-audit-harness",
+        "krn-works/krn"
+      ],
+      "occurrences": 2
+    }
+  },
+  {
+    "id": "s-regression-lowest-layer",
+    "type": "standard",
+    "text": "A fixed defect gets its regression test in the same commit: each of the last ten `fix` commits touches a test file, or carries a `No-test: <reason>` line.",
+    "why": "A fix without its regression test lets the defect return unseen, and a regression test is cheapest at the lowest layer that reproduces it.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || git log --no-merges -n 10 --format=%H | while read -r c; do git log -1 --format=%s \"$c\" | grep -qE '^fix(\\([^)]*\\))?!?: ' || continue; git log -1 --format=%B \"$c\" | grep -qE '^No-test: .+' && continue; git diff-tree --no-commit-id --name-only -r --root \"$c\" | grep -qE '(^|/)(tests?|__tests__|spec)/|_test\\.(go|py)$|(^|/)test_[^/]*\\.py$|\\.(test|spec)\\.[cm]?[jt]sx?$|Test\\.php$' || exit 1; done"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "AGENTS.md#KRN-14"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "tests",
+    "layer": "universal"
+  },
+  {
+    "id": "s-role-names",
+    "type": "standard",
+    "text": "Files, functions, tests and work are named by purpose and role, never by phase, ticket, round, date or version.",
+    "why": "Phase and ticket names lose their meaning as soon as the phase or ticket ends.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git ls-files | grep -vE '(^|/)fixtures/' | grep -E '\\.(ts|tsx|js|mjs|cjs|py|php|sh|go)$' | grep -qiE '(^|[-_./])((phase|slice|round|ticket|sprint)[-_.]?[0-9]+|t-[a-z0-9]{7})([-_.]|$)|20[0-9]{2}-[0-9]{2}-[0-9]{2}|[-_.]v[0-9]+[-_.]'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "evals/fr40/records.json#r-role-names"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "naming",
+    "layer": "universal"
+  },
+  {
+    "id": "s-exit-codes",
+    "type": "standard",
+    "text": "Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr.",
+    "why": "Callers and agents branch on exit codes; an unstated one makes a failure look like success or the wrong failure.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '(catch[^{]*\\{[^}]*process\\.exit\\([[:space:]]*0|except[^:]*:[[:space:]]*(sys\\.)?exit\\([[:space:]]*0)' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.py'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md#exit-codes"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "hardening",
+    "layer": "universal"
+  },
+  {
+    "id": "s-secrets-redacted",
+    "type": "standard",
+    "text": "Values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded.",
+    "why": "A secret written to a log or a record leaks to everyone who can read it later.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIiE '(console\\.(log|error|warn|info|debug)|logger\\.[a-z]+|logging\\.[a-z]+|print|echo)[[:space:]]*\\(?.*(password|passwd|secret|api_?key|private_?key|auth_?token|access_?token)[A-Za-z_]*[[:space:]]*[,)+}]' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.py' '*.php' '*.sh' ':(exclude)test' ':(exclude)tests' ':(exclude)__tests__' ':(exclude)*.test.*' ':(exclude)*.spec.*' ':(exclude)*/fixtures/*'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md#secrets"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "hardening",
+    "layer": "universal"
+  },
+  {
+    "id": "s-no-shared-stash",
+    "type": "standard",
+    "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
+    "why": "Every worktree of a repository shares one stash stack, so a bare pop can take another lane's edits.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE 'git[[:space:]]+stash([[:space:]]+(push|save|pop|apply|drop|clear)([^A-Za-z]|$)|[[:space:]]*($|[;&|)\"]))' -- '*.sh' '*.bash' '*.yml' '*.yaml' Makefile justfile package.json"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "src/hook/stash.ts#t-cbkxj6w"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "lanes",
+    "layer": "universal"
+  },
+  {
+    "id": "s-semantic-commits",
+    "type": "standard",
+    "text": "Commit subjects since the repository adopted krn are semantic: `type(scope): outcome` with a conventional type such as feat, fix, docs, chore or refactor.",
+    "why": "A typed subject lets history, changelogs and review tooling classify a change without reading its diff.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || ! { a=$(git log --diff-filter=A --format=%H -- krn.json 2>/dev/null | tail -1); git log --no-merges -n 20 --format=%s ${a:+$a..HEAD}; } | grep -vE '^(Revert \"|(feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\\([^)]+\\))?!?: )' | grep -q ."
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "test/cli/standards.test.ts#standards pack stack-scoped records"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "commits",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "id": "s-noninteractive-remote-commands",
+    "type": "standard",
+    "text": "Tracked shell scripts run ssh and scp with `-o BatchMode=yes` and apt-get install with `-y`, so they fail instead of waiting for a prompt.",
+    "why": "An agent or CI job has no one to answer a password, host or confirmation prompt, so a prompting command hangs the run.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -hIE '^[[:space:]]*(sudo[[:space:]]+)?(ssh|scp)[[:space:]]|apt-get[[:space:]]+install' -- '*.sh' | grep -vE 'BatchMode=yes|apt-get[[:space:]]+install[^#]*[[:space:]]-y' | grep -q ."
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "test/cli/standards.test.ts#standards pack stack-scoped records"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "scripts",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "seo",
+        "krn-skill-improver",
+        "krn-skill-improver-local-version"
+      ],
+      "occurrences": 3
+    }
+  },
+  {
+    "id": "s-no-whitespace-errors",
+    "type": "standard",
+    "text": "Uncommitted changes pass `git diff --check`: no trailing whitespace, no space-before-tab, no conflict markers.",
+    "why": "Whitespace noise hides the real change in review and produces diffs that fail on the next editor.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || git diff --check HEAD"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "test/cli/standards.test.ts#standards pack stack-scoped records"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "universal": true,
+    "area": "commits",
+    "layer": "universal",
+    "harvested": {
+      "origins": [
+        "krn-ai-os",
+        "krn-search"
+      ],
+      "occurrences": 2
+    }
+  },
+  {
+    "id": "s-no-private-key-tracked",
+    "type": "standard",
+    "text": "No tracked file holds a PEM private key block (a line that starts with `-----BEGIN ... PRIVATE KEY-----`), outside test fixtures.",
+    "why": "A private key committed once is readable in every clone and every history that ever held it.",
+    "audience": "worker",
+    "tier": "floor",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '^-----BEGIN [A-Z ]*PRIVATE KEY-----' -- . ':(exclude)test' ':(exclude)tests' ':(exclude)*/fixtures/*'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md#secrets"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "secrets",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-lock-committed",
+    "type": "standard",
+    "text": "Every tracked Cargo.toml has a tracked Cargo.lock in its directory or above it.",
+    "why": "Without Cargo.lock a green run on one machine says nothing about the crate versions the next build resolves.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "tracked=$(git ls-files); for m in $(git ls-files 'Cargo.toml' '*/Cargo.toml' | grep -vE '(^|/)(vendor|target|testdata|fixtures?)/'); do d=$(dirname \"$m\"); while :; do l=\"$d/Cargo.lock\"; [ \"$d\" = . ] && l=Cargo.lock; printf '%s\\n' \"$tracked\" | grep -qxF \"$l\" && continue 2; [ \"$d\" = . ] && break; d=$(dirname \"$d\"); done; echo \"$m has no tracked Cargo.lock\" >&2; exit 1; done; exit 0"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-fmt-check",
+    "type": "standard",
+    "text": "Tracked Rust files pass cargo fmt --check, so formatting is never a review topic.",
+    "why": "An unformatted file turns the next author's diff into formatting noise and hides the real change.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; cargo fmt --version >/dev/null 2>&1 || exit 0; cargo fmt --all --check >/dev/null 2>&1"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-clippy-deny-warnings",
+    "type": "standard",
+    "text": "Clippy runs in the repository's checks with warnings denied (a workflow, Makefile or script passes -D warnings, or Cargo.toml sets clippy lints).",
+    "why": "A clippy warning that does not fail the run is never fixed, so the lints find nothing.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in $(git grep -lI 'clippy' -- .github Makefile makefile GNUmakefile 'Taskfile*' justfile .gitlab-ci.yml scripts script hack .pre-commit-config.yaml 2>/dev/null); do grep -qE '(-D[ =]?warnings|--deny[ =]warnings|-D[ =]clippy::all)' \"$f\" && exit 0; done; git grep -qIE '^\\[(workspace\\.)?lints\\.clippy\\]|deny\\((warnings|clippy::all)\\)' -- Cargo.toml '*/Cargo.toml' '*.rs' .cargo/config.toml"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-no-library-unwrap",
+    "type": "standard",
+    "text": "Library Rust code outside tests never calls unwrap(): return the error or state the invariant with expect.",
+    "why": "A library that panics on unwrap takes down its caller's process, where an error value would have let the caller decide.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)lib\\.rs$' || exit 0; bad=$(git ls-files '*.rs' | grep -vE '(^|/)(tests|benches|examples|vendor|target|testdata|fuzz)/|(^|/)(main|build)\\.rs$|(^|/)bin/|(^|/)tests?\\.rs$|_tests?\\.rs$' | while IFS= read -r f; do awk '/#\\[cfg\\(test\\)\\]/{exit} /^[[:space:]]*\\/\\//{next} /\\.unwrap\\(\\)/{bad=1} END{exit bad}' \"$f\" || echo \"$f\"; done); [ -z \"$bad\" ] || { printf '%s\\n' \"$bad\" >&2; exit 1; }"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-pinned-toolchain",
+    "type": "standard",
+    "text": "A Rust project pins its toolchain: a tracked rust-toolchain file, or rust-version in Cargo.toml.",
+    "why": "An unpinned toolchain makes a green build depend on which compiler release the machine has installed.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; git ls-files | grep -qE '(^|/)rust-toolchain(\\.toml)?$' && exit 0; git grep -qIE '^rust-version[[:space:]]*[.=]' -- Cargo.toml '*/Cargo.toml'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  },
+  {
+    "id": "s-rust-tests-present",
+    "type": "standard",
+    "text": "A Rust crate tracks tests: a tests/ integration file or a #[test] function.",
+    "why": "cargo test with nothing to run exits 0, so an untested crate looks green.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [
+        "rust"
+      ],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; git ls-files | grep -qE '(^|/)tests/[^/]+\\.rs$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'"
+    },
+    "provenance": {
+      "origin": "krn pack (inherited)",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "style",
+    "layer": "universal"
+  }
+]

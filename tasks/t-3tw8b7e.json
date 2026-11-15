@@ -1,0 +1,15 @@
+{
+  "id": "t-3tw8b7e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-rust-lock-committed pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-rust-lock-committed` no longer fails s-rust-lock-committed.",
+    "Why: adoption found this reflex standard failing: exit 1 from tracked=$(git ls-files); for m in $(git ls-files 'Cargo.toml' '*/Cargo.toml' | grep -vE '(^|/)(vendor|target|testdata|fixtures?)/'); do d=$(dirname ...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-rust-lock-committed`"
+  ]
+}
