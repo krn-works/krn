@@ -46,3 +46,9 @@ def test_empty_type_name_raises_value_error(factory):
 def test_invalid_character_still_raises_value_error(factory):
     with pytest.raises(ValueError):
         factory('Point', ['x', 'y-z'])
+
+
+@pytest.mark.parametrize('factory', [namedtuple, namedlist])
+def test_rename_non_identifier_alnum_field(factory):
+    t = factory('T', ['ok', 'value²'], rename=True)
+    assert t._fields == ('ok', '_1')

@@ -1,3 +1,4 @@
+import pytest
 import os.path
 import pathlib
 
@@ -104,3 +105,45 @@ def test_rotate_file_full_rotation_no_ext(tmp_path):
 
     assert not (tmp_path / 'test_file.5').exists()
 
+
+
+def test_fileperms_from_int_roundtrip_and_slots():
+    for mode in (0o007, 0o070, 0o700, 0o644, 0o000, 0o777):
+        assert int(FilePerms.from_int(mode)) == mode
+    fp = FilePerms.from_int(0o070)
+    assert (fp.user, fp.group, fp.other) == ('', 'rwx', '')
+    fp = FilePerms.from_int(0o007)
+    assert (fp.user, fp.group, fp.other) == ('', '', 'rwx')
+
+
+def test_fileperms_revoke_updates_integer():
+    fp = FilePerms.from_int(0o600)
+    fp.user = 'r'
+    assert int(fp) == 0o400
+
+
+def test_atomic_saver_flush_failure_cleans_up(tmp_path, monkeypatch):
+    dest = tmp_path / 'dest.txt'
+    saver = fileutils.AtomicSaver(str(dest))
+    f = saver.__enter__()
+    part = saver.part_path
+
+    def boom(fd):
+        raise OSError('fsync failed')
+    monkeypatch.setattr(os, 'fsync', boom)
+    with pytest.raises(OSError):
+        saver.__exit__(None, None, None)
+    assert f.closed
+    assert not os.path.exists(part)
+    assert not dest.exists()
+
+
+def test_iter_find_files_trailing_separator(tmp_path):
+    (tmp_path / 'a' / 'b').mkdir(parents=True)
+    for rel in ('x.txt', 'a/y.txt', 'a/b/z.txt'):
+        (tmp_path / rel).write_text('')
+    base = str(tmp_path)
+    for depth in (None, 0, 1, 2):
+        plain = sorted(iter_find_files(base, '*.txt', max_depth=depth))
+        sep = sorted(iter_find_files(base + os.path.sep, '*.txt', max_depth=depth))
+        assert [os.path.normpath(p) for p in plain] == [os.path.normpath(p) for p in sep]
