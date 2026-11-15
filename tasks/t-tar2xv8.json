@@ -1,0 +1,14 @@
+{
+  "id": "t-tar2xv8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-lockfile-committed pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-lockfile-committed` no longer fails s-lockfile-committed.",
+    "Why: adoption found this reflex standard failing: exit 1 from git ls-files | grep -qE '(^|/)(package-lock\\.json|npm-shrinkwrap\\.json|pnpm-lock\\.yaml|yarn\\.lock|bun\\.lockb?|uv\\.lock|poetry\\.lock|Pipfile\\.lock|pd...",
+    "Proof: `krn standards check --record s-lockfile-committed`"
+  ]
+}

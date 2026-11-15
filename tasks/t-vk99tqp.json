@@ -1,0 +1,14 @@
+{
+  "id": "t-vk99tqp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `node test/parse-link-header.js` exits 1 on the clean master tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. 6) at Object.<anonymous> (/mnt/storage/tmp/krn/krn-canary-UjCNgJ/tree/test/parse-link-header.js:4:12) at Module._compile (node:internal/modules/cjs/loader:1929:14) { code: 'MODULE_NOT_FOUND', requireStack: [ '/mnt/storage/tmp/krn/krn-canary-UjCNgJ/tree/test/parse-link-header.js' ] } Node.js v24.22.1",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}
