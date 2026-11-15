@@ -329,13 +329,15 @@ type Task = {
   text: string;
 };
 
-/** The plan a task belongs to: its `Source:` line, else the `Why:` text before the first `;` without a trailing `slice N`. */
+/** The plan a task belongs to: its `Source:` line, else the `Why:` line, cut at the first `;`, sentence end or `slice N`. */
 export function planOf(text: string): string {
-  const source = /^[ \t]*Source:[ \t]*(.+)$/imu.exec(text)?.[1];
-  const why = /^[ \t]*Why:[ \t]*([^;\n]+)/imu.exec(text)?.[1];
-  return (source ?? why ?? 'no plan named')
-    .replace(/\s+slice\s+\d+\s*$/iu, '')
-    .trim();
+  const named =
+    /^[ \t]*Source:[ \t]*(.+)$/imu.exec(text)?.[1] ??
+    /^[ \t]*Why:[ \t]*(.+)$/imu.exec(text)?.[1];
+  return (
+    (named ?? 'no plan named').split(/;|\.\s|\s+slice\s+\d+/iu)[0]?.trim() ||
+    'no plan named'
+  );
 }
 
 export type Scorecard = Map<

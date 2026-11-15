@@ -65,6 +65,12 @@ test('clause 4 and clause 5: tasks group into plans by their Source line, else t
     'Fable 1115g',
   );
   assert.equal(planOf('Source: Fable 1116a\nWhy: slice 2; y'), 'Fable 1116a');
+  assert.equal(
+    planOf(
+      'Why: .krn/runs/overnight/fable-direction-1115c.md slice 1. Outcome: rows run.',
+    ),
+    '.krn/runs/overnight/fable-direction-1115c.md',
+  );
   const card = scoreTasks(
     [
       {
