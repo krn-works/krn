@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.task/v1",
+  "title": "krn.task/v1: one tracker record, tasks/<id>.json",
+  "type": "object",
+  "required": [
+    "id",
+    "status",
+    "resolution",
+    "created",
+    "priority",
+    "title",
+    "after",
+    "body"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z]+-[0-9A-Za-z]+$",
+      "maxLength": 128
+    },
+    "status": {
+      "enum": ["open", "closed"]
+    },
+    "resolution": {
+      "type": ["object", "null"],
+      "required": ["kind", "ref", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["done", "dropped", "duplicate", "superseded"]
+        },
+        "ref": {
+          "type": ["string", "null"]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "created": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "priority": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "after": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "body": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["verify", "passes", "exit"],
+        "additionalProperties": false,
+        "properties": {
+          "verify": {
+            "type": "string"
+          },
+          "passes": {
+            "type": "boolean"
+          },
+          "exit": {
+            "type": ["integer", "null"]
+          }
+        }
+      }
+    }
+  }
+}

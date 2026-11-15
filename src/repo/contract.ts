@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkFormats } from './formats.ts';
 import { shellWords } from './shell-text.ts';
 
 export type Tracker = 'krn' | 'none';
@@ -27,6 +28,8 @@ export interface RepoContract {
   /** `acknowledged` when the operator accepts auto-merge in a repository that deploys on a push to the base branch. */
   readonly deploy?: 'acknowledged';
   readonly tracker: Tracker;
+  /** The file formats this repository holds, each `krn.<name>/v<major>`; a major this build does not read is refused with exit 78. */
+  readonly formats?: readonly string[];
   /** The test command runs no real test (a workspace with no member tests, or no command at all): never green. */
   readonly vacuous?: boolean;
   /** Stop arms the repository enables; each is on unless set false: red-first (a changed test fails at the base) and clauses (every numbered task clause proven). */
@@ -70,6 +73,7 @@ const FIELDS = [
   'deploy',
   'vacuous',
   'arms',
+  'formats',
 ] as const;
 
 /** Where conventions live when krn.json does not name a file. */
@@ -79,7 +83,7 @@ export class ContractError extends Error {}
 
 type StringField = Exclude<
   (typeof FIELDS)[number],
-  'tracker' | 'laneBudgetUsd' | 'deploy' | 'vacuous' | 'arms'
+  'tracker' | 'laneBudgetUsd' | 'deploy' | 'vacuous' | 'arms' | 'formats'
 >;
 
 type Declared = { -readonly [K in keyof RepoContract]?: RepoContract[K] };
@@ -107,6 +111,14 @@ export function parseContractFile(text: string): Declared {
           `${CONTRACT_FILE}: "laneBudgetUsd" must be a positive number`,
         );
       out.laneBudgetUsd = value;
+      continue;
+    }
+    if (key === 'formats') {
+      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string'))
+        throw new ContractError(
+          `${CONTRACT_FILE}: "formats" must be an array of strings such as "krn.task/v1"`,
+        );
+      out.formats = checkFormats(value);
       continue;
     }
     if (key === 'vacuous') {

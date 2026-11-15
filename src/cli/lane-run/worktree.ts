@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { claimTask, inspectClaim } from '../../task/claims.ts';
+import { taskFile } from '../../task/paths.ts';
 import { mergeTaskRecords } from '../../task/record-merge.ts';
 import { getTask } from '../../task/store.ts';
 import { git } from './git.ts';
@@ -33,7 +34,7 @@ export function carryEditedRecord(
   task: string,
   base: string,
 ): void {
-  const rel = `tasks/${task}.json`;
+  const rel = taskFile(task);
   const source = join(origin, rel);
   const target = join(path, rel);
   if (!existsSync(source) || !existsSync(target)) return;

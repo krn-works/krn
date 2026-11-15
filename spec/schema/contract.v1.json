@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.contract/v1",
+  "title": "krn.contract/v1: krn.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "base": {
+      "type": "string",
+      "minLength": 1
+    },
+    "install": {
+      "type": "string",
+      "minLength": 1
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "related": {
+      "type": "string",
+      "pattern": "\\{files\\}"
+    },
+    "fast": {
+      "type": "string",
+      "minLength": 1
+    },
+    "guard": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conventions": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tracker": {
+      "enum": ["krn", "none"]
+    },
+    "laneBudgetUsd": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "deploy": {
+      "enum": ["acknowledged"]
+    },
+    "vacuous": {
+      "type": "boolean"
+    },
+    "arms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "formats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^krn\\.[a-z]+/v[1-9][0-9]*$"
+      }
+    }
+  }
+}

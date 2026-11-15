@@ -13,6 +13,7 @@ import {
 import { join } from 'node:path';
 import { instructionFile, userDir } from '../harness/claude.ts';
 import { contractConventions } from '../repo/contract.ts';
+import { assertFormat } from '../repo/formats.ts';
 import { parseUnified, type UnifiedRecord } from './record.ts';
 import { StandardsDataError } from './standards.ts';
 
@@ -41,6 +42,7 @@ export function universalRecords(
   product: string,
   asOf: string,
 ): UnifiedRecord[] {
+  assertFormat(product, 'krn.record');
   const overlay = parseUnified(
     JSON.parse(
       readFileSync(join(product, contractConventions(product)), 'utf8'),

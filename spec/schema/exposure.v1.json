@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.exposure/v1",
+  "title": "krn.exposure/v1: one line of .krn/brain/exposures.jsonl",
+  "type": "object",
+  "required": [
+    "run",
+    "task",
+    "channel",
+    "served",
+    "withheld",
+    "outcome",
+    "lane_ok",
+    "rework"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "run": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task": {
+      "type": ["string", "null"]
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "served": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "withheld": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": ["followed", "violated"]
+      }
+    },
+    "lane_ok": {
+      "type": "boolean"
+    },
+    "rework": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scope": {
+      "type": "string"
+    },
+    "proof": {
+      "type": "string"
+    }
+  }
+}

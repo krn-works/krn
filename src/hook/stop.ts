@@ -43,6 +43,7 @@ export { withinPackage };
 import { statesBlocker } from '../brain/proof-line.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
+import { isTaskPath } from '../task/paths.ts';
 import {
   claudeJudge,
   type JudgeCall,
@@ -112,7 +113,7 @@ function runsProjectTools(source: string): boolean {
 
 /** A changed file that configures tools rather than being code or prose: .claude/settings.json, package.json, tsconfig.json. */
 const isToolConfig = (file: string) =>
-  /\.(?:json|ya?ml|toml)$/u.test(file) && !file.startsWith('tasks/');
+  /\.(?:json|ya?ml|toml)$/u.test(file) && !isTaskPath(file);
 
 const isGuard = (path: string, guard: readonly string[]) =>
   guard.some((prefix) => path === prefix || path.startsWith(prefix));
@@ -750,7 +751,7 @@ function testsOnlyDiff(root: string, from: string): boolean {
   const changed = changedSinceBase(root, from);
   return (
     changed.some(isTestFile) &&
-    changed.every((path) => isTestFile(path) || path.startsWith('tasks/'))
+    changed.every((path) => isTestFile(path) || isTaskPath(path))
   );
 }
 

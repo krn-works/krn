@@ -1,7 +1,11 @@
 {
   "id": "t-85wjjhq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "spec/schema v1 for task, record, exposure, contract; krn.json formats; readers exit 78 on unknown major; tasks/ and record literals only in owner; product/workshop rule in boundaries"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "File formats are versioned contracts (S12)",

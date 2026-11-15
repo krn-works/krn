@@ -9,5 +9,11 @@
   "arms": {
     "red-first": false,
     "clauses": false
-  }
+  },
+  "formats": [
+    "krn.contract/v1",
+    "krn.task/v1",
+    "krn.record/v1",
+    "krn.exposure/v1"
+  ]
 }

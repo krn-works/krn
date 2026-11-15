@@ -2,6 +2,7 @@
 import { resolve } from 'node:path';
 import { transcriptDirs } from '../harness/transcripts.ts';
 import { gh, ghRepoView } from '../repo/gh.ts';
+import { isTaskPath } from '../task/paths.ts';
 import { frameChanges, gateManifest } from './gate-manifest.ts';
 import {
   classifyLead,
@@ -309,7 +310,7 @@ export async function collectWindow(options: WindowOptions) {
     return own.reduce((n, r) => n + (number(r.attempt) ?? 1), 0);
   });
   // Rework: a later fix PR (within 48 h and inside the window, so a closed window's count never changes) that changes lines this PR introduced (git blame on the fix's parent), or a revert naming the title.
-  const work = (f: string) => !f.startsWith('tasks/');
+  const work = (f: string) => !isTaskPath(f);
   const blamed =
     options.blamed ??
     ((intro: string, fix: string, files: string[]) =>

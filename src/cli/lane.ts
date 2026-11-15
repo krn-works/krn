@@ -26,6 +26,7 @@ import {
   mainCheckoutRoot,
   releaseClaim,
 } from '../task/claims.ts';
+import { taskFile } from '../task/paths.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { laneBriefText } from './lane-brief.ts';
@@ -164,21 +165,15 @@ function untrackedTaskRecord(
   id: string,
   base: string,
 ): CarriedRecord | undefined {
-  const file = join(origin, 'tasks', `${id}.json`);
+  const file = join(origin, taskFile(id));
   if (!existsSync(file)) return undefined;
-  if (gitOk(origin, ['ls-files', '--error-unmatch', `tasks/${id}.json`])) {
+  if (gitOk(origin, ['ls-files', '--error-unmatch', taskFile(id)])) {
     if (gitOk(origin, ['cat-file', '-e', `origin/${base}:tasks/${id}.json`]))
-      return gitOk(origin, [
-        'diff',
-        '--quiet',
-        'HEAD',
-        '--',
-        `tasks/${id}.json`,
-      ])
+      return gitOk(origin, ['diff', '--quiet', 'HEAD', '--', taskFile(id)])
         ? undefined
         : { file, tracked: true };
     throw new CliUsageError(
-      `tasks/${id}.json is tracked in ${origin} but not on origin/${base}; commit and push it first`,
+      `${taskFile(id)} is tracked in ${origin} but not on origin/${base}; commit and push it first`,
     );
   }
   return { file, tracked: false };
@@ -413,8 +408,7 @@ export async function startLane(
           reason: reason ?? `lane ${slug}`,
         });
       if (copied && carried !== undefined) {
-        if (carried.tracked)
-          git(origin, ['checkout', '--', `tasks/${task}.json`]);
+        if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
         else rmSync(carried.file);
       }
     } catch (error) {

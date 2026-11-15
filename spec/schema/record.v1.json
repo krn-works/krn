@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.record/v1",
+  "title": "krn.record/v1: one brain record in a records file (an array of these)",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "text",
+    "audience",
+    "tier",
+    "applies",
+    "enforcement",
+    "provenance",
+    "status",
+    "recorded_at",
+    "valid_from",
+    "valid_to",
+    "supersedes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "area": {
+      "type": "string"
+    },
+    "layer": {
+      "type": "string"
+    },
+    "audience": {
+      "enum": ["worker", "lead", "all", "adopt"]
+    },
+    "tier": {
+      "enum": ["floor", "reflex", "finish"]
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "why": {
+      "type": "string"
+    },
+    "applies": {
+      "type": "object",
+      "required": ["stacks", "needs", "paths", "terms"],
+      "additionalProperties": false,
+      "properties": {
+        "stacks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "needs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["command", "krn", "advisory"]
+        },
+        "run": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["origin", "evidence", "proposals"],
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proposals": {
+          "type": "array"
+        }
+      }
+    },
+    "status": {
+      "enum": ["trial", "accepted", "retired"]
+    },
+    "recorded_at": {
+      "type": "string"
+    },
+    "valid_from": {
+      "type": "string"
+    },
+    "valid_to": {
+      "type": ["string", "null"]
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "universal": {
+      "type": "boolean"
+    },
+    "harvested": {
+      "type": "object",
+      "required": ["origins", "occurrences"],
+      "properties": {
+        "origins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurrences": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
