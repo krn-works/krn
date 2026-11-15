@@ -1,0 +1,14 @@
+{
+  "id": "t-a04fzfq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-readme-test-command pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-readme-test-command` no longer fails s-readme-test-command.",
+    "Why: adoption found this reflex standard failing: exit 1 from cat README* readme* 2>/dev/null | grep -qiE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|mak...",
+    "Proof: `krn standards check --record s-readme-test-command`"
+  ]
+}
