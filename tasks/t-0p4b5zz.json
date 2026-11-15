@@ -1,0 +1,19 @@
+{
+  "id": "t-0p4b5zz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Adding an iterator of values to an ordered multi-dict corrupts it",
+  "after": [],
+  "body": [
+    "Bug: OrderedMultiDict.addlist('a', iter([1, 2, 3])) or with a generator leaves the dict inconsistent: keys() and repr() show the key while getlist('a') returns [] and get('a') raises IndexError. An empty generator records the key with no values so len() disagrees with keys(). Lists and tuples work."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
