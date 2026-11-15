@@ -225,3 +225,35 @@ test('a lane brief asks the worker to list unstated names and behaviors and pass
   assert.match(text, /left it unstated/u);
   assert.match(text, /--assumptions <text>/u);
 });
+
+test('the lane brief of a goal without a Scope line prints a precedent section naming the sibling test', (t) => {
+  const php = mkdtempSync(join(tmpdir(), 'krn-lane-php-'));
+  t.after(() => rmSync(php, { recursive: true, force: true }));
+  mkdirSync(join(php, 'src'), { recursive: true });
+  mkdirSync(join(php, 'tests'), { recursive: true });
+  writeFileSync(join(php, 'src/Invoice.php'), '<?php class Invoice {}\n');
+  writeFileSync(
+    join(php, 'tests/InvoiceTest.php'),
+    '<?php class InvoiceTest {}\n',
+  );
+  const git = (...args: string[]) =>
+    spawnSync(
+      'git',
+      [
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'commit.gpgsign=false',
+        ...args,
+      ],
+      { cwd: php },
+    );
+  git('init', '-q', '-b', 'main');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'feat: invoice');
+  const text = laneBriefText(php, 'Goal: Invoice totals round up.', BASE_DATE);
+  assert.match(text, /Precedent \(no Scope: line/u);
+  assert.match(text, /`tests\/InvoiceTest\.php`/u);
+});

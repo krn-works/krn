@@ -1,7 +1,11 @@
 {
   "id": "t-5cy7yq5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "precedent derives goal identifiers and finds sibling tests/helpers in php, py, go, rs, npm layouts without Scope; fixture tests assert the sibling and lane brief prints the section"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Precedent reaches lanes in every stack, with or without a Scope line",

@@ -92,3 +92,81 @@ test('the precedent respects the budget and a brief without paths gets none', ()
     rmSync(repo, { recursive: true, force: true });
   }
 });
+
+function stackFixture(files: Record<string, string>): string {
+  const repo = mkdtempSync(join(tmpdir(), 'precedent-stack-'));
+  git(repo, 'init', '-q', '-b', 'main');
+  commit(repo, files, 'feat: initial');
+  return repo;
+}
+
+test('a goal without a Scope line names the sibling test and helper in a PHP repo', () => {
+  const repo = stackFixture({
+    'src/Billing/InvoiceService.php': '<?php class InvoiceService {}\n',
+    'tests/Billing/InvoiceServiceTest.php':
+      '<?php class InvoiceServiceTest { use MakesInvoices; }\n',
+    'tests/Support/MakesInvoices.php': '<?php trait MakesInvoices {}\n',
+    'src/Other/Mailer.php': '<?php class Mailer {}\n',
+  });
+  try {
+    const text = precedentSection(
+      repo,
+      'Goal: InvoiceService must round totals up to whole cents.',
+    );
+    assert.match(
+      text,
+      /Sibling tests:\n- `tests\/Billing\/InvoiceServiceTest\.php`/u,
+    );
+    assert.match(text, /`src\/Billing\/InvoiceService\.php`/u);
+    assert.doesNotMatch(text, /Mailer/u);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a goal without a Scope line names the sibling test in an npm repo', () => {
+  const repo = stackFixture({
+    'package.json': '{}\n',
+    'src/cart/totals.js': 'export function cartTotal() {}\n',
+    'test/cart/totals.test.js':
+      "import { cartTotal } from '../../src/cart/totals.js';\n",
+  });
+  try {
+    const text = precedentSection(
+      repo,
+      'Fix `cartTotal` so it ignores empty lines.',
+    );
+    assert.match(text, /`test\/cart\/totals\.test\.js`/u);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('siblings are found in py, go and rs layouts and an unrelated goal yields nothing', () => {
+  const repo = stackFixture({
+    'app/ledger.py': 'def post_entry(): pass\n',
+    'tests/test_ledger.py': 'from app.ledger import post_entry\n',
+    'pkg/queue.go': 'package pkg\nfunc DrainQueue() {}\n',
+    'pkg/queue_test.go':
+      'package pkg\nfunc TestDrainQueue() { DrainQueue() }\n',
+    'src/shard.rs': 'pub fn split_shard() {}\n',
+    'tests/shard.rs': 'use x::split_shard;\n',
+  });
+  try {
+    assert.match(
+      precedentSection(repo, 'Goal: post_entry rejects negatives'),
+      /`tests\/test_ledger\.py`/u,
+    );
+    assert.match(
+      precedentSection(repo, 'Goal: DrainQueue must stop early'),
+      /`pkg\/queue_test\.go`/u,
+    );
+    assert.match(
+      precedentSection(repo, 'Goal: split_shard handles zero'),
+      /`tests\/shard\.rs`/u,
+    );
+    assert.equal(precedentSection(repo, 'Goal: zzqxunknown thing'), '');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
