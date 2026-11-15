@@ -1,7 +1,11 @@
 {
   "id": "t-tdcftxr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn doctor reported the host product entry, so the hook cell never measured the running tree; hookTreeCommit resolves krn as the Stop hook command does. Planted Stop refusal in the checkout fired inside a py-omd-addlist row (worker ended BLOCKER), hook cell = HEAD on 3 rows."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A Stop refusal planted in the checkout fires inside an outside row",

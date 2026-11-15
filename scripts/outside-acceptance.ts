@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -261,6 +262,31 @@ export function hookPath(root: string, pathEnv: string | undefined): string {
 export function adoptEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const { KRN_TEST_FIRST: _arm, ...rest } = env;
   return rest;
+}
+
+/**
+ * The commit of the tree whose `krn` a hook command resolves by name under `env`: the tree the session's
+ * Stop hook (`exec krn hook stop`) runs. `krn doctor` is no measure: it reports the host's configured
+ * product entry, whichever tree runs it.
+ */
+export function hookTreeCommit(
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): string | undefined {
+  const found = spawnSync('sh', ['-c', 'command -v krn'], {
+    cwd,
+    encoding: 'utf8',
+    env,
+  });
+  if (found.status !== 0) return undefined;
+  let tree: string;
+  try {
+    tree = dirname(dirname(realpathSync(found.stdout.trim())));
+  } catch {
+    return undefined;
+  }
+  const head = run('git', ['rev-parse', 'HEAD'], tree);
+  return head.status === 0 ? head.output.trim() : undefined;
 }
 
 /** The commit a krn entry reports in `krn doctor` output (`entry-commit=<sha>`), if it reports one. */
@@ -844,7 +870,7 @@ function acceptStack(
     );
     checkouts.push(dir);
     const hook = {
-      commit: entryCommit(run('krn', ['doctor'], dir, rowEnv).output),
+      commit: hookTreeCommit(rowEnv, dir),
       head: run('git', ['rev-parse', 'HEAD'], root).output.trim(),
     };
     keep('hook', `${hookCell(hook)}`);
