@@ -1,7 +1,11 @@
 {
   "id": "t-0ev7exz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivery App installation 180498268 has repository_selection=all on krn-works, so krn-works census repos are covered. Out of scope per operator grant 2026-11-15: 11 Rekurencja-org repos (App not installed on that org), 2 korneliuszburian user repos (an org installation cannot hold user repos; would need the App installed on the user account), krn-zakupy (local bare remote)"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "Operator: install the GitHub App on 14 census repositories so adopt --verify exits 0",

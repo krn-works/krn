@@ -1,7 +1,11 @@
 {
   "id": "t-nhz6nn6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Operator created private krn-works/outside-php, outside-npm, outside-py (grant 2026-11-15; d-174575 closed); private rows push only there"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Lane token can create private krn-works outside test repos",
