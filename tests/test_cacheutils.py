@@ -478,3 +478,44 @@ def test_threshold_counter():
     assert sorted(tc.keys()) == [2, 5]
     assert sorted(tc.values()) == [1, 10]
     assert sorted(tc.items()) == [(2, 10), (5, 1)]
+
+
+def test_threshold_counter_update_mapping_and_kwargs():
+    from boltons.cacheutils import ThresholdCounter
+    tc = ThresholdCounter()
+    tc.update({'a': 3, 'b': 2, 'zero': 0})
+    assert tc.get('a') == 3 and tc.get('b') == 2
+    assert 'zero' not in tc and tc.total == 5
+    tc = ThresholdCounter()
+    tc.update(['a'], a=3, b=2)
+    assert tc.get('a') == 4 and tc.get('b') == 2 and tc.total == 6
+    assert tc.most_common(0) == []
+    assert len(tc.most_common()) == 2
+
+
+def test_threshold_counter_mapping_compaction_matches_sequential():
+    from boltons.cacheutils import ThresholdCounter
+    data = {'a': 50, 'b': 30, 'c': 1, 'd': 1, 'e': 18}
+    one = ThresholdCounter(threshold=0.1)
+    for k, n in data.items():
+        for _ in range(n):
+            one.add(k)
+    bulk = ThresholdCounter(threshold=0.1)
+    bulk.update(data)
+    assert dict(bulk.items()) == dict(one.items())
+    assert bulk.total == one.total
+
+
+def test_lri_lru_update_forms():
+    from boltons.cacheutils import LRI, LRU
+    for cls in (LRI, LRU):
+        c = cls(max_size=10)
+        c.update()
+        assert len(c) == 0
+        c.update(a=1, b=2)
+        assert dict(c) == {'a': 1, 'b': 2}
+        c.update(c)
+        c.update(c, z=3)
+        assert dict(c) == {'a': 1, 'b': 2, 'z': 3}
+        c.update([('q', 9)], a=5)
+        assert c['q'] == 9 and c['a'] == 5

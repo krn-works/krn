@@ -1,7 +1,11 @@
 {
   "id": "t-0lp6d3p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fixed counter, cache update, reverse_iter_lines, bytes2human, URL userinfo"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "Cache, counter, JSON line, size and URL helpers each have a bug",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

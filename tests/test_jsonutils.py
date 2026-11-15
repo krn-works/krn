@@ -97,3 +97,16 @@ def test_jsonl_relative_seek_binary_matches_text(tmp_path):
     path.write_bytes(b'{"n": 1}\n{"n": 2}\n{"n": 3}\n')
     with path.open('rb') as binary, path.open() as text:
         assert list(JSONLIterator(binary, rel_seek=0.4)) == list(JSONLIterator(text, rel_seek=0.4))
+
+
+def test_reverse_iter_lines_encodings(tmp_path):
+    import io
+    from boltons.jsonutils import reverse_iter_lines
+    p = tmp_path / 'l.txt'
+    p.write_bytes('caf\xe9\nna\xefve\nend\n'.encode('latin-1'))
+    with open(p, encoding='latin-1') as f:
+        assert list(reverse_iter_lines(f)) == ['', 'end', 'na\xefve', 'caf\xe9']
+        f.seek(0)
+        assert f.read().startswith('caf\xe9')
+    b = io.BytesIO('caf\xe9\nx'.encode('latin-1'))
+    assert list(reverse_iter_lines(b, encoding='latin-1')) == ['x', 'caf\xe9']
