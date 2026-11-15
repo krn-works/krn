@@ -45,21 +45,24 @@ def add_toc_hook(
 
     def toc_hook(md: "Markdown", state: "BlockState") -> None:
         headings = []
-        used_ids = _find_html_ids(state.src)
+        used_ids = find_html_ids(state.src)
 
         for tok in state.tokens:
             if tok["type"] == "heading":
                 level = tok["attrs"]["level"]
                 if min_level <= level <= max_level:
                     headings.append(tok)
+                if tok["attrs"].get("id"):
+                    used_ids.add(tok["attrs"]["id"])
 
         toc_items = []
         for i, tok in enumerate(headings):
-            _id = heading_id(tok, i)
-            if auto_heading_id:
-                _id = _unique_id(_id, used_ids)
-            used_ids.add(_id)
-            tok["attrs"]["id"] = _id
+            if not tok["attrs"].get("id"):
+                _id = heading_id(tok, i)
+                if auto_heading_id:
+                    _id = unique_id(_id, used_ids)
+                used_ids.add(_id)
+                tok["attrs"]["id"] = _id
             toc_items.append(normalize_toc_item(md, tok, parent=state))
 
         # save items into state
@@ -68,11 +71,11 @@ def add_toc_hook(
     md.before_render_hooks.append(toc_hook)
 
 
-def _find_html_ids(src: str) -> Set[str]:
+def find_html_ids(src: str) -> Set[str]:
     return {m.group(1) or m.group(2) for m in _HTML_ID_RE.finditer(src)}
 
 
-def _unique_id(value: str, used_ids: Set[str]) -> str:
+def unique_id(value: str, used_ids: Set[str]) -> str:
     if value not in used_ids:
         return value
 

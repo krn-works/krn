@@ -15,7 +15,7 @@ heading levels writers want to include in the table of contents.
 
 from typing import TYPE_CHECKING, Any, Dict, Match
 
-from ..toc import normalize_toc_item, render_toc_ul
+from ..toc import find_html_ids, normalize_toc_item, render_toc_ul, unique_id
 from ._base import BaseDirective, DirectivePlugin
 
 if TYPE_CHECKING:
@@ -71,8 +71,15 @@ class TableOfContents(DirectivePlugin):
         if sections:
             toc_items = []
             # adding ID for each heading
+            used_ids = find_html_ids(state.src)
+            for tok in headings:
+                if tok["attrs"].get("id"):
+                    used_ids.add(tok["attrs"]["id"])
             for i, tok in enumerate(headings):
-                tok["attrs"]["id"] = self.generate_heading_id(tok, i)
+                if not tok["attrs"].get("id"):
+                    _id = unique_id(self.generate_heading_id(tok, i), used_ids)
+                    used_ids.add(_id)
+                    tok["attrs"]["id"] = _id
                 toc_items.append(normalize_toc_item(md, tok, parent=state))
 
             for sec in sections:
