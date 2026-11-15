@@ -1,0 +1,47 @@
+{
+  "rows": [
+    {
+      "stack": "php",
+      "upstream": "https://github.com/igorw/get-in.git",
+      "license": "MIT",
+      "fix": "5d8383e5dcd3d4d3b1642acbab50bf4784366020",
+      "title": "get_in and update_in must stop at a value that is not an array",
+      "body": [
+        "Bug: get_in([\"foo\" => null], [\"foo\", \"bar\"]) and get_in([\"key\" => \"value\"], [\"key\", \"x\"], \"default\") fail instead of returning the default, because the walk keeps indexing into a null or scalar.",
+        "Outcome: get_in returns its default when the path goes through a value that is not an array; update_in throws InvalidArgumentException for the same path. Existing behaviour is unchanged. Fix src/get_in.php and add a test."
+      ],
+      "hidden": ["tests/GetInTest.php"],
+      "hiddenVerify": "php \"$KRN_ROOT/scripts/outside-hidden/phpunit-shim.php\" src/get_in.php tests/GetInTest.php",
+      "test": "php -l src/get_in.php"
+    },
+    {
+      "stack": "npm",
+      "upstream": "https://github.com/thlorenz/parse-link-header.git",
+      "license": "MIT",
+      "fix": "0ac00b1a93218fb3850d7cbe093fa51751125c1f",
+      "title": "parse-link-header cuts a URL that contains a semicolon",
+      "body": [
+        "Bug: parsing '<https://imaginary.url.notreal/segment;foo=bar;baz/item?name=What,+me+worry>; rel=\"next\";' loses the part of the URL after the first ';'.",
+        "Outcome: the URL is taken up to the closing '>' before the attributes are split on ';', so the url field is the whole URL. Existing behaviour is unchanged. Fix index.js and add a test."
+      ],
+      "hidden": ["test/parse-link-header.js"],
+      "hiddenVerify": "npm install --no-package-lock --silent && node test/parse-link-header.js",
+      "install": "npm install --no-package-lock",
+      "test": "node test/parse-link-header.js"
+    },
+    {
+      "stack": "py",
+      "upstream": "https://github.com/saulpw/unzip-http.git",
+      "license": "MIT",
+      "fix": "3c0918f",
+      "title": "unzip-http extracts zip members outside the target directory",
+      "body": [
+        "Bug (Zip Slip): member names come from the archive, so '../x', '/tmp/x' or 'sub/../../x' escape the target path in RemoteZipFile.extract() and in the CLI -f (full filepaths) branch.",
+        "Outcome: a member whose resolved path is outside the target directory raises an Exception whose message contains 'unsafe path' and writes nothing; members inside the target extract as before. Fix unzip_http.py and add a test."
+      ],
+      "hidden": ["tests/test_unzip_http.py"],
+      "hiddenVerify": "python3 -m pytest -q tests",
+      "test": "python3 -c \"import unzip_http\""
+    }
+  ]
+}
