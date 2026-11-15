@@ -1,0 +1,15 @@
+{
+  "id": "t-genkwpz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Test-first arm verdict on discriminating outside rows",
+  "after": [
+    "t-b6kg61z",
+    "t-saj44em"
+  ],
+  "body": [
+    "Why: Fable 1115b slice 6; the test-first arm ceilinged 3/3 vs 3/3 on easy rows (evals/d23/test-first-replay.md).\nOutcome: K vs K+test-first only on discriminating rows where K scored below 100%, two reps each, decision rule pre-registered on hidden-case fraction and own-test red-on-base.\nProof: a clear verdict either way that unlocks or closes the D23 v2 arm. <$2."
+  ]
+}
