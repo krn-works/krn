@@ -11,6 +11,6 @@
   "title": "Every session starts from the tracked plan, not the module listing (S1)",
   "after": [],
   "body": [
-    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S1 (Sector 1 — Direction and operator surface (ADR 0024)); program t-b160jt0.\nWhy: ADR 0024 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: SessionStart injects `plan.md@<hash>` plus the current slice line; the capability index, its generated file and hook are deleted; disk lines and stale claim lines leave the model's context\nFiles: see ADR 0024 Consequences.\nProof: `node --test test/claude/context-restart-plan.test.ts: pass` and `git ls-files docs/generated/capability-index.md | wc -l: 0`\nPredicted: metric session-start-bytes <= 4800"
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S1 (Sector 1 — Direction and operator surface (ADR 0024)); program t-b160jt0.\nWhy: ADR 0024 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: SessionStart injects `plan.md@<hash>` plus the current slice line; the capability index, its generated file and hook are deleted; disk lines and stale claim lines leave the model's context\nFiles: see ADR 0024 Consequences.\nProof: `node --test test/claude/context-restart-plan.test.ts` (pass) and `git ls-files docs/generated/capability-index.md | wc -l: 0`\nPredicted: metric session-start-bytes <= 4800"
   ]
 }
