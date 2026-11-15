@@ -40,6 +40,9 @@ function reuseMarginSeconds(env: Env): number {
 
 export class Unavailable extends Error {}
 
+/** GitHub installation tokens start with ghs_; anything else is a stub or a plant. */
+const INSTALLATION_TOKEN = /^ghs_[A-Za-z0-9_]+$/u;
+
 type Env = NodeJS.ProcessEnv;
 type Cached = { token: string; expires_at: string };
 
@@ -99,6 +102,12 @@ function readCache(env: Env, now: number): string | undefined {
     ).data;
     const token = cached?.token;
     const expires = Date.parse(String(cached?.expires_at));
+    if (typeof token === 'string' && !INSTALLATION_TOKEN.test(token)) {
+      process.stderr.write(
+        'github-app-token: discarded a cached token that is not a ghs_ installation token\n',
+      );
+      return undefined;
+    }
     if (
       typeof token === 'string' &&
       token &&
@@ -111,9 +120,10 @@ function readCache(env: Env, now: number): string | undefined {
   return undefined;
 }
 
-function writeCache(env: Env, value: Cached): void {
+export function writeCache(env: Env, value: Cached): void {
   const path = cachePath(env);
   if (!path) return;
+  if (!INSTALLATION_TOKEN.test(value.token)) return;
   try {
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     writeFileSync(path, JSON.stringify(value), { mode: 0o600 });

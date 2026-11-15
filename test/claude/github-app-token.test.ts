@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { writeCache } from '../../src/ci/app-token.ts';
 import { appCredentialEnvironment } from '../../src/successor/compose.ts';
 import {
   captureReply,
@@ -570,4 +572,28 @@ test('a repository without the App or a malformed KRN_APP_REPOSITORY exits 69 na
     /KRN_APP_REPOSITORY is not owner\/name: no-slash/u,
   );
   assert.equal(f.minted(), 0);
+});
+
+test('a planted non-installation token in the cache is discarded and never written', async (t) => {
+  const f = await fakes(t);
+  const path = join(f.runtime, 'krn-app-token.json');
+  writeFileSync(
+    path,
+    JSON.stringify({
+      token: 'abc123',
+      expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    }),
+  );
+  const result = await exec(helper, ['token'], f.env);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout, 'ghs_token1\n');
+  assert.match(result.stderr, /discarded a cached token/u);
+  assert.equal(f.minted(), 1);
+
+  rmSync(path);
+  writeCache(f.env, {
+    token: 'abc123',
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+  });
+  assert.equal(existsSync(path), false);
 });
