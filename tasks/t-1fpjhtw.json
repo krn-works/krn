@@ -1,0 +1,12 @@
+{
+  "id": "t-1fpjhtw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Standards coverage map and ten new enforced records for uncovered areas and stacks",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 5. Outcome: evals/standards-coverage.md area x stack matrix; >=10 new enforced records (task quality, architecture, error handling, dependency policy, releases, non-PHP security, py/ts specifics) from KRN rules and typescript/architecture skills, each with red and green fixture; advisory records 7 -> <=3 converted or retired. Proof: zero false-red on existing rows. Free. standards/records.json."
+  ]
+}

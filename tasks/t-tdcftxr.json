@@ -1,0 +1,12 @@
+{
+  "id": "t-tdcftxr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A Stop refusal planted in the checkout fires inside an outside row",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 1. Outcome: rows run the hook of the tree under test end to end. Proof: hook cell match on 3 rows and a planted checkout Stop refusal fires inside a row. Free. Touches scripts/outside-acceptance.ts."
+  ]
+}

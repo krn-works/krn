@@ -1,0 +1,12 @@
+{
+  "id": "t-z9p07yw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "krn adopt --init yields a born-green ts, php and python project with zero audit FAIL",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 4. Outcome: adopt --init for ts/php/python gives CI, linter, README test command, lockfile, gitignore, strict tsconfig, instruction file and tracker; audit 0 FAIL on every applicable record. Proof: three empty-directory tests + audit table (measure current FAIL first). Free. src/adopt/init.ts."
+  ]
+}
