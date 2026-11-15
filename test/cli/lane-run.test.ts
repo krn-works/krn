@@ -343,6 +343,27 @@ test('parseSessionResult keeps a final BLOCKER line', () => {
   assert.equal(parseSessionResult(capture).blocker, undefined);
 });
 
+// The Stop hook lets a session end on any line `BLOCKER: <reason>` (bold or not, anywhere in the last
+// message), so the lane run must read the same line, or the commit of a session that declared a blocker ships.
+test('parseSessionResult reads the BLOCKER line the Stop hook accepts', () => {
+  const blocked = (text: string) =>
+    parseSessionResult(JSON.stringify({ ...JSON.parse(capture), result: text }))
+      .blocker;
+  assert.equal(
+    blocked(
+      'The test cannot be red at the base.\n**BLOCKER:** a new test of an existing function passes at the base',
+    ),
+    'BLOCKER: a new test of an existing function passes at the base',
+  );
+  assert.equal(
+    blocked(
+      'BLOCKER: clause 1 cannot fail at the base\nThe commit is on the branch.',
+    ),
+    'BLOCKER: clause 1 cannot fail at the base',
+  );
+  assert.equal(blocked('BLOCKER:'), undefined);
+});
+
 test('lane run prints the session BLOCKER line and exits 73 instead of dirty tree', async () => {
   const { base, repo, claude } = fixture(
     'echo x > stray.txt',
