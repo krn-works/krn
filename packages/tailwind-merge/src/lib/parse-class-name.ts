@@ -67,6 +67,7 @@ export const createParseClassName = (config: AnyConfig) => {
         // Inline important modifier check
         let baseClassName = baseClassNameWithImportantModifier
         let hasImportantModifier = false
+        let importantOffset = 0
 
         if (baseClassNameWithImportantModifier.endsWith(IMPORTANT_MODIFIER)) {
             baseClassName = baseClassNameWithImportantModifier.slice(0, -1)
@@ -80,11 +81,12 @@ export const createParseClassName = (config: AnyConfig) => {
         ) {
             baseClassName = baseClassNameWithImportantModifier.slice(1)
             hasImportantModifier = true
+            importantOffset = 1
         }
 
         const maybePostfixModifierPosition =
             postfixModifierPosition && postfixModifierPosition > modifierStart
-                ? postfixModifierPosition - modifierStart
+                ? postfixModifierPosition - modifierStart - importantOffset
                 : undefined
 
         return createResultObject(
