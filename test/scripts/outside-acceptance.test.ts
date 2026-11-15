@@ -27,6 +27,7 @@ import {
   hookTreeCommit,
   metricsCells,
   outsideBranch,
+  ownedLaneBranches,
   parseOptions,
   parseTaskFile,
   pick,
@@ -612,4 +613,21 @@ test('reps takes a positive integer and defaults to one', () => {
   assert.equal(parseOptions([], '/r', '/s').reps, 1);
   assert.equal(parseOptions(['--reps', '3'], '/r', '/s').reps, 3);
   assert.throws(() => parseOptions(['--reps', '0'], '/r', '/s'), /--reps/u);
+});
+
+test('a lane branch left by an earlier run of the same row is owned and removed, any other branch is kept', () => {
+  const subject: Record<string, string> = {
+    't-a': 'chore: orphan base for py-fs-sweep',
+    't-b': 'feat: a real lane of the product',
+    't-c': 'chore: orphan base for py-other',
+  };
+  assert.deepEqual(
+    ownedLaneBranches(
+      ['t-a', 't-b', 't-c', 't-d'],
+      ['main', 't-a', 't-b', 't-c'],
+      (id) => subject[id],
+      'py-fs-sweep',
+    ),
+    ['t-a'],
+  );
 });

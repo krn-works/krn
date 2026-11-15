@@ -3,6 +3,7 @@ import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -692,6 +693,24 @@ export function harvestRows(
   ];
 }
 
+/**
+ * The remote lane branches a row's clone owns: a task id of the clone that is also a head on the remote
+ * and whose history starts at this row's orphan base. A lane branch left by an earlier run of the same row
+ * has the same name (the ids are deterministic) and would make the next push non-fast-forward.
+ */
+export function ownedLaneBranches(
+  taskIds: string[],
+  remoteHeads: string[],
+  rootSubject: (branch: string) => string | undefined,
+  stack: string,
+): string[] {
+  return taskIds.filter(
+    (id) =>
+      remoteHeads.includes(id) &&
+      rootSubject(id) === `chore: orphan base for ${stack}`,
+  );
+}
+
 function acceptStack(
   stack: string,
   options: RunOptions,
@@ -754,6 +773,30 @@ function acceptStack(
       `outside-acceptance: ${stack}: no parent of the fix commit`,
     );
   let pushed = false;
+  const dropOwnedLaneBranches = (): void => {
+    const tasksDir = join(dir, 'tasks');
+    if (!existsSync(tasksDir)) return;
+    const ids = readdirSync(tasksDir)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length));
+    const heads = git(['ls-remote', '--heads', 'origin'])
+      .output.split('\n')
+      .map((line) => line.split('\t')[1]?.replace('refs/heads/', ''))
+      .filter((name): name is string => name !== undefined);
+    const owned = ownedLaneBranches(
+      ids,
+      heads,
+      (id) => {
+        if (git(['fetch', '--quiet', 'origin', id]).status !== 0)
+          return undefined;
+        return git(['log', '--format=%s', '--max-parents=0', 'FETCH_HEAD'])
+          .output.trim()
+          .split('\n')[0];
+      },
+      stack,
+    );
+    for (const id of owned) git(['push', 'origin', '--delete', id]);
+  };
   try {
     mkdirSync(dirname(dir), { recursive: true });
     for (const step of [['clone', '--quiet', '--no-checkout', source, dir]])
@@ -804,6 +847,7 @@ function acceptStack(
         `## ${name}\n${text}\n`,
       );
     keep('adopt', adopt.output);
+    dropOwnedLaneBranches();
     // Adopt cannot take install or related without --ref: carry them from the scratch copy's krn.json.
     const clonePath = join(dir, 'krn.json');
     if (existsSync(clonePath))
@@ -918,7 +962,10 @@ function acceptStack(
       drain: drainFacts(drain.status, drain.output),
     });
   } finally {
-    if (pushed) git(['push', 'origin', '--delete', branch]);
+    if (pushed) {
+      dropOwnedLaneBranches();
+      git(['push', 'origin', '--delete', branch]);
+    }
   }
 }
 
