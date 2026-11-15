@@ -13,6 +13,7 @@ import {
   type Records,
   scoreTasks,
 } from '../../src/brain/exposures.ts';
+import { metricReader, readMetricRegistry } from '../../src/brain/metrics.ts';
 import { allTaskQualityFailures } from '../../src/brain/task-quality.ts';
 import { ledgerCommand } from '../../src/cli/ledger.ts';
 
@@ -271,4 +272,58 @@ test('clause 8: the scorecard prints hit or miss for a task merged in a real git
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a metric prediction parses the plainest line and judges the registered metric value', () => {
+  const claim = parseClaim('Predicted: metric src-lines <= 27300');
+  assert.ok(claim);
+  const at = (value: number | undefined): Records => ({
+    proofs: new Map(),
+    outside: undefined,
+    metric: (name) => (name === 'src-lines' ? value : undefined),
+  });
+  assert.equal(judge(claim, 't-x', at(27000)), 'hit');
+  assert.equal(judge(claim, 't-x', at(32000)), 'miss');
+  assert.equal(judge(claim, 't-x', at(undefined)), 'unmeasured');
+  const unregistered = parseClaim('Predicted: metric not-registered >= 1');
+  assert.ok(unregistered);
+  assert.equal(judge(unregistered, 't-x', at(5)), 'unmeasured');
+});
+
+test('metric predictions run the command of spec/metrics.json and a failing command stays unmeasured', () => {
+  const root = mkdtempSync(join(tmpdir(), 'predictions-metric-'));
+  try {
+    mkdirSync(join(root, 'spec'));
+    writeFileSync(
+      join(root, 'spec/metrics.json'),
+      JSON.stringify({
+        metrics: {
+          'five-things': { command: 'echo 5' },
+          'broken-thing': { command: 'exit 3' },
+          'wordy-thing': { command: 'echo many' },
+        },
+      }),
+    );
+    const read = metricReader(root);
+    assert.equal(read('five-things'), 5);
+    assert.equal(read('broken-thing'), undefined);
+    assert.equal(read('wordy-thing'), undefined);
+    assert.equal(read('absent-thing'), undefined);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('every metric named by a plan.md prediction is registered with a command', async () => {
+  const { readFileSync } = await import('node:fs');
+  const plan = readFileSync('docs/program/plan.md', 'utf8');
+  const named = [...plan.matchAll(/Predicted: metric ([a-z][a-z0-9-]*)/gu)].map(
+    (m) => m[1] as string,
+  );
+  assert.ok(named.length > 0);
+  const registry = readMetricRegistry('.');
+  assert.deepEqual(
+    named.filter((name) => registry[name] === undefined),
+    [],
+  );
 });

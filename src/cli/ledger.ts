@@ -1,5 +1,5 @@
 import { renderUnused, unusedTools } from '../adopt/unused.ts';
-import { predictionScorecard } from '../brain/exposures.ts';
+import { planScoredShare, predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { transcriptDirs } from '../harness/transcripts.ts';
@@ -24,6 +24,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let checkCeiling = false;
   let unused = false;
   let predictions = false;
+  let share = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
@@ -36,6 +37,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--predictions') {
       predictions = true;
+      continue;
+    }
+    if (flag === '--share') {
+      share = true;
       continue;
     }
     if (flag === '--check-ceiling') {
@@ -101,6 +106,12 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (predictions && share) {
+    process.stdout.write(
+      `${planScoredShare(options.root ?? process.cwd()).toFixed(3)}\n`,
+    );
+    return;
   }
   if (predictions) {
     process.stdout.write(predictionScorecard(options.root ?? process.cwd()));

@@ -1,7 +1,11 @@
 {
   "id": "t-k3jmgax",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "metric predictions parsed and scored from spec/metrics.json; plan.md and ADR metrics registered"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Plan predictions are scored by command (S3)",

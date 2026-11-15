@@ -40,6 +40,7 @@ src/brain/exposures.ts: The exposure log: o
 src/brain/first-test.ts: First-test recipes
 src/brain/global-standards.ts: The user-lev
 src/brain/lane-proposal.ts: A failed lane p
+src/brain/metrics.ts: The registry of named
 src/brain/packet.ts: Deterministic brain pa
 src/brain/precedent.ts: Precedent for a lan
 src/brain/proof-line.ts: The proof line of
