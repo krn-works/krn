@@ -63,7 +63,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID] [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -461,7 +461,8 @@ function checkCommand(rest: readonly string[]): void {
   const root = repositoryRoot(
     resolve(values.get('--root')?.[0] ?? process.cwd()),
   );
-  const verdict = standardsCheck(root, new Date().toISOString().slice(0, 10), {
+  const asOf = new Date().toISOString().slice(0, 10);
+  const verdict = standardsCheck(root, asOf, {
     ...(values.has('--record') && {
       record: values.get('--record')?.[0] as string,
     }),
@@ -735,9 +736,18 @@ function skillsHarvest(repository: string, commitFlag?: string): void {
   process.stdout.write(`${JSON.stringify(records, null, 2)}\n`);
 }
 
+/** A `--repos` with no directory after it names the registered adopted repositories. */
+function bareRepos(rest: readonly string[]): boolean {
+  const at = rest.indexOf('--repos');
+  if (at < 0) return false;
+  const next = rest[at + 1];
+  return next === undefined || next.startsWith('-');
+}
+
 function harvestCommand(rest: readonly string[]): void {
+  const everyAdopted = bareRepos(rest);
   const parsed = flags(
-    rest,
+    everyAdopted ? rest.filter((arg) => arg !== '--repos') : rest,
     new Set(['--repos']),
     new Set(['--root', '--repos-file', '--skills', '--commit']),
   );
@@ -747,10 +757,11 @@ function harvestCommand(rest: readonly string[]): void {
     skillsHarvest(resolve(skills), values.get('--commit')?.[0]);
     return;
   }
-  if (values.has('--repos') || values.has('--repos-file')) {
+  if (everyAdopted || values.has('--repos') || values.has('--repos-file')) {
     const file = values.get('--repos-file')?.[0];
     const directories = [
       ...(values.get('--repos') ?? []),
+      ...(everyAdopted ? hostRepositories() : []),
       ...positional,
       ...(file === undefined ? [] : repositoryList(resolve(file))),
     ];

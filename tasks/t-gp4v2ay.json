@@ -1,7 +1,11 @@
 {
   "id": "t-gp4v2ay",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "standards check --tasks writes ready tasks; harvest --repos reads registry; tests in standards-registry.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "standards check failures in adopted repositories become ready tasks and recurring ones harvest into records",

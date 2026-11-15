@@ -75,7 +75,11 @@ const commands: Record<CommandName, Handler> = {
       ? (await import('./standards-ledger.ts')).harvestLedgerCommand(
           options.slice(1),
         )
-      : (await import('../brain/standards-cli.ts')).standardsCommand(options),
+      : options[0] === 'check' && options.includes('--tasks')
+        ? (await import('./standards-tasks.ts')).checkWithTasks(
+            options.slice(1),
+          )
+        : (await import('../brain/standards-cli.ts')).standardsCommand(options),
 };
 
 export async function dispatch(args: string[]): Promise<boolean> {

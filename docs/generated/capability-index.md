@@ -24,6 +24,7 @@ src/adopt/census.ts: Adoption census over repos.
 src/adopt/conventions.ts: Seeds a repository's c
 src/adopt/deploy.ts: Deploy workflows on the bas
 src/adopt/drift.ts: Drift of an adopted reposito
+src/adopt/failure-tasks.ts: A failing standard o
 src/adopt/first-turn.ts: `krn adopt <path> --ver
 src/adopt/gaps.ts: Adoption gaps: every standard
 src/adopt/init.ts: krn adopt --init: git init an
@@ -93,6 +94,7 @@ src/cli/pr-body.ts: (no header) exports prBodyUs
 src/cli/pr.ts: (no header) exports prCommand
 src/cli/repo.ts: `krn repo contract`: print the 
 src/cli/standards-ledger.ts: `krn standards harv
+src/cli/standards-tasks.ts: `krn standards check
 src/cli/state.ts: (no header) exports stateComma
 src/context/cc-clearing-watch.ts: Watches whethe
 src/context/disk-pressure.ts: Disk-volume probe 
