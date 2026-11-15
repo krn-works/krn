@@ -176,7 +176,7 @@ export function advisory(reading: Reading, state: State): string | undefined {
     // Report an unreadable counter once, never as a small context.
     if (reading.reason === undefined || state.down) return undefined;
     state.down = true;
-    return `Context gauge unavailable: ${reading.reason}. Judge context size yourself and run krn-handoff when unsure.`;
+    return `Context gauge unavailable: ${reading.reason}. Judge context size yourself and run delivery-handoff when unsure.`;
   }
   state.down = undefined;
   let highest = state.highest;
@@ -198,9 +198,9 @@ export function advisory(reading: Reading, state: State): string | undefined {
   state.highest = level === 0 ? 0 : Math.max(level, highest);
   if (level <= highest) return undefined;
   const prefix = `Context at ${kilo(total)} (KRN advisory ${kilo(firstAdvisory)}/${kilo(secondAdvisory)}${window === undefined ? '' : `; model window ${kilo(window)}`}).`;
-  const finish = 'Finish the current step, then run krn-handoff.';
+  const finish = 'Finish the current step, then run delivery-handoff.';
   const exhausted =
-    'Context budget nearly exhausted. Finish the current step now, then run krn-handoff before starting any new work.';
+    'Context budget nearly exhausted. Finish the current step now, then run delivery-handoff before starting any new work.';
   if (level === firstAdvisory) return `${prefix} ${finish}`;
   return highest < firstAdvisory
     ? `${prefix} ${finish} ${exhausted}`

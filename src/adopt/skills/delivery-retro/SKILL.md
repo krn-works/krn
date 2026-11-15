@@ -6,15 +6,20 @@ compatibility: Requires the krn CLI on PATH and git; works in any repository sta
 
 # Delivery retro
 
-Goal: the next slice is cheaper. A lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`, never an edit in the slice pull request. Cite evidence by pointer. Read the test and fast commands from `krn repo contract`.
+Goal: the next slice is cheaper. A lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`, never an edit in the slice pull request. Never open a separate retro pull request. Cite evidence by pointer. Read the test and fast commands from `krn repo contract`.
+
+## Measure first
+
+List the commits naming the task, the wall time, the merged pull requests, CI reruns and the interventions the user made; one line per category below beats a narrative.
 
 ## Find candidates
 
 - **Automated checks:** an error a check could have caught earlier. Extend the cheapest check (a lint rule, a test, a CI step). This is the preferred outcome.
 - **Reviewer rules:** a review finding no deterministic check can catch. Add it to the repository rules in `AGENTS.md`.
-- **Steering files:** instructions that changed nothing or duplicate another owner. Delete them or move them to their owner.
+- **Steering files:** instructions that changed nothing, duplicate another owner or contradict a decision record. Delete them or move them to their owner.
 - **Navigation:** time lost finding a file or an owner. Add one pointer in `AGENTS.md`.
 - **Tool economy:** expensive calls such as raw logs or repeated full test runs. Script a verdict instead.
+- **Information access:** a fact the lead lacked, such as CI logs or host state. Add a command that fetches it.
 - **Flakiness:** a timing failure. Record a defect task with the failing test; never add a retry policy.
 
 ## Disposition
@@ -24,6 +29,8 @@ Each candidate becomes, in this order of preference:
 1. an executable check;
 2. a rule in `AGENTS.md`;
 3. a `krn task create` task with observable acceptance.
+
+A trap lesson (a known defect that cost a step) also needs its steering fix as a task unless the file holding the workaround is in scope; a task alone is not a disposition for a trap.
 
 ## Propose upstream
 
@@ -35,4 +42,4 @@ A lesson that would hold in other repositories too (a failure or a practice that
 
 ## Output
 
-At most fifteen lines: the candidates, their dispositions, the created task ids and the proposal files.
+At most fifteen lines: the candidates, their dispositions, the created task ids and the proposal files; name the top three in the handoff.
