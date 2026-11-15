@@ -1,0 +1,20 @@
+{
+  "id": "t-0lp4bmu",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Ymir WordPress plugin builds WP-CLI commands with unescaped shell arguments",
+  "after": [],
+  "body": [
+    "Bug (WordPress plugin): LambdaClient wraps the site URL, option values and image changes in hand-written single quotes, so a value containing a quote runs as shell.",
+    "Outcome: every value is passed as one POSIX-quoted shell argument (a single quote becomes '\\'' and multibyte text is kept as is); a value with a null byte, and image changes that are not valid JSON, throw InvalidArgumentException before anything is invoked (the JSON message is: The given image \"changes\" must be valid JSON). Fix src/CloudProvider/Aws/LambdaClient.php and add tests in tests/Unit/CloudProvider/Aws/LambdaClientTest.php. The tests need a WordPress core checkout, named by the WP_CORE_DIR variable already set in the test command."
+  ],
+  "acceptance": [
+    {
+      "verify": "WP_CORE_DIR=/mnt/storage/tmp/krn-outside-public/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
