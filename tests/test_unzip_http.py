@@ -35,3 +35,7 @@ def test_cli_full_filepaths_refuses_escaping_member(tmp_path, monkeypatch):
     with pytest.raises(Exception, match='unsafe path'):
         unzip_http.download_file(f, None, args)
     assert not (tmp_path.parent/'escaped.txt').exists()
+
+
+def test_get_bits_splits_fields_from_lsb():
+    assert list(unzip_http.get_bits(0b110101, 2, 3, 1)) == [0b01, 0b101, 0b1]
