@@ -1,7 +1,11 @@
 {
   "id": "t-rtwwwye",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt writes the CI workflow and lockfile itself (src/adopt/host-remediation.ts); refused workflow push opens one decide row; real re-adopt of public npm and py clones: s-ci-runs-tests and s-lockfile-committed PASS, no lane task"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Adopt applies the CI workflow and lockfile remediation itself and a refused workflow push becomes a decide record",

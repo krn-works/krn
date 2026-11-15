@@ -42,6 +42,7 @@ const canaryExit = (outcome: string) =>
 
 function printGaps(root: string): void {
   const gaps = adoptionGaps(root, new Date().toISOString().slice(0, 10));
+  for (const file of gaps.remediated) process.stdout.write(`wrote ${file}\n`);
   for (const line of gaps.lines) process.stdout.write(`${line}\n`);
   for (const title of gaps.tasks) process.stdout.write(`task ${title}\n`);
 }

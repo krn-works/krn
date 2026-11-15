@@ -84,6 +84,21 @@ export function addDecision(
   return row;
 }
 
+/** Opens the row unless an open row already asks the same question; returns the open row either way. */
+export function openDecisionOnce(
+  root: string,
+  fields: Pick<
+    Decision,
+    'question' | 'recommendation' | 'default' | 'deadline'
+  >,
+  today: string,
+): Decision {
+  const open = readAll(root).find(
+    (row) => row.status === 'open' && row.question === fields.question,
+  );
+  return open ?? addDecision(root, fields, today);
+}
+
 export function listDecisions(
   root: string,
   options: { all?: boolean; notify?: boolean; today: string },
