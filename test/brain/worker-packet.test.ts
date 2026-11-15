@@ -10,14 +10,24 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { parseRecords } from '../../src/brain/packet.ts';
+import { parseRecords, tokens } from '../../src/brain/packet.ts';
+import { appliesTo } from '../../src/brain/standards.ts';
 import {
+  readPack,
+  readProject,
+  repositoryFacts,
+} from '../../src/brain/standards-cli.ts';
+import {
+  GATES_BUDGET,
+  GATES_COMMAND,
+  gatesBlock,
   heldOut,
   LANE_BUDGET,
   lanePacket,
   packetBrief,
   workerRecords,
 } from '../../src/brain/worker-packet.ts';
+import { laneBriefText } from '../../src/cli/lane-brief.ts';
 import { contractConventions } from '../../src/repo/contract.ts';
 
 const repo = join(import.meta.dirname, '../..');
@@ -270,4 +280,46 @@ test('a record in the task holdout is not served and the same task withholds it 
     false,
   );
   assert.deepEqual(served?.records, ['r-new']);
+});
+
+test('the gates block names the stack-applicable enforced floor and finish records and the one check command within 150 tokens', () => {
+  const block = gatesBlock(repo, '2026-11-15');
+  assert.ok(block !== undefined);
+  assert.ok(block.includes(`'${GATES_COMMAND}'`), block);
+  assert.ok(tokens(block) <= GATES_BUDGET, `${tokens(block)} tokens`);
+  const ids = block.slice(block.indexOf('): ') + 3).split(', ');
+  const facts = repositoryFacts(repo);
+  const applicable = new Map(
+    [
+      ...readPack().filter((s) => appliesTo(s, facts)),
+      ...readProject(repo),
+    ].map((s) => [s.id, s]),
+  );
+  assert.ok(ids.length > 0);
+  for (const id of ids) {
+    const standard = applicable.get(id);
+    assert.ok(standard, `${id} applies`);
+    assert.notEqual(standard.enforcement.kind, 'advisory');
+    assert.ok(['floor', 'finish'].includes(standard.tier), id);
+  }
+  const tiers = ids.map((id) => applicable.get(id)?.tier);
+  const firstFinish = tiers.indexOf('finish');
+  assert.ok(firstFinish === -1 || !tiers.slice(firstFinish).includes('floor'));
+});
+
+test('the lane brief carries the gates block, and the frozen carrier does not', () => {
+  const gates = gatesBlock(repo, '2026-11-15');
+  assert.ok(gates !== undefined);
+  assert.ok(laneBriefText(repo, brief, '2026-11-15').includes(gates));
+  assert.ok(
+    !laneBriefText(
+      repo,
+      brief,
+      '2026-11-15',
+      'lane',
+      false,
+      undefined,
+      false,
+    ).includes('Gates run at Stop'),
+  );
 });

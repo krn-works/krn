@@ -1,7 +1,11 @@
 {
   "id": "t-8n4yr2y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gatesBlock unit tests: lane brief names stack-applicable enforced floor/finish ids within 150 tokens, frozen carrier unchanged"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Lane workers see the enforced standards gates before work, not only at Stop",
