@@ -39,6 +39,7 @@ import {
   parseTaskFile,
   pick,
   publishRefusal,
+  pushFailureNote,
   remoteVisibility,
   repoFor,
   repoUrl,
@@ -896,4 +897,16 @@ test('a row exports its scratch root and the chosen Go version', () => {
   assert.deepEqual(scratchRowEnv('/work/scratch', undefined), {
     KRN_OUTSIDE_SCRATCH: '/work/scratch',
   });
+});
+
+test('a failed orphan-base push puts the git stderr, redacted and on one line, in the row note', () => {
+  const stderr =
+    'remote: error: GH013: Repository rule violations found\nTo https://x-access-token:ghs_abc123@github.com/krn-works/krn.git\n ! [remote rejected] outside/rust -> outside/rust (push declined)\n';
+  const note = pushFailureNote(stderr);
+  assert.match(note, /push of the orphan base failed: remote: error: GH013/u);
+  assert.match(note, /push declined/u);
+  assert.doesNotMatch(note, /ghs_|abc123|\n|\|/u);
+  assert.equal(pushFailureNote(''), 'push of the orphan base failed');
+  const row = failedRow('rust', undefined, new Error(note));
+  assert.match(row, /push declined/u);
 });

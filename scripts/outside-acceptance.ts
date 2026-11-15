@@ -798,6 +798,21 @@ function collectRow(
     run(krn, [...args, '--root', dir], dir);
 }
 
+/**
+ * The row note of a failed orphan-base push: the git output on one line, so the summary table keeps its
+ * columns, with credentials in URLs and token-shaped words removed and the length bounded.
+ */
+export function pushFailureNote(output: string): string {
+  const text = output
+    .replace(/\/\/[^/@\s]+@/gu, '//***@')
+    .replace(/\b(gh[pousr]_|github_pat_)[A-Za-z0-9_]+/gu, '***')
+    .replace(/[|\s]+/gu, ' ')
+    .trim();
+  return text === ''
+    ? 'push of the orphan base failed'
+    : `push of the orphan base failed: ${text.slice(0, 400)}`;
+}
+
 /** The summary row of a stack whose run threw: it names the repository the row was pushing to. */
 export function failedRow(
   stack: string,
@@ -1008,10 +1023,14 @@ function acceptStack(
     git(['checkout', '--quiet', '--orphan', `${branch}-orphan`]);
     git(['commit', '--quiet', '-m', `chore: orphan base for ${stack}`]);
     git(['branch', '-M', branch]);
-    pushed =
-      seedGit(['push', '--force', 'origin', `${branch}:refs/heads/${branch}`])
-        .status === 0;
-    if (!pushed) throw new Error('push of the orphan base failed');
+    const seedPush = seedGit([
+      'push',
+      '--force',
+      'origin',
+      `${branch}:refs/heads/${branch}`,
+    ]);
+    pushed = seedPush.status === 0;
+    if (!pushed) throw new Error(pushFailureNote(seedPush.output));
     let config: AdoptFlags = {};
     const configPath = join(source, 'krn.json');
     if (hiddenRow) {
