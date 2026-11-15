@@ -100,7 +100,11 @@ test('krn doctor reads the configured entry', async () => {
     }).trim();
     const result = spawnSync(krn, ['doctor'], {
       encoding: 'utf8',
-      env: { ...process.env, KRN_PRODUCT_ENTRY: entry },
+      env: {
+        ...process.env,
+        KRN_PRODUCT_ENTRY: entry,
+        KRN_ADOPTED_REGISTRY: join(root, 'no-registry.json'),
+      },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, new RegExp(`^entry=${entry}$`, 'mu'));

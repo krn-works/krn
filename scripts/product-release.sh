@@ -49,7 +49,11 @@ if [[ ! -e "$release/node_modules" && -d "$main/node_modules" ]]; then
 fi
 
 # Smoke the candidate as the entry it becomes; keep the previous commit on failure.
-if ! KRN_PRODUCT_ENTRY="$release/bin/krn" "$release/bin/krn" doctor >/dev/null 2>&1; then
+# Exit 65 (PACK_STALE_EXIT) means registered adopted repositories lack pack records:
+# host state the candidate itself reports, not a candidate defect, so it passes.
+smoke=0
+KRN_PRODUCT_ENTRY="$release/bin/krn" "$release/bin/krn" doctor >/dev/null 2>&1 || smoke=$?
+if [[ $smoke -ne 0 && $smoke -ne 65 ]]; then
   if [[ -n "$previous" ]]; then
     git -C "$release" checkout -q --detach "$previous"
     printf 'product-release: candidate %s failed bin/krn doctor; kept previous=%s\n' "$target" "$previous" >&2
