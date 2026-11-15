@@ -163,6 +163,7 @@ export type Repository = {
 };
 
 export function appliesTo(standard: Standard, repository: Repository): boolean {
+  if (standard.status === 'retired') return false;
   if (standard.layer === 'krn-delivery' && !repository.adopted) return false;
   const { stacks, needs } = standard.applies;
   const stack = repository.stack;

@@ -1,7 +1,11 @@
 {
   "id": "t-s7y13ft",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Five advisory records enforced with red and green fixtures (regression test in fix commits, acf-json keys, theme CSS !important, deploy SHA pin and host-key checking, untracked .env), four retired with written reasons and skipped by appliesTo; pack advisory count 0, no false-red on ymir row or KRN"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "No standards record stays advisory: each is enforced or retired with a written reason",

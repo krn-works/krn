@@ -465,8 +465,8 @@
     "layer": "universal",
     "audience": "worker",
     "tier": "finish",
-    "text": "A fixed defect gets its regression test at the lowest layer that reproduces it.",
-    "why": "Low-layer tests fail fast and name the broken unit.",
+    "text": "A fixed defect gets its regression test in the same commit: each of the last ten `fix` commits touches a test file, or carries a `No-test: <reason>` line.",
+    "why": "A fix without its regression test lets the defect return unseen, and a regression test is cheapest at the lowest layer that reproduces it.",
     "applies": {
       "stacks": [],
       "needs": [],
@@ -474,7 +474,8 @@
       "terms": []
     },
     "enforcement": {
-      "kind": "advisory"
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || git log --no-merges -n 10 --format=%H | while read -r c; do git log -1 --format=%s \"$c\" | grep -qE '^fix(\\([^)]*\\))?!?: ' || continue; git log -1 --format=%B \"$c\" | grep -qE '^No-test: .+' && continue; git diff-tree --no-commit-id --name-only -r --root \"$c\" | grep -qE '(^|/)(tests?|__tests__|spec)/|_test\\.(go|py)$|(^|/)test_[^/]*\\.py$|\\.(test|spec)\\.[cm]?[jt]sx?$|Test\\.php$' || exit 1; done"
     },
     "provenance": {
       "origin": "krn pack",
@@ -496,7 +497,7 @@
     "audience": "worker",
     "tier": "finish",
     "text": "When a task names an input or output format, at least one test feeds the plainest hand-written example of that format exactly as the task words it.",
-    "why": "A reader tested only on its own tool's output rejects the short, plain forms real callers send.",
+    "why": "Retired: Whether a task names a format, and whether a test feeds its plainest example, is a judgement about the task text; no command over a repository decides it. The rule stays in the worker rules each lane brief carries and in review.",
     "applies": {
       "stacks": [],
       "needs": [],
@@ -511,10 +512,10 @@
       "evidence": ["src/cli/lane-brief.ts#plainest"],
       "proposals": []
     },
-    "status": "accepted",
+    "status": "retired",
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "universal": true
   },
@@ -526,7 +527,7 @@
     "audience": "worker",
     "tier": "finish",
     "text": "Every integration or forward is tested against its real receiver or a verbatim capture of the receiver's output, never against a hand-made imitation.",
-    "why": "An integration is only proven where it is received.",
+    "why": "Retired: Which receiver an integration talks to, and whether a test used it or a verbatim capture, is not decidable from the repository files; the rule stays in KRN-12 and in review.",
     "applies": {
       "stacks": [],
       "needs": [],
@@ -541,10 +542,10 @@
       "evidence": ["AGENTS.md#KRN-12"],
       "proposals": []
     },
-    "status": "accepted",
+    "status": "retired",
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "universal": true
   },
@@ -1415,8 +1416,8 @@
   {
     "id": "s-skill-acf-component",
     "type": "recipe",
-    "text": "Add or change a page component of this WordPress theme (ACF PRO Flexible Content layout, component field group, static PHP template, CUBE block). Use for any new page section, field, layout or component template; CSS rules live in cube-css.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill acf-component.",
+    "text": "Every ACF field group JSON file under `acf-json/` parses and carries its stored `key`.",
+    "why": "Field keys are stored identity in the database; a group file that does not parse or has no key is dropped or duplicated on the next ACF sync.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -1426,14 +1427,15 @@
       "terms": []
     },
     "enforcement": {
-      "kind": "advisory"
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const f=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{encoding:\"utf8\"}).split(\"\\0\").filter((p)=>/(^|\\/)acf-json\\/[^\\/]+\\.json$/.test(p));let bad=0;for(const p of f){try{const j=JSON.parse(fs.readFileSync(p,\"utf8\"));if(typeof j.key!==\"string\"||j.key===\"\")bad=1}catch{bad=1}}process.exit(bad)'"
     },
     "provenance": {
       "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md",
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "accepted",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
     "valid_to": null,
@@ -1444,25 +1446,26 @@
   {
     "id": "s-skill-cube-css",
     "type": "standard",
-    "text": "Write or change CSS of this WordPress theme the CUBE CSS way (global, composition, utility, block, exception) with SugarCube design tokens and Every Layout compositions. Use for any stylesheet edit, a new block, a new token or a layout problem; a new page component starts in acf-component.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill cube-css.",
+    "text": "Theme CSS carries no `!important` without a comment on the same line.",
+    "why": "CUBE CSS boosts specificity only with the block class; an uncommented `!important` is the escape hatch that breaks the cascade the other layers rely on.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
       "stacks": [],
-      "needs": ["frontend"],
+      "needs": ["wordpress", "frontend"],
       "paths": ["**/*.css", "web/app/themes/**"],
       "terms": []
     },
     "enforcement": {
-      "kind": "advisory"
+      "kind": "command",
+      "run": "! git grep -nIE '!important' -- '*themes/*.css' ':(exclude)*.min.css' ':(exclude)*node_modules*' ':(exclude)*vendor*' ':(exclude)*/dist/*' ':(exclude)*/build/*' | grep -vF '/*' | grep -q ."
     },
     "provenance": {
       "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md",
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "accepted",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
     "valid_to": null,
@@ -1474,7 +1477,7 @@
     "id": "s-skill-cube-review",
     "type": "recipe",
     "text": "Independently review a frontend diff of this WordPress theme (CSS, component templates, acf-json) and its rendered result before acceptance. Use in a fresh session that did not write the change; the author's own checks only prepare the handoff.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill cube-review.",
+    "why": "Retired: Independent review is a process step by a fresh session; no repository state shows who reviewed, so it cannot be checked by a command.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -1491,10 +1494,10 @@
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "retired",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "area": "frontend",
     "layer": "universal"
@@ -1503,7 +1506,7 @@
     "id": "s-skill-design-to-build",
     "type": "recipe",
     "text": "Turn a design (Figma frame, screenshot, mock-up or brief) into pages of this WordPress theme, planning before code and building in a core pass and a flair pass. Use when a client design arrives or a page has to be built from a picture; per-component steps live in acf-component and CSS rules in cube-css.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill design-to-build.",
+    "why": "Retired: Planning before code and a core and a flair pass is a working procedure; no repository state shows it was followed, so it cannot be checked by a command.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -1520,10 +1523,10 @@
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "retired",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
-    "valid_to": null,
+    "valid_to": "2026-11-15",
     "supersedes": [],
     "area": "frontend",
     "layer": "universal"
@@ -1531,8 +1534,8 @@
   {
     "id": "s-skill-plesk-deploy",
     "type": "recipe",
-    "text": "Deploy this WordPress project to a Plesk server through GitHub Actions (atomic releases over SSH to a forced-command receiver, status, rollback), prepare a Plesk domain once, and diagnose a release that does not serve. Use when setting up deploy for a client, changing what a release ships, bumping the deploy tooling, or when a deployed site returns 403 or an empty page; local runtime lives in wp-runtime.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill plesk-deploy.",
+    "text": "Deploy workflows and deploy files neither disable SSH host-key checking nor use the release tooling without a commit SHA pin.",
+    "why": "Release tooling is checked out by commit SHA and the forced-command receiver is reached over a verified host key; an unpinned or unverified deploy ships whatever the remote serves.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -1542,14 +1545,15 @@
       "terms": []
     },
     "enforcement": {
-      "kind": "advisory"
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const f=cp.execFileSync(\"git\",[\"ls-files\",\"-z\",\"--\",\".github/workflows\",\"deploy\"],{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);let bad=0;for(const p of f){let t;try{t=fs.readFileSync(p,\"utf8\")}catch{continue}if(/StrictHostKeyChecking[ =]+no/.test(t))bad=1;if(/release-tooling/.test(t)&&!/\\b[0-9a-f]{40}\\b/.test(t))bad=1}process.exit(bad)'"
     },
     "provenance": {
       "origin": "boilerplate-2026 .claude/skills/plesk-deploy/SKILL.md",
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "accepted",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
     "valid_to": null,
@@ -1560,8 +1564,8 @@
   {
     "id": "s-skill-wp-runtime",
     "type": "recipe",
-    "text": "Run, set up, diagnose and verify this WordPress project locally (Bedrock on DDEV, mise tasks, Vite with CSS HMR and PHP morph, doctor, browser gate, data, staging pull, ACF PRO access). Use when starting the project, when something local is broken, before handing over runtime or theme work, or when pulling staging data; deploying to Plesk lives in plesk-deploy.",
-    "why": "Trial standard harvested read-only from the boilerplate-2026 skill wp-runtime.",
+    "text": "`.env`, `auth.json` and `node_modules/` are not tracked.",
+    "why": "The local runtime keeps secrets and installs outside git; a tracked `.env` or `auth.json` puts site credentials in every clone.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -1571,14 +1575,15 @@
       "terms": []
     },
     "enforcement": {
-      "kind": "advisory"
+      "kind": "command",
+      "run": "! git ls-files | grep -qE '(^|/)(\\.env|auth\\.json)$|(^|/)node_modules/'"
     },
     "provenance": {
       "origin": "boilerplate-2026 .claude/skills/wp-runtime/SKILL.md",
       "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
       "proposals": []
     },
-    "status": "trial",
+    "status": "accepted",
     "recorded_at": "2026-11-14",
     "valid_from": "2026-11-14",
     "valid_to": null,

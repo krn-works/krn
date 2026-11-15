@@ -149,20 +149,19 @@ test('the plainest hand-written skill file harvests; a file without a descriptio
   );
 });
 
-test('the shipped pack holds the harvested records of the capture, trial and within its size', () => {
+test('the shipped pack holds the harvested records of the capture, made enforceable or retired and within its size', () => {
   const shipped = parseStandards(JSON.parse(readFileSync(pack, 'utf8')));
   const expected = harvestSkills(skillSources(), COMMIT, AS_OF);
   for (const record of expected) {
     const held = shipped.find((s) => s.id === record.id);
     assert.ok(held, `${record.id} is in standards/records.json`);
-    assert.deepEqual(
-      { ...held, recorded_at: '', valid_from: '' },
-      {
-        ...record,
-        recorded_at: '',
-        valid_from: '',
-      },
-    );
+    // The pack record is the harvested one made enforceable or retired: its identity, source and
+    // placement are the harvest's, its statement, enforcement and status are the pack's.
+    assert.equal(held.type, record.type);
+    assert.equal(held.area, record.area);
+    assert.deepEqual(held.provenance, record.provenance);
+    assert.deepEqual(held.applies.paths, record.applies.paths);
+    assert.ok(held.status !== 'trial' || held.enforcement.kind === 'advisory');
   }
   const bytes = Buffer.byteLength(JSON.stringify(expected));
   assert.ok(bytes <= 8192, `${bytes} bytes of harvested records`);
@@ -221,7 +220,7 @@ test('repositoryFacts finds WordPress and frontend repositories and not a plain 
   }
 });
 
-test('an adopted WordPress repository serves the skills in its lane packet and a non-frontend repository does not', () => {
+test('an adopted WordPress repository applies the enforced skill records and a non-frontend repository does not', () => {
   const brief =
     'Add a new ACF flexible content layout component with a static PHP template and CUBE block CSS for the WordPress theme, then deploy the release to Plesk.';
   const wp = repository(wordpress);
@@ -232,8 +231,11 @@ test('an adopted WordPress repository serves the skills in its lane packet and a
       assert.equal(adopted.status, 0, adopted.stderr);
     }
     const served = lanePacket(wp, brief, AS_OF, 'lane', 600, false);
-    const ids = served?.records.filter((id) => id.startsWith('s-skill-')) ?? [];
-    assert.ok(ids.includes('s-skill-acf-component'), served?.records.join());
+    // An enforced record is taught by its check, and a retired one is never served.
+    assert.deepEqual(
+      served?.records.filter((id) => id.startsWith('s-skill-')) ?? [],
+      [],
+    );
     const withheld = lanePacket(node, brief, AS_OF, 'lane', 600, false);
     assert.deepEqual(
       withheld?.records.filter((id) => id.startsWith('s-skill-')) ?? [],
