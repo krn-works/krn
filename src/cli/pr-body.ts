@@ -9,7 +9,7 @@ import { isTaskId, type TaskRecord } from '../task/record.ts';
 import { loadTaskIndex, repositoryRoot } from '../task/store.ts';
 
 export const prBodyUsage =
-  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--lane] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
+  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--lane] [--assumptions TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
 
 /** The body line `krn lane brief` tells a lane to request with `krn pr body --lane`; the ledger reads it as lane authorship. */
 export const LANE_MARKER = 'Lane: krn lane brief';
@@ -21,6 +21,8 @@ export interface BodyInput {
   agent: string;
   refs: boolean;
   lane?: boolean;
+  /** Names and behaviours the task body left unstated, one per line; rendered as its own section when present. */
+  assumptions?: string;
 }
 
 function bodyField(task: TaskRecord, name: string): string | undefined {
@@ -66,6 +68,19 @@ export function renderPrBody(input: BodyInput): string {
     ? input.commits.map((line) => `- ${line}`).join('\n')
     : `- ${outcome}`;
   const verified = input.verified || (proof ? `Planned proof: ${proof}` : '');
+  const assumptions = (input.assumptions ?? '').trim();
+  const assumed = assumptions
+    ? `## Assumptions
+
+${assumptions
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean)
+  .map((line) => (line.startsWith('- ') ? line : `- ${line}`))
+  .join('\n')}
+
+`
+    : '';
   return `## Problem
 
 ${problem}
@@ -80,7 +95,7 @@ ${change}
 
 ${verified || 'TODO: commands and verdicts'}
 
-## Task
+${assumed}## Task
 
 ${input.refs ? 'Refs' : 'Ticket'}: ${task.id}
 
@@ -119,6 +134,7 @@ export function prBodyCommand(args: string[]): string {
   let agent = 'Claude Sonnet 5.5 in Claude Code';
   let refs = false;
   let lane = false;
+  let assumptions = '';
   let base: string | undefined;
   let out: string | undefined;
   let worktree: string | undefined;
@@ -137,6 +153,7 @@ export function prBodyCommand(args: string[]): string {
         '--task',
         '--verified',
         '--agent',
+        '--assumptions',
         '--base',
         '--worktree',
         '--out',
@@ -151,6 +168,7 @@ export function prBodyCommand(args: string[]): string {
     if (flag === '--task') id = value;
     else if (flag === '--verified') verified = value;
     else if (flag === '--agent') agent = value;
+    else if (flag === '--assumptions') assumptions = value;
     else if (flag === '--base') base = value;
     else if (flag === '--worktree') worktree = value;
     else out = value;
@@ -172,6 +190,7 @@ export function prBodyCommand(args: string[]): string {
     agent,
     refs,
     lane,
+    assumptions,
   });
   if (out === undefined) return text;
   writeFileSync(out, text);

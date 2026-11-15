@@ -202,3 +202,14 @@ test('the acceptance-clause section is in the brief only with KRN_ACCEPTANCE_CLA
     else process.env.KRN_ACCEPTANCE_CLAUSES = before;
   }
 });
+
+test('a lane brief asks the worker to list unstated names and behaviors and pass them to krn pr body', () => {
+  const text = laneBriefText(
+    repo,
+    'Task t-abc1234: x\n',
+    BASE_DATE,
+    't-abc1234',
+  );
+  assert.match(text, /left it unstated/u);
+  assert.match(text, /--assumptions <text>/u);
+});

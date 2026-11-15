@@ -21,6 +21,7 @@ const SHARED_RULES = `Worker rules:
 - When the task names an input or output format (for example "unified diffs", "newline-separated lists", "JSON"), write at least one test whose input is the plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced: your reader must accept every form the wording allows, including the shortest and plainest one.
 - A red test outranks tracker state and scope: if a named red test fails without a change to a file outside Scope, edit that file and name it in your final reply. Otherwise stay inside Scope: never edit .agents/, .claude/, AGENTS.md, CLAUDE.md, tasks/ or the roadmap for style, docs or tidiness, and revert such an edit before you commit.
 - Your final reply states every claim about an external system (a remote repository, a service, a receiver, a CI run) together with the exact command you ran and its exit code; a claim without them is treated as unverified. Name the credential or token scope the command used, and run the real receiver, not a stand-in.
+- Assumptions: list every name, behavior or format you had to choose because the task body left it unstated (file names, flags, edge cases, defaults), one per line, and pass the list with \`--assumptions <text>\` to \`krn pr body\`, which puts it in the PR body; write 'none' only when the body fixed everything.
 - When you write the PR body with \`krn pr body\`, pass \`--lane\`: it adds the line the ledger counts as lane authorship.`;
 
 const STOP_SCRIPT = 'src/hook/stop.ts';

@@ -193,3 +193,67 @@ test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
   };
   assert.deepEqual(proofCommands(record), ['node --test a.test.ts 2>&1']);
 });
+
+test('pr body carries the worker assumptions as a bulleted section', () => {
+  const text = renderPrBody({
+    task,
+    commits: [],
+    verified: 'v',
+    agent: 'A',
+    refs: false,
+    assumptions: 'file named x.ts\n- flag defaults to off\n',
+  });
+  assert.match(
+    text,
+    /## Verification\n\nv\n\n## Assumptions\n\n- file named x\.ts\n- flag defaults to off\n\n## Task/,
+  );
+});
+
+test('pr body has no assumptions section when none are given', () => {
+  const text = renderPrBody({
+    task,
+    commits: [],
+    verified: 'v',
+    agent: 'A',
+    refs: false,
+  });
+  assert.doesNotMatch(text, /## Assumptions/);
+});
+
+test('krn pr body --assumptions reaches the printed body', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-assume-'));
+  try {
+    const git = (...a: string[]) =>
+      spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@example.invalid');
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks', 't-abc1234.json'),
+      `${JSON.stringify(task, null, 2)}\n`,
+    );
+    git('add', '.');
+    git('commit', '-qm', 'seed');
+    git('commit', '-q', '--allow-empty', '-m', 'feat(x): one (t-abc1234)');
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'pr',
+        'body',
+        '--task',
+        't-abc1234',
+        '--base',
+        'HEAD~1',
+        '--assumptions',
+        'output order is stable',
+      ],
+      { cwd: dir, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /## Assumptions\n\n- output order is stable\n/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
