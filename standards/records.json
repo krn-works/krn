@@ -124,7 +124,11 @@
     "valid_from": "2026-11-13",
     "valid_to": null,
     "supersedes": [],
-    "universal": true
+    "universal": true,
+    "harvested": {
+      "origins": ["php", "npm", "py"],
+      "occurrences": 3
+    }
   },
   {
     "id": "s-lockfile-committed",
@@ -277,7 +281,11 @@
     "valid_from": "2026-11-13",
     "valid_to": null,
     "supersedes": [],
-    "universal": true
+    "universal": true,
+    "harvested": {
+      "origins": ["php", "npm", "py"],
+      "occurrences": 3
+    }
   },
   {
     "id": "s-typescript-strict",
@@ -338,7 +346,11 @@
     "valid_from": "2026-11-13",
     "valid_to": null,
     "supersedes": [],
-    "universal": true
+    "universal": true,
+    "harvested": {
+      "origins": ["php", "npm", "py"],
+      "occurrences": 3
+    }
   },
   {
     "id": "s-no-conflict-markers",

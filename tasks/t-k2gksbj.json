@@ -1,13 +1,15 @@
 {
   "id": "t-k2gksbj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "audit FAILs in 3 rows, hidden failures, non-zero drains and fix commits #893-#900 feed harvest; s-ci-runs-tests, s-linter-configured, s-readme-test-command promoted (harvested 3 origins); audit rerun shows php=5 npm=4 py=3 real FAIL cells, no new"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Harvest proposes from hidden failures, red drains, cross-repo audit fails and fix commits",
-  "after": [
-    "t-saj44em"
-  ],
+  "after": [],
   "body": [
     "Why: Fable 1115b slice 5; harvest is empty because only Stop refusals feed it.\nOutcome: proposals also from hidden failures, non-zero drains, audit FAILs in >=2 repos, backfilled KRN fix commits #893-#900.\nProof: >=1 candidate promoted into an enforced record with a check; evals/outside-harvest.md. Free. Merge after the discriminating-row slice."
   ]
