@@ -1,0 +1,7 @@
+{
+  "base": "outside/npm-workspaces",
+  "test": "npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
+  "tracker": "krn",
+  "install": "npm install --no-package-lock --ignore-scripts",
+  "related": "npx mocha {files}"
+}

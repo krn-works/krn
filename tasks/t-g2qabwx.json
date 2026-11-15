@@ -1,0 +1,14 @@
+{
+  "id": "t-g2qabwx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `npx mocha packages/plugin-kit/tests/config-comment-parser.test.js` exits 1 on the clean outside/npm-workspaces tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. cha/lib/cli/run-helpers.cjs:248:10) at exports.handler (/mnt/storage/krn-host-cache/npm-npx/508606763866ae01/node_modules/mocha/lib/cli/run.cjs:143:11) at runCommand (file:///mnt/storage/krn-host-cache/npm-npx/508606763866ae01/node_modules/mocha/lib/cli/cli.js:96:14) { code: 'ERR_MODULE_NOT_FOUND' }",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}

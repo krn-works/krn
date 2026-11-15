@@ -1,0 +1,20 @@
+{
+  "id": "t-0sbjvn7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "ConfigCommentParser drops a __proto__ key from its results",
+  "after": [],
+  "body": [
+    "Bug (npm workspaces monorepo, package packages/plugin-kit): ConfigCommentParser results are built so that a '__proto__' key is lost or changes the prototype instead of being kept as an own property.",
+    "Outcome: a '__proto__' key in a parsed config comment is preserved as an own property of the result, in every parse method that builds a result object; existing behaviour is unchanged. Fix packages/plugin-kit/src/config-comment-parser.js and add tests in packages/plugin-kit/tests/config-comment-parser.test.js."
+  ],
+  "acceptance": [
+    {
+      "verify": "npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
