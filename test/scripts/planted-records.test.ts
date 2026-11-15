@@ -43,10 +43,7 @@ function run(stack: string): Promise<{ status: number | null; out: string }> {
   });
 }
 
-// Five stacks audit in parallel; a loaded host needs more than the default minute.
-test('every applicable enforced record bites in each init stack', {
-  timeout: 240_000,
-}, async () => {
+test('every applicable enforced record bites in each init stack', async () => {
   const runs = await Promise.all(INIT_STACK_NAMES.map((stack) => run(stack)));
   for (const [index, done] of runs.entries()) {
     const stack = INIT_STACK_NAMES[index];
