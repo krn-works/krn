@@ -1,0 +1,12 @@
+{
+  "id": "t-hfx4nyv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Red-first accepts a characterization task whose behaviour already holds",
+  "after": [],
+  "body": [
+    "Why: outside php row 1115h drained 73: lane t-04ewf93 refused because its task asked for a test of behaviour that already works, so no honest test is red at base (.krn/runs/outside/php.log:588-589); the proof line still said red-first 1 (php.log:590).\nOutcome: a task whose Outcome adds tests for existing behaviour (characterization, no src change) passes the red-first arm when the diff touches only test files and the new tests pass at base and head; the lane brief tells the worker which mode applies; the proof line reports red-first only for tests that were actually red at base.\nFiles: src/hook/stop.ts, src/cli/lane-brief.ts, src/cli/lane-run/verdict.ts, tests.\nProof: Stop test with a tests-only diff passing at base is green; a src change with no red-at-base test stays red; outside php row drains 0."
+  ]
+}
