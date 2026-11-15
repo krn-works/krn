@@ -1,0 +1,14 @@
+{
+  "id": "t-a8va9ce",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "KRN adopts itself: .agents/skills is installer output",
+  "after": [
+    "t-bf76ph3"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 4\nWhy: operator: KRN must run on the same universal skills it installs; today .agents/skills is hand-written.\nOutcome: krn adopt --refresh on this repository regenerates .agents/skills from src/adopt/skills (krn-* directories deleted); references in tests, evals/fr40, spec/*.json, evals/skill-selection/prompts.json, CLAUDE.md, AGENTS.md follow; a test asserts adoptionDrift(repoRoot) is empty for .agents/skills/**.\nFiles: .agents/skills/, test/rules/project-skills.test.ts, evals/fr40, spec/*.json, evals/skill-selection/prompts.json\nProof: the drift test passes; npm test green; a lead session started here loads delivery-lead.\nPredicted: proof stop-refusals <= 0"
+  ]
+}

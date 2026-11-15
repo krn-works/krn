@@ -4,9 +4,9 @@
   "resolution": null,
   "created": "2026-11-15",
   "priority": 1,
-  "title": "Lanes in the KRN repository skip the red-first and clause arms",
+  "title": "Stop arms are repository contract fields, off in KRN itself",
   "after": [],
   "body": [
-    "Source: operator 2026-11-15: keep red-first for outside lanes, drop it for lanes in the KRN repository (memory no-gates-just-code, 2026-11-07).\nWhy: lanes in this repository write a dozen `Clause N: not reproducible` lines per PR to satisfy the test-first and clause arms (t-4kqzdw0, t-bxw0ben, t-8tvfrbs, t-781d08h reports), the ceremony no-gates removed; the arm's value is unmeasured (Fable 1115k: test-first did not beat K).\nOutcome: the KRN repository's own contract opts out of the test-first and acceptance-clause Stop arms (repo-level switch in krn.json, not an env var lanes can forget); adopted repositories keep them on by default.\nFiles: krn.json or src/repo/contract.ts, src/hook/stop.ts, docs/program/lead-rules.md if it names the clause ceremony\nProof: a lane run in this repository ends without clause lines; an outside row still prints red-first 1.\nPredicted: proof stop-refusals <= 0"
+    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 5 (operator 2026-11-15: keep red-first outside, drop it in KRN's own lanes; one universal system)\nWhy: lanes in this repository write a dozen `Clause N: not reproducible` lines per PR for the test-first and clause arms (t-4kqzdw0, t-bxw0ben, t-8tvfrbs, t-781d08h reports); the switch must be a contract option any repository may set, not a KRN branch.\nOutcome: krn.json gains \"arms\": {\"red-first\": bool, \"clauses\": bool}, default on; src/repo/contract.ts reads it, src/hook/stop.ts and src/cli/lane-run/steps.ts honour it, the lead skill says \"the arms the contract enables\"; this repository's krn.json sets both false.\nFiles: src/repo/contract.ts, src/hook/stop.ts, src/cli/lane-run/steps.ts, krn.json, .agents/skills/krn-lead/lanes.md\nProof: a lane run in this repository ends without clause lines; an outside row still prints red-first 1.\nPredicted: proof clauses-total <= 0"
   ]
 }

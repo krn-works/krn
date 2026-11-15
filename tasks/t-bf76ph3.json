@@ -1,0 +1,14 @@
+{
+  "id": "t-bf76ph3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "One universal core skill set: lead, lanes, handoff, retro, architecture",
+  "after": [
+    "t-6vn9c9j"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 2\nWhy: KRN runs hand-written krn-lead/krn-handoff/krn-retro while adopted repos get thinner delivery-lead/delivery-retro; hooks name krn-handoff and krn-lead (src/context/gauge.ts:233, scripts/codex/context-hook.ts:201, src/successor/watchdog.ts:121) which outside repos never receive.\nOutcome: src/adopt/skills/{delivery-lead (+lanes.md), delivery-handoff, delivery-retro, architecture} carry the full procedure with no KRN-only text (that moves to docs/program/lead-rules.md and repository-workflow.md); hook strings name the delivery-* skills; global-standards links architecture only (typescript leaves UNIVERSAL_SKILLS).\nFiles: src/adopt/skills/, docs/program/lead-rules.md, docs/program/repository-workflow.md, src/context/gauge.ts, src/successor/watchdog.ts, scripts/codex/context-hook.ts, src/brain/global-standards.ts, test/adopt/universal-skills.test.ts\nProof: universal-skills test: no KRN path, gate or operator text; every krn command resolves in src/cli/help.ts; every skill a hook names is in universalSkills().\nPredicted: outside sessions <= 1 in >= 3 rows"
+  ]
+}
