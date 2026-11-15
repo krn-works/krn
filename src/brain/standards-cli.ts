@@ -61,6 +61,7 @@ import {
   type Report as StandardsReport,
   splitProject,
 } from './standards.ts';
+import { renderReview, reviewStandards } from './standards-review.ts';
 import {
   TASK_RULES,
   type TaskRule,
@@ -68,7 +69,7 @@ import {
 } from './task-quality.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR] | review [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -496,6 +497,26 @@ function checkCommand(rest: readonly string[]): void {
   process.exitCode = verdict.exitCode;
 }
 
+/** `krn standards review [--root DIR]`: the enforced records the diff can break, with offending file:line; exit 1 on a violation. */
+function reviewCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(rest, new Set(), ROOT);
+  if (positional.length > 0) throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const asOf = new Date().toISOString().slice(0, 10);
+  const repository = repositoryFacts(root);
+  const standards = [
+    ...readPack().filter((standard) => appliesTo(standard, repository)),
+    ...readProject(root),
+  ].filter((standard) => inForce(standard, asOf));
+  const review = reviewStandards(root, standards);
+  const lines = renderReview(review);
+  for (const line of lines.slice(0, -1)) process.stderr.write(`${line}\n`);
+  process.stdout.write(`${lines.at(-1)}\n`);
+  process.exitCode = review.violations.length === 0 ? 0 : 1;
+}
+
 /** `krn standards task-quality --rule RULE [--root DIR]`: the enforcement of one task-quality record. */
 function taskQualityCommand(rest: readonly string[]): void {
   const { values, positional } = flags(rest, new Set(), RULE_FLAGS);
@@ -864,5 +885,6 @@ export function standardsCommand(args: string[]): void {
   else if (verb === 'harvest') harvestCommand(rest);
   else if (verb === 'effect') effectCommand(rest);
   else if (verb === 'retire') retireCommand(rest);
+  else if (verb === 'review') reviewCommand(rest);
   else throw new CliUsageError(usage);
 }
