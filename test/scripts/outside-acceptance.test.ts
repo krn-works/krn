@@ -22,6 +22,7 @@ import {
   entryCommit,
   failedCases,
   failedRow,
+  goToolchainBin,
   gradedRow,
   harvestRows,
   hiddenResult,
@@ -271,7 +272,17 @@ test('the shipped task file holds one public fixed-issue row per stack and parse
   const rows = parseTaskFile(shippedRows);
   assert.deepEqual(
     rows.map((row) => row.stack),
-    ['php', 'npm', 'py', 'php-red', 'npm-workspaces', 'wp-plugin', 'frontend'],
+    [
+      'php',
+      'npm',
+      'py',
+      'php-red',
+      'npm-workspaces',
+      'wp-plugin',
+      'frontend',
+      'rust',
+      'go',
+    ],
   );
   for (const row of rows) assert.match(row.fix, /^[0-9a-f]{7,40}$/u);
 });
@@ -815,4 +826,46 @@ test('clause 7: sweeping a finished invocation leaves the rows of another invoca
   sweepOwnedRows([mine, join(scratch, 'runs', 'never-created')]);
   assert.equal(existsSync(mine), false);
   assert.equal(existsSync(join(theirs, '.krn', 'worktrees', 'b')), true);
+});
+
+test('clause 6 and 12: the Rust and Go rows name MIT-licensed upstream fixes whose hidden test files are the receiver of the drain', () => {
+  const rows = parseTaskFile(shippedRows);
+  const rust = rows.find((row) => row.stack === 'rust');
+  const go = rows.find((row) => row.stack === 'go');
+  assert.ok(rust && go, 'a rust row and a go row are shipped');
+  assert.match(rust.license, /MIT/u);
+  assert.match(go.license, /MIT/u);
+  assert.match(rust.hiddenVerify, /^cargo test /u);
+  assert.match(go.hiddenVerify, /^go test /u);
+  assert.deepEqual(rust.hidden, ['tests/test_downcast.rs']);
+  assert.deepEqual(go.hidden, ['bytes_test.go', 'bigbytes_test.go']);
+  assert.equal(rust.test, 'cargo test');
+  assert.equal(go.test, 'go test ./...');
+});
+
+test('clause 7: a Go row finds the newest installed Go toolchain, and none when mise holds no Go', () => {
+  const present = new Set(['/m/installs/go/1.27.3/bin/go']);
+  const dirs = ['1.26.0', '1.27.3', '1.27.2', 'latest', '1'];
+  assert.equal(
+    goToolchainBin(
+      '/m/installs',
+      (path) => present.has(path),
+      () => dirs,
+    ),
+    '/m/installs/go/1.27.3/bin',
+  );
+  assert.equal(
+    goToolchainBin(
+      '/m/installs',
+      () => false,
+      () => dirs,
+    ),
+    undefined,
+  );
+  assert.equal(
+    goToolchainBin('/m/installs', existsSync, () => {
+      throw new Error('ENOENT');
+    }),
+    undefined,
+  );
 });

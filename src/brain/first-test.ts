@@ -4,9 +4,15 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type FirstTestStack = 'wordpress' | 'php' | 'npm' | 'static';
+export type FirstTestStack =
+  | 'wordpress'
+  | 'php'
+  | 'npm'
+  | 'rust'
+  | 'go'
+  | 'static';
 
-/** The stack of a repository root by its marker files; WordPress wins over plain PHP, PHP over npm. */
+/** The stack of a repository root by its marker files; WordPress wins over plain PHP, PHP over Rust, Rust over Go, Go over npm. */
 export function firstTestStack(root: string): FirstTestStack {
   const has = (name: string) => existsSync(join(root, name));
   const php =
@@ -21,6 +27,8 @@ export function firstTestStack(root: string): FirstTestStack {
   )
     return 'wordpress';
   if (php) return 'php';
+  if (has('Cargo.toml')) return 'rust';
+  if (has('go.mod')) return 'go';
   return has('package.json') ? 'npm' : 'static';
 }
 
@@ -44,6 +52,16 @@ const RECIPES: Record<FirstTestStack, string> = {
     'Write test/<module>.test.mjs with `import test from "node:test"; import assert from "node:assert/strict";`, import one pure function from a production source file and assert its result for one hand-written input.',
     'Never assert only on data, config or docs files (JSON contracts, fixtures, README): the proof deletes one production source line and the test must go red.',
     'krn.json "test": "node --test" (and "scripts.test" in package.json when absent).',
+  ].join(' '),
+  rust: [
+    'First test, Rust: an integration test in tests/<module>.rs that calls one pure public function of the crate and asserts its result for one hand-written input (a #[test] fn with assert_eq!).',
+    'Without a lib target, move one computation into src/lib.rs first. krn.json "test": "cargo test" (the related command is the same; cargo builds only what changed).',
+    'The proof deletes one production line and the test must go red: assert on computed values, never on a constant or a compile-only check.',
+  ].join(' '),
+  go: [
+    'First test, Go: a <module>_test.go file in the package of one pure function; `func TestX(t *testing.T)` calls it and fails with t.Errorf when the result for one hand-written input differs.',
+    'krn.json "test": "go test ./..." (the related command takes the package of each changed file).',
+    'The proof deletes one production line and the test must go red: assert on computed values, never on a constant.',
   ].join(' '),
   static: [
     'First test, static site: node:test reads one built or source HTML/CSS file and asserts a fact the page must keep (a title, a link target, a required element).',
