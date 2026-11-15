@@ -1,7 +1,11 @@
 {
   "id": "t-0h11lap",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "align-64 downcast fixed"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "anyhow aborts when the wrapped error type needs a large alignment",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "cargo test",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
