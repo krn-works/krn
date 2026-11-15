@@ -14,7 +14,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "fast": "node scripts/fast-check.ts",
-    "lint": "biome check --error-on-warnings . && node scripts/boundaries.ts",
+    "lint": "biome check --error-on-warnings . && node scripts/boundaries.ts && node scripts/task-quality.ts",
     "test": "node scripts/test-suite.mjs",
     "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",

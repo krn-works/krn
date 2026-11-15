@@ -166,3 +166,8 @@ export function taskQualityFailures(root: string, rule: TaskRule): string[] {
     .filter((t) => t.status === 'open')
     .flatMap((t) => openFailure(rule, t, ids));
 }
+
+/** Every task-quality failure in the repository at `root`, all rules. */
+export function allTaskQualityFailures(root: string): string[] {
+  return TASK_RULES.flatMap((rule) => taskQualityFailures(root, rule));
+}
