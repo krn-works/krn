@@ -9,6 +9,7 @@
     "t-9pra0h1"
   ],
   "body": [
-    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S2 (Sector 1 — Direction and operator surface (ADR 0024)); program t-b160jt0.\nWhy: ADR 0024 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: step 1 deletes roadmap.md, roadmap-prune, proposals.md and the stale plans; after a red-CI baseline over 50 merges, step 2 folds lead-rules.md and repository-workflow.md into the krn-lead skill and removes KRN-09/KRN-10\nFiles: see ADR 0024 Consequences.\nProof: `ls docs/program | wc -l` (2 after step 2) and `npm run rules`\nPredicted: metric lead-mandatory-bytes <= 15000\nAfter: S1"
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S2 (Sector 1 — Direction and operator surface (ADR 0024)); program t-b160jt0.\nWhy: ADR 0024 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: step 1 deletes roadmap.md, roadmap-prune, proposals.md and the stale plans; after a red-CI baseline over 50 merges, step 2 folds lead-rules.md and repository-workflow.md into the krn-lead skill and removes KRN-09/KRN-10\nFiles: see ADR 0024 Consequences.\nProof: `ls docs/program | wc -l` (2 after step 2) and `npm run rules`\nPredicted: metric lead-mandatory-bytes <= 15000\nAfter: S1",
+    "Acceptance: step 1 deletes test/ci/rebase-generated.test.ts and test/rules/roadmap-open-tasks.test.ts with the code they test; the conflict exit 76 is covered by test/ci/conflict-check.test.ts."
   ]
 }
