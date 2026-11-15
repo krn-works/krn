@@ -59,6 +59,15 @@ import urllib.parse
 __version__ = '0.6'
 
 
+def safe_join(base, name):
+    """Return base/name, raising if it resolves outside base."""
+    base = pathlib.Path(base).resolve()
+    outpath = (base/name).resolve()
+    if outpath != base and base not in outpath.parents:
+        raise Exception(f'unsafe path in archive: {name!r}')
+    return outpath
+
+
 def error(s):
     raise Exception(s)
 
@@ -223,10 +232,10 @@ class RemoteZipFile:
 
             path = path or pathlib.Path('.')
 
-            outpath = path/member
+            outpath = safe_join(path, getattr(member, 'filename', member))
             os.makedirs(outpath.parent, exist_ok=True)
             with self.open(member) as fpin:
-                with open(path/member, mode='wb') as fpout:
+                with open(outpath, mode='wb') as fpout:
                     while True:
                         r = fpin.read(65536)
                         if not r:
@@ -354,6 +363,7 @@ def download_file(f, rzf, args):
     else:
         path = pathlib.Path(f.filename)
         if args.full_filepaths:
+            path = safe_join('.', f.filename)
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
             path = path.name
