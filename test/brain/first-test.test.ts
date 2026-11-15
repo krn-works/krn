@@ -10,7 +10,10 @@ import {
   firstTestStack,
 } from '../../src/brain/first-test.ts';
 import { laneBriefText } from '../../src/cli/lane-brief.ts';
-import { bootstrapProof } from '../../src/cli/lane-run/bootstrap.ts';
+import {
+  bootstrapProof,
+  mutationCandidates,
+} from '../../src/cli/lane-run/bootstrap.ts';
 
 function fixture(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'first-test-'));
@@ -103,6 +106,96 @@ test('a static site gets the node:test recipe and a non-vacuous repository gets 
       /First-test recipe/u,
     );
     assert.match(firstTestRecipe('static'), /node:test/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a TypeScript npm repository with a declared runner gets the runner and the .js-import trap in its recipe', () => {
+  const root = fixture({
+    'krn.json': vacuous,
+    'tsconfig.json': '{}',
+    'package.json': JSON.stringify({ devDependencies: { vitest: '^4' } }),
+    'src/index.ts': 'export { add } from "./add.js";\n',
+    'src/add.ts': 'export const add = (a: number, b: number) => a + b;\n',
+  });
+  try {
+    const brief = laneBriefText(root, 'brief', '2026-11-14');
+    assert.match(brief, /First-test recipe \(npm\)/u);
+    assert.match(brief, /ERR_MODULE_NOT_FOUND/u);
+    assert.match(brief, /npx vitest run <that test file>/u);
+    assert.match(brief, /Never assert only on data, config or docs files/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a plain JavaScript npm repository gets no TypeScript or runner hint', () => {
+  const root = fixture({
+    'krn.json': vacuous,
+    'package.json': '{"name":"x"}',
+    'add.mjs': JS,
+  });
+  try {
+    const brief = laneBriefText(root, 'brief', '2026-11-14');
+    assert.match(brief, /First-test recipe \(npm\)/u);
+    assert.doesNotMatch(
+      brief,
+      /ERR_MODULE_NOT_FOUND|declares (vitest|jest|mocha)/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation candidates start with the sources the selected tests import, .js specifiers resolved to .ts', () => {
+  const texts: Record<string, string> = {
+    'test/scan.test.mjs': 'import { scanAll } from "../src/ledger/scan.ts";\n',
+    'src/ledger/scan.ts':
+      'import type { Row } from "./types.js";\nimport { sum } from "./sum.js";\n',
+    'src/ledger/sum.ts': 'export const sum = 1;\n',
+    'src/ledger/types.ts': 'export type Row = number;\n',
+    'test/ledger/other.test.ts':
+      'import { x } from "../../src/adapters/a.ts";\n',
+  };
+  const tracked = [
+    'scripts/demo.ts',
+    'src/adapters/a.ts',
+    ...Object.keys(texts),
+  ].sort();
+  const read = (file: string) => texts[file] ?? '';
+  const candidates = mutationCandidates(
+    read,
+    'node --test test/*.test.mjs',
+    tracked,
+  );
+  assert.deepEqual(candidates.slice(0, 3), [
+    'src/ledger/scan.ts',
+    'src/ledger/types.ts',
+    'src/ledger/sum.ts',
+  ]);
+  assert.ok(candidates.includes('scripts/demo.ts'));
+  assert.ok(!candidates.some((file) => file.startsWith('test/')));
+});
+
+test('the bootstrap proof mutates the module the new test imports even when a dozen sources sort before it', () => {
+  const filler: Record<string, string> = {};
+  for (let index = 0; index < 14; index++)
+    filler[`src/a${String(index).padStart(2, '0')}.mjs`] =
+      'export const unused = () => {\n  return console.log("x");\n};\n';
+  const root = fixture({
+    ...filler,
+    'package.json': '{"name":"x","type":"module"}',
+    'src/z/add.mjs': JS,
+    'test/add.test.mjs':
+      'import test from "node:test";\nimport assert from "node:assert/strict";\nimport { add } from "../src/z/add.mjs";\ntest("add", () => assert.equal(add(2, 3), 5));\n',
+    'krn.json': JSON.stringify({ test: 'node --test test/*.test.mjs' }),
+  });
+  try {
+    delete process.env.NODE_TEST_CONTEXT;
+    const proof = bootstrapProof(root, 'node --test test/*.test.mjs');
+    assert.ok('verified' in proof, JSON.stringify(proof));
+    assert.match(proof.verified, /src\/z\/add\.mjs/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

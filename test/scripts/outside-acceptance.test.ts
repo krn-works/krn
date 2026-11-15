@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   adoptArgs,
   baseCommit,
+  defaultScratch,
   drainFacts,
   gradedRow,
   outsideBranch,
@@ -141,4 +142,9 @@ test('pick carries install and related from the scratch krn.json and nothing els
     related: 'r',
   });
   assert.deepEqual(pick({ test: 't' }), {});
+});
+
+test('the scratch default is the env override, else krn-outside in the system temp dir', () => {
+  assert.equal(defaultScratch({ KRN_OUTSIDE_SCRATCH: '/x' }), '/x');
+  assert.match(defaultScratch({ KRN_OUTSIDE_SCRATCH: '' }), /krn-outside$/u);
 });

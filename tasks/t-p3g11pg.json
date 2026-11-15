@@ -1,7 +1,11 @@
 {
   "id": "t-p3g11pg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rows php 52c9dd5, py 53e0c32, npm c6f42f7 drain 0 merged; npm needed mutation candidates ranked by test imports and a TypeScript/runner-aware npm recipe"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Outside acceptance reruns as one script and three orphan-base drains end clean with zero lead turns",

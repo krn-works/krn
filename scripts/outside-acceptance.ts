@@ -36,10 +36,15 @@ export function outsideBranch(stack: string): string {
   return `outside/${stack}`;
 }
 
+/** The default scratch root: KRN_OUTSIDE_SCRATCH, else krn-outside in the system temp dir. */
+export function defaultScratch(env: NodeJS.ProcessEnv = process.env): string {
+  return env.KRN_OUTSIDE_SCRATCH || join(tmpdir(), 'krn-outside');
+}
+
 export function parseOptions(
   args: string[],
   root: string,
-  scratch = process.env.KRN_OUTSIDE_SCRATCH ?? join(tmpdir(), 'krn-outside'),
+  scratch = defaultScratch(),
 ): RunOptions {
   const options: RunOptions = {
     stacks: [],
@@ -263,6 +268,10 @@ function credentialConfig(root: string): string[] {
 function acceptStack(stack: string, options: RunOptions, root: string): string {
   const branch = outsideBranch(stack);
   const source = join(options.scratch, stack);
+  if (!existsSync(source))
+    throw new Error(
+      `outside-acceptance: no scratch copy ${source}; pass --scratch DIR or set KRN_OUTSIDE_SCRATCH to the directory holding the ${stack} copy`,
+    );
   const dir = join(options.scratch, 'runs', `${stack}-${Date.now()}`);
   const krn = join(root, 'bin/krn');
   const git = (args: string[], cwd = dir) =>

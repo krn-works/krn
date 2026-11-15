@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import {
   BOOTSTRAP_TASK_TITLE,
   GREEN_BASE_TASK_TITLE,
 } from '../../adopt/adopt.ts';
+import { namedTests } from '../../adopt/canary.ts';
 import { findContract, parseContractFile } from '../../repo/contract.ts';
 import { getTask } from '../../task/store.ts';
 import { git } from './git.ts';
@@ -59,6 +60,90 @@ function mutableLines(text: string): number[] {
   return found;
 }
 
+const RELATIVE_SPECIFIER =
+  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire(?:_once)?\s*\(?\s*(?:__DIR__\s*\.\s*)?)['"](\.{0,2}\/[^'"]+)['"]/gu;
+
+/** The tracked file a relative specifier names: as written, a TypeScript twin of a .js specifier, or with an extension or index added. */
+function resolveSpecifier(
+  from: string,
+  specifier: string,
+  tracked: Set<string>,
+): string | undefined {
+  const base = posix.normalize(
+    posix.join(posix.dirname(from), specifier.replace(/^\/+/u, '')),
+  );
+  const stem = base.replace(/\.(?:m|c)?js$/u, '');
+  const candidates = [
+    base,
+    `${stem}.ts`,
+    `${stem}.tsx`,
+    `${stem}.mts`,
+    `${stem}.cts`,
+    `${base}.ts`,
+    `${base}.js`,
+    `${base}.mjs`,
+    `${base}/index.ts`,
+    `${base}/index.js`,
+  ];
+  return candidates.find((candidate) => tracked.has(candidate));
+}
+
+/**
+ * Production files the selected test files reach through relative imports, nearest first (two hops), so the
+ * mutation hits code the new test exercises before the rest of the tree.
+ */
+export function importedSources(
+  read: (file: string) => string,
+  tests: string[],
+  tracked: Set<string>,
+): string[] {
+  const found: string[] = [];
+  let frontier = tests;
+  for (let hop = 0; hop < 2 && frontier.length > 0; hop++) {
+    const next: string[] = [];
+    for (const file of frontier) {
+      let text: string;
+      try {
+        text = read(file);
+      } catch {
+        continue;
+      }
+      for (const match of text.matchAll(RELATIVE_SPECIFIER)) {
+        const target = resolveSpecifier(file, match[1] as string, tracked);
+        if (
+          target === undefined ||
+          found.includes(target) ||
+          !SOURCE.test(target) ||
+          TESTISH.test(target)
+        )
+          continue;
+        found.push(target);
+        next.push(target);
+      }
+    }
+    frontier = next;
+  }
+  return found;
+}
+
+/** Mutation candidates: production files the command's tests import first, then the other tracked production files. */
+export function mutationCandidates(
+  read: (file: string) => string,
+  command: string,
+  tracked: string[],
+): string[] {
+  const { named, matched } = namedTests(command, tracked);
+  const tests = named ? matched : tracked.filter((file) => TESTISH.test(file));
+  const imported = importedSources(read, tests, new Set(tracked));
+  const rest = tracked.filter(
+    (file) =>
+      SOURCE.test(file) && !TESTISH.test(file) && !imported.includes(file),
+  );
+  return [...imported, ...rest];
+}
+
+const MUTATION_LIMIT = 12;
+
 /**
  * The bootstrap proof after the session: the new test command is green on the delivered tree, goes red when
  * one production line is deleted and green again on revert. A test that stays green under every
@@ -87,16 +172,20 @@ export function bootstrapProof(
     return {
       failure: `the new test command ${command} is red on the delivered tree (exit ${green.run.status ?? 'signal'})`,
     };
-  const files = git(worktree, ['ls-files'])
-    .split('\n')
-    .filter((file) => SOURCE.test(file) && !TESTISH.test(file))
-    .slice(0, 12);
+  const tracked = git(worktree, ['ls-files']).split('\n').filter(Boolean);
+  const files = mutationCandidates(
+    (file) => readFileSync(join(worktree, file), 'utf8'),
+    command,
+    tracked,
+  );
   let attempts = 0;
   for (const file of files) {
+    if (attempts >= MUTATION_LIMIT) break;
     const path = join(worktree, file);
     const original = readFileSync(path, 'utf8');
     for (const index of mutableLines(original)) {
-      if (attempts++ >= 8) break;
+      if (attempts >= MUTATION_LIMIT) break;
+      attempts++;
       const lines = original.split('\n');
       const removed = (lines[index] as string).trim();
       lines[index] = '';
