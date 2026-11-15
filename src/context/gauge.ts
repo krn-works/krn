@@ -115,9 +115,9 @@ const handoffCommand =
   /^(?:cd|echo|true|(?:bin\/)?krn|git|node scripts\/claude\/(?:handoff-requests|operator-inbox|successor-launch)\.ts)(?:\s|$)/;
 // Host mode (the gauge installed in ~/.claude/settings.json for every
 // project) also admits the context-relay handoff: its usage and relay
-// scripts, herdr to verify the successor, and bd for Beads trackers.
+// scripts, herdr or hc to verify the successor, and bd for Beads trackers.
 const relayCommand =
-  /^(?:herdr|bd|(?:python3\s+)?(?:~|\$HOME|\$\{HOME\}|\/home\/[^/\s]+)\/\.claude\/skills\/context-relay\/scripts\/(?:relay\.sh|context-usage\.py))(?:\s|$)/;
+  /^(?:herdr|hc|bd|(?:python3\s+)?(?:~|\$HOME|\$\{HOME\}|\/home\/[^/\s]+)\/\.claude\/skills\/context-relay\/scripts\/(?:relay\.sh|context-usage\.py))(?:\s|$)/;
 // The continuation prompt and handoff documents a relay writes.
 const relayDocument = /(?:PROMPT|handoff)[^/]*\.md$/i;
 // A bounded Read elsewhere still fits a handoff that checks one fact.
@@ -272,7 +272,7 @@ export async function main(): Promise<void> {
             hookSpecificOutput: {
               hookEventName: 'PreToolUse',
               permissionDecision: 'deny',
-              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; ${handoff} now (Skill, handoff Bash commands (krn, git, cd, echo, node scripts/claude/{handoff-requests,operator-inbox,successor-launch}.ts${host ? ', herdr, bd, context-relay scripts' : ''}), reads and writes under .krn/${host ? ' and *PROMPT*/handoff*.md' : ''}, and Read with limit <= ${ceilingReadLines} stay open).`,
+              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; ${handoff} now (Skill, handoff Bash commands (krn, git, cd, echo, node scripts/claude/{handoff-requests,operator-inbox,successor-launch}.ts${host ? ', herdr, hc, bd, context-relay scripts' : ''}), reads and writes under .krn/${host ? ' and *PROMPT*/handoff*.md' : ''}, and Read with limit <= ${ceilingReadLines} stay open).`,
             },
           }),
         );

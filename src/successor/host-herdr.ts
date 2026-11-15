@@ -4,7 +4,14 @@
 
 import { claudeAgent } from '../harness/claude.ts';
 import { readJson } from '../repo/json-text.ts';
-import { type CommandResult, record, run, text } from './command.ts';
+import {
+  type CommandResult,
+  hasChildShell,
+  record,
+  run,
+  text,
+} from './command.ts';
+import { failureOf, succeeded } from './host-failure.ts';
 import type {
   AgentInfo,
   HostFailure,
@@ -14,10 +21,6 @@ import type {
   TabRef,
   TerminalHost,
 } from './terminal-host.ts';
-
-function succeeded(result: CommandResult): boolean {
-  return result.status === 0 && !result.error;
-}
 
 function herdrFailure(result: CommandResult): string {
   if (result.error?.message.includes('ENOENT')) return 'herdr not on PATH';
@@ -39,20 +42,8 @@ function failureReason(result: CommandResult): string {
   return result.stderr.trim() || `exit ${result.status}`;
 }
 
-// What exitFailure would print, kept as data so the caller decides.
 function hostFailure(result: CommandResult): HostFailure {
-  let stderr = '';
-  let exit = 1;
-  if (result.error) stderr = `${result.error.message}\n`;
-  else {
-    stderr = result.stderr;
-    if (result.status !== null && result.status !== 0) {
-      if (!result.stderr)
-        stderr = `command exited with status ${result.status}\n`;
-      exit = result.status;
-    }
-  }
-  return { exit, stderr, reason: failureReason(result) };
+  return failureOf(result, failureReason(result));
 }
 
 function outcome(result: CommandResult): HostFailure | undefined {
@@ -71,8 +62,6 @@ function paneInfo(output: string): { scope?: ScopeRef; tab?: TabRef } {
   }
 }
 
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
-
 // A pane hosts running work when Herdr lists a foreground process other than
 // the agent, or the agent process has a live child shell (a background
 // monitor). `pane process-info` lists foreground processes only, so children
@@ -90,11 +79,7 @@ export function hostsRunningWork(paneId: string): boolean {
       if (process?.name !== claudeAgent) return true;
       const pid = process.pid;
       if (typeof pid !== 'number') continue;
-      const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);
-      for (const line of children.stdout.split('\n')) {
-        const command = line.trim().split(/\s+/u).pop();
-        if (command && SHELLS.has(command)) return true;
-      }
+      if (hasChildShell(pid)) return true;
     }
   } catch {
     return false;

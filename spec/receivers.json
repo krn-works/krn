@@ -218,6 +218,17 @@
       "receivers": ["herdr", "ps"],
       "real": "test/claude/successor-launch.test.ts"
     },
+    "src/successor/host-hc.ts": {
+      "receivers": ["hc", "ps"],
+      "capture": [
+        "test/fixtures/hc/get-claude-idle.reply.jsonl",
+        "test/fixtures/hc/get-missing.stderr.jsonl",
+        "test/fixtures/hc/wait-ended.reply.jsonl",
+        "test/fixtures/hc/ls-claude.reply.jsonl",
+        "test/fixtures/hc/server-status.reply.jsonl"
+      ],
+      "test": "test/claude/terminal-host-hc.test.ts"
+    },
     "src/successor/compose.ts": {
       "receivers": ["node"],
       "real": "test/claude/github-app-token.test.ts"

@@ -64,3 +64,21 @@ export function exitFailure(result: CommandResult): number {
   }
   return 1;
 }
+
+const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
+
+// Whether the process has a live child shell (a background monitor), which the
+// host cannot list as a foreground process: the answer comes from the process table.
+export function hasChildShell(pid: number): boolean {
+  const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);
+  for (const line of children.stdout.split('\n')) {
+    const command = line.trim().split(/\s+/u).pop();
+    if (command && SHELLS.has(command)) return true;
+  }
+  return false;
+}
+
+/** Whether a program name is an interactive shell. */
+export function isShell(name: string): boolean {
+  return SHELLS.has(name);
+}
