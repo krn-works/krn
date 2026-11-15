@@ -1,0 +1,19 @@
+{
+  "id": "t-0tm3lsw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "URLs with an ampersand are escaped in the wrong places",
+  "after": [],
+  "body": [
+    "Bugs seen in mistune: (1) with the fenced image directive, '~~~{image} https://example.com/picture.png?foo=qux&test=me' and a ':target: https://example.com/rickroll?a=1&b=2' option do not produce valid HTML: the ampersand in the img src and in the link href must appear as &amp;. (2) With renderer=None (the AST), a link '[hi &<>\"](https://example.com/foo?a=1&b=2)' has its url attribute altered by HTML escaping; the AST must carry the url exactly as written."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
