@@ -1,7 +1,11 @@
 {
   "id": "t-p8wpfq5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fixture minus 5 pack records reports 5 missing via verify and doctor (exit 65, remedy), 0 after krn adopt --refresh-all; test/adopt/drift.test.ts"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "An adopted repository reports the pack records it lacks and one command refreshes every registered repository",

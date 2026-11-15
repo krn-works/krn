@@ -113,3 +113,65 @@ function readdirSkill(root: string): string {
   )[0];
   return join(dir, name as string, 'SKILL.md');
 }
+
+import { missingPackRecords } from '../../src/adopt/drift.ts';
+import { packsReport } from '../../src/cli/doctor-packs.ts';
+
+function dropRecords(root: string, count: number): string[] {
+  const standards = join(root, '.agents/standards.json');
+  const all = JSON.parse(readFileSync(standards, 'utf8')) as { id: string }[];
+  const dropped = all.splice(0, count).map((record) => record.id);
+  writeFileSync(standards, `${JSON.stringify(all, null, 2)}\n`);
+  return dropped;
+}
+
+test('a repository adopted on the pack minus five records reports five missing, verify and doctor exit non-zero with the remedy, refresh-all brings it to zero', () => {
+  const root = adopted();
+  assert.deepEqual(missingPackRecords(root), []);
+  const dropped = dropRecords(root, 5);
+  assert.deepEqual([...missingPackRecords(root)].sort(), [...dropped].sort());
+
+  const verify = krnAdopt(root, '--verify');
+  assert.equal(verify.status, 1);
+  const lines = verify.stdout
+    .split('\n')
+    .filter((line) => line.startsWith('verify drift: pack record '));
+  assert.equal(lines.length, 5);
+  assert.match(lines[0] as string, /run krn adopt .* --refresh$/u);
+
+  const registry = join(
+    mkdtempSync(join(tmpdir(), 'krn-reg-')),
+    'adopted.json',
+  );
+  writeFileSync(registry, JSON.stringify([root]));
+  const stale = packsReport(registry);
+  assert.equal(stale.exitCode, 65);
+  assert.match(stale.text, /lacks 5 pack records/u);
+  assert.match(stale.text, /krn adopt --refresh-all/u);
+
+  const env = { ...process.env, KRN_ADOPTED_REGISTRY: registry };
+  const refresh = spawnSync(process.execPath, [cli, 'adopt', '--refresh-all'], {
+    encoding: 'utf8',
+    env,
+  });
+  assert.equal(refresh.status, 0, refresh.stdout + refresh.stderr);
+  assert.match(refresh.stdout, /^refreshed .*: \d+ updated$/mu);
+  assert.deepEqual(missingPackRecords(root), []);
+  assert.equal(packsReport(registry).exitCode, 0);
+  assert.equal(
+    krnAdopt(root, '--verify').stdout.includes('pack record'),
+    false,
+  );
+});
+
+test('refresh-all with no registered repository is a usage error', () => {
+  const run = spawnSync(process.execPath, [cli, 'adopt', '--refresh-all'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KRN_ADOPTED_REGISTRY: join(tmpdir(), 'krn-none-registry.json'),
+    },
+  });
+  assert.notEqual(run.status, 0);
+  assert.match(run.stderr, /no adopted repository registered/u);
+});
