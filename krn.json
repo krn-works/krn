@@ -1,6 +1,5 @@
 {
   "base": "outside/php",
-  "test": "echo 'no test command: add one real test and set test in krn.json' >&2; exit 1",
-  "tracker": "krn",
-  "vacuous": true
+  "test": "php tests/smoke.php",
+  "tracker": "krn"
 }
