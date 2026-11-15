@@ -14,6 +14,44 @@ const taskKeys = [
 const acceptanceKey = 'acceptance';
 const acceptanceKeys = ['verify', 'passes', 'exit'] as const;
 
+// Category fields are optional and follow `acceptance`; old records keep their bytes.
+const categoryKeys = ['kind', 'area', 'stack', 'from'] as const;
+export const TASK_CATEGORIES = [
+  'feature',
+  'defect',
+  'debt',
+  'gate',
+  'chore',
+  'research',
+] as const;
+export const TASK_ORIGINS = [
+  'inbox',
+  'finding',
+  'outside-row',
+  'task',
+  'candidate',
+] as const;
+const tokenPattern = /^[a-z0-9][a-z0-9._-]*$/u;
+export type TaskCategory = (typeof TASK_CATEGORIES)[number];
+export type TaskOriginKind = (typeof TASK_ORIGINS)[number];
+
+export interface TaskOrigin {
+  kind: TaskOriginKind;
+  ref: string;
+}
+
+export function isTaskCategory(value: unknown): value is TaskCategory {
+  return (TASK_CATEGORIES as readonly unknown[]).includes(value);
+}
+
+export function isTaskOriginKind(value: unknown): value is TaskOriginKind {
+  return (TASK_ORIGINS as readonly unknown[]).includes(value);
+}
+
+export function isCategoryToken(value: unknown): value is string {
+  return typeof value === 'string' && tokenPattern.test(value);
+}
+
 const resolutionKeys = ['kind', 'ref', 'note'] as const;
 const taskIdPattern = /^[A-Za-z]+-[0-9A-Za-z]+$/u;
 // Ids name files (`tasks/<id>.json`, staged claim files), so they stay far
@@ -48,6 +86,10 @@ export interface TaskRecord {
   after: TaskId[];
   body: string[];
   acceptance?: TaskAcceptance[];
+  kind?: TaskCategory;
+  area?: string;
+  stack?: string[];
+  from?: TaskOrigin;
 }
 
 interface ParsedTask {
@@ -130,6 +172,14 @@ export function serializeTask(record: TaskRecord): string {
             exit: entry.exit,
           })),
         }),
+    ...(record.kind === undefined ? {} : { kind: record.kind }),
+    ...(record.area === undefined ? {} : { area: record.area }),
+    ...(record.stack === undefined || record.stack.length === 0
+      ? {}
+      : { stack: [...new Set(record.stack)].sort() }),
+    ...(record.from === undefined
+      ? {}
+      : { from: { kind: record.from.kind, ref: record.from.ref } }),
   };
   return `${JSON.stringify(canonical, null, 2)}\n`;
 }
@@ -206,8 +256,11 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   for (const key of taskKeys) {
     if (!(key in object)) findings.push(`missing key "${key}"`);
   }
-  const expectedKeys: readonly string[] =
-    acceptanceKey in object ? [...taskKeys, acceptanceKey] : taskKeys;
+  const expectedKeys: readonly string[] = [
+    ...taskKeys,
+    ...(acceptanceKey in object ? [acceptanceKey] : []),
+    ...categoryKeys.filter((key) => key in object),
+  ];
   for (const key of actualKeys) {
     if (!expectedKeys.includes(key)) findings.push(`extra key "${key}"`);
   }
@@ -252,6 +305,8 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
     acceptanceKey in object
       ? parseAcceptance(object.acceptance, findings)
       : undefined;
+
+  const categories = parseCategories(object, findings);
 
   if (
     status === 'closed' &&
@@ -308,6 +363,7 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
           after,
           body,
           ...(acceptance === undefined ? {} : { acceptance }),
+          ...categories,
         }
       : undefined;
 
@@ -317,6 +373,55 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   return record === undefined
     ? { findings, id, afterReferences, resolutionReference }
     : { record, findings, id, afterReferences, resolutionReference };
+}
+
+function parseCategories(
+  object: Record<string, unknown>,
+  findings: string[],
+): Pick<TaskRecord, 'kind' | 'area' | 'stack' | 'from'> {
+  const result: Pick<TaskRecord, 'kind' | 'area' | 'stack' | 'from'> = {};
+  if ('kind' in object) {
+    if (isTaskCategory(object.kind)) result.kind = object.kind;
+    else findings.push(`"kind" must be one of ${TASK_CATEGORIES.join(', ')}`);
+  }
+  if ('area' in object) {
+    if (isCategoryToken(object.area)) result.area = object.area;
+    else findings.push('"area" must be a lowercase token');
+  }
+  if ('stack' in object) {
+    const stack = object.stack;
+    if (
+      Array.isArray(stack) &&
+      stack.length > 0 &&
+      stack.every(isCategoryToken)
+    ) {
+      const sorted = [...stack].sort();
+      if (
+        new Set(stack).size !== stack.length ||
+        stack.some((item, index) => item !== sorted[index])
+      )
+        findings.push('"stack" must be sorted without duplicates');
+      result.stack = stack as string[];
+    } else
+      findings.push('"stack" must be a non-empty array of lowercase tokens');
+  }
+  if ('from' in object) {
+    const from = object.from;
+    if (from === null || typeof from !== 'object' || Array.isArray(from))
+      findings.push('"from" must be an object');
+    else {
+      const entry = from as Record<string, unknown>;
+      const keys = Object.keys(entry);
+      if (keys.length !== 2 || keys[0] !== 'kind' || keys[1] !== 'ref')
+        findings.push('"from" must have keys kind, ref in order');
+      else if (!isTaskOriginKind(entry.kind))
+        findings.push(`"from.kind" must be one of ${TASK_ORIGINS.join(', ')}`);
+      else if (typeof entry.ref !== 'string' || entry.ref.trim() === '')
+        findings.push('"from.ref" must be a non-empty string');
+      else result.from = { kind: entry.kind, ref: entry.ref };
+    }
+  }
+  return result;
 }
 
 function parseAcceptance(

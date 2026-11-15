@@ -62,6 +62,36 @@
         "type": "string"
       }
     },
+    "kind": {
+      "enum": ["feature", "defect", "debt", "gate", "chore", "research"]
+    },
+    "area": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "stack": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      }
+    },
+    "from": {
+      "type": "object",
+      "required": ["kind", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["inbox", "finding", "outside-row", "task", "candidate"]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "acceptance": {
       "type": "array",
       "items": {

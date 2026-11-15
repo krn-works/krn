@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createTask } from '../../src/task/store.ts';
+import { withCategories } from './task-fixture.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 function fixture(t: { after(fn: () => void): void }) {
@@ -38,7 +39,7 @@ function fixture(t: { after(fn: () => void): void }) {
   git(main, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
   git(main, 'worktree', 'add', '-qb', 'lane', lane);
   function run(cwd: string, ...args: string[]) {
-    return spawnSync(process.execPath, [cli, 'task', ...args], {
+    return spawnSync(process.execPath, [cli, 'task', ...withCategories(args)], {
       cwd,
       encoding: 'utf8',
     });

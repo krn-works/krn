@@ -16,6 +16,7 @@ import {
   type TaskId,
   type TaskRecord,
 } from '../../src/task/record.ts';
+import { withCategories } from './task-fixture.ts';
 
 export const cli = fileURLToPath(
   new URL('../../src/cli/main.ts', import.meta.url),
@@ -180,7 +181,7 @@ export async function runCliInProcess(
     return true;
   }) as typeof process.stderr.write;
   try {
-    await taskCommand(args);
+    await taskCommand(withCategories(args));
     return { status: Number(process.exitCode ?? 0), stdout, stderr };
   } finally {
     process.stdout.write = stdoutWrite;
@@ -193,15 +194,19 @@ export async function runCliInProcess(
 }
 
 export function runCliSpawn(cwd: string, args: string[]): CliResult {
-  const result = spawnSync(process.execPath, [cli, 'task', ...args], {
-    cwd,
-    encoding: 'utf8',
-    env: {
-      ...cleanGitEnvironment(),
-      KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'task', ...withCategories(args)],
+    {
+      cwd,
+      encoding: 'utf8',
+      env: {
+        ...cleanGitEnvironment(),
+        KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+      },
+      timeout: 10_000,
     },
-    timeout: 10_000,
-  });
+  );
   return {
     status: result.status,
     stdout: result.stdout.toString(),
@@ -211,14 +216,18 @@ export function runCliSpawn(cwd: string, args: string[]): CliResult {
 
 export function runCliAsync(cwd: string, args: string[]): Promise<CliResult> {
   return new Promise((resolveResult) => {
-    const child = spawn(process.execPath, [cli, 'task', ...args], {
-      cwd,
-      env: {
-        ...cleanGitEnvironment(),
-        KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+    const child = spawn(
+      process.execPath,
+      [cli, 'task', ...withCategories(args)],
+      {
+        cwd,
+        env: {
+          ...cleanGitEnvironment(),
+          KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
       },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    );
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => {

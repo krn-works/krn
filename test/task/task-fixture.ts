@@ -65,6 +65,16 @@ export async function writeTask(
   await writeFile(join(directory, `${record.id}.json`), serializeTask(record));
 }
 
+/** `create` needs a kind and an area; fixtures that are not about categories get plain ones. */
+export function withCategories(args: string[]): string[] {
+  if (args[0] !== 'create') return args;
+  return [
+    ...args,
+    ...(args.includes('--kind') ? [] : ['--kind', 'chore']),
+    ...(args.includes('--area') ? [] : ['--area', 'task']),
+  ];
+}
+
 export function runCli(
   cwd: string,
   args: string[],
@@ -79,13 +89,17 @@ export function runCli(
     ...(legacy === undefined ? {} : { KRN_LEGACY_ENTRY: legacy }),
     ...childEnvironment,
   };
-  const result = spawnSync(process.execPath, [cli, 'task', ...args], {
-    cwd,
-    encoding: 'utf8',
-    env: environment,
-    input,
-    timeout: timeoutMs,
-  });
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'task', ...withCategories(args)],
+    {
+      cwd,
+      encoding: 'utf8',
+      env: environment,
+      input,
+      timeout: timeoutMs,
+    },
+  );
   return {
     status: result.status,
     stdout: result.stdout.toString(),
@@ -102,11 +116,15 @@ export function runCliAsync(
     KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
   };
   return new Promise((resolveResult) => {
-    const child = spawn(process.execPath, [cli, 'task', ...args], {
-      cwd,
-      env: environment,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      process.execPath,
+      [cli, 'task', ...withCategories(args)],
+      {
+        cwd,
+        env: environment,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
