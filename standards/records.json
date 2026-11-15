@@ -2159,5 +2159,401 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "s-go-gofmt",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Tracked Go files are gofmt-formatted, so formatting is never a review topic.",
+    "why": "An unformatted file turns the next author's diff into formatting noise and hides the real change.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "printf 'package p\\n' | gofmt -l >/dev/null 2>&1 || exit 0; out=$(git ls-files '*.go' | grep -vE '(^|/)(vendor|testdata)/' | while IFS= read -r f; do gofmt -l \"$f\" 2>&1; done); [ -z \"$out\" ]"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-vet-run",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Go vet or a golangci-lint configuration runs in the repository's checks (a golangci config, workflow, Makefile or script names it).",
+    "why": "Vet finds misuse the compiler accepts (printf verbs, copied locks, lost cancel funcs) only if something runs it.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)\\.golangci\\.(yml|yaml|toml|json)$' || git grep -qIE 'go vet|golangci|staticcheck' -- .github Makefile makefile GNUmakefile 'Taskfile*' magefile.go .gitlab-ci.yml scripts script hack .pre-commit-config.yaml 2>/dev/null"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-sum-committed",
+    "type": "standard",
+    "area": "dependencies",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A Go module that requires other modules tracks go.sum beside its go.mod.",
+    "why": "Without go.sum nothing verifies the downloaded module contents, and a fresh checkout cannot build reproducibly.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for m in $(git ls-files 'go.mod' '*/go.mod' | grep -vE '(^|/)(vendor|testdata)/'); do grep -qE '^(require[[:space:]]+)?[[:space:]]*[A-Za-z0-9._-]+\\.[A-Za-z]+/[^[:space:]]+[[:space:]]+v[0-9]' \"$m\" || continue; d=$(dirname \"$m\"); s=\"$d/go.sum\"; [ \"$d\" = . ] && s=go.sum; git ls-files | grep -qxF \"$s\" || { echo \"$m has no tracked go.sum\" >&2; exit 1; }; done; exit 0"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-wrapped-errors",
+    "type": "standard",
+    "area": "error-handling",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Go errors that are passed on are wrapped with `%w`, not formatted with `%v` or `%s`.",
+    "why": "Formatting an error into text drops its identity, so callers cannot use errors.Is or errors.As.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE 'fmt\\.Errorf\\(\"[^\"]*%[vs]\",[[:space:]]*([^\"]*,[[:space:]]*)?err\\)' -- '*.go' ':(exclude)*_test.go' ':(exclude)vendor' ':(exclude)*/vendor/*' ':(exclude)testdata' ':(exclude)*/testdata/*'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-no-library-panic",
+    "type": "standard",
+    "area": "error-handling",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Go library code returns errors instead of calling `panic`: only package main, init, Must* constructors, tests and generated code may panic.",
+    "why": "A panic in a library crashes the caller's process; an error lets the caller decide.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "bad=$(git ls-files '*.go' | grep -vE '(_test\\.go$|(^|/)(vendor|testdata|cmd|tools|examples?)/)' | while IFS= read -r f; do grep -qE '^package main$' \"$f\" && continue; grep -q 'Code generated' \"$f\" && continue; awk '/^func /{fn=$0} /^[[:space:]]*\\/\\//{next} /panic\\(/ && fn !~ /^func (\\([^)]*\\) )?(Must|init\\()/ {bad=1} END{exit bad}' \"$f\" || echo \"$f\"; done); [ -z \"$bad\" ] || { printf '%s\\n' \"$bad\" >&2; exit 1; }"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-tests-beside-code",
+    "type": "standard",
+    "area": "tests",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Every Go package directory that declares functions has a _test.go file beside its code (package main, generated code and cmd, tools and examples directories excepted).",
+    "why": "A package without a test beside it has no executable statement of its behavior, and `go test ./...` skips it silently.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "all=$(git ls-files '*.go' | grep -vE '(^|/)(vendor|testdata|cmd|tools|examples?|mocks?|gen|generated|pb|proto)/'); tested=$(printf '%s\\n' \"$all\" | grep '_test\\.go$' | while IFS= read -r f; do dirname \"$f\"; done | sort -u); bad=$(printf '%s\\n' \"$all\" | grep -v '_test\\.go$' | while IFS= read -r f; do [ -n \"$f\" ] || continue; grep -qE '^package main$' \"$f\" && continue; grep -q 'Code generated' \"$f\" && continue; grep -q '^func ' \"$f\" || continue; dirname \"$f\"; done | sort -u | while IFS= read -r d; do printf '%s\\n' \"$tested\" | grep -qxF \"$d\" || echo \"$d\"; done); [ -z \"$bad\" ] || { printf 'no test beside: %s\\n' \"$bad\" >&2; exit 1; }"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-context-first",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A Go function that takes a context.Context takes it as its first parameter.",
+    "why": "The convention lets every reader and linter find cancellation at once, and a context in the middle is easily passed wrongly.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '^func[^{]*\\(([^()]*,)[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]+context\\.Context' -- '*.go' ':(exclude)*_test.go' ':(exclude)vendor' ':(exclude)*/vendor/*' ':(exclude)testdata' ':(exclude)*/testdata/*'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-go-pinned-toolchain",
+    "type": "standard",
+    "area": "dependencies",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "go.mod pins the Go language version, and a workflow that sets a floating `stable`, `oldstable` or `latest` toolchain also pins one (go-version-file or a numeric go-version).",
+    "why": "A floating toolchain makes the same commit build on Monday and fail on Tuesday.",
+    "applies": {
+      "stacks": ["go"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "f=go.mod; [ -f go.mod ] || f=go.work; [ -f \"$f\" ] || exit 0; grep -qE '^go[[:space:]]+[0-9]+\\.[0-9]+' \"$f\" || exit 1; ci=$(cat .github/workflows/*.y*ml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE \"go-version:[[:space:]]*['\\\"]?(stable|oldstable|latest)\" || exit 0; printf '%s\\n' \"$ci\" | grep -qE \"go-version-file:|go-version:[[:space:]]*(\\[[[:space:]]*)?['\\\"]?[0-9]|go-version:[[:space:]]*[$][{][{]\""
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-py-pinned-dependencies",
+    "type": "standard",
+    "area": "dependencies",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Every requirement in a tracked requirements*.txt is pinned with `==` (or `@` for a direct reference).",
+    "why": "An unpinned requirement installs whatever is newest today, so a green run says nothing about tomorrow's install.",
+    "applies": {
+      "stacks": ["python"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "files=$(git ls-files | grep -E '(^|/)requirements[^/]*\\.txt$'); [ -z \"$files\" ] || ! printf '%s\\n' $files | while IFS= read -r f; do cat \"$f\"; echo; done | grep -vE '^[[:space:]]*(#|-|$|\\.|/|[A-Za-z]+://|git\\+)' | grep -vE '==|@' | grep -q ."
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-py-typecheck-configured",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A static type checker (mypy, pyright, ty, pyre or pytype) is configured for the Python project.",
+    "why": "Annotations nothing checks drift from the code and mislead the reader.",
+    "applies": {
+      "stacks": ["python"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in mypy.ini .mypy.ini pyrightconfig.json ty.toml .pyre_configuration; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(mypy|pyright|ty|pyre|pytype)' pyproject.toml 2>/dev/null || grep -qE '^\\[(mypy|pyright)' setup.cfg tox.ini 2>/dev/null || grep -qE 'mypy|pyright|pyre|pytype' .pre-commit-config.yaml noxfile.py 2>/dev/null"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-py-linter-configured",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A Python linter (ruff, flake8 or pylint) is configured, not only a formatter.",
+    "why": "A formatter fixes layout but cannot find unused names, shadowed builtins or unreachable code.",
+    "applies": {
+      "stacks": ["python"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in ruff.toml .ruff.toml .flake8 .pylintrc pylintrc; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(ruff|flake8|pylint|pycodestyle)' pyproject.toml 2>/dev/null || grep -qE '^\\[(flake8|pylint|pycodestyle)' setup.cfg tox.ini 2>/dev/null || grep -qE 'ruff|flake8|pylint' .pre-commit-config.yaml 2>/dev/null"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-py-src-layout",
+    "type": "standard",
+    "area": "structure",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Importable Python packages live in a src directory, not at the repository root (a Django project with manage.py is excepted).",
+    "why": "A root-level package is importable from the working directory, so tests pass against source that the installed package does not ship.",
+    "applies": {
+      "stacks": ["python"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -z \"$(git ls-files manage.py)\" ] || exit 0; ! git ls-files | grep -E '^[^/]+/__init__\\.py$' | grep -vE '^(tests?|docs?|examples?|scripts?|benchmarks?|tools|migrations|build|dist)/' | grep -q ."
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
   }
 ]
