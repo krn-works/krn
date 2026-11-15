@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  BOUNDARY_WORDS,
   characterizingTests,
   clauseProof,
   isTestFile,
@@ -721,7 +722,7 @@ function clauseRefusal(
         ? missingBoundary(clauses, tests, messages)
         : undefined;
     if (missing === undefined) return undefined;
-    return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): no clause covers a boundary case (${missing}). Add a clause for at least one (for example "empty input") and commit a test marked "clause N" whose name or comment names it, or end with a line \`BLOCKER: <what stops you>\`.`;
+    return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): no clause covers a boundary case. Add a clause for at least one (for example "empty input") and commit a test marked "clause N" (in its name, body or a comment) that uses one of these words: ${BOUNDARY_WORDS}; or put the word in the clause text or in a commit message line for that clause. Cases: ${missing}. Or end with a line \`BLOCKER: <what stops you>\`.`;
   }
   return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a changed test whose name contains "clause N" that passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\` (a sibling call site: \`Clause N: not affected: <reason>\`), or end with a line \`BLOCKER: <what stops you>\`.`;
 }

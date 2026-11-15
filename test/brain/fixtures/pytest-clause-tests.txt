@@ -1,0 +1,91 @@
+import unzip_http
+
+
+def test_module_imports():
+    assert unzip_http.RemoteZipFile
+
+
+import io
+import types
+
+import pytest
+
+
+def _rzf(data=b'hello'):
+    rzf = object.__new__(unzip_http.RemoteZipFile)
+    rzf.open = lambda member: io.BytesIO(data)
+    return rzf
+
+
+def _tree(root):
+    return sorted(str(p.relative_to(root)) for p in root.rglob('*'))
+
+
+@pytest.mark.parametrize('kind', ['../x', 'sub/../../x', 'absolute'])
+def test_clause_1_extract_rejects_escaping_names(tmp_path, kind):
+    target = tmp_path / 'target'
+    target.mkdir()
+    name = str(tmp_path / 'abs_x') if kind == 'absolute' else kind
+    with pytest.raises(Exception, match='unsafe path'):
+        _rzf().extract(name, target)
+    assert _tree(tmp_path) == ['target']
+
+
+def test_clause_1_cli_full_filepaths_rejects_escape(tmp_path, monkeypatch):
+    target = tmp_path / 'target'
+    target.mkdir()
+    monkeypatch.chdir(target)
+    f = types.SimpleNamespace(filename='../x', compress_size=5)
+    args = types.SimpleNamespace(files=['*'], stdout=False, full_filepaths=True)
+    with pytest.raises(Exception, match='unsafe path'):
+        unzip_http.download_file(f, _rzf(), args)
+    assert _tree(tmp_path) == ['target']
+
+
+def test_clause_2_escape_writes_nothing(tmp_path):
+    target = tmp_path / 'a' / 'target'
+    target.mkdir(parents=True)
+    with pytest.raises(Exception, match='unsafe path'):
+        _rzf().extract('sub/../../../x', target)
+    assert _tree(tmp_path) == ['a', 'a/target']
+
+
+def test_clause_3_inside_members_extract(tmp_path):
+    _rzf(b'data').extract('d/e/f.txt', tmp_path)
+    _rzf(b'data').extract('d/../g.txt', tmp_path)
+    assert (tmp_path / 'd/e/f.txt').read_bytes() == b'data'
+    assert (tmp_path / 'g.txt').read_bytes() == b'data'
+
+
+def test_clause_5_remotezipfile_extractall_rejects(tmp_path):
+    rzf = _rzf()
+    with pytest.raises(Exception, match='unsafe path'):
+        rzf.extractall(tmp_path, members=['ok.txt', '../evil'])
+
+
+def test_clause_4_safe_join_guards_unzip_http(tmp_path):
+    assert unzip_http.safe_join(tmp_path, 'a/b.txt').name == 'b.txt'
+    with pytest.raises(Exception, match='unsafe path'):
+        unzip_http.safe_join(tmp_path, '../b.txt')
+
+
+def test_clause_3_boundary_non_ascii_member_name(tmp_path):
+    # boundary case: non-ASCII text in a member name extracts inside the target
+    _rzf(b'x').extract('dır/zażółć.txt', tmp_path)
+    assert (tmp_path / 'dır/zażółć.txt').read_bytes() == b'x'
+    with pytest.raises(Exception, match='unsafe path'):
+        _rzf().extract('dır/../../zażółć', tmp_path)
+
+
+def test_clause_3_empty_input_extractall_writes_nothing(tmp_path):
+    # boundary case: empty input (no members) is a no-op
+    _rzf().extractall(tmp_path, members=[])
+    assert _tree(tmp_path) == []
+
+
+def test_clause_6_empty_input_and_non_ascii_boundary(tmp_path):
+    # Clause 6 (boundary): empty input and non-ASCII text
+    _rzf().extractall(tmp_path, members=[])
+    assert _tree(tmp_path) == []
+    _rzf(b'x').extract('é/ł.txt', tmp_path)
+    assert (tmp_path / 'é/ł.txt').read_bytes() == b'x'
