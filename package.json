@@ -1,0 +1,31 @@
+{
+    "name": "tailwind-merge-monorepo",
+    "version": "0.0.0",
+    "private": true,
+    "license": "MIT",
+    "author": "Dany Castillo",
+    "scripts": {
+        "lint": "eslint --max-warnings 0 . && pnpm --recursive lint",
+        "test": "vitest --no-watch --coverage",
+        "test:watch": "vitest",
+        "test:types": "pnpm --recursive test:types"
+    },
+    "devDependencies": {
+        "@vitest/coverage-v8": "^4.1.10",
+        "@vitest/eslint-plugin": "^1.6.24",
+        "eslint": "catalog:",
+        "eslint-plugin-import": "^2.32.0",
+        "prettier": "^3.9.6",
+        "typescript": "catalog:",
+        "typescript-eslint": "^8.65.0",
+        "vitest": "catalog:"
+    },
+    "packageManager": "pnpm@11.18.0",
+    "devEngines": {
+        "runtime": {
+            "name": "node",
+            "version": ">=22.18.0",
+            "onFail": "error"
+        }
+    }
+}
