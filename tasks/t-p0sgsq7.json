@@ -1,0 +1,14 @@
+{
+  "id": "t-p0sgsq7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Re-adopting a previously adopted repository files and drains tasks for newly failing standards",
+  "after": [
+    "t-1fpjhtw"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 6. Outcome: re-running adopt in a repo adopted before the new records files one remediation task per new failing record and drains them. Proof: on 2 public rows FAIL cells return to 0. ~$0.5. src/adopt/drift.ts."
+  ]
+}

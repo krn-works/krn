@@ -1,0 +1,12 @@
+{
+  "id": "t-j85bgcd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "The worker covers each numbered acceptance clause with a red-to-green test and Stop refuses an uncovered clause",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 3. Outcome: brief splits the task body into numbered clauses; worker records per clause a test red on base and green on commit or a written not-reproducible; Stop refuses an uncovered clause. Proof: pre-registered K vs K+clauses, 2 reps on py-sweep, py-fs-sweep, controls py-dict-updates, py-barrel-list; adopt if py-fs-sweep mean rises >=1 case, no row lower, cost <=1.5x. ~$2.5. Code: src/cli/lane-brief.ts, src/hook/stop.ts."
+  ]
+}

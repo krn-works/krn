@@ -1,0 +1,14 @@
+{
+  "id": "t-hypy4rg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Outside rows grade per hidden case and repeat with --reps, and each miss is classified",
+  "after": [
+    "t-tdcftxr"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115c.md slice 2. Outcome: summary names each failed hidden case; --reps N; K x3 on the 3 failing discriminating rows; each miss classified skipped clause / wrong fix / unguessable name; unguessable row bodies fixed. Proof: per-case table in evals/. ~$1.7. Touches scripts/outside-acceptance.ts."
+  ]
+}
