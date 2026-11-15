@@ -6,6 +6,7 @@ import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 const scripts: Readonly<Record<string, string>> = {
   stop: 'src/hook/stop.ts',
+  session: 'src/hook/session-start.ts',
   scope: 'src/hook/scope.ts',
   stash: 'src/hook/stash.ts',
 };

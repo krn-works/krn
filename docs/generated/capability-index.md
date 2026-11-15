@@ -119,6 +119,7 @@ src/harness/transcripts.ts: (no header) exports
 src/hook/lead-file-read.ts: Lead file-read hook
 src/hook/scope.ts: (no header) exports guarded,
 src/hook/session-standards.ts: The standards bl
+src/hook/session-start.ts: SessionStart hook of
 src/hook/session.ts: A worker session is one `k
 src/hook/stash.ts: (no header) exports decide
 src/hook/stop.ts: (no header) exports failureLi

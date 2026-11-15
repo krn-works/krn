@@ -1,0 +1,16 @@
+{
+  "id": "t-6hpthcy",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt installs a SessionStart hook (krn hook session); test/hook/session-start.test.ts runs adopt, hook session, hook stop and standards effect in a fresh adopted repo"
+  },
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "An adopted fresh repository provably inherits the brain",
+  "after": [],
+  "body": [
+    "Why: Fable direction (overnight): the brain of best standards must provably reach every adopted repository; the public outside rows (t-bkbkmbd) give untuned adopted repos to prove it on.\nOutcome: in an adopted public scratch repo (/mnt/storage/tmp/krn-outside-public/{php,npm,py} or a fresh clone of one), a Claude Code session start serves the standards block from the brain (src/hook/session-standards.ts), a seeded standards violation is taught at Stop (krn hook stop), and the lane exposures feed krn standards effect with at least one effect line; any gap is a KRN defect fixed with a regression test against the real receiver.\nProof: a test that runs the real hook entry points (krn hook ... with a captured payload) in an adopted fixture repo and asserts the standards block and the Stop teaching; plus one krn standards effect line from outside exposures recorded in the PR body."
+  ]
+}
