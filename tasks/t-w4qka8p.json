@@ -1,0 +1,14 @@
+{
+  "id": "t-w4qka8p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-tests-tracked pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-tests-tracked` no longer fails s-tests-tracked.",
+    "Why: adoption found this reflex standard failing: exit 1 from git ls-files | grep -qE '(^|/)(tests?|__tests__|spec)/|(_test\\.go|_test\\.py|(^|/)test_[^/]*\\.py|\\.(test|spec)\\.[cm]?[jt]sx?)$'",
+    "Proof: `krn standards check --record s-tests-tracked`"
+  ]
+}

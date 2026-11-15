@@ -1,0 +1,14 @@
+{
+  "id": "t-6jdskcb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "one real test and a test command",
+  "after": [],
+  "body": [
+    "Outcome: the repository has one real test and a test command in krn.json that runs it; \"vacuous\" is dropped from krn.json.",
+    "Why: adoption found no test command or one that runs zero tests, and the Stop gate and lane run refuse a vacuous command as green.",
+    "Proof: the test command exits 0 and runs at least one test."
+  ]
+}
