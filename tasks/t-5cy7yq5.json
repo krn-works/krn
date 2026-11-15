@@ -1,0 +1,12 @@
+{
+  "id": "t-5cy7yq5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Precedent reaches lanes in every stack, with or without a Scope line",
+  "after": [],
+  "body": [
+    "Why: Fable 1115g slice 3; src/brain/precedent.ts reads only TS/JS under test/ and only with a Scope: line, so a goal lane in a client PHP repo gets no precedent.\nOutcome: the lane brief for a goal without Scope: prints a precedent section naming 1 or more sibling tests and helpers, derived from goal identifiers via git grep, in php, py, go, rs and tests/ layouts.\nFiles: src/brain/precedent.ts, src/cli/lane-brief.ts, tests.\nProof: fixtures for PHP and npm print a non-empty precedent section; on a PHP row the lane test lands beside the named sibling."
+  ]
+}
