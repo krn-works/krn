@@ -16,7 +16,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { editStandardsCommand } from '../../src/adopt/stop-hook.ts';
-import { editedFile, fileKind } from '../../src/hook/edit-standards.ts';
+import {
+  commandFiles,
+  editedFile,
+  fileKind,
+} from '../../src/hook/edit-standards.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const capture = readFileSync(
@@ -27,6 +31,11 @@ const capture = readFileSync(
   .slice(0, -1);
 /** The directory the captured session ran in, redacted to the capture placeholder (test/fixtures/README.md); each payload is replayed against a fresh repository. */
 const capturedRoot = '/work/repo';
+/** The verbatim PreToolUse payload of a headless session that edited src/a.php through a python one-liner in Bash. */
+const bashCapture = readFileSync(
+  new URL('fixtures/pretooluse-bash-php.jsonl', import.meta.url),
+  'utf8',
+).trim();
 
 function run(cwd: string, command: string, args: string[], input = '') {
   return spawnSync(command, args, {
@@ -73,7 +82,7 @@ test('the first PHP edit of a session brings the PHP records, the second adds no
     assert.ok(
       settings.hooks.PreToolUse.some(
         (entry: { matcher: string; hooks: { command: string }[] }) =>
-          entry.matcher === 'Edit|Write|MultiEdit' &&
+          entry.matcher === 'Edit|Write|MultiEdit|Bash' &&
           entry.hooks.some((hook) => hook.command === editStandardsCommand),
       ),
       'adopt installs the edit hook',
@@ -100,6 +109,92 @@ test('the first PHP edit of a session brings the PHP records, the second adds no
     const second = replay(root, write);
     assert.equal(second.status, 0, second.stderr);
     assert.equal(second.stdout, '');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a lane that edits PHP through a Bash one-liner gets the PHP records and logs an edit exposure', () => {
+  const root = adoptedPhp();
+  try {
+    const first = replay(root, bashCapture);
+    assert.equal(first.status, 0, first.stderr);
+    const context: string = JSON.parse(first.stdout).hookSpecificOutput
+      .additionalContext;
+    assert.match(context, /^Standards for editing src\/a\.php \(\d+\):/u);
+    const logged = readFileSync(
+      join(root, '.krn/brain/exposures.jsonl'),
+      'utf8',
+    )
+      .split('\n')
+      .slice(0, -1)
+      .map((line) => JSON.parse(line))
+      .filter((e) => e.channel === 'edit');
+    assert.deepEqual(
+      logged.map((e) => e.scope),
+      ['php'],
+    );
+    const again = replay(root, bashCapture);
+    assert.equal(
+      again.stdout,
+      '',
+      'the second PHP command of the session adds nothing',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('adopt over an earlier adoption widens the edit hook matcher to Bash', () => {
+  const root = adoptedPhp();
+  try {
+    const path = join(root, '.claude/settings.json');
+    const settings = JSON.parse(readFileSync(path, 'utf8'));
+    for (const entry of settings.hooks.PreToolUse)
+      if (entry.hooks[0].command === editStandardsCommand)
+        entry.matcher = 'Edit|Write|MultiEdit';
+    writeFileSync(path, JSON.stringify(settings, null, 2));
+    run(root, 'git', ['commit', '-qam', 'old matcher']);
+    const refresh = run(root, process.execPath, [
+      cli,
+      'adopt',
+      root,
+      '--refresh',
+    ]);
+    assert.equal(refresh.status, 0, refresh.stderr);
+    const after = JSON.parse(readFileSync(path, 'utf8'));
+    const edit = after.hooks.PreToolUse.filter(
+      (entry: { hooks: { command: string }[] }) =>
+        entry.hooks.some((hook) => hook.command === editStandardsCommand),
+    );
+    assert.deepEqual(
+      edit.map((entry: { matcher: string }) => entry.matcher),
+      ['Edit|Write|MultiEdit|Bash'],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a Bash command names the repository files it touches, not its words or outside paths', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-edit-words-'));
+  try {
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'src/a.php'), '<?php\n');
+    writeFileSync(join(root, 'README.md'), 'x\n');
+    assert.deepEqual(
+      commandFiles(root, {
+        cwd: root,
+        tool_input: {
+          command: `python3 -c "p='src/a.php'; s=open(p).read()"; cat README.md src/a.php /etc/hosts.txt ../x.php; touch src/new.go notes.tmp`,
+        },
+      }),
+      ['src/a.php', 'README.md', 'src/new.go'],
+    );
+    assert.deepEqual(
+      commandFiles(root, { tool_input: { file_path: 'a' } }),
+      [],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

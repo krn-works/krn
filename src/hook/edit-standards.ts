@@ -1,11 +1,13 @@
-// PreToolUse hook on Edit|Write|MultiEdit (`krn hook edit`): the first edit of a file kind (its stack, else
+// PreToolUse hook on Edit|Write|MultiEdit|Bash (`krn hook edit`): the first edit of a file kind (its stack, else
 // its extension) in a session brings the records scoped to that file (its stack or a path pattern it
 // matches) as additional context, at most EDIT_BUDGET tokens. Later edits of the same kind add nothing; a
 // record the session was already shown or withheld (any exposure of this session's run in the log) never
 // repeats; one in 10 is withheld by the holdout and logged as such, so `krn standards effect` counts the
-// edit moment. Any failure leaves the edit untouched.
+// edit moment. Headless lane sessions edit through Bash (a python or sed one-liner) as often as through
+// Edit, so a Bash command that names a repository file of a kind counts as touching that kind. Any failure
+// leaves the edit untouched.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import {
   appendExposure,
@@ -40,6 +42,44 @@ export function editedFile(
   if (inside === '' || inside.startsWith('..') || isAbsolute(inside))
     return undefined;
   return inside.split(sep).join('/');
+}
+
+/** Path-like words of a shell command: a name with an extension, optionally behind directories. */
+const PATH_WORD = /[\w@.+-]*(?:\/[\w@.+-]+)*\.[A-Za-z0-9]+/gu;
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The repository-relative files a Bash payload's command names, in order and once each: a word that
+ * resolves inside `project` and is an existing file or has a stack's extension (a file the command
+ * creates). Empty for another tool.
+ */
+export function commandFiles(
+  project: string,
+  payload: Record<string, unknown>,
+): string[] {
+  const input = payload.tool_input;
+  if (typeof input !== 'object' || input === null) return [];
+  const command = (input as Record<string, unknown>).command;
+  if (typeof command !== 'string') return [];
+  const cwd = typeof payload.cwd === 'string' ? payload.cwd : project;
+  const files: string[] = [];
+  for (const [word] of command.matchAll(PATH_WORD)) {
+    const absolute = isAbsolute(word) ? word : resolve(cwd, word);
+    const inside = relative(project, absolute);
+    if (inside === '' || inside.startsWith('..') || isAbsolute(inside))
+      continue;
+    const file = inside.split(sep).join('/');
+    if (files.includes(file)) continue;
+    if (isFile(absolute) || fileStack(file) !== undefined) files.push(file);
+  }
+  return files;
 }
 
 /** The kind of `file` the edit moment fires once for: its stack, else `*.<extension>`, else its name. */
@@ -119,18 +159,16 @@ export function main(): void {
   try {
     const raw = readFileSync(0, 'utf8');
     const input = hookInput(['PreToolUse'], raw);
-    const file = editedFile(
-      input.project,
-      JSON.parse(raw) as Record<string, unknown>,
+    const payload = JSON.parse(raw) as Record<string, unknown>;
+    const edited = editedFile(input.project, payload);
+    const files =
+      edited === undefined ? commandFiles(input.project, payload) : [edited];
+    if (files.length === 0) return;
+    const main = mainCheckout(input.project);
+    const blocks = files.flatMap(
+      (file) => editContext(input.project, main, input.sessionId, file) ?? [],
     );
-    if (file === undefined) return;
-    const block = editContext(
-      input.project,
-      mainCheckout(input.project),
-      input.sessionId,
-      file,
-    );
-    if (block) emitContext(input.event, block);
+    if (blocks.length > 0) emitContext(input.event, blocks.join('\n\n'));
   } catch {
     /* A missing brain is not a reason to interrupt an edit. */
   }

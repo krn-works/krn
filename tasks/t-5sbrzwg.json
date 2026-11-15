@@ -1,7 +1,11 @@
 {
   "id": "t-5sbrzwg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Root cause: lane sessions edit through Bash (python/sed one-liners; php and rust row transcripts show 0 Edit/Write calls), so the Edit|Write PreToolUse hook never fired. The edit hook now also matches Bash and serves the records for repository files a command names; adopt widens the matcher of earlier adoptions. Outside php rerun proves exposures."
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "A lane session gets the edit-moment standards and logs them",
