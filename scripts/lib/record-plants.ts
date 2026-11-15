@@ -158,6 +158,10 @@ export const PLANTS: Record<string, Plant> = {
     write: { 'notes.txt': 'x\n' },
     commit: 'feat: a change\n\nTicket: t-0000000',
   }),
+  's-regression-lowest-layer': () => ({
+    write: { 'notes.txt': 'fixed\n' },
+    commit: 'fix: a defect without its regression test',
+  }),
   's-semantic-commits': () => ({
     write: { 'notes.txt': 'x\n' },
     commit: 'did some stuff',
@@ -293,6 +297,16 @@ export const PLANTS: Record<string, Plant> = {
       'src/swallow.php': '<?php try { run(); } catch (Exception $e) {}\n',
     },
   }),
+  's-skill-acf-component': () => ({
+    write: { 'acf-json/group.json': '{}\n' },
+  }),
+  's-skill-cube-css': () => ({
+    write: { 'themes/site/style.css': 'a { color: red !important; }\n' },
+  }),
+  's-skill-plesk-deploy': () => ({
+    write: { 'deploy/push.sh': 'ssh -o StrictHostKeyChecking=no host\n' },
+  }),
+  's-skill-wp-runtime': () => ({ write: { 'auth.json': '{}\n' } }),
   's-php-no-eval': () => ({
     write: { 'src/dynamic.php': '<?php eval($code);\n' },
   }),
