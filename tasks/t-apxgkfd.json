@@ -1,7 +1,11 @@
 {
   "id": "t-apxgkfd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger --predictions scores Predicted: lines (proof/outside) as hit/miss/unmeasured per plan; test/brain/prediction-scorecard.test.ts scores one hit, one miss, one unmeasured on verbatim proof and outside rows; docs/program/fable-plan-brief.md requires Predicted: per slice"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Fable plan predictions are scored against measured outcomes and fed into the next plan",

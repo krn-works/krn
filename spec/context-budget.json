@@ -4,7 +4,7 @@
 
     ".agents/skills/krn-handoff/SKILL.md": 4995,
 
-    ".agents/skills/krn-lead/SKILL.md": 6170,
+    ".agents/skills/krn-lead/SKILL.md": 6260,
 
     ".agents/skills/krn-lead/lanes.md": 3455,
 
@@ -13,6 +13,8 @@
     ".agents/skills/typescript/SKILL.md": 3167,
 
     "AGENTS.md": 2400,
+
+    "docs/program/fable-plan-brief.md": 1403,
 
     "docs/program/hardening-checklist.md": 3183,
 

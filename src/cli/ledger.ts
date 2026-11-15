@@ -1,4 +1,5 @@
 import { renderUnused, unusedTools } from '../adopt/unused.ts';
+import { predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { transcriptDirs } from '../harness/transcripts.ts';
@@ -22,6 +23,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let windowMode = false;
   let checkCeiling = false;
   let unused = false;
+  let predictions = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
@@ -30,6 +32,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--unused') {
       unused = true;
+      continue;
+    }
+    if (flag === '--predictions') {
+      predictions = true;
       continue;
     }
     if (flag === '--check-ceiling') {
@@ -95,6 +101,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (predictions) {
+    process.stdout.write(predictionScorecard(options.root ?? process.cwd()));
+    return;
   }
   if (unused) {
     const root = options.root ?? process.cwd();

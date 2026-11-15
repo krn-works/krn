@@ -1,7 +1,14 @@
 // The exposure log: one append-only line per lane run naming the standards the run was served,
 // the ones it could have been served but was not, and how the run ended. `krn standards effect`
-// derives per-record served-vs-withheld numbers from it.
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+// derives per-record served-vs-withheld numbers from it. The same records score plan predictions:
+// a task's `Predicted:` line is judged against a lane's proof line or the outside rows (`krn ledger --predictions`).
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** Where the log lives, relative to the main checkout. */
@@ -171,4 +178,240 @@ export function violatedExposure(
     lane_ok: false,
     rework: 1,
   };
+}
+
+export type Verdict = 'hit' | 'miss' | 'unmeasured';
+
+type Op = '>=' | '<=' | '==' | '>' | '<';
+
+type Claim =
+  | { source: 'proof'; field: string; op: Op; value: number }
+  | {
+      source: 'outside';
+      field: string;
+      op: Op;
+      value: number;
+      rowsOp: Op;
+      rows: number;
+    };
+
+const OP = '(>=|<=|==|>|<)';
+const PROOF_FIELDS = [
+  'clauses',
+  'clauses-total',
+  'red-first',
+  'precedent',
+  'stop-refusals',
+] as const;
+/** Outside-row columns a claim may name, in the order summary.txt holds them. */
+const OUTSIDE_FIELDS = [
+  'repo',
+  'stack',
+  'adopt',
+  'first-test',
+  'drain',
+  'prs',
+  'sessions',
+  'usd',
+] as const;
+
+/** The outside rows file, relative to the main checkout. */
+export const OUTSIDE_SUMMARY = '.krn/runs/outside/summary.txt';
+
+const PROOF_CLAIM = new RegExp(
+  `^proof\\s+([a-z-]+)\\s*${OP}\\s*(\\d+(?:\\.\\d+)?)$`,
+  'u',
+);
+const OUTSIDE_CLAIM = new RegExp(
+  `^outside\\s+([a-z-]+)\\s*${OP}\\s*(\\d+(?:\\.\\d+)?)\\s+in\\s*${OP}\\s*(\\d+)\\s+rows$`,
+  'u',
+);
+
+/** The claim of a `Predicted:` line, or undefined when the line is absent or not measurable. */
+export function parseClaim(text: string): Claim | undefined {
+  const line = /^[ \t]*Predicted:[ \t]*(.*)$/imu.exec(text)?.[1]?.trim();
+  if (line === undefined) return undefined;
+  const proof = PROOF_CLAIM.exec(line);
+  if (
+    proof !== null &&
+    (PROOF_FIELDS as readonly string[]).includes(proof[1] ?? '')
+  )
+    return {
+      source: 'proof',
+      field: proof[1] as string,
+      op: proof[2] as Op,
+      value: Number(proof[3]),
+    };
+  const outside = OUTSIDE_CLAIM.exec(line);
+  if (
+    outside !== null &&
+    (OUTSIDE_FIELDS as readonly string[]).includes(outside[1] ?? '')
+  )
+    return {
+      source: 'outside',
+      field: outside[1] as string,
+      op: outside[2] as Op,
+      value: Number(outside[3]),
+      rowsOp: outside[4] as Op,
+      rows: Number(outside[5]),
+    };
+  return undefined;
+}
+
+function holds(actual: number, op: Op, wanted: number): boolean {
+  if (op === '>=') return actual >= wanted;
+  if (op === '<=') return actual <= wanted;
+  if (op === '==') return actual === wanted;
+  return op === '>' ? actual > wanted : actual < wanted;
+}
+
+/** The counts of a proof line (`proof: clauses 2/3, red-first 0, precedent 5 modules, stop refusals 1`). */
+export function parseProofLine(
+  line: string,
+): Record<string, number> | undefined {
+  const m =
+    /proof: clauses (\d+)\/(\d+), red-first (\d+), precedent (\d+) modules, stop refusals (\d+)/u.exec(
+      line,
+    );
+  if (m === null) return undefined;
+  return {
+    clauses: Number(m[1]),
+    'clauses-total': Number(m[2]),
+    'red-first': Number(m[3]),
+    precedent: Number(m[4]),
+    'stop-refusals': Number(m[5]),
+  };
+}
+
+/** The rows of an outside summary: lines of eight or more ` | ` cells that start with `owner/repo`. */
+export function parseOutsideRows(text: string): string[][] {
+  return text
+    .split('\n')
+    .filter((line) => /^[\w.-]+\/[\w.-]+ /u.test(line))
+    .map((line) => line.split(' | ').map((cell) => cell.trim()))
+    .filter((cells) => cells.length >= OUTSIDE_FIELDS.length);
+}
+
+function numeric(cell: string | undefined): number | undefined {
+  const bare = (cell ?? '').replace(/^\$/u, '');
+  return /^\d+(?:\.\d+)?$/u.test(bare) ? Number(bare) : undefined;
+}
+
+export type Records = {
+  /** Proof line per task id, the latest exposure of the task that carries one. */
+  proofs: ReadonlyMap<string, string>;
+  /** Outside rows, or undefined when the file is missing. */
+  outside: string[][] | undefined;
+};
+
+/** Judges one claim: hit or miss from the records, unmeasured when they hold no value for it. */
+export function judge(claim: Claim, taskId: string, records: Records): Verdict {
+  if (claim.source === 'proof') {
+    const counts = parseProofLine(records.proofs.get(taskId) ?? '');
+    const actual = counts?.[claim.field];
+    if (actual === undefined) return 'unmeasured';
+    return holds(actual, claim.op, claim.value) ? 'hit' : 'miss';
+  }
+  const column = OUTSIDE_FIELDS.indexOf(
+    claim.field as (typeof OUTSIDE_FIELDS)[number],
+  );
+  const values = (records.outside ?? [])
+    .map((row) => numeric(row[column]))
+    .filter((v): v is number => v !== undefined);
+  if (values.length === 0) return 'unmeasured';
+  const count = values.filter((v) => holds(v, claim.op, claim.value)).length;
+  return holds(count, claim.rowsOp, claim.rows) ? 'hit' : 'miss';
+}
+
+type Task = {
+  id: string;
+  status: string;
+  text: string;
+};
+
+/** The plan a task belongs to: its `Source:` line, else the `Why:` text before the first `;` without a trailing `slice N`. */
+export function planOf(text: string): string {
+  const source = /^[ \t]*Source:[ \t]*(.+)$/imu.exec(text)?.[1];
+  const why = /^[ \t]*Why:[ \t]*([^;\n]+)/imu.exec(text)?.[1];
+  return (source ?? why ?? 'no plan named')
+    .replace(/\s+slice\s+\d+\s*$/iu, '')
+    .trim();
+}
+
+export type Scorecard = Map<
+  string,
+  { hit: string[]; miss: string[]; unmeasured: string[]; unpredicted: string[] }
+>;
+
+/** One scorecard entry per plan over the closed tasks; `unpredicted` counts tasks without a measurable `Predicted:` line. */
+export function scoreTasks(
+  tasks: readonly Task[],
+  records: Records,
+): Scorecard {
+  const card: Scorecard = new Map();
+  for (const task of tasks) {
+    if (task.status !== 'closed') continue;
+    const plan = planOf(task.text);
+    const entry = card.get(plan) ?? {
+      hit: [],
+      miss: [],
+      unmeasured: [],
+      unpredicted: [],
+    };
+    card.set(plan, entry);
+    const claim = parseClaim(task.text);
+    if (claim === undefined) entry.unpredicted.push(task.id);
+    else entry[judge(claim, task.id, records)].push(task.id);
+  }
+  return card;
+}
+
+export function readTaskTexts(root: string): Task[] {
+  const dir = join(root, 'tasks');
+  if (!existsSync(dir)) return [];
+  const tasks: Task[] = [];
+  for (const name of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
+    try {
+      const t = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
+        id?: unknown;
+        status?: unknown;
+        body?: unknown;
+      };
+      tasks.push({
+        id: String(t.id ?? name),
+        status: String(t.status ?? ''),
+        text: Array.isArray(t.body) ? t.body.join('\n') : '',
+      });
+    } catch {
+      // an unreadable record is `krn task check`'s finding
+    }
+  }
+  return tasks.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function readRecords(root: string): Records {
+  const proofs = new Map<string, string>();
+  for (const e of readExposures(root))
+    if (e.task !== null && e.proof !== undefined) proofs.set(e.task, e.proof);
+  const path = join(root, OUTSIDE_SUMMARY);
+  return {
+    proofs,
+    outside: existsSync(path)
+      ? parseOutsideRows(readFileSync(path, 'utf8'))
+      : undefined,
+  };
+}
+
+/** The scorecard text: one line per plan with its hit, miss, unmeasured and unpredicted counts. */
+export function renderScorecard(card: Scorecard): string {
+  const lines = ['plan | hit | miss | unmeasured | unpredicted'];
+  for (const [plan, e] of [...card].sort((a, b) => a[0].localeCompare(b[0])))
+    lines.push(
+      `${plan} | ${e.hit.length} | ${e.miss.length} | ${e.unmeasured.length} | ${e.unpredicted.length}`,
+    );
+  return `${lines.join('\n')}\n`;
+}
+
+export function predictionScorecard(root: string): string {
+  return renderScorecard(scoreTasks(readTaskTexts(root), readRecords(root)));
 }
