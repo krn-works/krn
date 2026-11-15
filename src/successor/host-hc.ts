@@ -5,6 +5,7 @@
 // the terminal label `krn-tab`. Every reader answers an empty or undefined
 // value for a reply it cannot parse.
 
+import { basename } from 'node:path';
 import { claudeAgent } from '../harness/claude.ts';
 import { readJson } from '../repo/json-text.ts';
 import {
@@ -30,6 +31,10 @@ import type {
 const SCOPE = 'hc' as ScopeRef;
 // The terminal label that carries the tab label the launcher and retire read.
 const TAB_LABEL = 'krn-tab';
+// The labels that put an hc terminal in the Herdr desktop window: a terminal
+// with `herdr.space` opens as a new tab of that space; without it the window
+// never shows the terminal (`herdr-app --skill`).
+const SPACE_LABEL = 'herdr.space';
 // hc reports `not_found` with exit 3 for an address it does not hold.
 const NOT_FOUND = 'not_found';
 
@@ -86,6 +91,44 @@ function agentInfo(address: string, result: CommandResult): AgentInfo {
   };
 }
 
+/**
+ * The window space a successor opens in, so the operator sees it as a tab:
+ * the caller's own space, else the space whose folder is the successor's
+ * folder, else a new one for that folder. Undefined when the window cannot
+ * answer: the successor then runs hidden, as every unlabelled hc terminal.
+ */
+function windowSpace(
+  self: string | undefined,
+  cwd: string,
+): string | undefined {
+  const own = self
+    ? record(liveTerminal(self)?.labels)?.[SPACE_LABEL]
+    : undefined;
+  if (typeof own === 'string' && own) return own;
+  const list = run('herdr-app', ['ls']);
+  if (!succeeded(list)) return undefined;
+  const spaces = record(readJson(list.stdout))?.spaces;
+  if (!Array.isArray(spaces)) return undefined;
+  for (const value of spaces) {
+    const space = record(value);
+    if (space?.folder === cwd && space.machine == null) {
+      const id = text(space.id);
+      if (id) return id;
+    }
+  }
+  const created = run('herdr-app', [
+    'do',
+    'space.new',
+    '--name',
+    basename(cwd) || cwd,
+    '--folder',
+    cwd,
+  ]);
+  return succeeded(created)
+    ? text(record(readJson(created.stdout))?.space)
+    : undefined;
+}
+
 function listing(): Array<Record<string, unknown>> | HostFailure {
   const list = run('hc', ['ls']);
   if (!succeeded(list)) return hostFailure(list);
@@ -130,7 +173,10 @@ export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
       // the values the typed words expand. No parent: the successor must
       // outlive the predecessor, which retire closes.
       const args = ['run', '--bg', '--no-parent', '--cwd', cwd];
-      args.push('--label', `${TAB_LABEL}=${label}`, '--');
+      args.push('--label', `${TAB_LABEL}=${label}`);
+      const space = windowSpace(env.HC_TERMINAL_ID, cwd);
+      if (space) args.push('--label', `${SPACE_LABEL}=${space}`);
+      args.push('--');
       args.push('env', ...Object.entries(tabEnv).map(([k, v]) => `${k}=${v}`));
       args.push('bash');
       const created = run('hc', args);
@@ -203,6 +249,7 @@ export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
         ];
       });
     },
+    // Killing a terminal also removes its tab from the window.
     close: (session) => outcome(run('hc', ['kill', session])),
     closeTab: (tab) => outcome(run('hc', ['kill', tab])),
     rename: (tab, label) =>

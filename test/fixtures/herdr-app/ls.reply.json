@@ -1,0 +1,85 @@
+{
+  "spaces": [
+    {
+      "id": "sp32fa8f368cbcb62165a0973442d7d798",
+      "name": "~",
+      "folder": "/work/home",
+      "machine": null,
+      "active": false,
+      "tabs": [
+        {
+          "id": "tb5e0c35b42a9f239e0ada88fa9b22169b",
+          "name": "1",
+          "active": true,
+          "settled": false,
+          "terminals": [
+            {
+              "terminal": "t9",
+              "pane": "p6b989d05206f1205174a7a16eac87fc8",
+              "status": null,
+              "app": null,
+              "name": null,
+              "sub_agents": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sp9633122681c8ae8591e81c0d949234cc",
+      "name": "krn",
+      "folder": "/work/repo/krn",
+      "machine": null,
+      "active": false,
+      "tabs": [
+        {
+          "id": "tb9969bd0c4468231031d4c941951e16bb",
+          "name": "krn lead",
+          "active": true,
+          "settled": false,
+          "terminals": [
+            {
+              "terminal": "t12",
+              "pane": "pe058de86e90e78bd853b46cd6b3eecb1",
+              "status": "working",
+              "app": "claude-code",
+              "name": null,
+              "sub_agents": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sp824baf0493c4c1933c8aa76c44296092",
+      "name": "krn-probe",
+      "folder": "/work/tmp/space",
+      "machine": null,
+      "active": true,
+      "tabs": [
+        {
+          "id": "tb22e4b38b2d7a43cdc72abbe3398f74de",
+          "name": "1",
+          "active": true,
+          "settled": false,
+          "terminals": [
+            {
+              "terminal": "t13",
+              "pane": "p83867c80deff130211085e909079c2e5",
+              "status": null,
+              "app": null,
+              "name": null,
+              "sub_agents": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recent": [
+    {
+      "name": "",
+      "folder": "/work/home"
+    }
+  ]
+}
