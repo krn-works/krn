@@ -2,6 +2,7 @@
 // the ones it could have been served but was not, and how the run ended. `krn standards effect`
 // derives per-record served-vs-withheld numbers from it. The same records score plan predictions:
 // a task's `Predicted:` line is judged against a lane's proof line or the outside rows (`krn ledger --predictions`).
+import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
   existsSync,
@@ -213,6 +214,8 @@ const OUTSIDE_FIELDS = [
   'prs',
   'sessions',
   'usd',
+  'hidden',
+  'hook',
 ] as const;
 
 /** The outside rows file, relative to the main checkout. */
@@ -289,10 +292,12 @@ export function parseOutsideRows(text: string): string[][] {
     .split('\n')
     .filter((line) => /^[\w.-]+\/[\w.-]+ /u.test(line))
     .map((line) => line.split(' | ').map((cell) => cell.trim()))
-    .filter((cells) => cells.length >= OUTSIDE_FIELDS.length);
+    .filter((cells) => cells.length >= OUTSIDE_FIELDS.indexOf('hidden'));
 }
 
 function numeric(cell: string | undefined): number | undefined {
+  if (cell === 'pass') return 1;
+  if (cell === 'fail') return 0;
   const bare = (cell ?? '').replace(/^\$/u, '');
   return /^\d+(?:\.\d+)?$/u.test(bare) ? Number(bare) : undefined;
 }
@@ -302,6 +307,13 @@ export type Records = {
   proofs: ReadonlyMap<string, string>;
   /** Outside rows, or undefined when the file is missing. */
   outside: string[][] | undefined;
+  /**
+   * Merge commit per task id. When present, an outside claim scores only rows whose hook commit
+   * descends from its task's merge; a task without a merge commit is unmeasured.
+   */
+  merges?: ReadonlyMap<string, string>;
+  /** True when `commit` is `ancestor` or contains it; required with `merges`. */
+  descends?: (ancestor: string, commit: string) => boolean;
 };
 
 /** Judges one claim: hit or miss from the records, unmeasured when they hold no value for it. */
@@ -315,7 +327,18 @@ export function judge(claim: Claim, taskId: string, records: Records): Verdict {
   const column = OUTSIDE_FIELDS.indexOf(
     claim.field as (typeof OUTSIDE_FIELDS)[number],
   );
-  const values = (records.outside ?? [])
+  let rows = records.outside ?? [];
+  if (records.merges !== undefined) {
+    const merge = records.merges.get(taskId);
+    const hookColumn = OUTSIDE_FIELDS.indexOf('hook');
+    const descends = records.descends;
+    if (merge === undefined || descends === undefined) return 'unmeasured';
+    rows = rows.filter((row) => {
+      const hook = row[hookColumn] ?? '';
+      return /^[0-9a-f]{7,40}$/u.test(hook) && descends(merge, hook);
+    });
+  }
+  const values = rows
     .map((row) => numeric(row[column]))
     .filter((v): v is number => v !== undefined);
   if (values.length === 0) return 'unmeasured';
@@ -401,7 +424,41 @@ export function readRecords(root: string): Records {
     outside: existsSync(path)
       ? parseOutsideRows(readFileSync(path, 'utf8'))
       : undefined,
+    merges: mergeCommits(root),
+    descends: (ancestor, commit) => isAncestor(root, ancestor, commit),
   };
+}
+
+function git(root: string, args: string[]): string | undefined {
+  try {
+    return execFileSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+/** The oldest commit on HEAD per task id that carries a `Ticket: <id>` trailer: the commit the task merged as. */
+function mergeCommits(root: string): Map<string, string> {
+  const merges = new Map<string, string>();
+  const log = git(root, [
+    'log',
+    '--reverse',
+    '--format=%H %(trailers:key=Ticket,valueonly,separator=%x20)%x1e',
+  ]);
+  for (const entry of (log ?? '').split('\x1e')) {
+    const [sha, ...ids] = entry.trim().split(/\s+/u);
+    for (const id of ids) if (sha && !merges.has(id)) merges.set(id, sha);
+  }
+  return merges;
+}
+
+function isAncestor(root: string, ancestor: string, commit: string): boolean {
+  return (
+    git(root, ['merge-base', '--is-ancestor', ancestor, commit]) !== undefined
+  );
 }
 
 /** The scorecard text: one line per plan with its hit, miss, unmeasured and unpredicted counts. */

@@ -25,6 +25,10 @@
       ],
       "test": "test/ci/logs-capture.test.ts"
     },
+    "src/brain/exposures.ts": {
+      "receivers": ["git"],
+      "real": "test/brain/prediction-scorecard.test.ts"
+    },
     "src/brain/precedent.ts": {
       "receivers": ["git"],
       "real": "test/brain/precedent.test.ts"

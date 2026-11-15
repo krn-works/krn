@@ -1,7 +1,11 @@
 {
   "id": "t-bxw0ben",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scorecard scores outside claims only on rows whose hook descends from the Ticket commit; hidden field added; tested on real git history"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "The predictions scorecard scores outside rows run after the merge",
