@@ -120,6 +120,7 @@ function walk() {
     ['missing task', 'krn task show t-nope000', null],
     ['empty lane brief', 'krn lane brief </dev/null', 64],
     ['lane without origin', 'krn lane start probe', 64],
+    ['lane run without origin', `krn lane run --task ${id ?? 't-none'}`, 69],
     ['dropping an absent lane', 'krn lane drop nothing', 64],
   ];
   for (const [name, command, code] of probes) {

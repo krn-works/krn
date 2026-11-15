@@ -135,7 +135,7 @@ export function remoteFailure(
   const said =
     result.error?.message ??
     (result.stderr.trim().split('\n')[0] || `exit ${result.status}`);
-  return `origin unreachable with the lane credentials (git ls-remote: ${said})`;
+  return `origin unreachable with the lane credentials (git ls-remote: ${said}); add the GitHub remote (git remote add origin URL) and push the default branch, or check the lane credentials`;
 }
 
 /**

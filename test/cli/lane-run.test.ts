@@ -1713,7 +1713,7 @@ test('remoteFailure reads origin with the session credentials, not the operator 
         GIT_CONFIG_KEY_0: 'protocol.file.allow',
         GIT_CONFIG_VALUE_0: 'never',
       }) ?? '',
-      /origin unreachable with the lane credentials/u,
+      /origin unreachable with the lane credentials.*git remote add origin URL.*check the lane credentials/u,
     );
   } finally {
     rmSync(base, { recursive: true, force: true });
