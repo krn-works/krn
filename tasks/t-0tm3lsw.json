@@ -1,7 +1,11 @@
 {
   "id": "t-0tm3lsw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "escape URLs at render time, not in AST"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "URLs with an ampersand are escaped in the wrong places",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

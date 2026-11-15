@@ -77,13 +77,13 @@ class HTMLRenderer(BaseRenderer):
         return '<strong>' + text + '</strong>'
 
     def link(self, text: str, url: str, title: Optional[str] = None) -> str:
-        s = '<a href="' + self.safe_url(url) + '"'
+        s = '<a href="' + escape_text(self.safe_url(url)) + '"'
         if title:
             s += ' title="' + safe_entity(title) + '"'
         return s + '>' + text + '</a>'
 
     def image(self, text: str, url: str, title: Optional[str] = None) -> str:
-        src = self.safe_url(url)
+        src = escape_text(self.safe_url(url))
         alt = escape_text(striptags(text))
         s = '<img src="' + src + '" alt="' + alt + '"'
         if title:

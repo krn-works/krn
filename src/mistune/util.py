@@ -30,13 +30,13 @@ def escape(s: str, quote: bool = True) -> str:
 
 
 def escape_url(link: str) -> str:
-    """Escape URL for safety."""
+    """Percent-encode a URL for safety; HTML escaping is left to the renderer."""
     safe = (
         ':/?#@'           # gen-delims - '[]' (rfc3986)
         '!$&()*+,;='      # sub-delims - "'" (rfc3986)
         '%'               # leave already-encoded octets alone
     )
-    return escape(quote(unescape(link), safe=safe))
+    return quote(unescape(link), safe=safe)
 
 
 def safe_entity(s: str) -> str:

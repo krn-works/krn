@@ -109,3 +109,28 @@ class TestMiscCases(TestCase):
         result = md('foo\n- bar\n\ntable')
         expected = '<p>foo</p>\n<ul>\n<li>bar</li>\n</ul>\n<p>table</p>'
         self.assertEqual(result.strip(), expected)
+
+
+class TestUrlAmpersand(TestCase):
+    def test_image_directive_ampersand(self):
+        from mistune.directives import FencedDirective, Image
+        md = mistune.create_markdown(
+            escape=False, plugins=[FencedDirective([Image()])])
+        text = (
+            '~~~{image} https://example.com/picture.png?foo=qux&test=me\n'
+            ':target: https://example.com/rickroll?a=1&b=2\n'
+            '~~~\n'
+        )
+        html = md(text)
+        self.assertIn('src="https://example.com/picture.png?foo=qux&amp;test=me"', html)
+        self.assertIn('href="https://example.com/rickroll?a=1&amp;b=2"', html)
+
+    def test_ast_link_url_unescaped(self):
+        md = mistune.create_markdown(renderer=None)
+        tokens = md('[hi &<>"](https://example.com/foo?a=1&b=2)')
+        link = tokens[0]['children'][0]
+        self.assertEqual(link['attrs']['url'], 'https://example.com/foo?a=1&b=2')
+
+    def test_html_link_ampersand(self):
+        html = mistune.html('[x](https://example.com/foo?a=1&b=2)')
+        self.assertIn('href="https://example.com/foo?a=1&amp;b=2"', html)
