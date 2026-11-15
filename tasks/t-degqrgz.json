@@ -1,0 +1,12 @@
+{
+  "id": "t-degqrgz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "A lane Stop asks a small-model judge whether the transcript proves the task outcome",
+  "after": [],
+  "body": [
+    "Why: operator-shared AI LABS video jlEMo6Dsh9E (Belay, from description only; .krn/sources/videos/jlEMo6Dsh9E.desc.txt): a lane can satisfy every deterministic Stop arm yet not deliver the task Outcome line.\nOutcome: the Stop hook in a lane sends the task Outcome and Proof lines plus the last turns to a Haiku judge that answers proven or missing with the missing item; missing refuses Stop once with the item named; KRN_OUTCOME_JUDGE=0 opts out; judge cost is logged per lane.\nFiles: src/hook/stop.ts, src/cli/hook.ts, tests.\nProof: a Stop test on a verbatim lane transcript capture with the outcome missing refuses naming it, and passes on a capture that proves it."
+  ]
+}
