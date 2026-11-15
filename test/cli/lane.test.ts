@@ -289,6 +289,23 @@ function budgetLane(repo: string, env: Record<string, string>, slug: string) {
   });
 }
 
+test('lane budget counts only worktrees, not plain directories under .krn/worktrees (t-tj1g7m9)', () => {
+  // Evidence: S26 lane refused (9 live > 8) while .krn/worktrees held test/tool-scope's scope-probe-<pid>.
+  const { base, repo } = fixture();
+  try {
+    for (const name of ['scope-probe-1', 'scope-probe-2'])
+      mkdirSync(join(repo, '.krn', 'worktrees', name), { recursive: true });
+    const result = budgetLane(repo, { KRN_LANE_MAX_LIVE: '2' }, 'counted');
+    assert.doesNotMatch(result.stderr, /live lane worktrees/u);
+    assert.ok(existsSync(join(repo, '.krn', 'worktrees', 'counted', '.git')));
+    const full = budgetLane(repo, { KRN_LANE_MAX_LIVE: '1' }, 'refused');
+    assert.equal(full.status, 64);
+    assert.match(full.stderr, /lane budget: 1 live lane worktrees/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start refuses with exit 64 when free disk is below the minimum', () => {
   const { base, repo } = fixture();
   try {

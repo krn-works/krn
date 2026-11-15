@@ -1,0 +1,12 @@
+{
+  "id": "t-0q7g978",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Worker lanes cannot edit the main checkout",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15: S3 lane (t-k3jmgax) and S20 lane (t-p14tych) both edited the main checkout instead of their lane worktree; the lead found main dirty with another lane's deletions.\nOutcome: a krn-lane worker session that writes (Edit, Write or a mutating Bash) under the main checkout outside .krn/ is refused by the PreToolUse hook with exit 2 and a message naming its worktree.\nProof: a hook test with a worker session payload editing <main>/src/x.ts gets exit 2; the same edit under .krn/worktrees/<lane>/ passes.\nFiles: src/hook/scope.ts, src/hook/session.ts, test/hook/"
+  ]
+}

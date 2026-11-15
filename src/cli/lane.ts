@@ -102,9 +102,12 @@ export function checkLaneBudget(main: string): void {
   }
   const maxLive = limit('KRN_LANE_MAX_LIVE', 8);
   const dir = join(main, '.krn', 'worktrees');
+  // Only real worktrees count: a lane worktree holds a `.git` file; a test fixture or a
+  // leftover directory under .krn/worktrees does not block a lane (t-tj1g7m9).
   const live = existsSync(dir)
-    ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory())
-        .length
+    ? readdirSync(dir, { withFileTypes: true }).filter(
+        (e) => e.isDirectory() && existsSync(join(dir, e.name, '.git')),
+      ).length
     : 0;
   if (live >= maxLive)
     throw new CliUsageError(
