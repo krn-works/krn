@@ -32,7 +32,7 @@ export const preToolGuards: readonly { matcher: string; command: string }[] = [
     command: guardCommand('scope'),
   },
   { matcher: 'Bash', command: guardCommand('stash') },
-  { matcher: 'Edit|Write|MultiEdit', command: editStandardsCommand },
+  { matcher: 'Edit|Write|MultiEdit|Bash', command: editStandardsCommand },
 ];
 
 /** The bare command earlier adoptions installed; adopt replaces it with {@link stopCommand}. */

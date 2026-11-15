@@ -539,6 +539,7 @@ export function projectStandards(
 }
 
 interface HookEntry {
+  matcher?: string;
   hooks?: { type?: string; command?: unknown }[];
 }
 
@@ -585,16 +586,19 @@ function writeHooks(
   const pre = Array.isArray(hooks.PreToolUse)
     ? (hooks.PreToolUse as HookEntry[])
     : [];
-  for (const guard of preToolGuards)
-    if (
-      !pre.some((entry) =>
-        entry.hooks?.some((hook) => hook.command === guard.command),
-      )
-    )
+  for (const guard of preToolGuards) {
+    const installed = pre.find((entry) =>
+      entry.hooks?.some((hook) => hook.command === guard.command),
+    );
+    // An earlier adoption's entry for a lone guard takes the current matcher (the edit hook widened to Bash).
+    if (installed !== undefined && installed.hooks?.length === 1)
+      installed.matcher = guard.matcher;
+    if (installed === undefined)
       pre.push({
         matcher: guard.matcher,
         hooks: [{ type: 'command', command: guard.command }],
-      } as HookEntry);
+      });
+  }
   const start = Array.isArray(hooks.SessionStart)
     ? (hooks.SessionStart as HookEntry[])
     : [];
