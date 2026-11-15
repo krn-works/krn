@@ -1,1 +1,1 @@
-{"tracker":"krn","test":"/mnt/storage/tmp/readopt/venv/bin/python -m pytest -q tests"}
+{"tracker":"krn","base":"outside/readopt-py","test":"/mnt/storage/tmp/readopt/venv/bin/python -m pytest -q tests"}
