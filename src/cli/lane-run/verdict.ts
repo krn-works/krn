@@ -7,6 +7,8 @@ import { renderPrBody } from '../pr-body.ts';
 import {
   contractVerification,
   goalPrBody,
+  parkCommit,
+  parkedFile,
   sandboxPlaceholders,
   sessionVerification,
   ticketCommitTitle,
@@ -187,6 +189,15 @@ export async function laneVerdict(
             refs: refsOnly,
           }),
     );
+    // The session may have outlived the token minted before it: mint again, and park the commit when that fails.
+    const locked = await steps.mint(lane.environment);
+    if (locked !== undefined) {
+      parkCommit(parkedFile(main, slug), git(path, ['rev-parse', 'HEAD']));
+      return await stop(
+        `GitHub App credential unavailable after the work (${locked}); commit parked, unlock the vault and rerun to ship without the worker`,
+        exitCredentialUnavailable,
+      );
+    }
     const shipped = await steps.ship([
       '--worktree',
       path,
@@ -204,7 +215,10 @@ export async function laneVerdict(
       lines.pop() ??
       '';
     const merged = /^verdict: merged\b/u.test(last);
-    if (merged) rmSync(redFile, { force: true });
+    if (merged) {
+      rmSync(redFile, { force: true });
+      rmSync(parkedFile(main, slug), { force: true });
+    }
     expose(merged);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,

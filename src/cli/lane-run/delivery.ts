@@ -131,3 +131,19 @@ export function contractVerification(
   writeFileSync(logPath, output);
   return { failure: failedCheckDetail(command, output, logPath) };
 }
+
+/** The record of a commit whose ship waited on the App token: its file under .krn/tmp. */
+export function parkedFile(main: string, lane: string): string {
+  return join(main, '.krn', 'tmp', `lane-run-${lane}.parked`);
+}
+
+/** Park the checked commit, so a resume ships it without rerunning the worker. */
+export function parkCommit(file: string, head: string): void {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${head}\n`);
+}
+
+/** Whether the parked commit is still the worktree's HEAD; a moved HEAD is new work, not the parked one. */
+export function parkedAt(file: string, head: string): boolean {
+  return existsSync(file) && readFileSync(file, 'utf8').trim() === head;
+}

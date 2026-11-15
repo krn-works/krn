@@ -1372,6 +1372,46 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
   }
 });
 
+test('a commit parked while the App token is locked ships on rerun without the worker', async () => {
+  const { base, repo, claude } = fixture(
+    deliver().replace('"Ticket: t-abc1234"', '"Refs: t-abc1234"'),
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    let mints = 0;
+    let ships = 0;
+    const steps = {
+      start: startLane,
+      ship: async () => {
+        ships += 1;
+        return 'verdict: merged abc';
+      },
+      // The first mint opens the session; the mint before ship finds the vault locked.
+      mint: async () => (++mints === 2 ? 'vault is locked' : undefined),
+    };
+    const parked = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(parked.exitCode, 69, parked.line);
+    assert.match(parked.line, /commit parked/u);
+    assert.equal(ships, 0);
+    assert.equal(inspectClaim(repo, 't-abc1234').state, 'none');
+
+    // The worker would fail loudly: only the parked commit may ship.
+    process.env.KRN_LANE_CLAUDE = join(base, 'no-such-claude');
+    const resumed = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(resumed.exitCode, 0, resumed.line);
+    assert.equal(ships, 1);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('a missing origin base ref after the session releases the claim', async () => {
   const { base, repo, claude } = fixture(
     `${deliver()}; git update-ref -d refs/remotes/origin/main`,

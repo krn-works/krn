@@ -6,7 +6,9 @@ import { getTask } from '../../task/store.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
+import { parkedAt, parkedFile } from './delivery.ts';
 import { sessionEnvironment } from './environment.ts';
+import { git } from './git.ts';
 import { remoteFailure } from './preflight.ts';
 import {
   type RedCheck,
@@ -119,6 +121,11 @@ export async function prepareLane(
     task !== undefined &&
     red === undefined &&
     getTask(started.path, task).status === 'closed';
+  // A commit parked while the App token was locked is checked work: resume ships it, no worker rerun.
+  const parkedPath = parkedFile(main, lane);
+  const parked =
+    existsSync(parkedPath) &&
+    parkedAt(parkedPath, git(started.path, ['rev-parse', 'HEAD']));
   return {
     ...request,
     main,
@@ -132,6 +139,6 @@ export async function prepareLane(
     red,
     redFile,
     worktree: started.path,
-    delivered,
+    delivered: delivered || (red === undefined && parked),
   };
 }
