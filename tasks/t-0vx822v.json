@@ -1,0 +1,19 @@
+{
+  "id": "t-0vx822v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "An ordered multi-dict compares equal to a plain dict whose values differ",
+  "after": [],
+  "body": [
+    "Bug: an OrderedMultiDict built from [('a', 1), ('b', 2)] reports == True against {'a': 999, 'b': 2} when the multi-dict is on the left of the comparison, and != against it is False. The same happens for the multi-dict behind URL query parameters (QueryParamDict). Comparing a dict on the left already behaves."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
