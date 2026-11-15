@@ -1,0 +1,12 @@
+{
+  "id": "t-ytr3yvg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "The brain carries at least eight enforced Go records and five enforced Python records",
+  "after": [],
+  "body": [
+    "Why: Fable direction 1115e slice 2. Go has one record, Python three.\nOutcome: >=8 enforced Go records (gofmt, vet, go.sum committed, wrapped errors, no library panic, tests beside code, context first, pinned toolchain) and >=5 enforced Python (pinned dependencies, type-check config, linter, no bare except, src layout) in standards/records.json.\nProof: red and green fixtures per record; audit on one public Go clone without a lane, zero false-red; krn adopt --init go and python still 0 FAIL. Free."
+  ]
+}
