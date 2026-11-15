@@ -1,7 +1,11 @@
 {
   "id": "t-j8magk5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ghs_ guard in cache read/write; test plants abc123 and asserts discard + refusal"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "A planted fake token in the app-token cache blocks every ship",
