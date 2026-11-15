@@ -1,7 +1,11 @@
 {
   "id": "t-arq6071",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "init and clone doctor steps judged by doctorExitIs: 78 accepted on a stale or unconfigured host entry"
+  },
   "created": "2026-11-15",
   "priority": 3,
   "title": "The walkthrough doctor steps depend on the host Product entry being fresh",

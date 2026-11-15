@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  doctorExitIs,
   namesRemedy,
   nextSteps,
   packRemedyCommand,
@@ -57,4 +58,28 @@ test('the pack remedy is the command in the doctor pack-remedy line', () => {
     'pack-stale=/r lacks 1 pack records: s-x\npack-remedy=run `krn adopt --refresh-all` (or `krn adopt <repo> --refresh`)\n';
   assert.equal(packRemedyCommand(out), 'krn adopt --refresh-all');
   assert.equal(packRemedyCommand('pack=current\n'), undefined);
+});
+
+// Verbatim `krn doctor` head lines (host run 2026-11-15) and the stale variant doctorReport prints.
+const freshEntry =
+  'entry=/h/krn/.krn/product-release/bin/krn\nentry-commit=049cc34\nrelease-commit=049cc34\npinned=yes\nstatus=fresh\nhost=linux\n';
+const staleEntry =
+  'entry=/h/krn/.krn/product-release/bin/krn\nentry-commit=af08fa4\nrelease-commit=049cc34\npinned=yes\nstatus=stale\nhost=linux\n';
+
+test('doctor steps pass on a stale host entry and still judge the wanted exit on a fresh one', () => {
+  assert.equal(doctorExitIs({ code: 78, out: staleEntry }, 0), true);
+  assert.equal(doctorExitIs({ code: 1, out: staleEntry }, 0), false);
+  assert.equal(
+    doctorExitIs(
+      {
+        code: 78,
+        out: 'entry=unconfigured\nFix: scripts/product-release.sh --entry\n',
+      },
+      0,
+    ),
+    true,
+  );
+  assert.equal(doctorExitIs({ code: 0, out: freshEntry }, 0), true);
+  assert.equal(doctorExitIs({ code: 78, out: freshEntry }, 0), false);
+  assert.equal(doctorExitIs({ code: 65, out: freshEntry }, 65), true);
 });
