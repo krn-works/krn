@@ -223,10 +223,10 @@ class RemoteZipFile:
 
             path = path or pathlib.Path('.')
 
-            outpath = path/member
+            outpath = safe_join(path, getattr(member, 'filename', member))
             os.makedirs(outpath.parent, exist_ok=True)
             with self.open(member) as fpin:
-                with open(path/member, mode='wb') as fpout:
+                with open(outpath, mode='wb') as fpout:
                     while True:
                         r = fpin.read(65536)
                         if not r:
@@ -337,6 +337,15 @@ def list_files(rzf):
         print(fmtstr % (f.compress_size, f.file_size, f.filename), file=sys.stderr)
 
 
+def safe_join(base, name):
+    'Return base/name, raising if the resolved path is outside base.'
+    base = pathlib.Path(base).resolve()
+    outpath = (base/str(name)).resolve()
+    if outpath == base or base not in outpath.parents:
+        raise Exception(f'unsafe path in archive member: {name!r}')
+    return outpath
+
+
 def extract_one(outfile, rzf, f, ofname):
     print(f'Extracting {f.filename} to {ofname}...', file=sys.stderr)
 
@@ -354,6 +363,7 @@ def download_file(f, rzf, args):
     else:
         path = pathlib.Path(f.filename)
         if args.full_filepaths:
+            path = safe_join('.', f.filename)
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
             path = path.name
