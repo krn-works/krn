@@ -68,6 +68,20 @@ const PROSE_RULE_TESTS = new Set([
 ]);
 
 /**
+ * Tree-wide tests outside test/rules/ that read every file of an area: each is selected
+ * when a changed or removed path matches its trigger, so a new module, hook or setting
+ * runs them locally instead of costing a red CI round.
+ */
+const TREE_TESTS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['test/import-boundary.test.ts', /^(?:src|scripts)\/.+\.(?:ts|mjs)$/u],
+  [
+    'test/tool-scope.test.ts',
+    /^(?:src\/|scripts\/|package\.json$|tsconfig.*\.json$|biome\.jsonc?$)/u,
+  ],
+  ['test/cli/hook.test.ts', /^src\/(?:cli|hook)\//u],
+];
+
+/**
  * A test that exercises modules only through a child process (a CLI fixture) names the
  * path prefixes it covers in a `// fast-covers: <prefix> [<prefix>...]` comment.
  */
@@ -173,6 +187,9 @@ export function selectTests(
     for (const path of tests.keys())
       if (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path)))
         picked.add(path);
+  for (const [path, trigger] of TREE_TESTS)
+    if (tests.has(path) && touched.some((file) => trigger.test(file)))
+      picked.add(path);
   const targets = new Set(
     [...changed, ...removed].filter((name) => !tests.has(name)),
   );
