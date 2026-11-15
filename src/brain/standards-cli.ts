@@ -49,7 +49,7 @@ import {
   type Sourced,
 } from './proposals.ts';
 import { recordsInForce, retirable, retireInFile } from './retire.ts';
-import { harvestSkills } from './skill-harvest.ts';
+import { harvestRules, harvestSkills } from './skill-harvest.ts';
 import {
   appliesTo,
   assertNoClash,
@@ -323,8 +323,14 @@ function evaluate(
       message: `inherited from krn but no longer in its pack; rerun krn adopt to refresh ${PROJECT_STANDARDS}`,
     }));
   const repository = repositoryFacts(root);
-  const inherited = records.filter((standard) =>
-    appliesTo(standard, repository),
+  // A pack record without a layer and without enforcement is edit-moment guidance harvested from a
+  // skill: the edit hook serves it, no check can judge it.
+  const inherited = records.filter(
+    (standard) =>
+      appliesTo(standard, repository) &&
+      !(
+        standard.layer === undefined && standard.enforcement.kind === 'advisory'
+      ),
   );
   const applicable = [...inherited, ...project];
   const report = checkStandards(applicable, {
@@ -852,35 +858,60 @@ export function instructionHarvest(directories: readonly string[]): string[] {
   return renderBulletHarvest(harvestInstructionBullets(sources), roots.length);
 }
 
-/** Prints the trial records of the skill files of a repository as a JSON array; reads the repository, never writes it. */
-function skillsHarvest(repository: string, commitFlag?: string): void {
-  const directory = join(repository, claudeDir, 'skills');
-  if (!existsSync(directory))
+/** The skill directories a harvest reads: the Claude one, plus the agents one when it reads rules. */
+function skillDirectories(rules: boolean): string[] {
+  return rules ? [claudeDir, '.agents'] : [claudeDir];
+}
+
+/**
+ * Prints the harvested records of the skill files of a repository as a JSON array: one trial
+ * record per skill, or with `rules` the accepted scoped rule records of the skills it holds
+ * (`.claude/skills` and `.agents/skills`); reads the repository, never writes it.
+ */
+function skillsHarvest(
+  repository: string,
+  commitFlag?: string,
+  rules = false,
+): void {
+  const roots = skillDirectories(rules).filter((dir) =>
+    existsSync(join(repository, dir, 'skills')),
+  );
+  if (roots.length === 0)
     throw new StandardsInputError(
-      `krn standards: ${directory} holds no skills (<name>/SKILL.md)`,
+      `krn standards: ${join(repository, claudeDir, 'skills')} holds no skills (<name>/SKILL.md)`,
     );
-  const sources = readdirSync(directory)
-    .sort()
-    .filter((name) => existsSync(join(directory, name, 'SKILL.md')))
-    .map((name) => ({
-      path: `${claudeDir}/skills/${name}/SKILL.md`,
-      text: readFileSync(join(directory, name, 'SKILL.md'), 'utf8'),
-    }));
+  const sources = roots.flatMap((dir) => {
+    const directory = join(repository, dir, 'skills');
+    return readdirSync(directory)
+      .sort()
+      .filter((name) => existsSync(join(directory, name, 'SKILL.md')))
+      .map((name) => ({
+        path: `${dir}/skills/${name}/SKILL.md`,
+        text: readFileSync(join(directory, name, 'SKILL.md'), 'utf8'),
+      }));
+  });
   const logged = spawnSync(
     'git',
-    ['-C', repository, 'log', '-1', '--format=%H', '--', `${claudeDir}/skills`],
+    [
+      '-C',
+      repository,
+      'log',
+      '-1',
+      '--format=%H',
+      '--',
+      ...roots.map((dir) => `${dir}/skills`),
+    ],
     { encoding: 'utf8', env: environment() },
   );
   const commit = commitFlag ?? logged.stdout.trim();
   if (!/^[0-9a-f]{40}$/u.test(commit))
     throw new StandardsInputError(
-      `krn standards: no commit of ${directory}; name one with --commit SHA`,
+      `krn standards: no commit of ${join(repository, roots[0] ?? claudeDir, 'skills')}; name one with --commit SHA`,
     );
-  const records = harvestSkills(
-    sources,
-    commit,
-    new Date().toISOString().slice(0, 10),
-  );
+  const today = new Date().toISOString().slice(0, 10);
+  const records = rules
+    ? harvestRules(sources, commit, today)
+    : harvestSkills(sources, commit, today);
   process.stdout.write(`${JSON.stringify(records, null, 2)}\n`);
 }
 
@@ -894,15 +925,18 @@ function bareRepos(rest: readonly string[]): boolean {
 
 function harvestCommand(rest: readonly string[]): void {
   const everyAdopted = bareRepos(rest);
+  const rules = rest.includes('--rules');
   const parsed = flags(
-    everyAdopted ? rest.filter((arg) => arg !== '--repos') : rest,
+    rest.filter(
+      (arg) => arg !== '--rules' && !(everyAdopted && arg === '--repos'),
+    ),
     new Set(['--repos']),
     new Set(['--root', '--repos-file', '--skills', '--commit']),
   );
   const { values, positional } = parsed;
   const skills = values.get('--skills')?.[0];
   if (skills !== undefined) {
-    skillsHarvest(resolve(skills), values.get('--commit')?.[0]);
+    skillsHarvest(resolve(skills), values.get('--commit')?.[0], rules);
     return;
   }
   if (everyAdopted || values.has('--repos') || values.has('--repos-file')) {
