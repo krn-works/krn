@@ -25,7 +25,6 @@ import {
 import {
   CONTRACT_FILE,
   detectBase,
-  detectStack,
   detectSubpackage,
   findContract,
   type RepoContract,
@@ -511,10 +510,11 @@ export function projectStandards(
     options.ref !== undefined || options.tracker ? ['tracker'] : [],
   );
   // The kind of site (WordPress, frontend) is read from the repository, not asked for.
-  const found = repositoryFacts(root).needs;
+  const facts = repositoryFacts(root);
+  const found = facts.needs;
   if (found.has('wordpress')) needs.add('wordpress');
   if (found.has('frontend')) needs.add('frontend');
-  const stack = detectStack(root)?.stack;
+  const stack = facts.stack;
   return seedStandards(
     readPack(),
     readProject(root),

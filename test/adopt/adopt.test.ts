@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { adoptionDrift } from '../../src/adopt/drift.ts';
 import { sessionCommand, stopCommand } from '../../src/adopt/stop-hook.ts';
 import { lanePacket } from '../../src/brain/worker-packet.ts';
 
@@ -706,4 +707,15 @@ test('adopt without a tracker prints the gaps and writes no task', () => {
   assert.equal(run.status, 0, run.stderr);
   assert.match(run.stdout, /^gap s-/mu);
   assert.equal(existsSync(join(root, 'tasks')), false);
+});
+
+test('a Composer project without PHPUnit is seeded with the nine PHP records and has no drift', () => {
+  const root = fixture({ 'composer.json': '{"require":{"php":">=8.1"}}' });
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  const text = readFileSync(join(root, '.agents/standards.json'), 'utf8');
+  const ids = [...text.matchAll(/"id":\s*"(s-php-[\w-]+)"/gu)].map((m) => m[1]);
+  assert.equal(new Set(ids).size, 9, text);
+  const drift = adoptionDrift(root);
+  assert.deepEqual([drift.drifted, drift.missing], [[], []]);
 });
