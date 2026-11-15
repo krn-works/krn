@@ -1,0 +1,19 @@
+{
+  "id": "t-0r54te6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "BarrelList indexing and insertion go wrong once it is split into sublists",
+  "after": [],
+  "body": [
+    "Bug: after BarrelList(range(30000)) has been mutated (bl.pop(0); bl.insert(0, 0)) so that it holds several sublists: bl[len(bl)] returns an element from the middle instead of raising IndexError; bl.insert(len(bl), 'x') inserts mid-list instead of appending (insert past either end must clamp like list.insert); and pop() raises IndexError on a non-empty list after indexed pops emptied the last sublist."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
