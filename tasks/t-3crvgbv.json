@@ -1,0 +1,15 @@
+{
+  "id": "t-3crvgbv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-ts-no-star-reexport pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-ts-no-star-reexport` no longer fails s-ts-no-star-reexport.",
+    "Why: adoption found this reflex standard failing: exit 1 from ! git grep -qIE '^[[:space:]]*export[[:space:]]+\\*[[:space:]]+from' -- '*.ts' '*.tsx' '*.mts' '*.cts'",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-ts-no-star-reexport`"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "t-0x1r0hr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "tailwind-merge misses the conflict when a class has an important modifier and a postfix modifier",
+  "after": [],
+  "body": [
+    "Bug (frontend class-name component, package packages/tailwind-merge): twMerge('!text-lg/7 !text-sm') returns both classes although both set font-size as important; the same class without the leading '!' or with a trailing 'text-lg/7!' merges correctly.",
+    "Outcome: a leading important modifier does not shift the postfix modifier position, so '!text-lg/7 !text-sm' gives '!text-sm', '!text-lg/7 !text-lg/9' gives '!text-lg/9' and '!text-lg/7 !text-sm/6' gives '!text-sm/6'; existing behaviour is unchanged. Fix packages/tailwind-merge/src/lib/parse-class-name.ts and add tests in packages/tailwind-merge/tests/important-modifier.test.ts."
+  ],
+  "acceptance": [
+    {
+      "verify": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

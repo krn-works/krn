@@ -1,0 +1,15 @@
+{
+  "id": "t-a9esyxa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-clean-checkout-tests pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-clean-checkout-tests` no longer fails s-clean-checkout-tests.",
+    "Why: adoption found this reflex standard failing: exit 1 from [ ! -s package.json ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const s=JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).scri...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-clean-checkout-tests`"
+  ]
+}

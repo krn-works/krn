@@ -1,0 +1,15 @@
+{
+  "id": "t-8twwdb8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts` exits 1 on the clean outside/frontend tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. in.js:939:12) at Socket.readFromStdout (/mnt/storage/tmp/krn/krn-canary-xg8sok/tree/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:862:7) at Socket.emit (node:events:514:28) at addChunk (node:internal/streams/readable:569:12) { errors: [Getter/Setter], warnings: [Getter/Setter] }",
+    "Files: the files the failing test names (run the test command).",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}

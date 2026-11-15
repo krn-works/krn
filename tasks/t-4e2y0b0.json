@@ -1,0 +1,15 @@
+{
+  "id": "t-4e2y0b0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Require the ci / Check status on the default branch",
+  "after": [],
+  "body": [
+    "Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.",
+    "Why: the adopted delivery rules treat that Check as the only gate.",
+    "Files: .github/workflows/ci.yml and the repository branch settings.",
+    "Proof: a pull request with a red Check stays unmerged."
+  ]
+}
