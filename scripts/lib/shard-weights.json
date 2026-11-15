@@ -17,6 +17,7 @@
     "test/ci/weak-tests.test.ts": 0.4,
     "test/ci/gate-wait-capture.test.ts": 0.2,
     "test/ci/logs-capture.test.ts": 0.1,
+    "test/ci/plain-gh-check.test.ts": 0.1,
     "test/ci/test-exit-flush.test.mjs": 1.5,
     "test/ci/test-summary-policy.test.mjs": 0.5,
     "test/ci/conflict-check.test.ts": 0.1,
