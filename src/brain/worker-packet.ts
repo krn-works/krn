@@ -27,6 +27,9 @@ export const GATES_BUDGET = 150;
 /** The one command that runs every gate the block names. */
 export const GATES_COMMAND = 'krn standards check';
 
+/** The command a worker runs before Stop: the enforced records its diff breaks, with file:line. */
+export const REVIEW_COMMAND = 'krn standards review';
+
 /** Token budget of the packet SessionStart injects into an interactive session. */
 export const SESSION_BUDGET = 400;
 
@@ -150,7 +153,7 @@ export function gatesBlock(repo: string, asOf: string): string | undefined {
     return undefined;
   }
   if (ids.length === 0) return undefined;
-  const head = `Gates run at Stop (check them with '${GATES_COMMAND}'): `;
+  const head = `Before Stop, run '${REVIEW_COMMAND}': it prints file:line for each violation in your diff.\nGates run at Stop (check them with '${GATES_COMMAND}'): `;
   const kept: string[] = [];
   for (const id of ids) {
     const next = `${head}${[...kept, id].join(', ')}`;

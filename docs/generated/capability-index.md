@@ -45,6 +45,7 @@ src/brain/record.ts: The one record schema of
 src/brain/retire.ts: Retirement of prose stan
 src/brain/skill-harvest.ts: Harvest of a repo
 src/brain/standards-cli.ts: `krn standards ch
+src/brain/standards-review.ts: `krn standards
 src/brain/standards.ts: The standards pack (A
 src/brain/task-quality.ts: The task-quality r
 src/brain/worker-packet.ts: Conventions packe

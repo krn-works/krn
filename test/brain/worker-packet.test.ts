@@ -323,3 +323,9 @@ test('the lane brief carries the gates block, and the frozen carrier does not', 
     ).includes('Gates run at Stop'),
   );
 });
+
+test('the gates block orders the standards review before Stop', () => {
+  const block = gatesBlock(repo, '2026-11-15');
+  assert.ok(block !== undefined);
+  assert.ok(block.startsWith("Before Stop, run 'krn standards review'"), block);
+});
