@@ -160,6 +160,8 @@ test('open starts a parentless terminal with its environment and label and answe
     'krn-tab=next',
     '--',
     'env',
+    '-u',
+    'CLAUDE_CODE_CHILD_SESSION',
     'A=1',
     'B=two words',
     'bash',
@@ -183,7 +185,13 @@ test('open puts the successor in the caller window space so it shows as a tab', 
   host.open({ cwd: '/repo', label: 'next', env: {} });
   const run = calls().find((call) => call[0] === 'run');
   assert.equal(spaceLabel(run), `herdr.space=${callerSpace}`);
-  assert.deepEqual(run?.slice(-3), ['--', 'env', 'bash']);
+  assert.deepEqual(run?.slice(-5), [
+    '--',
+    'env',
+    '-u',
+    'CLAUDE_CODE_CHILD_SESSION',
+    'bash',
+  ]);
   assert.deepEqual(appCalls(), []);
 });
 
