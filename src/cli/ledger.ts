@@ -1,5 +1,7 @@
+import { renderUnused, unusedTools } from '../adopt/unused.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { transcriptDirs } from '../harness/transcripts.ts';
 import {
   collectLedger,
   type LedgerOptions,
@@ -19,10 +21,15 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let json = false;
   let windowMode = false;
   let checkCeiling = false;
+  let unused = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
       json = true;
+      continue;
+    }
+    if (flag === '--unused') {
+      unused = true;
       continue;
     }
     if (flag === '--check-ceiling') {
@@ -88,6 +95,21 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (unused) {
+    const root = options.root ?? process.cwd();
+    const report = await unusedTools(
+      root,
+      options.transcripts === undefined
+        ? await transcriptDirs(root)
+        : [options.transcripts],
+    );
+    process.stdout.write(
+      json
+        ? `${JSON.stringify(report)}\n`
+        : `${renderUnused(report).join('\n')}\n`,
+    );
+    return;
   }
   if (checkCeiling && !windowMode) {
     window.last = CEILING_WINDOW_PRS;

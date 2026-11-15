@@ -12,13 +12,18 @@ import {
   missingPackRecords,
   refreshAdoption,
 } from '../adopt/drift.ts';
-import { estimateFirstTurn, renderFirstTurn } from '../adopt/first-turn.ts';
+import {
+  disableUnused,
+  estimateFirstTurn,
+  renderFirstTurn,
+} from '../adopt/first-turn.ts';
 import { adoptionGaps } from '../adopt/gaps.ts';
 import {
   initDirectory,
   initInstallCommand,
   initTestCommand,
 } from '../adopt/init.ts';
+import { renderUnused, unusedTools } from '../adopt/unused.ts';
 import { verifyRepository } from '../adopt/verify.ts';
 import {
   pruneRegistry,
@@ -29,6 +34,7 @@ import { StandardsDataError } from '../brain/standards.ts';
 import { StandardsInputError } from '../brain/standards-cli.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { transcriptDirs } from '../harness/transcripts.ts';
 
 /** A named failure of adopt with its own exit: 124 the canary timed out, 69 the repository's clean base is red. */
 class AdoptFailure extends Error {
@@ -57,7 +63,7 @@ function printGaps(root: string): void {
 }
 
 export const adoptUsage =
-  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python|wp-plugin|go|rust]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); the canary is bounded by KRN_CANARY_TIMEOUT_MS (default 180000): any failed canary removes everything adopt wrote (a timeout exits 124 naming the slow step (install, test command or Stop gate) and its measured time, any other failure exits 64; a clean base whose own test command fails is adopted in bootstrap state: exit 0, the failing command named, and one seeded task "make the base test command green" that lane run admits on the red baseline (`--canary` alone still exits 69 for it)); adopt then prints each failing standard as a `gap` line and, in a repository with a tracker, writes one task per floor or reflex failure; `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack (ts, php, python, wp-plugin, go or rust) from package.json, composer.json (a plugin header makes it wp-plugin), go.mod, Cargo.toml or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --refresh` rewrites only the KRN-owned adoption files that drifted (or are missing) to what adopt writes now, never krn.json, tasks/ or the CI call, printing `updated <file>` or `kept <file>` per file, and is idempotent; `krn adopt --refresh-all` runs that refresh over every repository of the host registry (`~/.krn/adopted.json`, or KRN_ADOPTED_REGISTRY), printing `refreshed <repo>`, `skipped <repo>` or `failed <repo>`; `krn adopt <path> --verify` also names each pack record the repository lacks (`verify drift: pack record`) and also names each adoption file that drifted or is missing (`verify drift:`), prints `verify context:` with the first-turn token estimate of the instruction files, skills and MCP servers and `verify context setting:` lines naming the settings that cut it, reads the repository through gh and exits 1 naming each gap or drift when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed); a repository whose origin is not on GitHub prints `verify skipped: no GitHub host` and skips those CI checks';
+  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python|wp-plugin|go|rust]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); the canary is bounded by KRN_CANARY_TIMEOUT_MS (default 180000): any failed canary removes everything adopt wrote (a timeout exits 124 naming the slow step (install, test command or Stop gate) and its measured time, any other failure exits 64; a clean base whose own test command fails is adopted in bootstrap state: exit 0, the failing command named, and one seeded task "make the base test command green" that lane run admits on the red baseline (`--canary` alone still exits 69 for it)); adopt then prints each failing standard as a `gap` line and, in a repository with a tracker, writes one task per floor or reflex failure; `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack (ts, php, python, wp-plugin, go or rust) from package.json, composer.json (a plugin header makes it wp-plugin), go.mod, Cargo.toml or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --refresh` rewrites only the KRN-owned adoption files that drifted (or are missing) to what adopt writes now, never krn.json, tasks/ or the CI call, printing `updated <file>` or `kept <file>` per file, and is idempotent; `krn adopt --refresh-all` runs that refresh over every repository of the host registry (`~/.krn/adopted.json`, or KRN_ADOPTED_REGISTRY), printing `refreshed <repo>`, `skipped <repo>` or `failed <repo>`; `krn adopt <path> --verify` also names each pack record the repository lacks (`verify drift: pack record`) and also names each adoption file that drifted or is missing (`verify drift:`), prints `verify context:` with the first-turn token estimate of the instruction files, skills and MCP servers and `verify context setting:` lines naming the settings that cut it, reads the repository through gh and exits 1 naming each gap or drift when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed); a repository whose origin is not on GitHub prints `verify skipped: no GitHub host` and skips those CI checks; `krn adopt <path> --prune-unused [--transcripts DIR]` reads the last 5 sessions (at least 2 needed), prints each project MCP server and skill with 0 calls and its token weight (`unused MCP server`, `unused skill`, `unused total`) and disables them in .claude/settings.json (`disabledMcpjsonServers`, `permissions.deny` `Skill(name)`), printing `disabled <entry>` only for entries it adds; nothing is disabled without the flag and a rerun changes nothing';
 
 const switches = [
   '--tracker',
@@ -67,6 +73,7 @@ const switches = [
   '--refresh',
   '--refresh-all',
   '--init',
+  '--prune-unused',
 ] as const;
 const flags = [
   '--ref',
@@ -75,6 +82,7 @@ const flags = [
   '--typecheck',
   '--test',
   '--stack',
+  '--transcripts',
 ] as const;
 
 /** Refreshes every repository of the host registry; a registered path that is not a git repository is skipped; exit 1 when a refresh fails; a usage error when none is registered. */
@@ -103,7 +111,18 @@ function refreshAll(): void {
   }
 }
 
-export function adoptCommand(args: string[]): void {
+/** Names the MCP servers and skills no recent session called with the tokens saved, and disables them in the project settings; adds only entries not yet there, so a rerun changes nothing. */
+async function pruneUnused(root: string, transcripts?: string): Promise<void> {
+  const report = await unusedTools(
+    root,
+    transcripts === undefined ? await transcriptDirs(root) : [transcripts],
+  );
+  for (const line of renderUnused(report)) process.stdout.write(`${line}\n`);
+  for (const entry of disableUnused(root, report))
+    process.stdout.write(`disabled ${entry}\n`);
+}
+
+export function adoptCommand(args: string[]): void | Promise<void> {
   let path: string | undefined;
   const values: Record<string, string> = {};
   const on = new Set<string>();
@@ -122,6 +141,14 @@ export function adoptCommand(args: string[]): void {
     else if (path === undefined) path = arg;
     else throw new CliUsageError('krn adopt takes one path');
   }
+  if (on.has('--prune-unused')) {
+    if (path === undefined) throw new CliUsageError(adoptUsage);
+    if (on.size > 1 || Object.keys(values).some((k) => k !== 'transcripts'))
+      throw new CliUsageError('--prune-unused stands alone');
+    return pruneUnused(resolve(path), values.transcripts);
+  }
+  if (Object.keys(values).includes('transcripts'))
+    throw new CliUsageError('--transcripts needs --prune-unused');
   if (on.has('--refresh-all')) {
     if (on.size > 1 || path !== undefined || Object.keys(values).length > 0)
       throw new CliUsageError('--refresh-all stands alone');
