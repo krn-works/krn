@@ -3,10 +3,6 @@ import type { Runner } from '../deliver/transport.ts';
 
 /** Files a generator owns: a conflict in one is resolved by rerunning its command, never by hand. */
 export const generatedFiles: Record<string, [string, string[]]> = {
-  'docs/generated/capability-index.md': [
-    'node',
-    ['scripts/claude/capability-index.ts', '--write'],
-  ],
   'docs/program/roadmap.md': ['node', ['scripts/claude/roadmap-prune.ts']],
 };
 

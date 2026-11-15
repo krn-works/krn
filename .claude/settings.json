@@ -96,11 +96,6 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/cc-clearing-watch.ts\" --hook",
             "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/capability-index.ts\"",
-            "timeout": 10
           }
         ]
       }

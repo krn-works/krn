@@ -1,0 +1,12 @@
+{
+  "id": "t-7fdcmy6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 3,
+  "title": "d23-harness overlay test reads the working tree, not HEAD, so uncommitted deletions do not redden fast",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15 S1: fast failed test/evals/d23-harness.test.ts ENOENT scripts/claude/capability-index.ts because overlayFiles reads HEAD while the file was deleted in the worktree; passed after commit.\nOutcome: the overlay walk skips files absent from the working tree or lists from the index.\nProof: node --test test/evals/d23-harness.test.ts passes with a staged deletion."
+  ]
+}

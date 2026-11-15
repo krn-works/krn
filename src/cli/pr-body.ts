@@ -36,7 +36,30 @@ function bodyField(task: TaskRecord, name: string): string | undefined {
   return undefined;
 }
 
-const runnableProof = /^(?:node|npm|npx|krn|bin\/krn|\.\/\S+) /u;
+const runnableProof = /^(?:node|npm|npx|krn|bin\/krn|git|\.\/\S+) /u;
+const quotes = (text: string, mark: string) => text.split(mark).length - 1;
+
+/**
+ * A plan Proof span reads `command: verdict` (docs/program/plan.md). The verdict is split off at
+ * the last `: ` outside quotes; a numeric verdict becomes a stdout comparison, any other verdict
+ * (`pass`, prose) leaves the exit code as the check.
+ */
+export function proofShell(span: string): string {
+  const cut = span.lastIndexOf(': ');
+  if (cut < 0) return span;
+  const command = span.slice(0, cut).trim();
+  const verdict = span.slice(cut + 2).trim();
+  if (
+    command === '' ||
+    quotes(command, "'") % 2 !== 0 ||
+    quotes(command, '"') % 2 !== 0 ||
+    /['"`$|;&]/u.test(verdict)
+  )
+    return span;
+  return /^-?\d+(?:\.\d+)?$/u.test(verdict)
+    ? `[ "$(${command})" = "${verdict}" ]`
+    : command;
+}
 // `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd).
 const placeholder = /<[A-Za-z][^<>]*>/u;
 
@@ -47,7 +70,8 @@ export function proofCommands(task: TaskRecord): string[] {
     .map((match) => (match[1] ?? '').trim())
     .filter(
       (command) => runnableProof.test(command) && !placeholder.test(command),
-    );
+    )
+    .map(proofShell);
 }
 
 /** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */

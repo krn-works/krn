@@ -1,0 +1,12 @@
+{
+  "id": "t-ab00km6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Retro skill and the proposals test disagree on committing proposals",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15 S1: delivery-retro says commit `krn standards propose` output with the slice; test/cli/standards-proposals.test.ts:346 fails CI for any tracked proposal without an enforced pack record (run 43757521352).\nOutcome: a slice that commits the output of `krn standards propose` as delivery-retro says gets exit 0 from `node --test test/cli/standards-proposals.test.ts` (today: exit 1).\nParked proposal: .krn/runs/lead/a-proof-or-acceptance-format-written-4cab289f.json (proof format parsed by its runner).\nProof: a slice that follows delivery-retro verbatim passes node --test test/cli/standards-proposals.test.ts."
+  ]
+}

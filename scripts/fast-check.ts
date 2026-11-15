@@ -13,7 +13,6 @@ import {
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
-import { writeIndex } from './claude/capability-index.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
@@ -86,10 +85,6 @@ const TREE_TESTS: ReadonlyArray<readonly [string, RegExp]> = [
  * path prefixes it covers in a `// fast-covers: <prefix> [<prefix>...]` comment.
  */
 const COVERS = /^\/\/ fast-covers:(.+)$/mu;
-
-const INDEX_FILE = 'docs/generated/capability-index.md';
-const INDEX_SOURCE = /^src\/.*\.ts$/u;
-const INDEX_TEST = 'test/claude/capability-index.test.ts';
 
 const CLI_SPAWN = /bin\/krn|cli\/main\.ts|'bin',\s*'krn'|krn\.mjs/u;
 const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?: )/u;
@@ -178,9 +173,6 @@ export function selectTests(
   cliModules: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
-  // The generated capability index and every src module header feed one budgeted test.
-  if (changed.some((file) => file === INDEX_FILE || INDEX_SOURCE.test(file)))
-    if (tests.has(INDEX_TEST)) picked.add(INDEX_TEST);
   const touched = [...changed, ...removed];
   const prose = touched.some((file) => PROSE_PATHS.test(file));
   if (touched.length > 0)
@@ -482,8 +474,6 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     process.stderr.write(`fast: ${parsed.error}\n`);
     return 64;
   }
-  // The capability index is generated from src; rewriting it first makes it part of the diff.
-  if (existsSync(join(root, 'src'))) writeIndex(root);
   let changed: string[];
   let removed: string[];
   let surviving: Set<string>;

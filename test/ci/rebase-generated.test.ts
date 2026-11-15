@@ -19,9 +19,9 @@ import { run } from '../../src/deliver/transport.ts';
 // small script at the path the registry names, writing one line per src header.
 const generator = `import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 const lines = readdirSync('src').sort().map((f) => f + ': ' + readFileSync('src/' + f, 'utf8').split('\\n')[0]);
-writeFileSync('docs/generated/capability-index.md', lines.join('\\n') + '\\n');
+writeFileSync('docs/program/roadmap.md', lines.join('\\n') + '\\n');
 `;
-const indexFile = 'docs/generated/capability-index.md';
+const indexFile = 'docs/program/roadmap.md';
 
 function git(cwd: string, ...args: string[]): string {
   const result = run(
@@ -41,10 +41,7 @@ function edit(cwd: string, file: string, text: string, message: string) {
 
 function commitRegenerated(cwd: string, file: string, header: string) {
   writeFileSync(join(cwd, file), `${header}\n`);
-  assert.equal(
-    run('node', ['scripts/claude/capability-index.ts'], cwd).code,
-    0,
-  );
+  assert.equal(run('node', ['scripts/claude/roadmap-prune.ts'], cwd).code, 0);
   git(cwd, 'add', '-A');
   git(cwd, 'commit', '-qm', header);
 }
@@ -56,15 +53,12 @@ function setup(): { work: string; main: string } {
   const main = join(root, 'main');
   git(root, 'init', '-q', '--bare', '-b', 'main', origin);
   git(root, 'clone', '-q', origin, work);
-  for (const dir of ['src', 'docs/generated', 'scripts/claude'])
+  for (const dir of ['src', 'docs/program', 'scripts/claude'])
     mkdirSync(join(work, dir), { recursive: true });
   writeFileSync(join(work, 'src/a.ts'), '// a\n');
   writeFileSync(join(work, 'src/b.ts'), '// b\n');
-  writeFileSync(join(work, 'scripts/claude/capability-index.ts'), generator);
-  assert.equal(
-    run('node', ['scripts/claude/capability-index.ts'], work).code,
-    0,
-  );
+  writeFileSync(join(work, 'scripts/claude/roadmap-prune.ts'), generator);
+  assert.equal(run('node', ['scripts/claude/roadmap-prune.ts'], work).code, 0);
   git(work, 'checkout', '-q', '-b', 'main');
   git(work, 'add', '-A');
   git(work, 'commit', '-qm', 'base');
@@ -78,7 +72,7 @@ function setup(): { work: string; main: string } {
   return { work, main };
 }
 
-test('a conflict only in the generated index is regenerated from the rebased src', () => {
+test('a conflict only in the generated roadmap is regenerated from the rebased src', () => {
   const { work, main } = setup();
   git(work, 'checkout', '-q', '-b', 'lane');
   commitRegenerated(work, 'src/b.ts', '// b changed by the lane');

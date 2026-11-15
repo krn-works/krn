@@ -26,7 +26,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - With lanes running, the lead stops launching new lanes, drains the running ones, then hands off.
 - Unattended, never ask the operator: park the decision as a decide task (`krn task create`) and launch the successor.
 - Fable plan requests follow `docs/program/fable-plan-brief.md`.
-- SessionStart injects the capability index (`docs/generated/capability-index.md`): before calling anything foreign, unknown or missing, grep the index and src; fast regenerates it.
+- SessionStart injects `docs/program/plan.md@<hash>` and the resume task's slice line: read the plan before planning; grep `src` before calling anything foreign, unknown or missing.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
 - A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
 - A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.

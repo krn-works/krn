@@ -1,7 +1,7 @@
 // SessionStart restart brief for a session.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput } from '../harness/claude.ts';
 import { memoryDirectory } from '../harness/memory-directory.ts';
@@ -16,7 +16,6 @@ import {
   recordSessionClass,
 } from '../memory/operator-inbox-store.ts';
 import { stateLoss } from '../state/loss.ts';
-import { pressureLines, probe } from './disk-pressure.ts';
 import { object } from './io.ts';
 
 function closed(project: string, id: unknown): boolean {
@@ -31,15 +30,53 @@ function closed(project: string, id: unknown): boolean {
   }
 }
 
+function resumeTaskId(handoff: string): string | undefined {
+  return /^\s*-\s+Task:\s*`?(t-[a-z0-9]{7})\b/imu.exec(
+    section(handoff, 'Resume') ?? '',
+  )?.[1];
+}
+
+export const PLAN_FILE = 'docs/program/plan.md';
+
+/**
+ * The tracked plan as a pointer, never its text: `plan.md@<hash>` so a session can tell the plan
+ * moved, plus the plan's slice line for the resume task when it has one (ADR 0024).
+ */
+export function planPointer(
+  project: string,
+  handoff = '',
+  limit = 700,
+): string | undefined {
+  let plan: string;
+  try {
+    plan = readFileSync(join(project, PLAN_FILE), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const hash = createHash('sha256').update(plan).digest('hex').slice(0, 12);
+  const lines = [
+    `Plan: ${PLAN_FILE}@${hash} (the north star and slices; read it before planning)`,
+  ];
+  const id = resumeTaskId(handoff);
+  const slice = id
+    ? plan
+        .split('\n')
+        .find((line) => line.startsWith(`- [S`) && line.includes(` ${id}]`))
+    : undefined;
+  if (slice)
+    lines.push(
+      `Slice: ${slice.length > limit ? `${cutText(slice, limit - 1)}…` : slice}`,
+    );
+  return lines.join('\n');
+}
+
 // The resume task's record, so a session never cats tasks/<id>.json at startup.
 export function taskBrief(
   project: string,
   handoff: string,
   limit = 1500,
 ): string | undefined {
-  const id = /^\s*-\s+Task:\s*`?(t-[a-z0-9]{7})\b/imu.exec(
-    section(handoff, 'Resume') ?? '',
-  )?.[1];
+  const id = resumeTaskId(handoff);
   if (!id) return undefined;
   try {
     const task = object(
@@ -116,7 +153,6 @@ export function restartText(
   // Only state that changes per session; static rules live in CLAUDE.md.
   const lines = [`Branch: ${branch}; HEAD: ${sha.slice(0, 7)}`];
   const now = Date.now();
-  let idleClaims = 0;
   const liveClaims = new Set<string>();
   const claims = join(main, '.krn/task-claims');
   if (existsSync(claims)) {
@@ -133,19 +169,14 @@ export function restartText(
       }
       // A claim on a closed task is stale; a missing record stays visible.
       if (closed(project, claim.id)) continue;
-      if (now - claimActivity(path, claim) > idleWindow) {
-        idleClaims += 1;
-        continue;
-      }
+      // An idle claim is stale; it stays out of the model's context.
+      if (now - claimActivity(path, claim) > idleWindow) continue;
       liveClaims.add(`.krn/task-claims/${entry.name}`);
       lines.push(
         `Open claim: ${entry.name} ${JSON.stringify({ id: claim.id, actor: claim.actor, branch: claim.branch }).slice(0, 160)}`,
       );
     }
   }
-  // The count sits right after the branch, so truncation of the entries never drops it.
-  if (idleClaims > 0)
-    lines.splice(1, 0, `Hidden: ${idleClaims} idle claims (idle over 24h)`);
   let newest: { path: string; mtime: number } | undefined;
   function visit(directory: string) {
     if (!existsSync(directory)) return;
@@ -220,9 +251,21 @@ export function restartText(
   }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
   let next = 2;
+  let handoff = '';
   if (newest) {
     try {
-      const handoff = readFileSync(newest.path, 'utf8');
+      handoff = readFileSync(newest.path, 'utf8');
+    } catch {
+      /* An unreadable handoff leaves the pointer. */
+    }
+  }
+  const plan = planPointer(project, handoff);
+  if (plan) {
+    lines.splice(1, 0, plan);
+    next += 1;
+  }
+  if (handoff) {
+    try {
       const block = resumeBlock(handoff, 3000);
       if (block) lines.splice(next++, 0, block);
       const task = taskBrief(project, handoff);
@@ -246,12 +289,6 @@ export function restartText(
     } catch {
       /* Standards must never interrupt startup. */
     }
-  }
-  // A full disk fails builds and git silently; name it right after the branch.
-  try {
-    lines.splice(1, 0, ...pressureLines(probe([homedir(), main])));
-  } catch {
-    /* Disk checks must never interrupt startup. */
   }
   return fitEnvelope(event, lines.join('\n'));
 }

@@ -240,10 +240,10 @@ test('a conflicting PR exits 76 and keeps the worktree', async () => {
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
 });
 
-test('a PR that turns conflicting only in the capability index is regenerated, force-pushed and merged', async () => {
+test('a PR that turns conflicting only in a generated file is regenerated, force-pushed and merged', async () => {
   const r = receiver({
     pulls: [{ mergeable_state: 'dirty' }, auto, merged],
-    lateConflict: 'docs/generated/capability-index.md',
+    lateConflict: 'docs/program/roadmap.md',
   });
   const out = await shipCommand(args, r);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));

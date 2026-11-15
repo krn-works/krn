@@ -1,0 +1,12 @@
+{
+  "id": "t-0p8v557",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Eval replay sessions never outlive their run directory",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15: node --test pid running 2d17h with cwd /mnt/storage/tmp/d23-runs/533.P.r1 (deleted), killed by hand.\nOutcome: evals/d23 replay runs each session in its own process group and kills it when the run ends or times out.\nProof: test spawns a replay with a hanging child and asserts no process with that cwd survives."
+  ]
+}

@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { proofCommands, renderPrBody } from '../../src/cli/pr-body.ts';
+import {
+  proofCommands,
+  proofShell,
+  renderPrBody,
+} from '../../src/cli/pr-body.ts';
 import type { TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -192,6 +196,29 @@ test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
     ],
   };
   assert.deepEqual(proofCommands(record), ['node --test a.test.ts 2>&1']);
+});
+
+test('proofCommands runs a plan `command: verdict` span as its command and checks a numeric verdict', () => {
+  // Evidence: wave-1 lanes, ship exit 81: `node --test x.test.ts: pass` ran under sh with `: pass` as a file.
+  const record = {
+    ...task,
+    body: [
+      "Proof: `node --test test/a.test.ts: pass` and `git ls-files docs/x.md | wc -l: 0` and `node evals/a.ts --arms P,PC: prints delta with CI` and `grep -c 'Ticket: t-x' f`.",
+    ],
+  };
+  assert.deepEqual(proofCommands(record), [
+    'node --test test/a.test.ts',
+    '[ "$(git ls-files docs/x.md | wc -l)" = "0" ]',
+    'node evals/a.ts --arms P,PC',
+  ]);
+});
+
+test('a numeric verdict fails the proof when stdout differs, against real sh', () => {
+  const sh = (command: string) =>
+    spawnSync('sh', ['-c', command], { encoding: 'utf8' }).status;
+  assert.equal(sh(proofShell('printf 0: 0')), 0);
+  assert.notEqual(sh(proofShell('printf 1: 0')), 0);
+  assert.equal(sh(proofShell("printf 'a: b'")), 0, 'quoted colon stays');
 });
 
 test('pr body carries the worker assumptions as a bulleted section', () => {
