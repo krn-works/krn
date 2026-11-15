@@ -683,6 +683,37 @@ export function remoteVisibility(
   return result.status === 0 && value !== '' ? value : undefined;
 }
 
+/**
+ * git `-c` arguments for the host's own seed pushes: the operator's GitHub login through gh, which carries
+ * the `workflow` scope a GitHub App lacks. The token is never in the arguments.
+ */
+export function hostCredentialArgs(): string[] {
+  const key = 'credential.https://github.com.helper';
+  return [
+    '-c',
+    'credential.helper=',
+    '-c',
+    `${key}=`,
+    '-c',
+    `${key}=!/usr/bin/gh auth git-credential`,
+  ];
+}
+
+/**
+ * The credential arguments of a row push: the seed push (the base and the adopt commit that carries the
+ * host-written CI workflow) uses the host login, and only for a private remote; every other push, and any
+ * push to a public or unknown remote, keeps the repository's App token.
+ */
+export function rowCredentialArgs(
+  repo: string,
+  visibility: string | undefined,
+  seed: boolean,
+): string[] {
+  return seed && visibility === 'private'
+    ? hostCredentialArgs()
+    : appCredentialArgs(repo);
+}
+
 const packFile = (root: string): string => join(root, 'standards/records.json');
 
 /** Copies a row's exposures into the host log and turns its Stop refusals into proposals in the row checkout. */
@@ -786,6 +817,9 @@ function acceptStack(
   };
   const git = (args: string[], cwd = dir) =>
     run('git', [...appCredentialArgs(repo), ...args], cwd);
+  const visibility = remoteVisibility(root, repo);
+  const seedGit = (args: string[]) =>
+    run('git', [...rowCredentialArgs(repo, visibility, true), ...args], dir);
   if (!existsSync(join(source, '.git')))
     throw new Error(
       `outside-acceptance: no scratch copy at ${source} (pass --scratch or KRN_OUTSIDE_SCRATCH)`,
@@ -797,7 +831,7 @@ function acceptStack(
       : existsSync(manifestPath)
         ? readFileSync(manifestPath, 'utf8')
         : undefined,
-    remoteVisibility(root, repo),
+    visibility,
   );
   if (refusal !== undefined)
     throw new Error(`outside-acceptance: ${stack}: ${refusal}`);
@@ -863,7 +897,7 @@ function acceptStack(
     git(['commit', '--quiet', '-m', `chore: orphan base for ${stack}`]);
     git(['branch', '-M', branch]);
     pushed =
-      git(['push', '--force', 'origin', `${branch}:refs/heads/${branch}`])
+      seedGit(['push', '--force', 'origin', `${branch}:refs/heads/${branch}`])
         .status === 0;
     if (!pushed) throw new Error('push of the orphan base failed');
     let config: AdoptFlags = {};
@@ -910,7 +944,7 @@ function acceptStack(
     writeSeedTask(dir, seed);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
-    git(['push', 'origin', branch]);
+    seedGit(['push', 'origin', branch]);
     const drain = run(
       krn,
       [
