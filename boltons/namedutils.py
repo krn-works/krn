@@ -151,7 +151,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     if rename:
         seen = set()
         for index, name in enumerate(field_names):
-            if (not all(c.isalnum() or c == '_' for c in name)
+            if (not name.isidentifier()
                 or _iskeyword(name)
                 or not name
                 or name[0].isdigit()
@@ -310,7 +310,7 @@ def namedlist(typename, field_names, verbose=False, rename=False):
     if rename:
         seen = set()
         for index, name in enumerate(field_names):
-            if (not all(c.isalnum() or c == '_' for c in name)
+            if (not name.isidentifier()
                 or _iskeyword(name)
                 or not name
                 or name[0].isdigit()

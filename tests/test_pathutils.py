@@ -39,3 +39,10 @@ def test_expandpath(monkeypatch):
     monkeypatch.delenv('BOLTONS_UNDEFINED_VAR', raising=False)
     assert expandpath('$BOLTONS_UNDEFINED_VAR') == '$BOLTONS_UNDEFINED_VAR'
     assert expandpath('foo') == 'foo'
+
+
+def test_shrinkuser_home_is_root(monkeypatch):
+    monkeypatch.setenv('HOME', '/')
+    monkeypatch.setenv('USERPROFILE', '/')
+    assert shrinkuser('/') == '~'
+    assert shrinkuser('/project/file') == '~/project/file'

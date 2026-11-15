@@ -1,3 +1,4 @@
+import pytest
 import os.path
 import pathlib
 
@@ -104,3 +105,56 @@ def test_rotate_file_full_rotation_no_ext(tmp_path):
 
     assert not (tmp_path / 'test_file.5').exists()
 
+
+
+def test_fileperms_from_int_round_trips_single_class_bits():
+    for mode in (0o007, 0o070, 0o700, 0o644, 0o000, 0o777):
+        assert int(FilePerms.from_int(mode)) == mode
+    fp = FilePerms.from_int(0o070)
+    assert (fp.user, fp.group, fp.other) == ('', 'rwx', '')
+
+
+def test_fileperms_revoke_updates_integer():
+    fp = FilePerms.from_int(0o600)
+    fp.user = 'r'
+    assert int(fp) == 0o400
+
+
+def test_atomic_saver_flush_failure_cleans_up(tmp_path):
+    dest = tmp_path / 'dest.txt'
+    saver = fileutils.AtomicSaver(str(dest))
+    f = saver.__enter__()
+    part = saver.part_path
+
+    class Boom:
+        closed = False
+
+        def flush(self):
+            raise OSError('flush failed')
+
+        def fileno(self):
+            return 0
+
+        def close(self):
+            self.closed = True
+    real = saver.part_file
+    boom = Boom()
+    saver.part_file = boom
+    with pytest.raises(OSError):
+        saver.__exit__(None, None, None)
+    real.close()
+    assert boom.closed
+    assert not os.path.exists(part)
+    assert not dest.exists()
+
+
+def test_iter_find_files_trailing_separator(tmp_path):
+    (tmp_path / 'a' / 'b').mkdir(parents=True)
+    (tmp_path / 'x.txt').write_text('')
+    (tmp_path / 'a' / 'y.txt').write_text('')
+    (tmp_path / 'a' / 'b' / 'z.txt').write_text('')
+    d = str(tmp_path)
+    for depth in (0, 1, 2, None):
+        plain = {os.path.normpath(p) for p in iter_find_files(d, '*.txt', max_depth=depth)}
+        slash = {os.path.normpath(p) for p in iter_find_files(d + os.sep, '*.txt', max_depth=depth)}
+        assert plain == slash
