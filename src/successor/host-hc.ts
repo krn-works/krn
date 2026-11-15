@@ -92,7 +92,12 @@ function listing(): Array<Record<string, unknown>> | HostFailure {
   const terminals = record(readJson(list.stdout))?.terminals;
   if (!Array.isArray(terminals))
     return failureOf(list, 'malformed terminal list');
-  return terminals.flatMap((value) => record(value) ?? []);
+  const found: Array<Record<string, unknown>> = [];
+  for (const value of terminals) {
+    const summary = record(value);
+    if (summary) found.push(summary);
+  }
+  return found;
 }
 
 export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
