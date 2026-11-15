@@ -104,7 +104,7 @@ def get_all(type_obj, include_subtypes=True):
         type_is_tracked = gc.is_tracked(type_obj)
     except AttributeError:
         type_is_tracked = False  # Python 2.6 and below don't get the speedup
-    if type_is_tracked:
+    if type_is_tracked and not include_subtypes:
         to_check = gc.get_referrers(type_obj)
     else:
         to_check = gc.get_objects()
@@ -144,12 +144,15 @@ class GCToggler:
     """
     def __init__(self, postcollect=False):
         self.postcollect = postcollect
+        self._was_enabled = []
 
     def __enter__(self):
+        self._was_enabled.append(gc.isenabled())
         gc.disable()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        gc.enable()
+        if self._was_enabled.pop():
+            gc.enable()
         if self.postcollect:
             gc.collect()
 

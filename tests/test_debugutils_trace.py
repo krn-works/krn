@@ -85,3 +85,19 @@ def test_trace_oldstyle():
     assert wrapped.get_test() is oldie.test
 
     return
+
+
+def test_trace_raise_suppressed_by_hook():
+    class Boom:
+        def go(self):
+            raise ValueError('x')
+
+    events = []
+
+    def hook(event, **kw):
+        events.append(event)
+        return event == 'raise'
+
+    wrapped = wrap_trace(Boom(), hook=hook, which='go')
+    assert wrapped.go() is None
+    assert 'raise' in events

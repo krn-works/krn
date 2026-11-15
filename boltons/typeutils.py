@@ -153,7 +153,9 @@ def get_all_subclasses(cls):
 
     """
     try:
-        to_check = deque(cls.__subclasses__())
+        if not isinstance(cls, type):
+            raise TypeError
+        to_check = deque(type.__subclasses__(cls))
     except (AttributeError, TypeError):
         raise TypeError('expected type object, not %r' % cls)
     seen, ret = set(), []
@@ -163,7 +165,7 @@ def get_all_subclasses(cls):
             continue
         ret.append(cur)
         seen.add(cur)
-        to_check.extend(cur.__subclasses__())
+        to_check.extend(type.__subclasses__(cur))
     return ret
 
 

@@ -201,6 +201,7 @@ def wrap_trace(obj, hook=trace_print_hook,
                 try:
                     ret = func(*a, **kw)
                 except Exception:
+                    ret = None
                     if not hook(event='raise', label=_label, obj=obj,
                                 attr_name=attr_name, args=a, kwargs=kw,
                                 result=sys.exc_info()):
