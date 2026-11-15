@@ -11,6 +11,15 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { BOOTSTRAP_TASK_TITLE } from '../src/adopt/adopt.ts';
 import { namedTests } from '../src/adopt/canary.ts';
+import { appendExposure, readExposures } from '../src/brain/exposures.ts';
+import { harvestCandidates, renderHarvest } from '../src/brain/proposals.ts';
+import { parseUnified } from '../src/brain/record.ts';
+import { readProposals, repositoryRoot } from '../src/brain/standards-cli.ts';
+import {
+  promoteCandidates,
+  proposeArgs,
+  refusedRecords,
+} from './lib/outside-harvest.ts';
 
 // One command reruns the outside acceptance: for each scratch copy it pushes a fresh orphan base
 // outside/<stack> to krn-works/krn, adopts, drains the ready tasks unattended, appends one graded
@@ -29,6 +38,8 @@ export interface RunOptions {
   summary: string;
   /** A task file of fixed-issue rows, each graded by its held-back upstream test. */
   taskFile?: string;
+  /** Where the harvest over the row checkouts is written. */
+  harvest: string;
 }
 
 /** The only branches this script may push or delete: orphan bases outside/<stack>. */
@@ -54,6 +65,7 @@ export function parseOptions(
     max: 1,
     windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
+    harvest: join(root, '.krn/runs/outside/harvest.txt'),
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
@@ -69,6 +81,7 @@ export function parseOptions(
       options.stacks.push(stack);
     } else if (arg === '--scratch') options.scratch = resolve(value());
     else if (arg === '--summary') options.summary = resolve(value());
+    else if (arg === '--harvest') options.harvest = resolve(value());
     else if (arg === '--task-file') options.taskFile = resolve(value());
     else if (arg === '--window-hours') {
       const text = value();
@@ -468,11 +481,47 @@ function remoteVisibility(root: string): string | undefined {
   return result.status === 0 && value !== '' ? value : undefined;
 }
 
+const packFile = (root: string): string => join(root, 'standards/records.json');
+
+/** Copies a row's exposures into the host log and turns its Stop refusals into proposals in the row checkout. */
+function collectRow(
+  dir: string,
+  stack: string,
+  krn: string,
+  root: string,
+): void {
+  const exposures = readExposures(dir);
+  for (const exposure of exposures) appendExposure(root, exposure);
+  const pack = parseUnified(JSON.parse(readFileSync(packFile(root), 'utf8')));
+  for (const args of proposeArgs(refusedRecords(exposures), pack, stack))
+    run(krn, [...args, '--root', dir], dir);
+}
+
+/** The harvest over the row checkouts: its report lines, with every promotable pack record marked harvested. */
+export function harvestRows(
+  checkouts: readonly string[],
+  root: string,
+): string[] {
+  const sourced = checkouts.flatMap((dir) =>
+    readProposals(repositoryRoot(dir)),
+  );
+  const candidates = harvestCandidates(sourced);
+  const pack = parseUnified(JSON.parse(readFileSync(packFile(root), 'utf8')));
+  const { pack: next, promoted } = promoteCandidates(pack, candidates);
+  if (promoted.length > 0)
+    writeFileSync(packFile(root), `${JSON.stringify(next, null, 2)}\n`);
+  return [
+    ...renderHarvest(candidates, checkouts.length),
+    `promoted: ${promoted.join(', ') || 'none'}`,
+  ];
+}
+
 function acceptStack(
   stack: string,
   options: RunOptions,
   root: string,
   hiddenRow?: HiddenRow,
+  checkouts: string[] = [],
 ): string {
   const branch = outsideBranch(stack);
   const source = hiddenRow
@@ -634,6 +683,8 @@ function acceptStack(
       hidden = hiddenResult(graded.status ?? 70);
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
+    collectRow(dir, stack, krn, root);
+    checkouts.push(dir);
     return gradedRow({
       hidden,
       ...(note === undefined ? {} : { note }),
@@ -671,10 +722,11 @@ if (import.meta.main) {
               explicitStacks.length === 0 || explicitStacks.includes(row.stack),
           )
           .map((row) => ({ stack: row.stack, hidden: row }));
+  const checkouts: string[] = [];
   for (const { stack, hidden } of picked) {
     let row: string;
     try {
-      row = acceptStack(stack, options, root, hidden);
+      row = acceptStack(stack, options, root, hidden, checkouts);
     } catch (error) {
       row = gradedRow({
         stack,
@@ -688,6 +740,9 @@ if (import.meta.main) {
     console.log(row);
     if (!rowGreen(row)) failed += 1;
   }
+  const harvest = harvestRows(checkouts, root);
+  writeFileSync(options.harvest, `${harvest.join('\n')}\n`);
+  for (const line of harvest) console.log(line);
   // A red row keeps its clone: the session transcript and lane logs there are the evidence.
   if (failed === 0)
     rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
