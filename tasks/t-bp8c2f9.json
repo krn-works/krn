@@ -1,0 +1,14 @@
+{
+  "id": "t-bp8c2f9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "One record store holds decisions, preferences and facts (S13)",
+  "after": [
+    "t-85wjjhq"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S13 (Sector 4 — Formats and memory (ADR 0017, ADR 0019; item 4)); program t-b160jt0.\nWhy: ADR 0017, ADR 0019 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: schema gains the types and `subject`, `evidence_kind`, `superseded_by`, `review_by`; `.agents/decisions.json` is queryable and never served; `krn decide`, decisions.md and the d-* rows migrate and are deleted; one standards CLI router\nFiles: see ADR 0017, ADR 0019 Consequences.\nProof: `bin/krn standards query --type decision \"auto-merge\" --json: >= 1 row`\nPredicted: metric durable-stores == 1\nAfter: S12"
+  ]
+}

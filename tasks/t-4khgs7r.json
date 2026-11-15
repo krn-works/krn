@@ -1,0 +1,14 @@
+{
+  "id": "t-4khgs7r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Delivery transport is gh behind the required Check (S22)",
+  "after": [
+    "t-n5d7fks"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S22 (Sector 6 — Harness and delivery (ADR 0022)); program t-b160jt0.\nWhy: ADR 0022 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: one test PR proves plain `gh` triggers and waits for `Check`; then `krn pr ship` is Proof commands plus two gh calls, and src/deliver and src/ci wait/logs/gh-reply/git-lock/rebase-generated are deleted (App token kept only if the test PR needs it)\nFiles: see ADR 0022 Consequences.\nProof: `gh pr list --state merged --limit 20 --json statusCheckRollup: every head has Check success`\nPredicted: metric delivery-fix-commits-30d < 10\nAfter: S21"
+  ]
+}

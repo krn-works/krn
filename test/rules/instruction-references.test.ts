@@ -32,11 +32,15 @@ const documents = [
 // `work` is named only as replaced.
 const elsewhere = new Set(['work']);
 
+// A plan slice line (`- [S<n> <task>] ...`) names the files its slice will
+// create, so it is not a reference to an existing file.
 function spans(): { file: string; text: string }[] {
   return documents.flatMap((file) =>
-    [...readFileSync(join(root, file), 'utf8').matchAll(/`([^`\n]+)`/gu)].map(
-      (match) => ({ file, text: match[1] ?? '' }),
-    ),
+    [
+      ...readFileSync(join(root, file), 'utf8')
+        .replace(/^- \[S\d+ t-[a-z0-9]+\].*$/gmu, '')
+        .matchAll(/`([^`\n]+)`/gu),
+    ].map((match) => ({ file, text: match[1] ?? '' })),
   );
 }
 

@@ -1,0 +1,15 @@
+{
+  "id": "t-bvhfanp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A real operator repository runs KRN (S29)",
+  "after": [
+    "t-8bv3z0k",
+    "t-9027pqy"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S29 (Sector 7 — Onboarding (ADR 0023)); program t-b160jt0.\nWhy: ADR 0023 — moves the north-star items named in the plan sector.\nOutcome: one census repository with a test command, then boilerplate-2026, are adopted; tier 1–3 gate tasks close within 10 merges\nFiles: see ADR 0023 Consequences.\nProof: `bin/krn task list --kind gate --json` in that repo: `0 open in tiers 1–3`\nPredicted: metric real-adopted-repos >= 1\nAfter: S11, S27"
+  ]
+}

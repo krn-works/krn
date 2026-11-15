@@ -1,0 +1,12 @@
+{
+  "id": "t-p14tych",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "The tracker keeps only what is used (S20)",
+  "after": [],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S20 (Sector 5 — Tasks (ADR 0018)); program t-b160jt0.\nWhy: ADR 0018 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: comments.ts, the socket lock and lock-host.ts deleted after a race test; claims run off Linux; task bookkeeping rides in delivering PRs\nFiles: see ADR 0018 Consequences.\nProof: `node --test test/task/claim-race.test.ts: pass` and `test ! -e src/task/comments.ts: 0`\nPredicted: metric chore-tasks-commit-share < 0.08"
+  ]
+}

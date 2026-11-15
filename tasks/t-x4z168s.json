@@ -1,0 +1,15 @@
+{
+  "id": "t-x4z168s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "The headless lane runner serves only the proof harness (S24)",
+  "after": [
+    "t-26p4xm7",
+    "t-4khgs7r"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S24 (Sector 6 — Harness and delivery (ADR 0022)); program t-b160jt0.\nWhy: ADR 0022 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: lane start is claim plus native worktree isolation; lane-run's worktree, preflight and git code, lane-canary and lane-lock are deleted; the session driver moves under evals/replay\nFiles: see ADR 0022 Consequences.\nProof: `node evals/replay/run.ts --arms C --units 1: verdict line`\nPredicted: outside drain == 0 in >= 3 rows\nAfter: S6, S22"
+  ]
+}

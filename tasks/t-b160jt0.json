@@ -1,0 +1,16 @@
+{
+  "id": "t-b160jt0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "phases 1-3 done: map + J1..J10 under .krn/runs/audit-1115, Fable ADRs 0017-0024, docs/program/plan.md, 31 slice tasks"
+  },
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "KRN architecture program: judge panel, Fable decision, ADRs and one tracked plan",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-15 ~20:50-21:00 (verbatim in .krn/runs/audit-1115/program.md): audit every sector, independent specialised judge panel with scientific approach, Fable picks the most mature breakthrough direction; split into separate repositories allowed (memory/brain, research lab, anything not belonging in KRN); architecture/pattern decisions; map current capabilities; onboarding KRN must make any project clean, debt-free, with categorised tasks; decide task storage (one JSONL vs file per task) with evidence; every agent aware of plans.\nWhy: 52% of commits are delivery machinery, brain loop not closed, zero real adopters, research manual (.krn/runs/audit-1115/*.md).\nOutcome: phases 1-3 of .krn/runs/audit-1115/program.md done: map.md, judge-J1..J10 files, Fable decision; ADRs committed under docs/adr/, tracked docs/program/plan.md read by every agent at session start, tasks per slice created.\nFiles: .krn/runs/audit-1115/, docs/adr/, docs/program/plan.md\nProof: ls docs/adr/ shows the new ADRs and docs/program/plan.md exists on main; krn task list shows the program slices.\nPredicted: >= 5 ADRs and >= 10 slice tasks within 1 session"
+  ]
+}

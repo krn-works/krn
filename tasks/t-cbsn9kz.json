@@ -1,0 +1,15 @@
+{
+  "id": "t-cbsn9kz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Delivered evidence proposes records (S15)",
+  "after": [
+    "t-bp8c2f9",
+    "t-nzbhbtq"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S15 (Sector 4 — Formats and memory (ADR 0017, ADR 0019; item 4)); program t-b160jt0.\nWhy: ADR 0017, ADR 0019 — moves the north-star items named in the plan sector.\nOutcome: CI failures, failed hidden tests, review findings and verbatim operator corrections create `trial` proposals with `subject` matching; Stop refusals are not a source; pack hygiene applied (process records leave the universal layer, advisory records get a check or `review_by`)\nFiles: see ADR 0017, ADR 0019 Consequences.\nProof: `bin/krn standards harvest --from-ledger --dry-run: lists proposals with evidence_kind`\nPredicted: metric trial-records-proposed-30d >= 5\nAfter: S13, S19"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-85wjjhq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "File formats are versioned contracts (S12)",
+  "after": [],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S12 (Sector 4 — Formats and memory (ADR 0017, ADR 0019; item 4)); program t-b160jt0.\nWhy: ADR 0017, ADR 0019 — moves the north-star items named in the plan sector.\nOutcome: `spec/schema/*.v1.json` for task, record, exposure and contract; `krn.json` declares `formats`; readers refuse unknown majors; `tasks/` and record files are reached only through their owner; product/workshop partition in boundaries.ts\nFiles: see ADR 0017, ADR 0019 Consequences.\nProof: `node --test test/rules/format-contract.test.ts: pass` and `node scripts/boundaries.ts: pass`\nPredicted: metric hardcoded-tasks-paths == 0"
+  ]
+}

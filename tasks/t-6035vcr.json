@@ -1,0 +1,14 @@
+{
+  "id": "t-6035vcr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Retrieval is keyed by the task (S9)",
+  "after": [
+    "t-c6hrj5m"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S9 (Sector 3 — Retrieval (ADR 0020; items 1–3)); program t-b160jt0.\nWhy: ADR 0020 — moves the north-star items named in the plan sector.\nOutcome: session and lane packets query by task title, Outcome, Files, stack and paths; no task means no standards block; AGENTS.md duplicates are not served; audience honoured\nFiles: see ADR 0020 Consequences.\nProof: `bin/krn standards effect --overlap: mean Jaccard < 0.4`\nPredicted: metric served-set-overlap < 0.4\nAfter: S5"
+  ]
+}
