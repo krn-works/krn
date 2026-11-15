@@ -240,6 +240,61 @@ class LambdaClientTest extends TestCase
         (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->editAttachmentImage($post, '[{"r":90}]');
     }
 
+    /**
+     * @dataProvider provideQuotedValues
+     */
+    public function testShellArgumentsArePosixQuoted(string $siteUrl, string $changes, string $expected): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->anything(),
+                 $this->callback(function (array $args) use ($expected) {
+                     return json_decode($args['body'], true)['php'] === $expected;
+                 })
+             )
+             ->willReturn(['body' => '{"output": "Success: done"}']);
+
+        $post = $this->getWPPostMock();
+        $post->ID = 4;
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', $siteUrl))->editAttachmentImage($post, $changes);
+    }
+
+    public static function provideQuotedValues(): array
+    {
+        return [
+            'plain' => ['https://foo.bar', '[{"r":90}]', 'bin/wp ymir edit-attachment-image 4 \'[{"r":90}]\' --apply=\'all\' --url=\'https://foo.bar\''],
+            'quote in url' => ['https://foo.bar/\'; id; \'', '[{"r":90}]', 'bin/wp ymir edit-attachment-image 4 \'[{"r":90}]\' --apply=\'all\' --url=\'https://foo.bar/\'\\\'\'; id; \'\\\'\'\''],
+            'quote in changes' => ['https://foo.bar', '["it\'s"]', 'bin/wp ymir edit-attachment-image 4 \'["it\'\\\'\'s"]\' --apply=\'all\' --url=\'https://foo.bar\''],
+            'multibyte' => ['https://zażółć.pl', '["é"]', 'bin/wp ymir edit-attachment-image 4 \'["é"]\' --apply=\'all\' --url=\'https://zażółć.pl\''],
+        ];
+    }
+
+    public function testEditAttachmentImageWithInvalidJsonThrows(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $post = $this->getWPPostMock();
+        $post->ID = 4;
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->editAttachmentImage($post, "{'r': 90}");
+    }
+
+    public function testNullByteInSiteUrlThrows(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', "https://foo.bar\0"))->runWpCliCommand('ymir foo');
+    }
+
     public function testResizeAttachmentImage(): void
     {
         $http = $this->getHttpClientMock();

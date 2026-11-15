@@ -92,7 +92,13 @@ class LambdaClient extends AbstractClient implements ConsoleClientInterface
      */
     public function editAttachmentImage($attachment, string $changes, string $apply = 'all'): void
     {
-        $this->runWpCliCommand(sprintf('%s %s \'%s\' %s', Console\EditAttachmentImageCommand::getName(), $this->getAttachmentId($attachment), $changes, $this->buildOptions([
+        json_decode($changes);
+
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new \InvalidArgumentException('The given image "changes" need to be valid JSON');
+        }
+
+        $this->runWpCliCommand(sprintf('%s %s %s %s', Console\EditAttachmentImageCommand::getName(), $this->getAttachmentId($attachment), $this->quoteArgument($changes), $this->buildOptions([
             'apply' => $apply,
         ])));
     }
@@ -122,7 +128,7 @@ class LambdaClient extends AbstractClient implements ConsoleClientInterface
         }
 
         $response = $this->invoke([
-            'php' => sprintf('bin/wp %s --url=\'%s\'', $command, $siteUrl),
+            'php' => sprintf('bin/wp %s --url=%s', $command, $this->quoteArgument($siteUrl)),
         ], $async);
 
         if ($async) {
@@ -169,10 +175,22 @@ class LambdaClient extends AbstractClient implements ConsoleClientInterface
         $optionsString = '';
 
         foreach ($options as $option => $value) {
-            $optionsString .= sprintf(' --%s=\'%s\'', $option, $value);
+            $optionsString .= sprintf(' --%s=%s', $option, $this->quoteArgument((string) $value));
         }
 
         return trim($optionsString);
+    }
+
+    /**
+     * Quote the given value as a single POSIX shell argument.
+     */
+    private function quoteArgument(string $value): string
+    {
+        if (false !== strpos($value, "\0")) {
+            throw new \InvalidArgumentException('Shell arguments cannot contain null bytes');
+        }
+
+        return "'".str_replace("'", "'\\''", $value)."'";
     }
 
     /**
