@@ -1,6 +1,6 @@
 // The proof line of a lane run: what the brain's defaults did for this lane, counted from the lane's own
 // records (the brief it was given, the commits and tests it made, the Stop refusals its transcript shows).
-import { clauseMarker, declaresNotReproducible } from './acceptance-clauses.ts';
+import { clauseProof } from './acceptance-clauses.ts';
 
 export type Proof = {
   /** Clauses of the brief the lane proved (a marked test, or a declared not-reproducible line). */
@@ -18,17 +18,17 @@ export type Proof = {
 const TEST_PATH =
   /(?:^|\/)(?:tests?|spec|__tests__)\/|(?:Test\.php|_test\.(?:go|py|rs)|(?:^|\/)test_[^/]+\.py|\.(?:test|spec)\.[a-z]+)$/u;
 
-/** The numbered clauses of the brief's `Acceptance clauses (cover every one):` section; empty when the worker writes its own. */
-export function briefClauseNumbers(brief: string): number[] {
+/** The clause texts of the brief's `Acceptance clauses (cover every one):` section; empty when the worker writes its own. */
+export function briefClauses(brief: string): string[] {
   const at = brief.indexOf('Acceptance clauses (cover every one):');
   if (at < 0) return [];
-  const numbers: number[] = [];
+  const clauses: string[] = [];
   for (const line of brief.slice(at).split('\n').slice(1)) {
-    const match = /^(\d{1,2})\.\s/u.exec(line);
+    const match = /^\d{1,2}\.\s+(.*)$/u.exec(line);
     if (match === null) break;
-    numbers.push(Number(match[1]));
+    clauses.push(match[1] ?? '');
   }
-  return numbers;
+  return clauses;
 }
 
 /** Modules named by the brief's Precedent section: `### path` headings, else the sibling bullets. */
@@ -64,7 +64,7 @@ export function countStopRefusals(transcript: string): number {
   return count;
 }
 
-/** The lane's proof counts. `tests` maps each changed test file to its text; `messages` is the lane's commit bodies. */
+/** The lane's proof counts. `tests` maps each changed test file (test files only) to its text; `messages` is the lane's commit bodies. */
 export function proofOf(input: {
   brief: string;
   tests: ReadonlyMap<string, string>;
@@ -74,19 +74,14 @@ export function proofOf(input: {
   redAtBase: readonly string[];
   stopRefusals: number;
 }): Proof {
-  const stated = briefClauseNumbers(input.brief);
-  const texts = [...input.tests.values()];
-  const proven = (n: number) =>
-    texts.some((text) => clauseMarker(n).test(text)) ||
-    declaresNotReproducible(input.messages, n);
-  // A brief that states under two clauses makes the worker write its own: every distinct number it marked.
-  const numbers =
-    stated.length > 0
-      ? stated
-      : Array.from({ length: 30 }, (_, i) => i + 1).filter(proven);
+  const { clauses } = clauseProof({
+    stated: briefClauses(input.brief),
+    tests: input.tests,
+    messages: input.messages,
+  });
   return {
-    clauses: numbers.filter(proven).length,
-    clausesTotal: numbers.length,
+    clauses: clauses.filter((clause) => clause.proven).length,
+    clausesTotal: clauses.length,
     redFirst: input.firstCommitFiles.some(
       (f) => TEST_PATH.test(f) && input.redAtBase.includes(f),
     )

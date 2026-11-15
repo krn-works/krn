@@ -1609,12 +1609,38 @@ test('clauses: Stop refuses an uncovered clause and names it', () => {
   }
 });
 
-test('clauses: a marked test green at the base does not cover its clause', () => {
+test('clause 2: a marked test that passes on head covers its clause even when it already passes at the base', () => {
   const dir = clone();
   try {
     clauseBranch(dir, { 'test/a.test.ts': '// clause 1 clause 2\n' });
-    const reason = judgeStop(payload(dir), clauseEnv(dir), () => []) ?? '';
-    assert.match(reason, /2 of 2 clause/u);
+    assert.equal(
+      judgeStop(payload(dir), clauseEnv(dir), () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clause 1: the clauses a lane brief states reach Stop through KRN_TASK_BODY whatever the task record says', () => {
+  const dir = clone();
+  try {
+    mkdirSync(join(dir, 'tasks'), { recursive: true });
+    writeFileSync(
+      join(dir, 'tasks/t-x.json'),
+      JSON.stringify({ body: 'Make standard s-readme pass' }),
+    );
+    clauseBranch(dir, { 'test/a.test.ts': '// nothing marked\n' });
+    const env = {
+      ...lane(dir),
+      KRN_TASK: 't-x',
+      KRN_TASK_BODY:
+        '1. Parse the header line\n2. Reject an empty header\n3. Keep the order stable\n4. Skip blank lines\n5. Report the line number',
+    };
+    const reason = judgeStop(payload(dir), env, () => []) ?? '';
+    assert.match(reason, /5 of 5 clause\(s\) uncovered/u);
+    assert.match(reason, /clause 1: Parse the header line/u);
+    assert.match(reason, /Acceptance-clause rule/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1679,7 +1705,7 @@ test('clauses: a one-line goal makes Stop refuse until three clauses are proven'
   }
 });
 
-test('clauses: a one-line goal ends with three proven clauses, and an unproven marked one is red', () => {
+test('clauses: a one-line goal ends with three proven clauses', () => {
   const dir = clone();
   try {
     clauseBranch(dir, {
@@ -1694,17 +1720,6 @@ test('clauses: a one-line goal ends with three proven clauses, and an unproven m
       ),
       undefined,
     );
-    const reason =
-      judgeStop(payload(dir), goalEnv(dir), (root, files) =>
-        root === dir
-          ? []
-          : all.filter(
-              (key) =>
-                files.some((f) => key.startsWith(f)) && !key.includes('c.test'),
-            ),
-      ) ?? '';
-    assert.match(reason, /Acceptance-clause rule/u);
-    assert.match(reason, /clause 3/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

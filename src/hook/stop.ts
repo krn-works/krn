@@ -16,9 +16,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  clauseMarker,
-  declaresNotReproducible,
+  clauseProof,
+  isTestFile,
+  LEGACY_TEST,
+  markedTests,
   splitClauses,
+  TEST_FILE,
 } from '../brain/acceptance-clauses.ts';
 import { appendExposure, violatedExposure } from '../brain/exposures.ts';
 import { standardsBlockers } from '../brain/standards-cli.ts';
@@ -62,7 +65,6 @@ import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 // One explicit escape: a final message with a line starting `BLOCKER:` that states the blocker.
 // The lead sets neither variable, so it is never held here. A crash refuses (exit 2), never allows.
 
-const LEGACY_TEST = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
 /** One failure line of the node test runner's JSON reporter. */
 export function failureLine(
   value: unknown,
@@ -75,15 +77,6 @@ export function failureLine(
     : undefined;
 }
 
-const TEST_FILE = [
-  LEGACY_TEST,
-  /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
-  /(?:^|\/)test_[^/]+\.py$/u,
-  /_test\.(?:py|go)$/u,
-  /_spec\.rb$/u,
-  /Test\.php$/u,
-  /(?:^|\/)tests?\/[^/]+\.[cm]?js$/u,
-];
 const SPECIFIER =
   /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"]+)\1/gu;
 const EXTENSIONS = ['', '.ts', '.mts', '.js', '.mjs', '/index.ts', '/index.js'];
@@ -311,8 +304,6 @@ export interface TestEdits {
   skipped: string[];
   modified: string[];
 }
-
-const isTestFile = (path: string) => TEST_FILE.some((p) => p.test(path));
 
 function safeRead(path: string): string {
   try {
@@ -627,16 +618,18 @@ export function inspect(
     (testFirstOn(env, contract)
       ? testFirstRefusal(root, from, run, shell, contract)
       : undefined) ??
-    (clausesOn(env, contract)
+    (clausesOn(env, contract) || briefStatesClauses(env)
       ? clauseRefusal(root, from, run, shell, contract, env)
       : undefined);
   return reason === undefined ? outcome : { ...outcome, ok: false, reason };
 }
 
-/** The task body as clauses: the record's body (KRN_TASK), else the brief text in KRN_TASK_BODY. */
+/** The task body as clauses: the brief text in KRN_TASK_BODY (the body the lane brief and its proof line read), else the record's body (KRN_TASK). */
 function taskBody(root: string, env: NodeJS.ProcessEnv): string {
+  const fromBrief = env.KRN_TASK_BODY ?? '';
+  if (fromBrief.trim() !== '') return fromBrief;
   const raw = taskText(root, env);
-  let body = env.KRN_TASK_BODY ?? '';
+  let body = '';
   if (raw !== '')
     try {
       const parsed = JSON.parse(raw) as { body?: unknown };
@@ -669,12 +662,20 @@ export function clausesOn(
   );
 }
 
+/** A lane brief that states clauses puts the arm on whatever the contract says, unless KRN_ACCEPTANCE_CLAUSES=0. */
+function briefStatesClauses(env: NodeJS.ProcessEnv): boolean {
+  return (
+    env.KRN_ACCEPTANCE_CLAUSES !== '0' &&
+    splitClauses(env.KRN_TASK_BODY ?? '').length > 0
+  );
+}
+
 /** A body with under two clauses makes the worker write its own: this many must end proven. */
 const OWN_CLAUSES = 3;
 
 /**
  * Acceptance-clause arm (default on, KRN_ACCEPTANCE_CLAUSES=0 opts out): every numbered clause of
- * the task body has a changed test marked `clause N` that fails at the base and passes on head, or
+ * the task body has a changed test marked `clause N` that passes on head (red at the base is asked once, by the test-first arm), or
  * a commit message line `Clause N: not reproducible: <reason>`. A body with under two clauses
  * makes the worker write its own: at least three distinct clause numbers, every marked one proven.
  */
@@ -687,48 +688,30 @@ function clauseRefusal(
   env: NodeJS.ProcessEnv,
 ): string | undefined {
   const stated = taskClauses(root, env);
-  const changed = changedSinceBase(root, from).filter(
-    (path) => isTestFile(path) && existsSync(join(root, path)),
-  );
-  const contents = new Map(
-    changed.map((file) => [file, safeRead(join(root, file))]),
+  const tests = new Map(
+    changedSinceBase(root, from)
+      .filter((path) => isTestFile(path) && existsSync(join(root, path)))
+      .map((file) => [file, safeRead(join(root, file))]),
   );
   const messages = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
-  const own = stated.length === 0;
-  const written = own
-    ? Array.from({ length: 30 }, (_, i) => i + 1).filter(
-        (n) =>
-          [...contents.values()].some((text) => clauseMarker(n).test(text)) ||
-          declaresNotReproducible(messages, n),
-      )
-    : [];
-  const clauses = own
-    ? written.map((n) => `the clause ${n} the worker wrote`)
-    : stated;
-  const numberOf = (i: number) => (own ? (written[i] ?? i + 1) : i + 1);
-  const marked = (n: number) =>
-    changed.filter((file) => clauseMarker(n).test(contents.get(file) ?? ''));
-  const candidates = new Set(
-    clauses.flatMap((_, i) =>
-      declaresNotReproducible(messages, numberOf(i)) ? [] : marked(numberOf(i)),
+  const headFailing = new Set(
+    markedTests(stated, tests).filter(
+      (file) => runTestFile(root, file, run, shell, contract).length > 0,
     ),
   );
-  const red = redAtBase(root, from, [...candidates], run, shell, contract);
-  const characterization = testsOnlyDiff(root, from);
-  const uncovered = clauses.flatMap((text, i) => {
-    const n = numberOf(i);
-    if (declaresNotReproducible(messages, n)) return [];
-    const proven = marked(n).some(
-      (file) =>
-        (characterization || red.has(file)) &&
-        runTestFile(root, file, run, shell, contract).length === 0,
-    );
-    return proven ? [] : [`clause ${n}: ${text.slice(0, 80)}`];
+  const { own, clauses } = clauseProof({
+    stated,
+    tests,
+    messages,
+    headFailing,
   });
-  if (own && written.length < OWN_CLAUSES)
-    return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): the task body states under 2 clauses, so write at least ${OWN_CLAUSES} numbered clauses (edge cases: empty, missing, unauthorised, duplicate submit, non-ASCII) and commit a test per clause whose name contains "clause N" that fails at the base and passes on your commit; ${written.length} found. Or end with a line \`BLOCKER: <what stops you>\`.`;
+  const uncovered = clauses.flatMap((clause) =>
+    clause.proven ? [] : [`clause ${clause.n}: ${clause.text.slice(0, 80)}`],
+  );
+  if (own && clauses.length < OWN_CLAUSES)
+    return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): the task body states under 2 clauses, so write at least ${OWN_CLAUSES} numbered clauses (edge cases: empty, missing, unauthorised, duplicate submit, non-ASCII) and commit a test per clause whose name contains "clause N" that passes on your commit; ${clauses.length} found. Or end with a line \`BLOCKER: <what stops you>\`.`;
   if (uncovered.length === 0) return undefined;
-  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a test whose name contains "clause N" that fails at the base and passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
+  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a changed test whose name contains "clause N" that passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
 }
 
 function runTestFile(
