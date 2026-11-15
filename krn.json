@@ -1,0 +1,6 @@
+{
+  "base": "outside/py-sweep",
+  "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+  "tracker": "krn",
+  "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+}
