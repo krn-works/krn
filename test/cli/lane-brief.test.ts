@@ -14,6 +14,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBrief } from '../../evals/fr40/lanes.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
+import { clauseSection } from '../../src/brain/acceptance-clauses.ts';
 import { BUDGET } from '../../src/brain/packet.ts';
 import { gatesBlock } from '../../src/brain/worker-packet.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
@@ -99,7 +100,7 @@ test('a repository without records gets the brief and the worker rules', () => {
     assert.ok(gates !== undefined);
     assert.equal(
       result.stdout,
-      `Fix the parser.\n\n${gates}\n\n${workerRules(dir)}\n`,
+      `Fix the parser.\n\n${gates}\n\n${clauseSection('Fix the parser.')}\n\n${workerRules(dir)}\n`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -195,19 +196,23 @@ test('a lane brief requires the command and exit code behind every external-syst
   );
 });
 
-test('the acceptance-clause section is in the brief only with KRN_ACCEPTANCE_CLAUSES=1', () => {
+test('the acceptance-clause section is in the brief by default and KRN_ACCEPTANCE_CLAUSES=0 drops it', () => {
   const body = '1. Parse the header line\n2. Reject an empty header';
   const before = process.env.KRN_ACCEPTANCE_CLAUSES;
   try {
     delete process.env.KRN_ACCEPTANCE_CLAUSES;
-    assert.doesNotMatch(
-      laneBriefText(repo, body, BASE_DATE),
-      /Acceptance clauses/u,
-    );
-    process.env.KRN_ACCEPTANCE_CLAUSES = '1';
     assert.match(
       laneBriefText(repo, body, BASE_DATE),
       /Acceptance clauses \(cover every one\):\n1\. Parse the header line\n2\. Reject an empty header/u,
+    );
+    const oneLine = laneBriefText(repo, 'Add a signup form', BASE_DATE);
+    assert.match(oneLine, /Acceptance clauses \(write them first\)/u);
+    assert.match(oneLine, /non-ASCII/u);
+    assert.match(oneLine, /duplicate submit/u);
+    process.env.KRN_ACCEPTANCE_CLAUSES = '0';
+    assert.doesNotMatch(
+      laneBriefText(repo, body, BASE_DATE),
+      /Acceptance clauses/u,
     );
   } finally {
     if (before === undefined) delete process.env.KRN_ACCEPTANCE_CLAUSES;
@@ -256,4 +261,15 @@ test('the lane brief of a goal without a Scope line prints a precedent section n
   const text = laneBriefText(php, 'Goal: Invoice totals round up.', BASE_DATE);
   assert.match(text, /Precedent \(no Scope: line/u);
   assert.match(text, /`tests\/InvoiceTest\.php`/u);
+});
+
+test('the clause section reads the task words only, never the delivery boilerplate around them', () => {
+  const text = laneBriefText(
+    repo,
+    'Task t-abc1234: x\n\nOutcome: o\n\nDeliver this task in the current worktree: commit it. Run the check; ship it.',
+    BASE_DATE,
+    't-abc1234',
+  );
+  assert.match(text, /Acceptance clauses \(write them first\)/u);
+  assert.doesNotMatch(text, /Acceptance clauses \(cover every one\)/u);
 });

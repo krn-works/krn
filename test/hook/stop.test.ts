@@ -16,6 +16,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readExposures } from '../../src/brain/exposures.ts';
 import {
+  clausesOn,
   failuresIn,
   inspect,
   judgeStop,
@@ -61,7 +62,11 @@ function sh(cwd: string, ...args: string[]) {
 }
 
 /** These tests probe the test selection, not the red-at-base arm: they opt out of it. */
-const optOut = { ...process.env, KRN_TEST_FIRST: '0' };
+const optOut = {
+  ...process.env,
+  KRN_TEST_FIRST: '0',
+  KRN_ACCEPTANCE_CLAUSES: '0',
+};
 
 function clone() {
   const dir = mkdtempSync(join(tmpdir(), 'worker-stop-'));
@@ -1062,6 +1067,7 @@ test('Stop refuses a green branch with no base-red test by default and names the
     testFirstBranch(dir);
     const env: NodeJS.ProcessEnv = { ...lane(dir) };
     delete env.KRN_TEST_FIRST;
+    env.KRN_ACCEPTANCE_CLAUSES = '0';
     const reason = judgeStop(payload(dir), env, () => []) ?? '';
     assert.match(reason, /red-at-base proof/u);
     assert.match(reason, /no changed test fails at the base/u);
@@ -1544,6 +1550,69 @@ test('clauses: red-to-green tests per clause, or a written not-reproducible, let
   } finally {
     rmSync(other, { recursive: true, force: true });
   }
+});
+
+const goalEnv = (dir: string) => ({
+  ...lane(dir),
+  KRN_ACCEPTANCE_CLAUSES: '1',
+  KRN_TASK_BODY: 'Add a signup form',
+});
+
+test('clauses: a one-line goal makes Stop refuse until three clauses are proven', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, {
+      'test/a.test.ts': '// clause 1 empty input\n',
+      'test/b.test.ts': '// clause 2 duplicate submit\n',
+    });
+    const baseRed = (root: string) =>
+      root === dir ? [] : ['test/a.test.ts::a', 'test/b.test.ts::b'];
+    const reason = judgeStop(payload(dir), goalEnv(dir), baseRed) ?? '';
+    assert.match(reason, /under 2 clauses/u);
+    assert.match(reason, /2 found/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clauses: a one-line goal ends with three proven clauses, and an unproven marked one is red', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, {
+      'test/a.test.ts': '// clause 1 empty input\n',
+      'test/b.test.ts': '// clause 2 duplicate submit\n',
+      'test/c.test.ts': '// clause 3 non-ASCII name\n',
+    });
+    const all = ['test/a.test.ts::a', 'test/b.test.ts::b', 'test/c.test.ts::c'];
+    assert.equal(
+      judgeStop(payload(dir), goalEnv(dir), (root) =>
+        root === dir ? [] : all,
+      ),
+      undefined,
+    );
+    const reason =
+      judgeStop(payload(dir), goalEnv(dir), (root, files) =>
+        root === dir
+          ? []
+          : all.filter(
+              (key) =>
+                files.some((f) => key.startsWith(f)) && !key.includes('c.test'),
+            ),
+      ) ?? '';
+    assert.match(reason, /Acceptance-clause rule/u);
+    assert.match(reason, /clause 3/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clausesOn is on for a real test command, off for vacuous, absent or opted-out', () => {
+  const real = { base: 'main', test: 'npm test', tracker: 'krn' } as const;
+  assert.equal(clausesOn({}, real), true);
+  assert.equal(clausesOn({}, { ...real, vacuous: true }), false);
+  assert.equal(clausesOn({}, undefined), false);
+  assert.equal(clausesOn({ KRN_ACCEPTANCE_CLAUSES: '0' }, real), false);
+  assert.equal(clausesOn({ KRN_ACCEPTANCE_CLAUSES: '1' }, undefined), true);
 });
 
 test('clauses: the arm off leaves Stop unchanged', () => {

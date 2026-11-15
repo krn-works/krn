@@ -1,7 +1,11 @@
 {
   "id": "t-k031r25",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "clauses arm on by default; one-line goal needs 3 proven clauses; Stop red with unproven clause; tests in stop, lane-brief, acceptance-clauses"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Lanes write numbered acceptance clauses with edge cases before code and Stop proves each",

@@ -235,6 +235,7 @@ function stop(tree: string, commands: string[]) {
     KRN_SESSION_CLASS: 'lane',
     KRN_LANE: 'canary',
     KRN_TEST_FIRST: '0',
+    KRN_ACCEPTANCE_CLAUSES: '0',
   };
   const limits = {
     cwd: tree,

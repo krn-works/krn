@@ -46,9 +46,16 @@ export function declaresNotReproducible(message: string, n: number): boolean {
   ).test(message);
 }
 
-/** The brief section for the acceptance-clause arm; empty when the body has no clauses. */
+const EDGE_CASES =
+  'empty input, a missing record, an unauthorised caller, a duplicate submit, non-ASCII text';
+
+/**
+ * The brief section for the acceptance-clause arm. A body with under two clauses makes the worker
+ * write numbered clauses first, edge cases included, then prove each one.
+ */
 export function clauseSection(body: string): string {
   const clauses = splitClauses(body);
-  if (clauses.length === 0) return '';
+  if (clauses.length === 0)
+    return `Acceptance clauses (write them first):\nThe task states under 2 clauses. Before any code, write at least 3 numbered clauses ("1. ...") for what it must do, covering the stack edge cases that apply (${EDGE_CASES}). For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message. Your session is refused its end until at least 3 clauses are proven.`;
   return `Acceptance clauses (cover every one):\n${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n- For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message. Your session is refused its end while a clause is uncovered.`;
 }
