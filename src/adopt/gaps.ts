@@ -6,13 +6,13 @@ import { firstLine, trackFailures } from './failure-tasks.ts';
 export interface AdoptionGaps {
   /** One `gap <id>: <message>` line per failing standard. */
   lines: string[];
-  /** Titles of the tracker tasks written (floor and reflex failures only). */
+  /** Titles of the tracker tasks written (one per failing enforced standard). */
   tasks: string[];
 }
 
 /**
  * Runs the repository's standards and lists each failure as a gap. With a tracker (a `tasks/`
- * directory) every floor or reflex failure also becomes one task, once: a rerun finds the title.
+ * directory) every failing standard also becomes one task, once: a rerun finds the title.
  */
 export function adoptionGaps(root: string, asOf: string): AdoptionGaps {
   const failures = standardsFailures(root, asOf);
