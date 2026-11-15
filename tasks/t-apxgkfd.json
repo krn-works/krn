@@ -1,0 +1,12 @@
+{
+  "id": "t-apxgkfd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Fable plan predictions are scored against measured outcomes and fed into the next plan",
+  "after": [],
+  "body": [
+    "Why: operator 2026-11-15: Fable plans breakthroughs from research but never sees which predictions held; 1115g slices passed KRN tests yet did not bite outside (BLOCKER reader, 4a0d7e7) and the earlier regrade showed K 2/12 vs P 3/12. A planner without outcome feedback cannot learn what yields real gains.\nOutcome: a task may carry a Predicted: line with a measurable claim on a named source (proof-line counts, outside-row fields, ledger figures); krn ledger --predictions scores every closed task with a prediction as hit, miss or unmeasured from the real records and prints a scorecard per plan (Source: line); the Fable brief template (docs or skill used to request Fable plans) requires a Predicted: line per slice and attaches the latest scorecard plus failure log paths.\nFiles: src/task/record.ts, src/brain/task-quality.ts, src/outcome/ledger.ts, src/brain/exposures.ts, tests.\nProof: a ledger test on verbatim proof-line and outside-row captures scores one hit, one miss and one unmeasured; the scorecard for Fable 1115g tasks prints from real records."
+  ]
+}
