@@ -42,22 +42,39 @@ function captured(name: string, status = 0): Reply {
     : ok(capture(name));
 }
 
+// The Herdr desktop window's replies, captured verbatim from herdr-app 0.1.20.
+const appFixtures = new URL('../fixtures/herdr-app/', import.meta.url);
+const appReply = (name: string) =>
+  ok(readFileSync(new URL(name, appFixtures), 'utf8'));
+
+// A stubbed herdr-app always shadows the real one, so no test opens a space
+// in the operator's window; a call without a reply exits 64.
 function withHc(
   t: { after(fn: () => void): void },
   replies: Replies,
   env: NodeJS.ProcessEnv = {},
-): { host: TerminalHost; calls: () => string[][] } {
+  appReplies: Replies = {},
+): {
+  host: TerminalHost;
+  calls: () => string[][];
+  appCalls: () => string[][];
+} {
   const root = mkdtempSync(join(tmpdir(), 'terminal-host-hc-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
   const log = installHerdr(bin, replies, 'hc');
+  const appLog = installHerdr(bin, appReplies, 'herdr-app');
   const path = process.env.PATH;
   process.env.PATH = `${bin}:${path}`;
   t.after(() => {
     process.env.PATH = path;
     rmSync(root, { recursive: true, force: true });
   });
-  return { host: hcHost(env), calls: () => readCalls(log) };
+  return {
+    host: hcHost(env),
+    calls: () => readCalls(log),
+    appCalls: () => readCalls(appLog),
+  };
 }
 
 test('captured hc replies sit on the stream hc prints them on', () => {
@@ -146,6 +163,69 @@ test('open starts a parentless terminal with its environment and label and answe
     'A=1',
     'B=two words',
     'bash',
+  ]);
+});
+
+// The caller's space as hc reports it for a lead in the window (t12).
+const callerSpace = 'sp9633122681c8ae8591e81c0d949234cc';
+const spaceLabel = (call: string[] | undefined) =>
+  call?.find((word) => word.startsWith('herdr.space='));
+
+test('open puts the successor in the caller window space so it shows as a tab', (t) => {
+  const { host, calls, appCalls } = withHc(
+    t,
+    {
+      'get t12': captured('get-claude-in-space.reply.jsonl'),
+      'run --bg': captured('run-shell.reply.jsonl'),
+    },
+    { HC_TERMINAL_ID: 't12' },
+  );
+  host.open({ cwd: '/repo', label: 'next', env: {} });
+  const run = calls().find((call) => call[0] === 'run');
+  assert.equal(spaceLabel(run), `herdr.space=${callerSpace}`);
+  assert.deepEqual(run?.slice(-3), ['--', 'env', 'bash']);
+  assert.deepEqual(appCalls(), []);
+});
+
+test('open outside the window uses the space of the successor folder, else a new one', (t) => {
+  const listed = withHc(
+    t,
+    { 'run --bg': captured('run-shell.reply.jsonl') },
+    {},
+    { ls: appReply('ls.reply.json') },
+  );
+  listed.host.open({
+    cwd: '/work/repo/krn',
+    label: 'next',
+    env: {},
+  });
+  assert.equal(
+    spaceLabel(listed.calls().find((call) => call[0] === 'run')),
+    `herdr.space=${callerSpace}`,
+  );
+  assert.deepEqual(listed.appCalls(), [['ls']]);
+
+  const created = withHc(
+    t,
+    { 'run --bg': captured('run-shell.reply.jsonl') },
+    {},
+    {
+      ls: appReply('ls.reply.json'),
+      'do space.new': appReply('space-new.reply.json'),
+    },
+  );
+  created.host.open({ cwd: '/work/other', label: 'next', env: {} });
+  assert.equal(
+    spaceLabel(created.calls().find((call) => call[0] === 'run')),
+    'herdr.space=sp824baf0493c4c1933c8aa76c44296092',
+  );
+  assert.deepEqual(created.appCalls().at(-1), [
+    'do',
+    'space.new',
+    '--name',
+    'other',
+    '--folder',
+    '/work/other',
   ]);
 });
 
