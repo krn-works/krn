@@ -1,7 +1,11 @@
 {
   "id": "t-wxne99y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "recorded failing lane -> one proposal (test/brain/lane-proposal.test.ts); offline replay over 266 recorded lanes prints verdict (evals/fr40/replay-proposal.ts: agent-state accept, trailer reject)"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "A failed lane proposes a brief-template edit that is accepted only on a replay gain",
