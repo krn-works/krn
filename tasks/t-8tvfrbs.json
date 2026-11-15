@@ -1,0 +1,14 @@
+{
+  "id": "t-8tvfrbs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A bug lane proves every sibling call site of its defect",
+  "after": [
+    "t-4kqzdw0"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 3 (most valuable)\nWhy: clauses are written and proven by the worker itself, so on symptom-only rows a lane equals a plain session (K below 100% on 3 of 12, t-saj44em); a fix at one call site misses its siblings.\nOutcome: for a bug task the precedent step greps the defect's pattern across other call sites and Stop demands one clause per hit: fixed, or stated not affected.\nFiles: src/brain/precedent.ts, src/brain/acceptance-clauses.ts, src/cli/lane-run/brief.ts, src/hook/stop.ts\nProof: the three K<100% rows in scripts/outside-hidden/discriminating-tasks.json reach hidden N/N.\nPredicted: proof clauses-total >= 4"
+  ]
+}

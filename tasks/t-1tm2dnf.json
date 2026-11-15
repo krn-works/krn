@@ -1,0 +1,12 @@
+{
+  "id": "t-1tm2dnf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A frontend outside row drains on boilerplate-2026 standards",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 5\nWhy: the brain carries no frontend standards row; operator: boilerplate-2026 frontend skills are the frontend/WordPress standard (memory frontend-standard-boilerplate).\nOutcome: adopt a scratch clone, harvest its boilerplate-2026 standards into the pack with plants, and drain one component task as an outside row.\nFiles: standards/records.json, src/brain/skill-harvest.ts, scripts/outside-hidden/tasks.json\nProof: planted matrix N/N with false-red 0; the frontend row drains 0.\nPredicted: outside drain == 0 in >= 1 rows"
+  ]
+}
