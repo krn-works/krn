@@ -259,6 +259,7 @@ export const PLANTS: Record<string, Plant> = {
   's-node-no-empty-catch': () => ({
     write: { 'src/quiet.js': 'try { run(); } catch (error) {}\n' },
   }),
+  's-ts-no-floating-promises': () => ({ write: { 'biome.json': '{}\n' } }),
   's-node-no-dynamic-code': () => ({
     write: { 'src/dynamic.js': 'eval("1");\n' },
   }),
@@ -339,6 +340,24 @@ export const PLANTS: Record<string, Plant> = {
     write: {
       'src/query.php':
         '<?php $wpdb->query( "SELECT * FROM {$wpdb->posts} WHERE ID = $id" );\n',
+    },
+  }),
+  's-wp-rest-permission-callback': () => ({
+    write: {
+      'src/rest.php':
+        "<?php register_rest_route( 'p/v1', '/x', array( 'callback' => 'f' ) );\n",
+    },
+  }),
+  's-wp-capability-with-nonce': () => ({
+    write: {
+      'src/admin.php':
+        "<?php check_admin_referer( 'save' ); delete_option( 'a' );\n",
+    },
+  }),
+  's-wp-sanitize-before-store': () => ({
+    write: {
+      'src/store.php':
+        "<?php check_admin_referer( 'save' ); if ( current_user_can( 'manage_options' ) ) { update_option( 'a', $_POST['a'] ); }\n",
     },
   }),
   's-wp-text-domain-literal': () => ({

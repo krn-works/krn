@@ -185,6 +185,27 @@ const cases: Case[] = [
     green: { 'src/index.ts': 'run().catch((e) => { report(e); });\n' },
   },
   {
+    id: 's-ts-no-floating-promises',
+    base: node,
+    red: {
+      'biome.json':
+        '{ "linter": { "rules": { "nursery": { "noFloatingPromises": "off" } } } }\n',
+    },
+    green: {
+      'biome.json':
+        '{ "linter": { "rules": { "nursery": { "noFloatingPromises": "error" } } } }\n',
+    },
+  },
+  {
+    id: 's-ts-no-floating-promises',
+    base: node,
+    red: { 'eslint.config.js': 'export default [];\n' },
+    green: {
+      'eslint.config.js':
+        "export default [{ rules: { '@typescript-eslint/no-floating-promises': 'error' } }];\n",
+    },
+  },
+  {
     id: 's-py-no-bare-except',
     base: py,
     red: { 'probe/io.py': 'try:\n    x = 1\nexcept:\n    pass\n' },
