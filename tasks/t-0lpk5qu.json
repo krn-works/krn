@@ -1,7 +1,11 @@
 {
   "id": "t-0lpk5qu",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "added single-link test"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "Add a focused npm test for one untested function",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "true",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

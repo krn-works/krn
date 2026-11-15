@@ -204,3 +204,12 @@ test('parsing an extremely long link header', function (t) {
   )
   t.end()
 })
+
+test('parsing a single link with only a url and a rel', function (t) {
+  t.deepEqual(
+      parse('<http://example.com/>; rel="next"')
+    , { next: { rel: 'next', url: 'http://example.com/' } }
+    , 'returns the one link keyed by its rel'
+  )
+  t.end()
+})
