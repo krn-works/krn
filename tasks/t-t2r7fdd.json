@@ -1,7 +1,11 @@
 {
   "id": "t-t2r7fdd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "blockerOf in the lane run accepted only a plain final BLOCKER line while Stop accepts bold or non-final ones; a session ending on one shipped its commit. Shared reader, regression test in test/cli/lane-run.test.ts. Outside rows not rerun."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Outside lanes cannot merge with unproven clauses or without a red-at-base test",

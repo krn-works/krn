@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { countStopRefusals } from '../../brain/proof-line.ts';
+import { countStopRefusals, statesBlocker } from '../../brain/proof-line.ts';
 import { configHome } from '../../harness/claude.ts';
 
 export const exitCredentialUnavailable = 69;
@@ -135,15 +135,16 @@ export function sessionStopRefusals(sessionId: string): number | undefined {
   return undefined;
 }
 
-/** The final non-empty line of the session result text when it is a `BLOCKER:` line. */
+/** The first `BLOCKER: <reason>` line of the session result: the line the Stop hook accepts as a way to end. */
 export function blockerOf(text: unknown): { blocker?: string } {
-  if (typeof text !== 'string') return {};
-  const last = text
+  if (!statesBlocker(text)) return {};
+  const line = (text as string)
     .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-    .pop();
-  return last?.startsWith('BLOCKER:') ? { blocker: last.slice(0, 200) } : {};
+    .map((candidate) =>
+      candidate.trim().replace(/^\**BLOCKER:\**/u, 'BLOCKER:'),
+    )
+    .find((candidate) => /^BLOCKER:\s*\S/u.test(candidate));
+  return line === undefined ? {} : { blocker: line.slice(0, 200) };
 }
 
 /** One line of a Claude session transcript (.jsonl under the Claude config directory). */
