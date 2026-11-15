@@ -49,6 +49,56 @@
         "tests/test_import.py": "scripts/outside-hidden/py-smoke-test.py"
       },
       "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "php-red",
+      "redBase": true,
+      "upstream": "https://github.com/igorw/get-in.git",
+      "license": "MIT",
+      "fix": "45e09e0a006c731c688514ba6a5e1a89c346145f",
+      "title": "assoc_in must replace a nested value that is not an array",
+      "body": [
+        "The test suite is red on this base: tests/GetInTest.php case testAssocIn #4 fails. assoc_in([\"foo\" => null], [\"foo\", \"bar\"], \"new value\") does not build the missing level when the value on the path is null or a scalar.",
+        "Outcome: assoc_in replaces a non-array value on the path with an array and sets the new value; the whole existing test file passes. Fix src/get_in.php; do not edit the existing tests."
+      ],
+      "hidden": ["tests/GetInTest.php"],
+      "hiddenVerify": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+      "test": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+      "support": {
+        "tests/shim.php": "scripts/outside-hidden/phpunit-shim.php"
+      }
+    },
+    {
+      "stack": "npm-workspaces",
+      "upstream": "https://github.com/eslint/rewrite.git",
+      "license": "Apache-2.0",
+      "fix": "18773d9e415604b1adf38c12440cafeeedaef5a1",
+      "title": "ConfigCommentParser drops a __proto__ key from its results",
+      "body": [
+        "Bug (npm workspaces monorepo, package packages/plugin-kit): parseStringConfig and parseListConfig build their result as a plain object literal, so a '__proto__' item in the comment is lost instead of being kept as an own property.",
+        "Outcome: both methods return a map with a null prototype (Object.create(null)), so '__proto__' is an ordinary own key; the keys and values are otherwise unchanged. Fix packages/plugin-kit/src/config-comment-parser.js and add tests in packages/plugin-kit/tests/config-comment-parser.test.js."
+      ],
+      "hidden": ["packages/plugin-kit/tests/config-comment-parser.test.js"],
+      "hiddenVerify": "npm install --no-package-lock --ignore-scripts --silent && npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
+      "install": "npm install --no-package-lock --ignore-scripts",
+      "test": "npx mocha packages/plugin-kit/tests/config-comment-parser.test.js",
+      "related": "npx mocha {files}"
+    },
+    {
+      "stack": "wp-plugin",
+      "upstream": "https://github.com/ymirapp/wordpress-plugin.git",
+      "license": "GPL-3.0",
+      "fix": "7cff4252b8279ce40e6fa2119b57a74e8076cb15",
+      "title": "Ymir WordPress plugin builds WP-CLI commands with unescaped shell arguments",
+      "body": [
+        "Bug (WordPress plugin): LambdaClient wraps the site URL, option values and image changes in hand-written single quotes, so a value containing a quote runs as shell.",
+        "Outcome: every value is passed as one POSIX-quoted shell argument (a single quote becomes '\\'' and multibyte text is kept as is); a value with a null byte, and image changes that are not valid JSON, throw InvalidArgumentException before anything is invoked (the JSON message is: The given image \"changes\" must be valid JSON). Fix src/CloudProvider/Aws/LambdaClient.php and add tests in tests/Unit/CloudProvider/Aws/LambdaClientTest.php. The tests need a WordPress core checkout; the test command already sets WP_CORE_DIR to one."
+      ],
+      "hidden": ["tests/Unit/CloudProvider/Aws/LambdaClientTest.php"],
+      "hiddenVerify": "composer install --no-interaction --quiet && WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
+      "install": "composer install --no-interaction --quiet",
+      "test": "WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
+      "related": "WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit {files}"
     }
   ]
 }
