@@ -64,7 +64,7 @@ jobs:
       - name: Set up CI
         uses: ./.github/actions/setup-ci
 
-      # Rendered rules are checked by `npm run preflight`.
+      # Rendered rules are checked by test/agents-render.test.ts.
       - name: Biome
         run: npm run lint
 
