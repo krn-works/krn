@@ -385,3 +385,28 @@ test('krn.json may declare vacuous, and a declared test command is never marked 
   });
   assert.equal(resolveContract(declared).contract.vacuous, undefined);
 });
+
+test('a detected node or php contract installs the declared dependencies into a fresh worktree', () => {
+  const node = resolveContract(
+    fixture({
+      'package.json': JSON.stringify({
+        scripts: { test: 'tap test/*.js' },
+        devDependencies: { tap: '^1' },
+      }),
+      'package-lock.json': '{}',
+    }),
+  );
+  assert.equal(node.contract.install, 'npm ci');
+  const bare = resolveContract(
+    fixture({
+      'package.json': JSON.stringify({ scripts: { test: 'node --test' } }),
+    }),
+  );
+  assert.equal(bare.contract.install, undefined);
+  const php = resolveContract(
+    fixture({
+      'composer.json': '{"require-dev":{"phpunit/phpunit":"^10"}}',
+    }),
+  );
+  assert.equal(php.contract.install, 'composer install --no-interaction');
+});
