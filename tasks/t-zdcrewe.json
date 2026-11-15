@@ -1,7 +1,11 @@
 {
   "id": "t-zdcrewe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Composer-only fixture adopts with the nine PHP records and drift reports 0 (test/adopt/adopt.test.ts)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Composer-only PHP repositories are adopted with the PHP records column",
