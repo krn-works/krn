@@ -336,11 +336,11 @@ export async function shipCommand(
   try {
     await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
   } catch (error) {
-    // A base with no required check or no protection rule: GitHub refuses auto-merge there (clean status, or no branch rules), so merge now.
+    // A base with no required check or no protection rule: GitHub refuses auto-merge there (clean status, or no branch rules), so merge now. A repository whose settings disallow auto-merge is merged directly too; gh then refuses the merge itself while a required check is unmet.
     if (
       !(
         error instanceof CommandFailure &&
-        /is in clean status|Protected branch rules not configured/u.test(
+        /is in clean status|Protected branch rules not configured|Auto merge is not allowed for this repository/u.test(
           error.result.stderr,
         )
       )
