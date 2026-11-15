@@ -99,6 +99,22 @@
       "install": "composer install --no-interaction --quiet",
       "test": "WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
       "related": "WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit {files}"
+    },
+    {
+      "stack": "frontend",
+      "upstream": "https://github.com/dcastil/tailwind-merge.git",
+      "license": "MIT",
+      "fix": "c07b9fb89ebd60bedda789157a23c1a3dbd62733",
+      "title": "tailwind-merge misses the conflict when a class has an important modifier and a postfix modifier",
+      "body": [
+        "Bug (frontend class-name component, package packages/tailwind-merge): twMerge('!text-lg/7 !text-sm') returns both classes although both set font-size as important; the same class without the leading '!' or with a trailing 'text-lg/7!' merges correctly.",
+        "Outcome: a leading important modifier does not shift the postfix modifier position, so '!text-lg/7 !text-sm' gives '!text-sm', '!text-lg/7 !text-lg/9' gives '!text-lg/9' and '!text-lg/7 !text-sm/6' gives '!text-sm/6'; existing behaviour is unchanged. Fix packages/tailwind-merge/src/lib/parse-class-name.ts and add tests in packages/tailwind-merge/tests/important-modifier.test.ts."
+      ],
+      "hidden": ["packages/tailwind-merge/tests/important-modifier.test.ts"],
+      "hiddenVerify": "mise exec pnpm@12.5.1 -- pnpm install --frozen-lockfile --ignore-scripts --silent && mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
+      "install": "mise exec pnpm@12.5.1 -- pnpm install --frozen-lockfile --ignore-scripts",
+      "test": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
+      "related": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch {files}"
     }
   ]
 }
