@@ -31,6 +31,49 @@ class GetInTest extends \PHPUnit_Framework_TestCase
         ];
     }
 
+    function testClause1()
+    {
+        $this->assertSame('default', get_in(['foo' => null], ['foo', 'bar'], 'default'));
+        $this->assertSame('default', get_in(['key' => 'value'], ['key', 'x'], 'default'));
+    }
+
+    function testClause2()
+    {
+        $this->assertSame(null, get_in(['foo' => null], ['foo', 'bar']));
+        $this->assertSame('d', get_in(['a' => ['b' => 5]], ['a', 'b', 'c'], 'd'));
+    }
+
+    function testClause3()
+    {
+        $id = function ($x) { return $x; };
+        foreach ([['foo' => null], ['foo' => 'str']] as $array) {
+            try {
+                update_in($array, ['foo', 'bar'], $id);
+                $this->assertSame('exception', 'none');
+            } catch (\InvalidArgumentException $e) {
+                $this->assertSame(1, 1);
+            }
+        }
+    }
+
+    function testClause4()
+    {
+        $nested = ['foo' => ['bar' => 1]];
+        $this->assertSame(1, get_in($nested, ['foo', 'bar']));
+        $this->assertSame(null, get_in(['foo' => null], ['foo'], 'err'));
+        $this->assertSame('d', get_in($nested, ['x', 'y'], 'd'));
+    }
+
+    function testClause5()
+    {
+        $this->assertSame('d', get_in(['k' => 1], ['k', 'x'], 'd'));
+    }
+
+    function testClause6()
+    {
+        $this->assertSame('d', get_in(['k' => 'v'], ['k', 'x', 'y'], 'd'));
+    }
+
     /** @dataProvider provideUpdateIn */
     function testUpdateIn($expected, $array, $keys, $fn, array $args = [])
     {
