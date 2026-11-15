@@ -993,6 +993,306 @@
     }
   },
   {
+    "id": "s-php-no-error-suppression",
+    "type": "standard",
+    "area": "error-handling",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "PHP code does not silence a function call with the `@` operator; it checks the result or catches the exception.",
+    "why": "A suppressed warning hides the failure that tells the next reader what broke, so the code goes on with a false value.",
+    "applies": {
+      "stacks": ["php"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>/(^|[^\\w@\"\\x27$])@\\s*\\\\?[A-Za-z_][\\w\\\\]*\\s*\\(/.test(code(f)));if(bad.length){console.error(\"@ suppression in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-php-no-empty-catch",
+    "type": "standard",
+    "area": "error-handling",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A PHP `catch` block is never empty; it handles, logs or rethrows the error, or says in a comment why it is ignored.",
+    "why": "An empty catch swallows the failure without a trace, so the defect shows up later far from its cause.",
+    "applies": {
+      "stacks": ["php"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>/catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}/.test(fs.readFileSync(f,\"utf8\")));if(bad.length){console.error(\"empty catch in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-php-no-eval",
+    "type": "standard",
+    "area": "architecture",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "floor",
+    "text": "PHP code does not call `eval()` or `create_function()`; behavior is written as code or looked up in a map.",
+    "why": "Evaluating a string runs whatever reaches it, and no tool can read, type-check or test code that exists only at runtime.",
+    "applies": {
+      "stacks": ["php"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>/(^|[^\\w>:$])(eval|create_function)\\s*\\(/.test(code(f)));if(bad.length){console.error(\"eval in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-php-autoload-declared",
+    "type": "standard",
+    "area": "architecture",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A PHP project with Composer and classes under a src directory declares its Composer autoload, so classes load by namespace and not by hand-written require calls.",
+    "why": "Without an autoload map every class needs a manual require, which drifts from the file layout and breaks the first time a file moves.",
+    "applies": {
+      "stacks": ["php"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f composer.json ] || ! git ls-files | grep -q '^s[r]c/.*\\.php$' || node -e 'const c=JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\"));const a=c.autoload||{};process.exit(Object.keys(a).length?0:1)'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-php-composer-no-wildcard",
+    "type": "standard",
+    "area": "releases",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "composer.json never requires a package at `*`, `dev-*` or `@dev`; each package carries a version constraint a release can be rebuilt from.",
+    "why": "A wildcard or branch requirement resolves to a different package on every install, so a release cannot be reproduced.",
+    "applies": {
+      "stacks": ["php"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f composer.json ] || node -e 'const c=JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\"));const all={...c.require,...c[\"require-dev\"]};const bad=Object.entries(all).filter(([k,v])=>!/^(php|php-.*|ext-.*|lib-.*|composer(-.*)?)$/.test(k)&&/^(\\*|dev-.*|.*@dev)$/.test(String(v).trim())).map(([k])=>k);if(bad.length){console.error(\"unpinned: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-escape-translations",
+    "type": "standard",
+    "area": "escaping",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "WordPress templates print translated text through `esc_html_e`, `esc_attr_e` or `esc_html__`, never the bare `_e()` or `echo __()`.",
+    "why": "A translation file is data anyone can supply, so a bare translated echo is an injection point at the output boundary.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>/(^|[^\\w>:$])_e\\s*\\(|\\b(echo|print)\\s+__\\s*\\(/m.test(code(f)));if(bad.length){console.error(\"unescaped translation in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-nonce-on-request",
+    "type": "standard",
+    "area": "security",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A WordPress PHP file that reads `$_POST` or `$_REQUEST` verifies a nonce (`wp_verify_nonce`, `check_admin_referer`, `check_ajax_referer`) or a REST `permission_callback`.",
+    "why": "A state-changing request without a nonce can be forged from any page the logged-in user visits.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>{const t=code(f);return /\\$_(POST|REQUEST)\\s*\\[/.test(t)&&!/nonce|check_admin_referer|check_ajax_referer|permission_callback/i.test(t)});if(bad.length){console.error(\"request without nonce in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-prepared-queries",
+    "type": "standard",
+    "area": "security",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "floor",
+    "text": "A WordPress database call (`$wpdb->query`, `get_results`, `get_var`, `get_row`, `get_col`) never builds its SQL from an interpolated or concatenated variable; it goes through `$wpdb->prepare`.",
+    "why": "SQL assembled from variables is injectable; prepare binds the values so input cannot change the query.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const call=/\\$wpdb->(query|get_results|get_var|get_row|get_col)\\(\\s*(?:\"([^\"]*)\"|\\x27([^\\x27]*)\\x27\\s*\\.\\s*(\\S+))/g;const own=/\\{?\\$wpdb->\\w+\\}?|\\{?\\$\\w*(table|prefix)\\w*\\}?/gi;const bad=src.filter(f=>{const t=code(f);let m;while((m=call.exec(t))){const sql=(m[2]??\"\").replace(own,\"\");if(/\\$\\w/.test(sql))return true;if(m[4]!==undefined&&!/^(\\$wpdb->|\\$\\w*(table|prefix))/i.test(m[4]))return true}return false});if(bad.length){console.error(\"unprepared query in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-text-domain-literal",
+    "type": "standard",
+    "area": "i18n",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "WordPress translation calls pass the text domain as one string literal, the same in every call of the repository (the `default` core domain aside).",
+    "why": "Translation tools read the domain from the source text; a variable or a second spelling leaves strings untranslatable or in the wrong catalog.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const re=/\\b(?:__|_e|esc_html__|esc_attr__|esc_html_e|esc_attr_e|_x|esc_html_x|esc_attr_x)\\s*\\(((?:[^()]|\\([^()]*\\))*)\\)/g;const domains=new Set();let bad=\"\";for(const f of src){const t=code(f);let m;while((m=re.exec(t))){const args=m[1].split(/,(?![^(]*\\))/).map(s=>s.trim());const last=args.length>=2?args[args.length-1]:\"\";const lit=/^[\\x27\"]([\\w-]+)[\\x27\"]$/.exec(last);if(args.length>=2&&!lit&&/^\\$/.test(last))bad=bad||f+\" (variable domain)\";if(lit&&lit[1]!==\"default\")domains.add(lit[1])}}if(domains.size>1)bad=bad||\"several domains: \"+[...domains].join(\", \");if(bad){console.error(bad);process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-release-version-matches-readme",
+    "type": "standard",
+    "area": "releases",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A WordPress plugin that ships a readme.txt keeps its `Stable tag` equal to the `Version` header of the plugin file.",
+    "why": "WordPress.org serves the Stable tag; when it trails the plugin header every site updates to a release that is not the one described.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f readme.txt ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const r=fs.readFileSync(\"readme.txt\",\"utf8\").match(/^Stable tag:\\s*(\\S+)/mi);if(!r||r[1]===\"trunk\")process.exit(0);const files=cp.execFileSync(\"git\",[\"ls-files\",\"-z\",\"--\",\"*.php\"],{encoding:\"utf8\"}).split(\"\\0\").filter(f=>f&&!f.includes(\"/\"));const v=files.map(f=>fs.readFileSync(f,\"utf8\").slice(0,8192)).map(t=>/^[ \\t*@]*Plugin Name:/mi.test(t)&&t.match(/^[ \\t*@]*Version:\\s*(\\S+)/mi)).find(Boolean);if(v&&v[1]!==r[1]){console.error(\"Stable tag \"+r[1]+\" differs from Version \"+v[1]);process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-semantic-commits",
     "type": "standard",
     "area": "commits",

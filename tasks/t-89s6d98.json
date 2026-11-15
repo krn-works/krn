@@ -1,7 +1,11 @@
 {
   "id": "t-89s6d98",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "nine enforced PHP/WP records with red+green fixtures; audit on ymirapp row: 0 false-red, 5 WP cells pass, 6 s-skill advisory"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "PHP and WordPress brain: eight enforced records with red and green fixtures",
