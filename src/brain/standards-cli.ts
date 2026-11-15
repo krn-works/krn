@@ -61,9 +61,14 @@ import {
   type Report as StandardsReport,
   splitProject,
 } from './standards.ts';
+import {
+  TASK_RULES,
+  type TaskRule,
+  taskQualityFailures,
+} from './task-quality.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -470,6 +475,7 @@ function flags(
 
 const ROOT = new Set(['--root']);
 const CHECK_FLAGS = new Set(['--root', '--record']);
+const RULE_FLAGS = new Set(['--root', '--rule']);
 
 function checkCommand(rest: readonly string[]): void {
   const { values, positional } = flags(rest, new Set(), CHECK_FLAGS);
@@ -488,6 +494,29 @@ function checkCommand(rest: readonly string[]): void {
     process.stderr.write(`${line}\n`);
   process.stdout.write(`${verdictLine}\n`);
   process.exitCode = verdict.exitCode;
+}
+
+/** `krn standards task-quality --rule RULE [--root DIR]`: the enforcement of one task-quality record. */
+function taskQualityCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(rest, new Set(), RULE_FLAGS);
+  const rule = values.get('--rule')?.[0];
+  if (positional.length > 0 || rule === undefined)
+    throw new CliUsageError(usage);
+  if (!(TASK_RULES as readonly string[]).includes(rule))
+    throw new CliUsageError(
+      `unknown task rule ${rule}; ${TASK_RULES.join('|')}`,
+    );
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const failures = taskQualityFailures(root, rule as TaskRule);
+  for (const line of failures) process.stderr.write(`${line}\n`);
+  process.stdout.write(
+    failures.length === 0
+      ? `PASS task-quality ${rule}\n`
+      : `FAIL task-quality ${rule}: ${failures.length} task(s)\n`,
+  );
+  process.exitCode = failures.length === 0 ? 0 : 1;
 }
 
 function effectCommand(rest: readonly string[]): void {
@@ -827,6 +856,7 @@ function installCommand(rest: readonly string[]): void {
 export function standardsCommand(args: string[]): void {
   const [verb, ...rest] = args;
   if (verb === 'check') checkCommand(rest);
+  else if (verb === 'task-quality') taskQualityCommand(rest);
   else if (verb === 'install') installCommand(rest);
   else if (verb === 'propose') proposeCommand(rest);
   else if (verb === 'harvest') harvestCommand(rest);

@@ -38,6 +38,7 @@ export function trackFailures(
       body: [
         `Outcome: \`krn standards check --record ${failure.id}\` no longer fails ${failure.id}.`,
         `Why: ${source} found this ${failure.tier} standard failing: ${firstLine(failure.message)}`,
+        'Files: the files the failing check names (run the Proof command).',
         `Proof: \`krn standards check --record ${failure.id}\``,
       ],
     });
