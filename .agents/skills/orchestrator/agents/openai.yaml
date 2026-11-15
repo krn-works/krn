@@ -1,0 +1,6 @@
+interface:
+  display_name: "Orchestrator — pilotaż tylko do odczytu"
+  short_description: "Jawna delegacja analiz wymagająca potwierdzonej izolacji hosta"
+  default_prompt: "Użyj $orchestrator do analizy zatwierdzonego snapshotu po potwierdzeniu izolacji hosta. Bez zapisu i bez uruchamiania testów."
+policy:
+  allow_implicit_invocation: false
