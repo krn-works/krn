@@ -30,6 +30,7 @@ import {
   effectTotals,
   readExposures,
   servedExposure,
+  servedOverlap,
 } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
@@ -76,7 +77,7 @@ import {
 import { NO_MATCH, queryStandards, renderHit } from './worker-packet.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--json] [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--overlap] [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--json] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -627,12 +628,26 @@ function queryCommand(rest: readonly string[]): void {
 }
 
 function effectCommand(rest: readonly string[]): void {
-  const { values, positional } = flags(rest, new Set(), ROOT);
+  const overlapOnly = rest.includes('--overlap');
+  const { values, positional } = flags(
+    rest.filter((arg) => arg !== '--overlap'),
+    new Set(),
+    ROOT,
+  );
   if (positional.length > 0) throw new CliUsageError(usage);
   const root = repositoryRoot(
     resolve(values.get('--root')?.[0] ?? process.cwd()),
   );
   const exposures = readExposures(root);
+  if (overlapOnly) {
+    const overlap = servedOverlap(exposures);
+    process.stdout.write(
+      overlap === null
+        ? 'overlap: fewer than 2 tasks served\n'
+        : `overlap: mean Jaccard ${overlap.mean.toFixed(2)} over ${overlap.pairs} pair(s) of ${overlap.tasks} task(s)\n`,
+    );
+    return;
+  }
   const rows = effectRows(exposures);
   process.stdout.write(
     `${[`effect: ${exposures.length} run(s), ${rows.length} record(s)`, ...rows].join('\n')}\n`,

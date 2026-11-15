@@ -212,7 +212,7 @@
     "id": "r-bounded-context",
     "type": "standard",
     "text": "The lead keeps context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, and verify with commands that print a verdict.",
-    "audience": "all",
+    "audience": "lead",
     "tier": "reflex",
     "applies": {
       "stacks": [],

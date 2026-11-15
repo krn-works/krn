@@ -1,24 +1,51 @@
 // The standards block SessionStart injects into an interactive session of an adopted repository:
-// the records that match the session's task (branch, live claim, handoff) within SESSION_BUDGET
-// tokens, logged to the exposure log so `krn standards effect` counts the session as served.
-import { appendExposure, servedExposure } from '../brain/exposures.ts';
+// the records that match the session's claimed task (title, Outcome, Files, stack, area, touched
+// paths) within SESSION_BUDGET tokens, logged to the exposure log under that task so `krn standards
+// effect` counts the session as served. A session with no claimed task gets no block.
+import { appendExposure, exposureOf } from '../brain/exposures.ts';
+import {
+  claimedTask,
+  taskQueryText,
+  touchedPaths,
+} from '../brain/task-query.ts';
 import { lanePacket, SESSION_BUDGET } from '../brain/worker-packet.ts';
 
 /**
- * The block for one session, or undefined when the repository is not adopted or no record matches
- * `query` (the text naming the session's task). A served block is logged under `run`.
+ * The block for one session, or undefined when the repository is not adopted, the session claims no
+ * task, or no record matches the task. A served block is logged under `run`.
  */
 export function sessionStandards(
   repo: string,
   main: string,
   run: string,
-  query: string,
+  branch: string,
   asOf: string = new Date().toISOString().slice(0, 10),
 ): string | undefined {
-  const packet = lanePacket(repo, query, asOf, 'session', SESSION_BUDGET);
+  const key = claimedTask(repo, main, branch);
+  if (key === undefined) return undefined;
+  const packet = lanePacket(
+    repo,
+    taskQueryText(key, touchedPaths(repo)),
+    asOf,
+    key.id,
+    SESSION_BUDGET,
+    true,
+    'lead',
+  );
   if (packet === null || packet.records.length === 0) return undefined;
   try {
-    appendExposure(main, servedExposure(run, 'session', packet.records));
+    appendExposure(
+      main,
+      exposureOf({
+        run,
+        task: key.id,
+        channel: 'session',
+        served: packet.records,
+        withheld: [],
+        laneOk: true,
+        tokens: packet.tokens,
+      }),
+    );
   } catch {
     /* The log is evidence, never a reason to lose the block. */
   }

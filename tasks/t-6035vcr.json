@@ -1,7 +1,11 @@
 {
   "id": "t-6035vcr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn standards effect --overlap: mean Jaccard 0.25 (<0.4) over 300 pairs of 25 tasks; packets keyed by claimed task"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Retrieval is keyed by the task (S9)",
