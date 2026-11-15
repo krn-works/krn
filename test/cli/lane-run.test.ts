@@ -523,7 +523,11 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
     assert.match(prompt, /^Repository conventions \(brain packet /u);
     const record = prompt
       .slice(prompt.indexOf('\n\nTask t-abc1234: ') + 2)
-      .replace(`\n\n${workerRules(dir)}\n`, '\n');
+      .replace(`\n\n${workerRules(dir)}\n`, '\n')
+      .replace(
+        /\n\nAcceptance clauses \(write them first\):[^\n]*\n[^\n]*(?=\n$)/u,
+        '',
+      );
     assert.match(record, /^Task t-abc1234: Lane run task/u);
     assert.equal(prompt, laneBriefText(dir, record, '2026-11-10', 't-abc1234'));
   } finally {

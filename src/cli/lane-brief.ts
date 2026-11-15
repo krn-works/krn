@@ -104,8 +104,11 @@ export function laneBrief(
   const precedent = precedentSection(repo, brief);
   const recipe =
     findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';
+  // The frozen FR-40 carrier (holdout false) stays byte-stable: no clause section.
   const clauses =
-    process.env.KRN_ACCEPTANCE_CLAUSES === '1' ? clauseSection(brief) : '';
+    holdout && process.env.KRN_ACCEPTANCE_CLAUSES !== '0'
+      ? clauseSection(statedBody(brief))
+      : '';
   // The frozen FR-40 carrier (holdout false) never gets the gates block.
   const gates = holdout ? (gatesBlock(repo, asOf) ?? '') : '';
   const body = [text, gates, precedent, recipe, clauses]
@@ -119,4 +122,11 @@ export function laneBrief(
     served: [...served],
     withheld,
   };
+}
+
+/** The task's own words: the brief without its title line, acceptance-lines block and delivery boilerplate. */
+export function statedBody(brief: string): string {
+  const cut = brief.search(/\n\n(?:Acceptance lines |Deliver this )/u);
+  const text = cut === -1 ? brief : brief.slice(0, cut);
+  return text.replace(/^Task t-[a-z0-9]+: [^\n]*\n+/u, '');
 }

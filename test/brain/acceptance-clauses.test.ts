@@ -39,7 +39,10 @@ test('bullets, then sentences, split a plain body', () => {
 test('a body with fewer than two clauses has none', () => {
   assert.deepEqual(splitClauses('Fix the parser crash on empty input'), []);
   assert.deepEqual(splitClauses(''), []);
-  assert.equal(clauseSection('Fix the parser crash on empty input'), '');
+  assert.match(
+    clauseSection('Fix the parser crash on empty input'),
+    /write them first[\s\S]*at least 3 numbered clauses/u,
+  );
 });
 
 test('clause markers do not confuse clause 1 with clause 12', () => {

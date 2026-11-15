@@ -621,7 +621,7 @@ export function inspect(
     (testFirstOn(env, contract)
       ? testFirstRefusal(root, from, run, shell, contract)
       : undefined) ??
-    (env.KRN_ACCEPTANCE_CLAUSES === '1'
+    (clausesOn(env, contract)
       ? clauseRefusal(root, from, run, shell, contract, env)
       : undefined);
   return reason === undefined ? outcome : { ...outcome, ok: false, reason };
@@ -645,10 +645,28 @@ function taskClauses(root: string, env: NodeJS.ProcessEnv): string[] {
   return splitClauses(body);
 }
 
+/** The clause arm follows the red-at-base default: on where the contract has a real test command; KRN_ACCEPTANCE_CLAUSES=0 opts out. */
+export function clausesOn(
+  env: NodeJS.ProcessEnv,
+  contract?: RepoContract,
+): boolean {
+  if (env.KRN_ACCEPTANCE_CLAUSES === '0') return false;
+  if (env.KRN_ACCEPTANCE_CLAUSES === '1') return true;
+  return (
+    contract !== undefined &&
+    contract.test.trim() !== '' &&
+    contract.vacuous !== true
+  );
+}
+
+/** A body with under two clauses makes the worker write its own: this many must end proven. */
+const OWN_CLAUSES = 3;
+
 /**
- * Acceptance-clause arm (KRN_ACCEPTANCE_CLAUSES=1): every numbered clause of the task body has a
- * changed test marked `clause N` that fails at the base and passes on head, or a commit message
- * line `Clause N: not reproducible: <reason>`. A body with under two clauses is never refused.
+ * Acceptance-clause arm (default on, KRN_ACCEPTANCE_CLAUSES=0 opts out): every numbered clause of
+ * the task body has a changed test marked `clause N` that fails at the base and passes on head, or
+ * a commit message line `Clause N: not reproducible: <reason>`. A body with under two clauses
+ * makes the worker write its own: at least three distinct clause numbers, every marked one proven.
  */
 function clauseRefusal(
   root: string,
@@ -658,8 +676,7 @@ function clauseRefusal(
   contract: RepoContract | undefined,
   env: NodeJS.ProcessEnv,
 ): string | undefined {
-  const clauses = taskClauses(root, env);
-  if (clauses.length === 0) return undefined;
+  const stated = taskClauses(root, env);
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
@@ -667,16 +684,28 @@ function clauseRefusal(
     changed.map((file) => [file, safeRead(join(root, file))]),
   );
   const messages = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
+  const own = stated.length === 0;
+  const written = own
+    ? Array.from({ length: 30 }, (_, i) => i + 1).filter(
+        (n) =>
+          [...contents.values()].some((text) => clauseMarker(n).test(text)) ||
+          declaresNotReproducible(messages, n),
+      )
+    : [];
+  const clauses = own
+    ? written.map((n) => `the clause ${n} the worker wrote`)
+    : stated;
+  const numberOf = (i: number) => (own ? (written[i] ?? i + 1) : i + 1);
   const marked = (n: number) =>
     changed.filter((file) => clauseMarker(n).test(contents.get(file) ?? ''));
   const candidates = new Set(
     clauses.flatMap((_, i) =>
-      declaresNotReproducible(messages, i + 1) ? [] : marked(i + 1),
+      declaresNotReproducible(messages, numberOf(i)) ? [] : marked(numberOf(i)),
     ),
   );
   const red = redAtBase(root, from, [...candidates], run, shell, contract);
   const uncovered = clauses.flatMap((text, i) => {
-    const n = i + 1;
+    const n = numberOf(i);
     if (declaresNotReproducible(messages, n)) return [];
     const proven = marked(n).some(
       (file) =>
@@ -685,8 +714,10 @@ function clauseRefusal(
     );
     return proven ? [] : [`clause ${n}: ${text.slice(0, 80)}`];
   });
+  if (own && written.length < OWN_CLAUSES)
+    return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): the task body states under 2 clauses, so write at least ${OWN_CLAUSES} numbered clauses (edge cases: empty, missing, unauthorised, duplicate submit, non-ASCII) and commit a test per clause whose name contains "clause N" that fails at the base and passes on your commit; ${written.length} found. Or end with a line \`BLOCKER: <what stops you>\`.`;
   if (uncovered.length === 0) return undefined;
-  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a test whose name contains "clause N" that fails at the base and passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
+  return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a test whose name contains "clause N" that fails at the base and passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\`, or end with a line \`BLOCKER: <what stops you>\`.`;
 }
 
 function runTestFile(
