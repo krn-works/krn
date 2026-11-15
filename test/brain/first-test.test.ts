@@ -86,8 +86,14 @@ const cases: Array<{
   },
 ];
 
+const cargoRuns =
+  spawnSync('cargo', ['--version'], { encoding: 'utf8' }).status === 0;
+
 for (const c of cases) {
-  test(`the ${c.stack} recipe names its stack and its fixture goes from vacuous to red-on-mutation`, () => {
+  test(`the ${c.stack} recipe names its stack and its fixture goes from vacuous to red-on-mutation`, {
+    skip:
+      c.stack === 'rust' && !cargoRuns ? 'no usable cargo on this host' : false,
+  }, () => {
     const root = fixture(c.files);
     try {
       assert.equal(firstTestStack(root), c.stack);

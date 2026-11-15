@@ -428,7 +428,7 @@ function detectMakeTest(root: string): Detected | undefined {
 // First match wins: an explicit runner file beats a generic Makefile target.
 export function detectStack(root: string): Detected | undefined {
   if (existsSync(join(root, 'Cargo.toml')))
-    return { stack: 'rust', test: 'cargo test', related: 'cargo test' };
+    return { stack: 'rust', test: 'cargo test' };
   if (existsSync(join(root, 'go.mod')))
     return {
       stack: 'go',
