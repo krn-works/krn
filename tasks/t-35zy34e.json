@@ -1,0 +1,12 @@
+{
+  "id": "t-35zy34e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Task-quality standards are enforced on tracker tasks and init seeds a passing example task",
+  "after": [],
+  "body": [
+    "Why: Fable direction 1115e slice 3. Tracker/task-quality has three records.\nOutcome: >=6 enforced task-quality records (measurable acceptance, named proof, named files, one-PR size, declared dependencies, close carries evidence); krn standards check --tasks evaluates them; init seeds an example task that passes.\nFiles: standards/records.json, src/brain/standards-cli.ts, src/adopt/init.ts.\nProof: red and green fixtures; krn standards check --tasks on KRN's own open tasks has zero false-red. Free."
+  ]
+}

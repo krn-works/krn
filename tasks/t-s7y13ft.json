@@ -1,0 +1,12 @@
+{
+  "id": "t-s7y13ft",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "No standards record stays advisory: each is enforced or retired with a written reason",
+  "after": [],
+  "body": [
+    "Why: Fable direction 1115e slice 5. Nine advisory records remain (3 tests, 3 wordpress, 3 frontend).\nOutcome: each advisory record becomes enforced (with a check) or is retired with a reason.\nFiles: standards/records.json, src/brain/skill-harvest.ts, src/brain/retire.ts.\nProof: standards audit advisory count 0, false-red 0. Free."
+  ]
+}

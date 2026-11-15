@@ -1,0 +1,12 @@
+{
+  "id": "t-p8wpfq5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "An adopted repository reports the pack records it lacks and one command refreshes every registered repository",
+  "after": [],
+  "body": [
+    "Why: Fable direction 1115e slice 1 (.krn/runs/overnight/fable-direction-1115e.md). Adopt copies applicable records into the repo; a repo adopted before the pack grew (43 to 62 records) misses records with no signal. Confirm first.\nOutcome: krn doctor and adopt drift name the pack records an adopted repo lacks, exit non-zero with the remedy; one command refreshes every repo in the adopted registry.\nFiles: src/adopt/drift.ts, src/brain/adopted-registry.ts, src/brain/standards-cli.ts, src/cli/doctor-host.ts.\nProof: a fixture adopted on the pack minus 5 records reports 5 missing, and 0 after refresh. Free."
+  ]
+}
