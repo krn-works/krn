@@ -1,0 +1,64 @@
+{
+    "name": "ymirapp/wordpress-plugin",
+    "description": "Ymir WordPress plugin",
+    "keywords": [
+        "ymir",
+        "wordpress"
+    ],
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0+",
+    "authors": [
+        {
+            "name": "Carl Alexander",
+            "email": "support@ymirapp.com",
+            "homepage": "https://ymirapp.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.5",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-simplexml": "*"
+    },
+    "require-dev": {
+        "dg/bypass-finals": "^1.2",
+        "dms/phpunit-arraysubset-asserts": "~0.1",
+        "fakerphp/faker": "^1.12",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "php-mock/php-mock-phpunit": "^2.6",
+        "php-stubs/wp-cli-stubs": "^2.8",
+        "phpmailer/phpmailer": "^7.0",
+        "phpunit/phpunit": "^8.0 || ^9.0",
+        "symfony/polyfill-php80": "^1.28",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "extra": {
+        "installer-name": "ymir-wordpress-plugin"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ymir\\Plugin\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ymir\\Plugin\\Tests\\": "tests/"
+        }
+    },
+    "suggest": {
+        "ext-redis": "Required to use the Redis object cache."
+    },
+    "scripts": {
+        "php-cs-fixer": "php-cs-fixer fix --dry-run --allow-risky=yes",
+        "phpstan": "phpstan analyze --ansi",
+        "phpstan:generate-baseline": "phpstan analyze --generate-baseline",
+        "tests:integration": "phpunit --testsuite integration",
+        "tests:unit": "phpunit --testsuite unit"
+    }
+}
