@@ -1,7 +1,11 @@
 {
   "id": "t-04gp270",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "README documents npm test"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Make standard s-readme-test-command pass",
