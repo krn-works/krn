@@ -187,3 +187,24 @@ test('piped check hook rewrites a piped npm run typecheck with pipefail', () => 
   assert.equal(out.status, 0, out.stderr);
   assert.match(out.stdout, /set -o pipefail; npm run typecheck/u);
 });
+
+test('piped check hook refuses a wait loop on pgrep -f and allows a PID wait', () => {
+  for (const command of [
+    'while pgrep -f outside-acceptance.ts >/dev/null; do sleep 30; done; node run.ts',
+    'until ! pgrep -af "lane run" >/dev/null; do sleep 5; done',
+    'while pgrep --full krn >/dev/null; do sleep 1; done',
+  ]) {
+    const result = bash(command);
+    assert.equal(result.status, 2, command);
+    assert.match(result.stderr, /wait on a PID|Wait on a PID/u);
+  }
+  for (const command of [
+    'node run.ts & pid=$!; while kill -0 $pid 2>/dev/null; do sleep 5; done',
+    'pgrep -af outside-acceptance',
+    'while read line; do echo $line; done < file',
+  ]) {
+    const result = bash(command);
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+});
