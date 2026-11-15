@@ -1,7 +1,11 @@
 {
   "id": "t-0lp4bmu",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "POSIX-quote all LambdaClient shell arguments; reject null bytes and invalid JSON"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "Ymir WordPress plugin builds WP-CLI commands with unescaped shell arguments",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

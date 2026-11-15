@@ -282,4 +282,68 @@ class LambdaClientTest extends TestCase
 
         (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->resizeAttachmentImage($post, 42, 24);
     }
+
+    private function expectPhpCommand(string $expected): LambdaClient
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->once())
+             ->method('request')
+             ->with(
+                 $this->anything(),
+                 $this->callback(function (array $args) use ($expected) {
+                     return json_decode($args['body'], true)['php'] === $expected;
+                 })
+             )
+             ->willReturn(['body' => '{"output": "Success: done with ID 5"}']);
+
+        return new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', "https://foo.bar/it's");
+    }
+
+    public function testSiteUrlSingleQuoteIsEscaped(): void
+    {
+        $this->expectPhpCommand("bin/wp ymir create-attachment-metadata 4 --url='https://foo.bar/it'\\''s'")->createAttachmentMetadata(4);
+    }
+
+    public function testOptionValuesAreEscapedAndMultibyteKept(): void
+    {
+        $this->expectPhpCommand("bin/wp ymir create-cropped-image 4 --width='1' --height='2' --x='3' --y='4' --context='a'\\''; rm -rf /; '\\''é日本' --url='https://foo.bar/it'\\''s'")
+             ->createCroppedAttachmentImage(4, 1, 2, 3, 4, "a'; rm -rf /; 'é日本");
+    }
+
+    public function testEditAttachmentImageEscapesChanges(): void
+    {
+        $this->expectPhpCommand("bin/wp ymir edit-attachment-image 4 '[\"it'\\''s\"]' --apply='all' --url='https://foo.bar/it'\\''s'")
+             ->editAttachmentImage(4, '["it\'s"]');
+    }
+
+    public function testEditAttachmentImageRejectsInvalidJson(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The given image "changes" must be valid JSON');
+
+        (new LambdaClient($http, 'f', 'k', 'us-east-1', 's', 'https://foo.bar'))->editAttachmentImage(4, "it's not json");
+    }
+
+    public function testNullByteInOptionThrowsBeforeInvoking(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'f', 'k', 'us-east-1', 's', 'https://foo.bar'))->createCroppedAttachmentImage(4, 1, 2, 3, 4, "a\0b");
+    }
+
+    public function testNullByteInSiteUrlThrowsBeforeInvoking(): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new LambdaClient($http, 'f', 'k', 'us-east-1', 's', "https://foo.bar\0"))->createAttachmentMetadata(4);
+    }
 }
