@@ -1,0 +1,15 @@
+{
+  "id": "t-09yw0nv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-rust-no-library-unwrap pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-rust-no-library-unwrap` no longer fails s-rust-no-library-unwrap.",
+    "Why: adoption found this reflex standard failing: exit 1 from git ls-files | grep -qE '(^|/)lib\\.rs$' || exit 0; bad=$(git ls-files '*.rs' | grep -vE '(^|/)(tests|benches|examples|vendor|target|testdata|fuzz)/|...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-rust-no-library-unwrap`"
+  ]
+}

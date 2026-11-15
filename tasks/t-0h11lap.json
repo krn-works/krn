@@ -1,0 +1,20 @@
+{
+  "id": "t-0h11lap",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "anyhow aborts when the wrapped error type needs a large alignment",
+  "after": [],
+  "body": [
+    "Bug: an error type declared #[repr(align(64))] makes Error::new(..) followed by downcast_ref::<T>() abort the process, because the error is read through an address that ignores the alignment padding of the wrapped value.",
+    "Outcome: downcast_ref returns the wrapped value for a type with alignment 64, and every existing downcast, drop and display behaviour is unchanged. Fix src/error.rs and add a test in tests/test_downcast.rs."
+  ],
+  "acceptance": [
+    {
+      "verify": "cargo test",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

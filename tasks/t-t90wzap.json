@@ -1,0 +1,15 @@
+{
+  "id": "t-t90wzap",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-rust-clippy-deny-warnings pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-rust-clippy-deny-warnings` no longer fails s-rust-clippy-deny-warnings.",
+    "Why: adoption found this reflex standard failing: exit 1 from for f in $(git grep -lI 'clippy' -- .github Makefile makefile GNUmakefile 'Taskfile*' justfile .gitlab-ci.yml scripts script hack .pre-commit-config...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-rust-clippy-deny-warnings`"
+  ]
+}

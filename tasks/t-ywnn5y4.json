@@ -1,0 +1,15 @@
+{
+  "id": "t-ywnn5y4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-rust-pinned-toolchain pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-rust-pinned-toolchain` no longer fails s-rust-pinned-toolchain.",
+    "Why: adoption found this reflex standard failing: exit 1 from [ -f Cargo.toml ] || exit 0; git ls-files | grep -qE '(^|/)rust-toolchain(\\.toml)?$' && exit 0; git grep -qIE '^rust-version[[:space:]]*[.=]' -- Car...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-rust-pinned-toolchain`"
+  ]
+}
