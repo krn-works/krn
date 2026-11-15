@@ -1,0 +1,15 @@
+{
+  "id": "t-aj02fh9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-php-no-empty-catch pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-php-no-empty-catch` no longer fails s-php-no-empty-catch.",
+    "Why: adoption found this reflex standard failing: exit 1 from node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);con...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-php-no-empty-catch`"
+  ]
+}

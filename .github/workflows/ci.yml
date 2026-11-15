@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php

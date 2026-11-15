@@ -1,0 +1,15 @@
+{
+  "id": "t-ezyxhgs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `WP_CORE_DIR=${KRN_OUTSIDE_SCRATCH:?}/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php` exits 127 on the clean outside/wp-plugin tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. sh: line 1: vendor/bin/phpunit: No such file or directory",
+    "Files: the files the failing test names (run the test command).",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}

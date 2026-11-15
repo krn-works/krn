@@ -1,0 +1,15 @@
+{
+  "id": "t-td9zndp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-no-wildcard-dependencies pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-no-wildcard-dependencies` no longer fails s-no-wildcard-dependencies.",
+    "Why: adoption found this reflex standard failing: exit 1 from node -e 'const fs=require(\"fs\");const bad=[];const scan=(f,keys,re)=>{if(!fs.existsSync(f))return;let j;try{j=JSON.parse(fs.readFileSync(f,\"utf8\"))}...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-no-wildcard-dependencies`"
+  ]
+}

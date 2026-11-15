@@ -1,0 +1,15 @@
+{
+  "id": "t-fmbed7z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-php-composer-lock pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-php-composer-lock` no longer fails s-php-composer-lock.",
+    "Why: adoption found this reflex standard failing: exit 1 from [ ! -f composer.json ] || ! node -e 'const c=JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\"));const d=Object.keys({...c.require,...c[\"...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-php-composer-lock`"
+  ]
+}
