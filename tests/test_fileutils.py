@@ -104,3 +104,51 @@ def test_rotate_file_full_rotation_no_ext(tmp_path):
 
     assert not (tmp_path / 'test_file.5').exists()
 
+
+
+def test_fileperms_from_int_roundtrip_and_groups():
+    from boltons.fileutils import FilePerms
+    assert int(FilePerms.from_int(0o007)) == 0o007
+    p = FilePerms.from_int(0o070)
+    assert (p.user, p.group, p.other) == ('', 'rwx', '')
+    assert int(p) == 0o070
+
+
+def test_fileperms_revoke_updates_integer():
+    from boltons.fileutils import FilePerms
+    p = FilePerms.from_int(0o600)
+    p.user = 'r'
+    assert int(p) == 0o400
+
+
+def test_atomic_saver_flush_failure_cleans_up(tmp_path, monkeypatch):
+    import os
+    import pytest
+    from boltons.fileutils import AtomicSaver
+    dest = str(tmp_path / 'dest.txt')
+    saver = AtomicSaver(dest)
+
+    def boom(fd):
+        raise OSError('fsync failed')
+    monkeypatch.setattr(os, 'fsync', boom)
+    with pytest.raises(OSError):
+        with saver:
+            saver.part_file.write('x')
+    assert saver.part_file.closed
+    assert not os.path.exists(saver.part_path)
+    assert not os.path.exists(dest)
+
+
+def test_iter_find_files_trailing_separator(tmp_path):
+    import os
+    from boltons.fileutils import iter_find_files
+    (tmp_path / 'a.txt').write_text('x')
+    (tmp_path / 'sub').mkdir()
+    (tmp_path / 'sub' / 'b.txt').write_text('x')
+    (tmp_path / 'sub' / 'deep').mkdir()
+    (tmp_path / 'sub' / 'deep' / 'c.txt').write_text('x')
+    d = str(tmp_path)
+    for depth in (0, 1, None):
+        plain = {os.path.normpath(f) for f in iter_find_files(d, '*.txt', max_depth=depth)}
+        slash = {os.path.normpath(f) for f in iter_find_files(d + os.sep, '*.txt', max_depth=depth)}
+        assert plain == slash

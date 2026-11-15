@@ -120,6 +120,11 @@ class {typename}(tuple):
 {field_defs}
 '''
 
+def _is_name(name):
+    return (bool(name) and all(c.isalnum() or c == '_' for c in name)
+            and ('a' + name).isidentifier())
+
+
 def namedtuple(typename, field_names, verbose=False, rename=False):
     """Returns a new subclass of tuple with named fields.
 
@@ -151,7 +156,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     if rename:
         seen = set()
         for index, name in enumerate(field_names):
-            if (not all(c.isalnum() or c == '_' for c in name)
+            if (not _is_name(name)
                 or _iskeyword(name)
                 or not name
                 or name[0].isdigit()
@@ -160,7 +165,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
                 field_names[index] = '_%d' % index
             seen.add(name)
     for name in [typename] + field_names:
-        if not name or not all(c.isalnum() or c == '_' for c in name):
+        if not name or not _is_name(name):
             raise ValueError('Type names and field names must be non-empty '
                              'and can only contain alphanumeric characters '
                              'and underscores: %r' % name)
@@ -310,7 +315,7 @@ def namedlist(typename, field_names, verbose=False, rename=False):
     if rename:
         seen = set()
         for index, name in enumerate(field_names):
-            if (not all(c.isalnum() or c == '_' for c in name)
+            if (not _is_name(name)
                 or _iskeyword(name)
                 or not name
                 or name[0].isdigit()
@@ -319,7 +324,7 @@ def namedlist(typename, field_names, verbose=False, rename=False):
                 field_names[index] = '_%d' % index
             seen.add(name)
     for name in [typename] + field_names:
-        if not name or not all(c.isalnum() or c == '_' for c in name):
+        if not name or not _is_name(name):
             raise ValueError('Type names and field names must be non-empty '
                              'and can only contain alphanumeric characters '
                              'and underscores: %r' % name)

@@ -39,3 +39,10 @@ def test_expandpath(monkeypatch):
     monkeypatch.delenv('BOLTONS_UNDEFINED_VAR', raising=False)
     assert expandpath('$BOLTONS_UNDEFINED_VAR') == '$BOLTONS_UNDEFINED_VAR'
     assert expandpath('foo') == 'foo'
+
+
+def test_shrinkuser_root_home(monkeypatch):
+    from boltons import pathutils
+    monkeypatch.setattr(pathutils, 'expanduser', lambda p: '/')
+    assert pathutils.shrinkuser('/project/file') == '~/project/file'
+    assert pathutils.shrinkuser('/') == '~'

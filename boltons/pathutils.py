@@ -154,11 +154,14 @@ def shrinkuser(path, home='~'):
     """
     path = normpath(path)
     userhome_dpath = expanduser('~')
-    if path.startswith(userhome_dpath):
-        if len(path) == len(userhome_dpath):
+    prefix = userhome_dpath.rstrip(os.path.sep)
+    if path.startswith(prefix):
+        if path == userhome_dpath or path == prefix:
             path = home
-        elif path[len(userhome_dpath)] == os.path.sep:
-            path = home + path[len(userhome_dpath):]
+        elif path[len(prefix)] == os.path.sep:
+            path = home + path[len(prefix):]
+        elif prefix == '':
+            path = home + path
     return path
 
 

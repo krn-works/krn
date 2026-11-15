@@ -1,7 +1,11 @@
 {
   "id": "t-04gy7td",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Fixed FilePerms, AtomicSaver flush cleanup, iter_find_files trailing sep, namedtuple/namedlist identifiers, shrinkuser root home"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "File, path and named-tuple helpers each have a bug",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
