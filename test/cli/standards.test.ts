@@ -63,13 +63,13 @@ const workflow = (run: string) =>
 
 const python = {
   'pyproject.toml':
-    '[project]\nname = "probe"\nversion = "0.1.0"\n\n[tool.ruff]\nline-length = 100\n',
+    '[project]\nname = "probe"\nversion = "0.1.0"\n\n[tool.ruff]\nline-length = 100\n\n[tool.mypy]\nstrict = true\n',
   'uv.lock': 'version = 1\n',
   '.gitignore': '__pycache__/\n.venv/\n',
   'CHANGELOG.md': '# Changelog\n\n## 0.1.0\n',
   'README.md': '# probe\n\nRun the tests with `uv run pytest`.\n',
   '.github/workflows/ci.yml': workflow('uv run pytest'),
-  'probe/__init__.py': '',
+  'src/probe/__init__.py': '',
   'tests/test_probe.py': 'def test_probe():\n    assert True\n',
 };
 

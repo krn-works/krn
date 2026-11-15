@@ -11,9 +11,20 @@ import { fileURLToPath } from 'node:url';
 // repository that follows it (green). The plainest hand-written violation is the input.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
-type Files = Record<string, string>;
+type Files = Record<string, string | null>;
 
-function repository(files: Files, commits: string[] = []): string {
+/** The files with every null entry removed: a null in a case deletes the file of the base. */
+function merged(...parts: Files[]): Record<string, string> {
+  const all = Object.assign({}, ...parts) as Files;
+  return Object.fromEntries(
+    Object.entries(all).filter(([, v]) => v !== null),
+  ) as Record<string, string>;
+}
+
+function repository(
+  files: Record<string, string>,
+  commits: string[] = [],
+): string {
   const root = mkdtempSync(join(tmpdir(), 'krn-coverage-'));
   const run = (...args: string[]) => {
     const done = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -39,7 +50,11 @@ function repository(files: Files, commits: string[] = []): string {
   return root;
 }
 
-function verdict(id: string, files: Files, commits: string[] = []): number {
+function verdict(
+  id: string,
+  files: Record<string, string>,
+  commits: string[] = [],
+): number {
   const root = repository(files, commits);
   try {
     const done = spawnSync(
@@ -68,6 +83,12 @@ const py: Files = {
   'pyproject.toml': '[project]\nname = "probe"\n',
   'probe/__init__.py': 'ONE = 1\n',
 };
+const go: Files = {
+  'go.mod': 'module example.com/probe\n\ngo 1.22\n',
+  'probe.go': 'package probe\n\nfunc One() int {\n\treturn 1\n}\n',
+  'probe_test.go':
+    'package probe\n\nimport "testing"\n\nfunc TestOne(t *testing.T) {\n\tif One() != 1 {\n\t\tt.Fatal("one")\n\t}\n}\n',
+};
 const tracked: Files = { ...node, 'krn.json': '{"tracker":"krn"}\n' };
 
 type Case = {
@@ -76,6 +97,8 @@ type Case = {
   red: Files;
   green: Files;
   commits?: [red: string[], green: string[]];
+  /** The case needs a working Go toolchain on PATH and passes without checking when there is none. */
+  needsGo?: boolean;
 };
 
 const cases: Case[] = [
@@ -178,6 +201,142 @@ const cases: Case[] = [
         'import ast\nimport subprocess\n\nsubprocess.run(["ls"])\nast.literal_eval("1")\n',
       'tests/test_run.py': 'result = eval("1")\n',
     },
+  },
+  {
+    id: 's-go-gofmt',
+    needsGo: true,
+    base: go,
+    red: { 'probe.go': 'package probe\nfunc One() int {\nreturn 1\n}\n' },
+    green: {
+      'probe.go': 'package probe\n\nfunc One() int {\n\treturn 1\n}\n',
+      'testdata/raw.go': 'package   raw\n',
+    },
+  },
+  {
+    id: 's-go-vet-run',
+    base: { ...go, '.golangci.yml': 'version: "2"\n' },
+    red: { '.golangci.yml': null },
+    green: {},
+  },
+  {
+    id: 's-go-vet-run',
+    base: { ...go, Makefile: 'check:\n\tgo vet ./...\n' },
+    red: { Makefile: 'check:\n\tgo test ./...\n' },
+    green: {},
+  },
+  {
+    id: 's-go-sum-committed',
+    base: go,
+    red: {
+      'go.mod':
+        'module example.com/probe\n\ngo 1.22\n\nrequire github.com/pkg/errors v0.9.1\n',
+    },
+    green: {
+      'go.mod':
+        'module example.com/probe\n\ngo 1.22\n\nrequire (\n\tgithub.com/pkg/errors v0.9.1\n)\n',
+      'go.sum': 'github.com/pkg/errors v0.9.1 h1:abc=\n',
+    },
+  },
+  {
+    id: 's-go-wrapped-errors',
+    base: go,
+    red: {
+      'probe.go':
+        'package probe\n\nimport "fmt"\n\nfunc Run() error {\n\terr := load()\n\treturn fmt.Errorf("load: %v", err)\n}\n',
+    },
+    green: {
+      'probe.go':
+        'package probe\n\nimport "fmt"\n\nfunc Run(name string) error {\n\terr := load()\n\treturn fmt.Errorf("load %s: %w", name, err)\n}\n',
+    },
+  },
+  {
+    id: 's-go-no-library-panic',
+    base: go,
+    red: {
+      'probe.go': 'package probe\n\nfunc One() int {\n\tpanic("no")\n}\n',
+    },
+    green: {
+      'probe.go':
+        'package probe\n\nimport "regexp"\n\nfunc MustOne() int {\n\tpanic("no")\n}\n\n// panic(x) in a comment is prose\nvar re = regexp.MustCompile("a")\n',
+      'cmd/tool/main.go':
+        'package main\n\nfunc main() {\n\tpanic("fatal")\n}\n',
+      'probe_panic_test.go':
+        'package probe\n\nimport "testing"\n\nfunc TestPanics(t *testing.T) {\n\tdefer func() { recover() }()\n\tpanic("x")\n}\n',
+    },
+  },
+  {
+    id: 's-go-tests-beside-code',
+    base: go,
+    red: {
+      'store/store.go': 'package store\n\nfunc Get() int {\n\treturn 2\n}\n',
+    },
+    green: {
+      'store/store.go': 'package store\n\nfunc Get() int {\n\treturn 2\n}\n',
+      'store/store_test.go': 'package store\n',
+      'cmd/tool/main.go': 'package main\n\nfunc main() {}\n',
+      'types/types.go': 'package types\n\ntype ID string\n',
+    },
+  },
+  {
+    id: 's-go-context-first',
+    base: go,
+    red: {
+      'probe.go':
+        'package probe\n\nimport "context"\n\nfunc Load(id int, ctx context.Context) error {\n\treturn nil\n}\n',
+    },
+    green: {
+      'probe.go':
+        'package probe\n\nimport "context"\n\ntype S struct{}\n\nfunc (s *S) Load(ctx context.Context, id int) error {\n\treturn nil\n}\n',
+    },
+  },
+  {
+    id: 's-go-pinned-toolchain',
+    base: go,
+    red: { 'go.mod': 'module example.com/probe\n' },
+    green: {},
+  },
+  {
+    id: 's-go-pinned-toolchain',
+    base: go,
+    red: {
+      '.github/workflows/ci.yml':
+        'jobs:\n  t:\n    steps:\n      - uses: actions/setup-go@v5\n        with:\n          go-version: stable\n',
+    },
+    green: {
+      '.github/workflows/ci.yml':
+        'jobs:\n  t:\n    steps:\n      - uses: actions/setup-go@v5\n        with:\n          go-version-file: go.mod\n',
+    },
+  },
+  {
+    id: 's-py-pinned-dependencies',
+    base: { ...py, 'requirements.txt': '# runtime\n' },
+    red: { 'requirements.txt': 'requests\nflask==3.0.0\n' },
+    green: {
+      'requirements.txt':
+        '# runtime\n-r base.txt\nrequests==2.32.0 # pinned\nflask[async]==3.0.0\nlib @ https://example.com/lib.zip\n',
+    },
+  },
+  {
+    id: 's-py-typecheck-configured',
+    base: { ...py, 'mypy.ini': '[mypy]\n' },
+    red: { 'mypy.ini': null },
+    green: {},
+  },
+  {
+    id: 's-py-linter-configured',
+    base: { ...py, 'pyproject.toml': '[tool.ruff]\nline-length = 100\n' },
+    red: { 'pyproject.toml': '[tool.black]\nline-length = 100\n' },
+    green: { '.flake8': '[flake8]\nmax-line-length = 100\n' },
+  },
+  {
+    id: 's-py-src-layout',
+    base: {
+      ...py,
+      'probe/__init__.py': null,
+      'src/probe/__init__.py': 'ONE = 1\n',
+    },
+    red: { 'probe/__init__.py': 'ONE = 1\n' },
+    green: { 'probe/__init__.py': 'ONE = 1\n', 'manage.py': '' },
   },
   {
     id: 's-node-no-dynamic-code',
@@ -287,16 +446,21 @@ const cases: Case[] = [
   },
 ];
 
+const goWorks =
+  spawnSync('gofmt', ['-l'], { input: 'package p\n', encoding: 'utf8' })
+    .status === 0;
+
 for (const [index, c] of cases.entries()) {
   test(`${c.id} fails on its plainest violation and passes on the plainest compliant repository (case ${index + 1})`, () => {
-    assert.equal(verdict(c.id, { ...c.base }), 0, 'the base repository holds');
+    if (c.needsGo === true && !goWorks) return;
+    assert.equal(verdict(c.id, merged(c.base)), 0, 'the base repository holds');
     assert.equal(
-      verdict(c.id, { ...c.base, ...c.red }, c.commits?.[0]),
+      verdict(c.id, merged(c.base, c.red), c.commits?.[0]),
       1,
       'the violation fails',
     );
     assert.equal(
-      verdict(c.id, { ...c.base, ...c.green }, c.commits?.[1]),
+      verdict(c.id, merged(c.base, c.green), c.commits?.[1]),
       0,
       'the compliant repository holds',
     );
@@ -304,6 +468,9 @@ for (const [index, c] of cases.entries()) {
 }
 
 test('s-ticket-trailer ignores a commit that names no task and a repository with no history', () => {
-  assert.equal(verdict('s-ticket-trailer', tracked), 0);
-  assert.equal(verdict('s-ticket-trailer', tracked, ['chore: tidy']), 0);
+  assert.equal(verdict('s-ticket-trailer', merged(tracked)), 0);
+  assert.equal(
+    verdict('s-ticket-trailer', merged(tracked), ['chore: tidy']),
+    0,
+  );
 });

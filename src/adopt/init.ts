@@ -283,7 +283,7 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
   return {
     'tests/test_smoke.py': smokePython,
     'requirements.txt': '# runtime dependencies, one per line\n',
-    'pyproject.toml': `[tool.ruff]\nline-length = 100\n`,
+    'pyproject.toml': `[tool.ruff]\nline-length = 100\n\n[tool.mypy]\nstrict = true\n`,
     '.gitignore': '__pycache__/\n.venv/\nvenv/\n',
     'README.md': readme(name, 'python -m unittest discover -s tests'),
     [ci]: ciWorkflow(stack),
