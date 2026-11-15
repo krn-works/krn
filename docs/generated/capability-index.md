@@ -35,6 +35,7 @@ src/adopt/unused.ts: Which project MCP serve
 src/adopt/verify.ts: `krn adopt <path> --ver
 src/brain/acceptance-clauses.ts: Smallest pi
 src/brain/adopted-registry.ts: The host regi
+src/brain/blocker.ts: Whether the message st
 src/brain/exposures.ts: The exposure log: on
 src/brain/first-test.ts: First-test recipes
 src/brain/global-standards.ts: The user-leve

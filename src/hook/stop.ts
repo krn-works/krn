@@ -33,6 +33,7 @@ import {
 
 export { withinPackage };
 
+import { statesBlocker } from '../brain/blocker.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import {
   claudeJudge,
@@ -86,12 +87,7 @@ const SPECIFIER =
 const EXTENSIONS = ['', '.ts', '.mts', '.js', '.mjs', '/index.ts', '/index.js'];
 const NODE_RELATED = 'node --test {files}';
 
-/** Whether the message states a blocker on a line of its own: `BLOCKER: <reason>`. */
-export function statesBlocker(message: unknown): boolean {
-  return (
-    typeof message === 'string' && /^\s*\**BLOCKER:\**\s*\S/mu.test(message)
-  );
-}
+export { statesBlocker };
 
 /** Repo paths a test source imports by relative specifier. */
 function imported(testPath: string, source: string): Set<string> {
