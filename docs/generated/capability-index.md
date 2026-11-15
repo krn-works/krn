@@ -31,6 +31,7 @@ src/adopt/host-remediation.ts: Host-applied
 src/adopt/init.ts: krn adopt --init: git ini
 src/adopt/journal.ts: A write journal for ad
 src/adopt/stop-hook.ts: The hook command `kr
+src/adopt/unused.ts: Which project MCP serve
 src/adopt/verify.ts: `krn adopt <path> --ver
 src/brain/acceptance-clauses.ts: Smallest pi
 src/brain/adopted-registry.ts: The host regi
