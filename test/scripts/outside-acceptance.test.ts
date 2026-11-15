@@ -631,3 +631,22 @@ test('a lane branch left by an earlier run of the same row is owned and removed,
     ['t-a'],
   );
 });
+
+test('a discriminating row body names every identifier its hidden cases assert', () => {
+  const rows = parseTaskFile(
+    readFileSync(
+      new URL(
+        '../../scripts/outside-hidden/discriminating-tasks.json',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
+  const body = (stack: string) =>
+    rows.find((row) => row.stack === stack)?.body.join(' ') ?? '';
+  assert.match(body('py-mistune-image-depth'), /max_image_depth.*default 20/u);
+  assert.match(
+    body('py-fs-sweep'),
+    /SyntaxError instead of the documented ValueError/u,
+  );
+});
