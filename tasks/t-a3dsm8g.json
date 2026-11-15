@@ -1,7 +1,11 @@
 {
   "id": "t-a3dsm8g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/first-day-walkthrough.ts: 22 steps PASS (init + public clone adopt, every printed next step exit 0, doctor, task create, lane brief, 5 failure probes name remedy); fixed task show/lane drop/lane brief remedies; tasked t-y6vrqh7 t-zjekzhw"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A first-day walkthrough script proves every printed next step runs and every failure names its remedy",

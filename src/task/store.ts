@@ -269,7 +269,9 @@ export function listTasks(
 export function getTask(root: string, id: TaskId): TaskRecord {
   const record = loadTaskIndex(root).get(id);
   if (record === undefined)
-    throw new TaskDataError([`tasks/${id}.json: task does not exist`]);
+    throw new TaskDataError([
+      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
+    ]);
   return record;
 }
 
@@ -354,7 +356,9 @@ export function closeTask(
   const index = loadTaskIndex(root);
   const record = index.get(id);
   if (record === undefined)
-    throw new TaskDataError([`tasks/${id}.json: task does not exist`]);
+    throw new TaskDataError([
+      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
+    ]);
   if (record.status === 'closed')
     throw new TaskDataError([`tasks/${id}.json: task is already closed`]);
   if (
@@ -411,7 +415,9 @@ export function editTask(
   const index = loadTaskIndex(root);
   const record = index.get(id);
   if (record === undefined)
-    throw new TaskDataError([`tasks/${id}.json: task does not exist`]);
+    throw new TaskDataError([
+      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
+    ]);
   if (record.status === 'closed' && input.reopen !== true)
     throw new TaskDataError([
       `tasks/${id}.json: task is closed; use --reopen to edit it`,
@@ -472,7 +478,9 @@ export function changeDependency(
   const index = loadTaskIndex(root);
   const record = index.get(id);
   if (record === undefined)
-    throw new TaskDataError([`tasks/${id}.json: task does not exist`]);
+    throw new TaskDataError([
+      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
+    ]);
   if (!index.has(dependency))
     throw new TaskDataError([
       `tasks/${id}.json: after task "${dependency}" does not exist`,

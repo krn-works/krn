@@ -115,6 +115,7 @@
     "test/test-timings.test.mjs": 0.1,
     "test/tool-scope.test.ts": 4.3,
     "test/workflow.test.ts": 1,
+    "test/scripts/first-day-walkthrough.test.ts": 0.2,
     "test/scripts/outside-testgrade.test.ts": 0.2
   }
 }

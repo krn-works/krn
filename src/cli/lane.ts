@@ -60,7 +60,10 @@ function briefCommand(rest: string[]): void {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(asOf))
     throw new CliUsageError(`--as-of must be YYYY-MM-DD: ${asOf}`);
   const brief = readFileSync(file ?? 0, 'utf8');
-  if (brief.trim() === '') throw new CliUsageError('lane brief is empty');
+  if (brief.trim() === '')
+    throw new CliUsageError(
+      'lane brief is empty: pass --file PATH or pipe the brief text on stdin',
+    );
   const repo = repositoryRoot(root ?? process.cwd());
   process.stdout.write(
     laneBriefText(repo, brief, asOf, task, task !== undefined),
@@ -275,7 +278,9 @@ export async function dropLane(rest: string[]): Promise<string> {
     `refs/heads/${slug}`,
   ]);
   if (!existsSync(path) && !hasBranch)
-    throw new CliUsageError(`lane ${slug} does not exist`);
+    throw new CliUsageError(
+      `lane ${slug} does not exist; run git worktree list for the live lanes`,
+    );
   const released: string[] = [];
   if (existsSync(path)) {
     const only = soleTaskRecords(main, path);

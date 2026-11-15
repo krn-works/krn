@@ -457,6 +457,17 @@ async function fixtureRepo(
   }
 }
 
+test('showing an unknown task names the command that lists the ids', async () => {
+  const repo = await tempRepo('missing-');
+  try {
+    const result = runCli(repo, ['show', 't-nope000']);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /task does not exist; run krn task list/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 async function tempRepo(prefix: string): Promise<string> {
   await mkdir(scratch, { recursive: true });
   const repo = await mkdtemp(join(scratch, prefix));
