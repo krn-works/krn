@@ -1,7 +1,11 @@
 {
   "id": "t-12qh6ae",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Rerun on main d438caa: node scripts/outside-acceptance.ts --stack rust --scratch /mnt/storage/tmp/krn-outside-public --task-file scripts/outside-hidden/tasks.json --window-hours 2 exit 0; row drain 0 (merged 12d4f35), hidden pass, adopt 5/5. Log /mnt/storage/tmp/rust-row-drain-run.log"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "The rust outside row drains 0 or names why it cannot",
