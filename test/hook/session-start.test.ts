@@ -136,7 +136,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
       process.execPath,
       [cli, 'hook', 'stop'],
       JSON.stringify({ cwd: root, session_id: 'sess-stop' }),
-      { KRN_SESSION_CLASS: 'lane', KRN_LANE: 'x' },
+      { KRN_SESSION_CLASS: 'lane', KRN_LANE: 'x', KRN_TEST_FIRST: '0' },
     );
     assert.equal(stop.status, 2, stop.stderr);
     assert.match(stop.stderr, /s-no-todo-markers \(floor\)/u);

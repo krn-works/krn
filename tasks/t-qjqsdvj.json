@@ -1,7 +1,11 @@
 {
   "id": "t-qjqsdvj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Test-first Stop arm is on by default with a real test command; KRN_TEST_FIRST=0 opts out; refusal names red-at-base proof; brief and rendered rules carry it. Stop tests prove it (red without change, green with a base-red test). Outstanding: three outside rows drain with >=1 red-at-base test each not run in lane."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Red-first proof is on by default in every non-vacuous adopted repository",

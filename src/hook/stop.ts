@@ -618,7 +618,7 @@ export function inspect(
   const { contract } = loadContract(root);
   const from = base(root, contract);
   const reason =
-    (env.KRN_TEST_FIRST === '1'
+    (testFirstOn(env, contract)
       ? testFirstRefusal(root, from, run, shell, contract)
       : undefined) ??
     (env.KRN_ACCEPTANCE_CLAUSES === '1'
@@ -727,8 +727,22 @@ function redAtBase(
   return red;
 }
 
+/** The red-at-base arm is on by default where the contract has a real test command; KRN_TEST_FIRST=0 opts out. */
+export function testFirstOn(
+  env: NodeJS.ProcessEnv,
+  contract?: RepoContract,
+): boolean {
+  if (env.KRN_TEST_FIRST === '0') return false;
+  if (env.KRN_TEST_FIRST === '1') return true;
+  return (
+    contract !== undefined &&
+    contract.test.trim() !== '' &&
+    contract.vacuous !== true
+  );
+}
+
 /**
- * Test-first arm (KRN_TEST_FIRST=1): at least one changed test file must fail against the base source
+ * Test-first arm (default on, KRN_TEST_FIRST=0 opts out): at least one changed test file must fail against the base source
  * with the head test file in place, and pass on head. The base run happens in a detached worktree.
  */
 function testFirstRefusal(
@@ -739,7 +753,7 @@ function testFirstRefusal(
   contract?: RepoContract,
 ): string | undefined {
   const rule =
-    'Test-first rule (KRN_TEST_FIRST): a changed test must fail against the base source and pass on your commit.';
+    'Test-first rule (KRN_TEST_FIRST=0 opts out): a changed test must fail against the base source and pass on your commit, and no red-at-base proof was found.';
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
