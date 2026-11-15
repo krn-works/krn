@@ -1,7 +1,11 @@
 {
   "id": "t-d19z692",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "private krn-works/outside-{php,py,npm}: adopt 0, drain 0, all PRs merged: php 0c46c5f 3a0f437, py 2578a9c 51807e5, npm bdb7e60 (after c762304 workflow fix); rows in .krn/runs/outside/summary.txt"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Bootstrap then unattended drain is proven live in three operator repositories",
