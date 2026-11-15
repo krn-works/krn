@@ -12,8 +12,8 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 
 ## Proposals and decisions
 
-- Record unresolved proposals in [`proposals.md`](proposals.md) with a date, status, and source. Keep the register limited to proposals referenced by a current ADR or plan.
-- Put accepted architectural decisions in ADRs and operational rules in their owning source, such as `spec/rules.json`. Update proposal status when its decision is recorded.
+- Record an unresolved proposal as a task (`krn task create`), not in a register.
+- Put accepted architectural decisions in ADRs and operational rules in their owning source, such as `spec/rules.json`. Close the proposal's task when its decision is recorded.
 - Plans describe sequence; they do not create tasks, acceptance, or authority.
 
 ## Scope and delivery
@@ -49,7 +49,7 @@ A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.
 
 ## Lane brief additions
 
-The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship` and waits for a red-check rerun with `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>`; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/roadmap.md`. The operator grants recorded in the project memory apply to every lane.
+The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship` and waits for a red-check rerun with `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>`; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/plan.md`. The operator grants recorded in the project memory apply to every lane.
 
 ## Open traps
 

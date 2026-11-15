@@ -129,9 +129,6 @@ function receiver(options: {
         stderr: '',
       };
     }
-    // The fake branch is already based on the target: nothing to refresh.
-    if (a.includes('merge-base')) return out('');
-    if (a[0] === '-c' && a.includes('rebase')) return out('');
     if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
@@ -237,18 +234,6 @@ test('a conflicting PR exits 76 and keeps the worktree', async () => {
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
 });
 
-test('a PR that turns conflicting only in a generated file is regenerated, force-pushed and merged', async () => {
-  const r = receiver({
-    pulls: [{ mergeable_state: 'dirty' }, auto, merged],
-    lateConflict: 'docs/program/roadmap.md',
-  });
-  const out = await shipCommand(args, r);
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  const rebase = r.calls.findIndex((c) => c.includes('rebase origin/main'));
-  const push = r.calls.indexOf('git push --force-with-lease origin feat-x');
-  assert.ok(rebase > 0 && push > rebase, r.calls.join('\n'));
-});
-
 test('a PR that turns conflicting in a source file still exits 76', async () => {
   const r = receiver({
     pulls: [{ mergeable_state: 'dirty' }],
@@ -256,7 +241,6 @@ test('a PR that turns conflicting in a source file still exits 76', async () => 
   });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
     assert.equal(e.exitCode, 76);
-    assert.match(e.message, /src\/a\.ts/u);
     return true;
   });
   assert.ok(!r.calls.some((c) => c.includes('--force-with-lease')));

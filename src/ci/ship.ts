@@ -11,13 +11,13 @@ import {
 } from '../deliver/transport.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { titleProblem } from './commit-title.ts';
+import { assertNoConflict } from './conflict-check.ts';
 import { withReplyCheck } from './gh-reply.ts';
 import { gitLockError } from './git-lock.ts';
-import { rebaseGenerated } from './rebase-generated.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict outside generated files (a conflict only in generated files, before the push or after the base moved during the wait, is regenerated and force-pushed), 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -28,7 +28,6 @@ const unmergedExitCodes = [
 
 const gitLockAttempts = 5;
 /** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
-const conflictRebases = 3;
 const workflowsRejection = /without `?workflows`? permission/u;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 
@@ -155,8 +154,8 @@ main checkout: ${main}`;
     }
   };
   await fetchTarget();
-  // A conflict confined to generated files is regenerated here; any other conflict exits 76.
-  const rebased = rebaseGenerated(cwd, target, runner);
+  // A branch that conflicts with its base exits 76 before anything is pushed.
+  assertNoConflict(cwd, target, runner);
   const changed = git(['diff', '--name-only', `origin/${target}...HEAD`]);
   if (changed === '') {
     // An empty squash commit would merge green; name the PR that carries it.
@@ -237,12 +236,7 @@ main checkout: ${main}`;
     'git',
     // No -u: an upstream is a .git/config write, which a running lane's sandbox placeholder
     // over .git/config.lock refuses; nothing reads the upstream.
-    [
-      'push',
-      ...(force || rebased ? ['--force-with-lease'] : []),
-      'origin',
-      branch,
-    ],
+    ['push', ...(force ? ['--force-with-lease'] : []), 'origin', branch],
     cwd,
   );
   if (pushed.code !== 0 && workflowsRejection.test(pushed.stderr)) {
@@ -344,32 +338,12 @@ main checkout: ${main}`;
     await gh(['pr', 'merge', String(pr), '--repo', repo, '--squash']);
   }
 
-  let head = git(['rev-parse', 'HEAD']);
-  let waited: string;
-  for (let rebases = 0; ; rebases++) {
-    const base = git(['rev-parse', `origin/${target}`]);
-    try {
-      waited = await waitCommand(
-        ['--repo', repo, '--pr', String(pr), '--head', head, '--base', base],
-        { ...runtime, cwd: worktree, run: runner, gh, sleep: wait },
-      );
-      break;
-    } catch (error) {
-      // Another lane merged after the push: the PR now conflicts with its base. A conflict
-      // confined to generated files is regenerated and force-pushed; any other stays exit 76.
-      if (
-        (error as { exitCode?: number }).exitCode !== 76 ||
-        rebases >= conflictRebases
-      )
-        throw error;
-      await fetchTarget();
-      if (!rebaseGenerated(cwd, target, runner)) throw error;
-      checked(
-        runner('git', ['push', '--force-with-lease', 'origin', branch], cwd),
-      );
-      head = git(['rev-parse', 'HEAD']);
-    }
-  }
+  const head = git(['rev-parse', 'HEAD']);
+  const base = git(['rev-parse', `origin/${target}`]);
+  const waited = await waitCommand(
+    ['--repo', repo, '--pr', String(pr), '--head', head, '--base', base],
+    { ...runtime, cwd: worktree, run: runner, gh, sleep: wait },
+  );
   const lines = [`pr: #${pr} ${repo} ${head}`, waited];
   if (/^verdict: merged /mu.test(waited)) {
     lines.push(

@@ -168,27 +168,3 @@ test('handoff Roadmap line must name real task ids', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
-
-test('handoff cannot carry Roadmap unchanged over a roadmap without an open task', () => {
-  const { root, check } = fixture();
-  try {
-    const none = '## Operator requests\n- none\n';
-    const unchanged =
-      '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (no new evidence)\n\n';
-    const roadmap = join(root, 'docs/program/roadmap.md');
-    assert.equal(check(none, [], unchanged).status, 0);
-    writeFileSync(roadmap, '| Id | Opportunity | Task |\n|---|---|---|\n');
-    const empty = check(none, [], unchanged);
-    assert.equal(empty.status, 1);
-    assert.match(empty.stderr, /refill the roadmap/u);
-    writeFileSync(
-      roadmap,
-      '| Id | Opportunity | Task |\n|---|---|---|\n| R1 | done work | t-abc1234 |\n',
-    );
-    assert.equal(check(none, [], unchanged).status, 1);
-    rmSync(roadmap);
-    assert.equal(check(none, [], unchanged).status, 1);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});

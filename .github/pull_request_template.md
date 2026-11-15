@@ -14,6 +14,6 @@
 
 ## Task
 
-<!-- Ticket: <id> closes the task in this PR; Refs: <id> leaves it open. Retro lines and roadmap edits ride here too. -->
+<!-- Ticket: <id> closes the task in this PR; Refs: <id> leaves it open. Retro lines ride here too. -->
 
 Agent: <!-- model and harness, e.g. Claude Opus 5.5 in Claude Code -->

@@ -62,7 +62,6 @@ const PROSE_RULE_TESTS = new Set([
   'test/rules/lead-traps.test.ts',
   'test/rules/one-owner-docs.test.ts',
   'test/rules/project-skills.test.ts',
-  'test/rules/roadmap-open-tasks.test.ts',
   'test/rules/session-role.test.ts',
 ]);
 
