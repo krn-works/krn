@@ -124,6 +124,39 @@ describe("ConfigCommentParser", () => {
 		});
 	});
 
+	describe("__proto__ keys", () => {
+		it("parseStringConfig keeps __proto__ as own property", () => {
+			const result = commentParser.parseStringConfig("__proto__:1 a");
+
+			assert.strictEqual(Object.hasOwn(result, "__proto__"), true);
+			assert.strictEqual(Object.getPrototypeOf(result), Object.prototype);
+			assert.strictEqual(result.a, null);
+		});
+
+		it("parseListConfig keeps __proto__ as own property", () => {
+			const result = commentParser.parseListConfig("__proto__, a");
+
+			assert.strictEqual(Object.hasOwn(result, "__proto__"), true);
+			assert.strictEqual(Object.getPrototypeOf(result), Object.prototype);
+		});
+
+		it("parseJSONLikeConfig keeps __proto__ as own property", () => {
+			for (const text of [
+				'"__proto__": 2',
+				'"__proto__": 2, "a": 1',
+			]) {
+				const { ok, config } = commentParser.parseJSONLikeConfig(text);
+
+				assert.strictEqual(ok, true);
+				assert.strictEqual(Object.hasOwn(config, "__proto__"), true);
+				assert.strictEqual(
+					Object.getPrototypeOf(config),
+					Object.prototype,
+				);
+			}
+		});
+	});
+
 	describe("parseListConfig", () => {
 		it("should parse list config with one item", () => {
 			const code = "a";

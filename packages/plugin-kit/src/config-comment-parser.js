@@ -86,6 +86,32 @@ export class DirectiveComment {
 //------------------------------------------------------------------------------
 
 /**
+ * Normalizes a commaless JSON-like string.
+ * @param {string} string The string to normalize.
+ * @returns {string} The normalized string.
+ */
+function normalizeJSONLike(string) {
+	return string
+		.replace(/(?<![-a-zA-Z0-9/])([-a-zA-Z0-9/]+):/gu, '"$1":')
+		.replace(/([\]0-9])\s+(?=")/u, "$1,");
+}
+
+/**
+ * Parses a JSON-like string with JSON.parse, or returns undefined on failure.
+ * @param {string} string The string to parse.
+ * @returns {RulesConfig|undefined} The parsed object, if valid.
+ */
+function parseJSONObject(string) {
+	try {
+		const value = JSON.parse(`{${normalizeJSONLike(string)}}`);
+
+		return value;
+	} catch {
+		return void 0;
+	}
+}
+
+/**
  * Object to parse ESLint configuration comments.
  */
 export class ConfigCommentParser {
@@ -111,7 +137,12 @@ export class ConfigCommentParser {
 			// value defaults to null (if not provided), e.g: "foo" => ["foo", null]
 			const [key, value = null] = name.split(":");
 
-			items[key] = value;
+			Object.defineProperty(items, key, {
+				value,
+				writable: true,
+				enumerable: true,
+				configurable: true,
+			});
 		});
 
 		return items;
@@ -141,6 +172,19 @@ export class ConfigCommentParser {
 			 * not valid. In this case, the configuration should be ignored.
 			 */
 			if (isEverySeverityValid(items)) {
+				/*
+				 * levn assigns keys with plain assignment, which drops a
+				 * "__proto__" key. JSON.parse keeps it as an own property, so
+				 * prefer it when the string mentions that key.
+				 */
+				if (string.includes("__proto__")) {
+					const preserved = parseJSONObject(string);
+
+					if (preserved && isEverySeverityValid(preserved)) {
+						return { ok: true, config: preserved };
+					}
+				}
+
 				return {
 					ok: true,
 					config: items,
@@ -194,7 +238,12 @@ export class ConfigCommentParser {
 				);
 
 			if (trimmedName) {
-				items[trimmedName] = true;
+				Object.defineProperty(items, trimmedName, {
+					value: true,
+					writable: true,
+					enumerable: true,
+					configurable: true,
+				});
 			}
 		});
 
