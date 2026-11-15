@@ -306,9 +306,10 @@ class OrderedMultiDict(dict):
             seen = set()
             seen_add = seen.add
             for k, v in E:
-                if k not in seen and k in self:
-                    del self[k]
+                if k not in seen:
                     seen_add(k)
+                    if k in self:
+                        del self[k]
                 self_add(k, v)
         for k in F:
             self[k] = F[k]
@@ -357,7 +358,7 @@ class OrderedMultiDict(dict):
         if isinstance(other, OrderedMultiDict):
             selfi = self.iteritems(multi=True)
             otheri = other.iteritems(multi=True)
-            zipped_items = zip_longest(selfi, otheri, fillvalue=(None, None))
+            zipped_items = zip_longest(selfi, otheri, fillvalue=(_MISSING, _MISSING))
             for (selfk, selfv), (otherk, otherv) in zipped_items:
                 if selfk != otherk or selfv != otherv:
                     return False
@@ -883,21 +884,20 @@ class OneToOne(dict):
         return self[key]
 
     def update(self, dict_or_iterable, **kw):
-        keys_vals = []
-        if isinstance(dict_or_iterable, dict):
-            for val in dict_or_iterable.values():
-                hash(val)
-                keys_vals = list(dict_or_iterable.items())
+        if callable(getattr(dict_or_iterable, 'keys', None)):
+            keys_vals = [(k, dict_or_iterable[k]) for k in dict_or_iterable.keys()]
         else:
-            for key, val in dict_or_iterable:
-                hash(key)
-                hash(val)
-                keys_vals = list(dict_or_iterable)
-        for val in kw.values():
-            hash(val)
+            keys_vals = [(k, v) for k, v in dict_or_iterable]
         keys_vals.extend(kw.items())
         for key, val in keys_vals:
+            hash(key)
+            hash(val)
+        for key, val in keys_vals:
             self[key] = val
+
+    def __ior__(self, other):
+        self.update(other)
+        return self
 
     def __repr__(self):
         cn = self.__class__.__name__
@@ -957,17 +957,8 @@ class ManyToMany:
     def update(self, iterable):
         """given an iterable of (key, val), add them all"""
         if type(iterable) is type(self):
-            other = iterable
-            for k in other.data:
-                if k not in self.data:
-                    self.data[k] = other.data[k]
-                else:
-                    self.data[k].update(other.data[k])
-            for k in other.inv.data:
-                if k not in self.inv.data:
-                    self.inv.data[k] = other.inv.data[k]
-                else:
-                    self.inv.data[k].update(other.inv.data[k])
+            for key, val in list(iterable.iteritems()):
+                self.add(key, val)
         elif callable(getattr(iterable, 'keys', None)):
             for k in iterable.keys():
                 self.add(k, iterable[k])
@@ -977,6 +968,8 @@ class ManyToMany:
         return
 
     def add(self, key, val):
+        hash(key)
+        hash(val)
         if key not in self.data:
             self.data[key] = set()
         self.data[key].add(val)
@@ -998,7 +991,11 @@ class ManyToMany:
         """
         if key not in self.data:
             return
-        self.data[newkey] = fwdset = self.data.pop(key)
+        if key == newkey:
+            return
+        hash(newkey)
+        fwdset = self.data.pop(key)
+        self.data.setdefault(newkey, set()).update(fwdset)
         for val in fwdset:
             revset = self.inv.data[val]
             revset.remove(key)

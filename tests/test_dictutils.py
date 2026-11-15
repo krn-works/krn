@@ -599,3 +599,74 @@ def test_frozendict_api():
 
     import copy
     assert copy.copy(fd) is fd
+
+
+def test_omd_eq_distinguishes_none_items():
+    from boltons.dictutils import OrderedMultiDict
+    one = OrderedMultiDict([(None, None)])
+    two = OrderedMultiDict([(None, None), (None, None)])
+    assert one != two
+    assert one == OrderedMultiDict([(None, None)])
+
+
+def test_qpd_eq_distinguishes_none_items():
+    from boltons.urlutils import QueryParamDict
+    assert QueryParamDict([(None, None)]) != QueryParamDict([(None, None), (None, None)])
+
+
+def test_omd_update_repeated_new_key():
+    from boltons.dictutils import OrderedMultiDict
+    omd = OrderedMultiDict()
+    omd.update([('a', 1), ('a', 3)])
+    assert omd.getlist('a') == [1, 3]
+    omd = OrderedMultiDict([('a', 0)])
+    omd.update([('a', 1), ('a', 3)])
+    assert omd.getlist('a') == [1, 3]
+
+
+def test_oto_update_iterator_and_atomic():
+    import pytest
+    from boltons.dictutils import OneToOne
+    oto = OneToOne({'x': 9})
+    oto.update(iter([('a', 1), ('b', 2)]))
+    assert oto == {'x': 9, 'a': 1, 'b': 2} and oto.inv == {9: 'x', 1: 'a', 2: 'b'}
+    with pytest.raises(TypeError):
+        oto.update(iter([('c', 3), ('d', [])]))
+    assert oto == {'x': 9, 'a': 1, 'b': 2} and oto.inv == {9: 'x', 1: 'a', 2: 'b'}
+
+
+def test_oto_ior_in_place():
+    from boltons.dictutils import OneToOne
+    oto = OneToOne({'a': 1, 'b': 2})
+    ref = oto
+    oto |= {'c': 2, 'd': 1}
+    assert oto is ref
+    assert oto == {'c': 2, 'd': 1}
+    assert oto.inv == {2: 'c', 1: 'd'}
+
+
+def test_m2m_add_unhashable_leaves_no_key():
+    import pytest
+    from boltons.dictutils import ManyToMany
+    m = ManyToMany()
+    with pytest.raises(TypeError):
+        m.add('new', [])
+    assert 'new' not in m and len(m) == 0 and len(m.inv) == 0
+
+
+def test_m2m_copy_independent():
+    from boltons.dictutils import ManyToMany
+    m = ManyToMany([('a', 1)])
+    c = ManyToMany(m)
+    c.add('a', 2)
+    c.add('b', 1)
+    assert m['a'] == {1} and 'b' not in m and m.inv[1] == {'a'}
+    assert c['a'] == {1, 2}
+
+
+def test_m2m_replace_existing_merges():
+    from boltons.dictutils import ManyToMany
+    m = ManyToMany([('a', 1), ('new', 2)])
+    m.replace('a', 'new')
+    assert m['new'] == {1, 2} and 'a' not in m
+    assert m.inv[1] == {'new'} and m.inv[2] == {'new'}
