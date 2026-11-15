@@ -96,4 +96,34 @@ class GetInTest extends \PHPUnit_Framework_TestCase
             [['foo' => ['bar' => 'new value']], ['foo' => null], ['foo', 'bar'], 'new value'],
         ];
     }
+
+    function testClause1AssocInReplacesNonArrayValue()
+    {
+        $this->assertSame(['a' => ['b' => 'v']], assoc_in(['a' => 'scalar'], ['a', 'b'], 'v'));
+    }
+
+    function testClause2AssocInBuildsMissingLevelOverNull()
+    {
+        $this->assertSame(['foo' => ['bar' => 'new value']], assoc_in(['foo' => null], ['foo', 'bar'], 'new value'));
+    }
+
+    function testClause3AssocInReplacesDeepScalarWithArray()
+    {
+        $this->assertSame(['a' => ['b' => ['c' => 1]]], assoc_in(['a' => ['b' => 5]], ['a', 'b', 'c'], 1));
+    }
+
+    function testClause4ExistingCasesStillPass()
+    {
+        $this->assertSame(['foo' => ['bar' => ['baz' => 'n']]], assoc_in(['foo' => ['bar' => ['baz' => 'v']]], ['foo', 'bar', 'baz'], 'n'));
+    }
+
+    function testClause5AssocInSourceFixed()
+    {
+        $this->assertSame(['x' => ['y' => 2]], assoc_in(['x' => false], ['x', 'y'], 2));
+    }
+
+    function testClause6ExistingSiblingsKept()
+    {
+        $this->assertSame(['k' => 1, 'foo' => ['bar' => 2]], assoc_in(['k' => 1, 'foo' => null], ['foo', 'bar'], 2));
+    }
 }
