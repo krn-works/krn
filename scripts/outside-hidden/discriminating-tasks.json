@@ -129,12 +129,76 @@
       ],
       "hidden": ["colorama/tests/ansitowin32_test.py"],
       "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama/tests/ansitowin32_test.py -k \"test_osc_codes\"",
-      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --ignore=colorama/tests/initialise_test.py",
-      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --ignore=colorama/tests/initialise_test.py",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnEmulatedWindows --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnNonWindows",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnEmulatedWindows --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnNonWindows",
       "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}",
       "support": {
         "mock.py": "scripts/outside-hidden/py-mock-shim.py"
       }
+    },
+    {
+      "stack": "py-mistune-render",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "614b019c07f6ff1d5341b6d2eefa1cb24928bbbd",
+      "title": "The Markdown renderer cannot render nodes that plugins add",
+      "body": [
+        "Bugs seen in mistune: (1) create_markdown(renderer=MarkdownRenderer(), plugins=['task_lists']) fails with an AttributeError on 'list_item' for '- [x] a task' instead of returning '- [x] a task\\n'; a MarkdownRenderer subclass that defines task_list_item must have it used. (2) With the table plugin, MarkdownRenderer cannot render a table: '| A | B |\\n|---|---|\\n| 1 | 2 |\\n' must give '| A | B |\\n| --- | --- |\\n| 1 | 2 |\\n'. (3) Rendering a standalone list_item token (type 'list_item' with a paragraph child) through render_token with a BlockState fails; it should give '- x\\n\\n'. The RST renderer has the same gap for the list item and table nodes."
+      ],
+      "hidden": ["tests/test_renderers.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_renderers.py -k \"test_standalone_list_item or test_table_markdown or test_task_list_item_can_be_overridden or test_task_list_item_default_markdown\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-toc",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "4a382986bf6ea948d2bed9ac433d493019f3299e",
+      "title": "Table of contents heading ids collide or overwrite existing ids",
+      "body": [
+        "Bugs seen in mistune: (1) With escape=False and the fenced toc directive, a document that already contains <div id=\"toc_1\"></div> and <div id=\"toc_1_1\"></div> before a '# title' heading gets a heading id that collides with them; the heading should get the next free id, 'toc_1_2', and the toc link should point to it. (2) A before-render hook that sets token['attrs']['id'] = 'existing' on headings is overwritten by the toc: the heading must keep id 'existing', the toc link must be href=\"#existing\", and no generated 'toc_1' appears. This holds both for the directive and for add_toc_hook used alone. (3) Two toc sections in one document must still share the same heading ids."
+      ],
+      "hidden": ["tests/test_security_toc.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_security_toc.py -k \"test_directive_toc_avoids_sequential_html_id_collisions or test_hook_preserves_existing_heading_id or test_toc_hooks_preserve_existing_heading_id or test_two_toc_sections_share_heading_ids\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-image-depth",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "cca5ee6d17a458b115d5e63ab95ddedcfb7a15e4",
+      "title": "Deeply nested image markup makes mistune recurse without a limit",
+      "body": [
+        "Bug: converting the input '![' * 1000 + 'a' + '](u)' * 1000, and the same wrapped in a link '[' + '![' * 1000 + 'a' + '](u)' * 1000 + '](u)', takes far too long or overflows the stack, both to HTML and with renderer='ast'. Nesting of images must be bounded so such input finishes quickly, and the limit must be a setting of the inline parser that can be read and changed when the parser is built."
+      ],
+      "hidden": ["tests/test_misc.py", "tests/test_security_inline.py"],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_misc.py tests/test_security_inline.py -k \"test_max_image_depth_setting or test_deep_image_input_does_not_recurse_forever or test_link_with_deep_image_input_does_not_recurse_forever\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-mistune-url-escape",
+      "upstream": "https://github.com/lepture/mistune.git",
+      "license": "BSD-3-Clause",
+      "fix": "f4237046816a05999792f292ea1212144d48519e",
+      "title": "URLs with an ampersand are escaped in the wrong places",
+      "body": [
+        "Bugs seen in mistune: (1) with the fenced image directive, '~~~{image} https://example.com/picture.png?foo=qux&test=me' and a ':target: https://example.com/rickroll?a=1&b=2' option do not produce valid HTML: the ampersand in the img src and in the link href must appear as &amp;. (2) With renderer=None (the AST), a link '[hi &<>\"](https://example.com/foo?a=1&b=2)' has its url attribute altered by HTML escaping; the AST must carry the url exactly as written."
+      ],
+      "hidden": [
+        "tests/test_directives.py",
+        "tests/fixtures/fenced_image.txt",
+        "tests/test_misc.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_directives.py tests/fixtures/fenced_image.txt tests/test_misc.py -k \"test_ampersand_in_source_001 or test_ampersand_in_target_001 or test_ast_url\"",
+      "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
     }
   ]
 }

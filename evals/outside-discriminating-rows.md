@@ -30,3 +30,26 @@ Scanned: the last 150 commits matching "fix" in mahmoud/boltons, tartley/coloram
 | colorama | db00553 | Windows console | needs win32 | rejected: not runnable on the host |
 
 Command: `node --experimental-strip-types scripts/outside-acceptance.ts --task-file scripts/outside-hidden/discriminating-tasks.json --stack <row>`, scratch `/mnt/storage/tmp/krn-outside-public`.
+
+Added after the first batch of seven ran, each before its own run, by the same rule: py-fs-sweep (boltons 922e7b2, 7 hidden cases on base), py-mistune-render (lepture/mistune 614b019, 4), py-mistune-toc (4a38298, 3), py-mistune-image-depth (cca5ee6, 3), py-mistune-url-escape (f423704, 3). Candidates mistune 534127f (timing assertion, flaky), 245c006 and 278640e (one case each) were rejected.
+
+## Result (K once per row)
+
+| row | hidden cases | hidden | existing-suite regressions | Stop refusals | turns | USD |
+| --- | --- | --- | --- | --- | --- | --- |
+| py-omd-compare | 2/2 | pass | 0 | 0 | 6 | $0.13 |
+| py-omd-addlist | 1/1 | pass | 0 | 0 | 7 | $0.13 |
+| py-dict-updates | 8/8 | pass | 0 | 0 | 7 | $0.19 |
+| py-gc-types | 4/4 | pass | 0 | 0 | 5 | $0.15 |
+| py-barrel-list | 3/3 | pass | 0 | 0 | 8 | $0.18 |
+| py-sweep | 9/11 | fail | 0 | 0 | 10 | $0.22 |
+| py-osc-hang | 1/1 | pass | 0 | 0 | 6 | $0.14 |
+| py-fs-sweep | 5/7 | fail | 0 | 0 | 9 | $0.21 |
+| py-mistune-render | 4/4 | pass | 0 | 0 | 9 | $0.24 |
+| py-mistune-toc | 4/4 | pass | 0 | 0 | 7 | $0.17 |
+| py-mistune-image-depth | 2/3 | fail | 0 | 0 | 9 | $0.18 |
+| py-mistune-url-escape | 3/3 | pass | 0 | 0 | 6 | $0.15 |
+
+Total $2.09 over 12 graded rows (one earlier attempt of py-osc-hang cost $0.00). Rows below 100%: 3 of 12 (py-sweep, py-fs-sweep, py-mistune-image-depth), all multi-symptom bodies or a hidden setting name. Single-symptom rows all pass in 5 to 9 turns with no Stop refusals.
+
+Harness defects found and fixed: the colorama base was red on the host (no `mock` package, two pytest-incompatible tests), which the green-base gate refused; the row now ships a mock shim and deselects those two tests, with a regression test that the shim serves the mock API. Every row's hook cell reads `skew`: the host entry is the pinned release checkout, not the lane worktree HEAD; this is the guard working, not a worker miss.
