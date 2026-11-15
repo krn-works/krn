@@ -67,6 +67,7 @@ export const createParseClassName = (config: AnyConfig) => {
         // Inline important modifier check
         let baseClassName = baseClassNameWithImportantModifier
         let hasImportantModifier = false
+        let leadingImportant = false
 
         if (baseClassNameWithImportantModifier.endsWith(IMPORTANT_MODIFIER)) {
             baseClassName = baseClassNameWithImportantModifier.slice(0, -1)
@@ -80,11 +81,15 @@ export const createParseClassName = (config: AnyConfig) => {
         ) {
             baseClassName = baseClassNameWithImportantModifier.slice(1)
             hasImportantModifier = true
+            leadingImportant = true
         }
+
+        // The legacy leading important modifier is sliced off the base class name, so the postfix position shifts with it
+        const leadingImportantOffset = leadingImportant ? 1 : 0
 
         const maybePostfixModifierPosition =
             postfixModifierPosition && postfixModifierPosition > modifierStart
-                ? postfixModifierPosition - modifierStart
+                ? postfixModifierPosition - modifierStart - leadingImportantOffset
                 : undefined
 
         return createResultObject(

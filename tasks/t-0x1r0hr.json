@@ -1,7 +1,11 @@
 {
   "id": "t-0x1r0hr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fixed leading important postfix offset"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "tailwind-merge misses the conflict when a class has an important modifier and a postfix modifier",
@@ -13,8 +17,8 @@
   "acceptance": [
     {
       "verify": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
