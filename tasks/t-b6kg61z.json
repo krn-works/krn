@@ -1,7 +1,11 @@
 {
   "id": "t-b6kg61z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/outside-testgrade.ts graded 10 public merged row PRs: worker test green on merge 10/10, red on base 4/10 (all 4 fix rows), 6 test-only rows green on both; table evals/outside-own-test.md"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "A worker's own test is graded red on base and green on merge across merged outside rows",
