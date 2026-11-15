@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "declaration": true,
+    "module": "nodenext",
+    "noEmit": true,
+    "types": []
+  },
+  "files": ["test-eslint.config.js"]
+}

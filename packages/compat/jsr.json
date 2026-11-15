@@ -1,0 +1,14 @@
+{
+  "name": "@eslint/compat",
+  "version": "2.1.0",
+  "exports": "./dist/esm/index.js",
+  "publish": {
+    "include": [
+      "dist/esm/index.js",
+      "dist/esm/index.d.ts",
+      "README.md",
+      "jsr.json",
+      "LICENSE"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": false,
+    "target": "ES2022",
+    "types": ["mocha", "node"]
+  }
+}
