@@ -1,0 +1,16 @@
+{
+  "id": "t-kencrm7",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "guard live-verified: php copy refused on public krn-works/krn before any push"
+  },
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Outside acceptance refuses non-public sources on a public remote",
+  "after": [],
+  "body": [
+    "Why: outside acceptance pushed operator repositories (a client production plugin, Tallystick, krn-search-lab) to the PUBLIC krn-works/krn; PR refs 868-878 still serve them (decision d-fe0823).\nOutcome: scripts/outside-acceptance.ts pushes a scratch copy to a public remote only when the copy carries UPSTREAM.json naming a public upstream URL and an SPDX licence; any other copy exits non-zero before any git push.\nProof: node --test test/scripts/outside-acceptance.test.ts feeds a copy without a manifest and gets a refusal with no push."
+  ]
+}

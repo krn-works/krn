@@ -265,6 +265,56 @@ function credentialConfig(root: string): string[] {
   ];
 }
 
+/**
+ * Whether a scratch copy may be pushed to the remote: a private remote takes any copy; a public (or unknown)
+ * remote takes only a copy whose UPSTREAM.json names a public https upstream and an open licence, so an
+ * operator or client repository never reaches a public repository. A string is the refusal.
+ */
+export function publishRefusal(
+  manifestText: string | undefined,
+  visibility: string | undefined,
+): string | undefined {
+  if (visibility === 'private') return undefined;
+  const remote = `the remote is ${visibility ?? 'of unknown visibility'}`;
+  if (manifestText === undefined)
+    return `${remote} and the scratch copy has no UPSTREAM.json naming its public upstream and licence; refusing to push`;
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch {
+    return `${remote} and UPSTREAM.json is not JSON; refusing to push`;
+  }
+  const field = (key: string): unknown =>
+    typeof manifest === 'object' && manifest !== null
+      ? Reflect.get(manifest, key)
+      : undefined;
+  const url = field('url');
+  const license = field('license');
+  if (typeof url !== 'string' || !/^https:\/\/\S+$/u.test(url))
+    return `${remote} and UPSTREAM.json has no https "url" of a public upstream; refusing to push`;
+  if (
+    typeof license !== 'string' ||
+    license.trim() === '' ||
+    /^(?:unlicensed|proprietary|none)$/iu.test(license.trim())
+  )
+    return `${remote} and UPSTREAM.json has no open "license"; refusing to push`;
+  return undefined;
+}
+
+/** The visibility GitHub reports for the remote repository, undefined when it cannot be read. */
+function remoteVisibility(root: string): string | undefined {
+  const repo = remoteUrl
+    .replace(/^https:\/\/github\.com\//u, '')
+    .replace(/\.git$/u, '');
+  const result = run(
+    'gh',
+    ['api', `repos/${repo}`, '--jq', '.visibility'],
+    root,
+  );
+  const value = result.output.trim();
+  return result.status === 0 && value !== '' ? value : undefined;
+}
+
 function acceptStack(stack: string, options: RunOptions, root: string): string {
   const branch = outsideBranch(stack);
   const source = join(options.scratch, stack);
@@ -280,6 +330,13 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     throw new Error(
       `outside-acceptance: no scratch copy at ${source} (pass --scratch or KRN_OUTSIDE_SCRATCH)`,
     );
+  const manifestPath = join(source, 'UPSTREAM.json');
+  const refusal = publishRefusal(
+    existsSync(manifestPath) ? readFileSync(manifestPath, 'utf8') : undefined,
+    remoteVisibility(root),
+  );
+  if (refusal !== undefined)
+    throw new Error(`outside-acceptance: ${stack}: ${refusal}`);
   const log = run('git', ['log', '--format=%H %P|%s'], source)
     .output.split('\n')
     .filter(Boolean)

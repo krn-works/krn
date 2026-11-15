@@ -9,6 +9,7 @@ import {
   outsideBranch,
   parseOptions,
   pick,
+  publishRefusal,
   seedTask,
 } from '../../scripts/outside-acceptance.ts';
 
@@ -147,4 +148,30 @@ test('pick carries install and related from the scratch krn.json and nothing els
 test('the scratch default is the env override, else krn-outside in the system temp dir', () => {
   assert.equal(defaultScratch({ KRN_OUTSIDE_SCRATCH: '/x' }), '/x');
   assert.match(defaultScratch({ KRN_OUTSIDE_SCRATCH: '' }), /krn-outside$/u);
+});
+
+test('a public or unknown remote takes only a copy with a public upstream and an open licence', () => {
+  const ok = JSON.stringify({ url: 'https://github.com/o/r', license: 'MIT' });
+  assert.equal(publishRefusal(undefined, 'private'), undefined);
+  assert.equal(publishRefusal(ok, 'public'), undefined);
+  assert.match(publishRefusal(undefined, 'public') ?? '', /no UPSTREAM\.json/u);
+  assert.match(
+    publishRefusal(undefined, undefined) ?? '',
+    /unknown visibility/u,
+  );
+  assert.match(publishRefusal('{', 'public') ?? '', /not JSON/u);
+  assert.match(
+    publishRefusal(
+      JSON.stringify({ url: '/var/www/x', license: 'MIT' }),
+      'public',
+    ) ?? '',
+    /https "url"/u,
+  );
+  assert.match(
+    publishRefusal(
+      JSON.stringify({ url: 'https://x/y', license: 'proprietary' }),
+      'public',
+    ) ?? '',
+    /open "license"/u,
+  );
 });
