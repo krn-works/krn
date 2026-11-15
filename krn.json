@@ -5,5 +5,9 @@
   "fast": "npm run fast",
   "guard": "test/rules/ test/evals/fr40-freeze.test.ts",
   "conventions": ".agents/records.json",
-  "tracker": "krn"
+  "tracker": "krn",
+  "arms": {
+    "red-first": false,
+    "clauses": false
+  }
 }

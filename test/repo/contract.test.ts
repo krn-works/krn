@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import {
+  armOn,
   ContractError,
   contractLaneBudget,
   parseContractFile,
@@ -434,3 +435,26 @@ test('a detected node or php contract installs the declared dependencies into a 
   );
   assert.equal(php.contract.install, 'composer install --no-interaction');
 });
+
+test('krn.json arms switch the red-first and clauses Stop arms, each on unless set false', () => {
+  assert.deepEqual(
+    parseContractFile('{"test":"t","arms":{"red-first":false,"clauses":true}}')
+      .arms,
+    { 'red-first': false, clauses: true },
+  );
+  for (const bad of [
+    '{"test":"t","arms":true}',
+    '{"test":"t","arms":{"red-first":"no"}}',
+    '{"test":"t","arms":{"other":false}}',
+  ])
+    assert.throws(() => parseContractFile(bad), ContractError);
+  assert.equal(armOn(undefined, 'clauses'), true);
+  assert.equal(armOn({ ...base, arms: { clauses: false } }, 'clauses'), false);
+  assert.equal(armOn({ ...base, arms: { clauses: false } }, 'red-first'), true);
+  const declared = fixture({
+    'krn.json': '{"test":"make check","arms":{"clauses":false}}',
+  });
+  assert.equal(resolveContract(declared).contract.arms?.clauses, false);
+});
+
+const base = { base: 'main', test: 'npm test', tracker: 'krn' } as const;

@@ -29,6 +29,23 @@ export interface RepoContract {
   readonly tracker: Tracker;
   /** The test command runs no real test (a workspace with no member tests, or no command at all): never green. */
   readonly vacuous?: boolean;
+  /** Stop arms the repository enables; each is on unless set false: red-first (a changed test fails at the base) and clauses (every numbered task clause proven). */
+  readonly arms?: Arms;
+}
+
+export interface Arms {
+  readonly 'red-first'?: boolean;
+  readonly clauses?: boolean;
+}
+
+const ARMS = ['red-first', 'clauses'] as const;
+
+/** Whether the contract enables a Stop arm: on unless krn.json sets it false. */
+export function armOn(
+  contract: RepoContract | undefined,
+  arm: (typeof ARMS)[number],
+): boolean {
+  return contract?.arms?.[arm] !== false;
 }
 
 export interface ResolvedContract {
@@ -52,6 +69,7 @@ const FIELDS = [
   'laneBudgetUsd',
   'deploy',
   'vacuous',
+  'arms',
 ] as const;
 
 /** Where conventions live when krn.json does not name a file. */
@@ -61,7 +79,7 @@ export class ContractError extends Error {}
 
 type StringField = Exclude<
   (typeof FIELDS)[number],
-  'tracker' | 'laneBudgetUsd' | 'deploy' | 'vacuous'
+  'tracker' | 'laneBudgetUsd' | 'deploy' | 'vacuous' | 'arms'
 >;
 
 type Declared = { -readonly [K in keyof RepoContract]?: RepoContract[K] };
@@ -97,6 +115,25 @@ export function parseContractFile(text: string): Declared {
           `${CONTRACT_FILE}: "vacuous" must be a boolean`,
         );
       out.vacuous = value;
+      continue;
+    }
+    if (key === 'arms') {
+      if (typeof value !== 'object' || value === null || Array.isArray(value))
+        throw new ContractError(
+          `${CONTRACT_FILE}: "arms" must be an object of booleans (${ARMS.join(', ')})`,
+        );
+      const arms: { -readonly [K in keyof Arms]: boolean } = {};
+      for (const [name, on] of Object.entries(value)) {
+        if (
+          !(ARMS as readonly string[]).includes(name) ||
+          typeof on !== 'boolean'
+        )
+          throw new ContractError(
+            `${CONTRACT_FILE}: "arms" takes only boolean ${ARMS.join(' and ')}, got "${name}"`,
+          );
+        arms[name as (typeof ARMS)[number]] = on;
+      }
+      out.arms = arms;
       continue;
     }
     if (typeof value !== 'string' || value.trim() === '')
@@ -644,6 +681,7 @@ export function findContract(root: string): ResolvedContract | undefined {
       ? { laneBudgetUsd: declared.laneBudgetUsd }
       : {}),
     ...(declared?.deploy ? { deploy: declared.deploy } : {}),
+    ...(declared?.arms ? { arms: declared.arms } : {}),
     tracker: contractTracker(root),
     ...(vacuous ? { vacuous: true } : {}),
   };

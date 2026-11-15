@@ -1246,10 +1246,15 @@ test('the red-at-base rule line is in the worker rules unless the arm is off', a
   const { workerRules, TEST_FIRST_RULE } = await import(
     '../../src/cli/lane-brief.ts'
   );
-  const repo = fileURLToPath(new URL('../..', import.meta.url));
-  assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));
-  assert.ok(!workerRules(repo, false).includes(TEST_FIRST_RULE));
-  assert.ok(workerRules(repo).includes(TEST_FIRST_RULE));
+  const repo = mkdtempSync(join(tmpdir(), 'worker-rules-'));
+  try {
+    writeFileSync(join(repo, 'krn.json'), '{"test":"make check"}');
+    assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));
+    assert.ok(!workerRules(repo, false).includes(TEST_FIRST_RULE));
+    assert.ok(workerRules(repo).includes(TEST_FIRST_RULE));
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
   assert.match(TEST_FIRST_RULE, /red at base/u);
 });
 
@@ -1882,4 +1887,14 @@ test('a lane whose ship merged and removed its branch and worktree may stop with
     for (const path of [origin, main])
       rmSync(path, { recursive: true, force: true });
   }
+});
+
+test('a contract with arms off turns the red-first and clause arms off, an explicit env still wins', () => {
+  const real = { base: 'main', test: 'npm test', tracker: 'krn' } as const;
+  const off = { ...real, arms: { 'red-first': false, clauses: false } };
+  assert.equal(testFirstOn({}, off), false);
+  assert.equal(clausesOn({}, off), false);
+  assert.equal(testFirstOn({ KRN_TEST_FIRST: '1' }, off), true);
+  assert.equal(clausesOn({ KRN_ACCEPTANCE_CLAUSES: '1' }, off), true);
+  assert.equal(testFirstOn({}, { ...real, arms: { clauses: false } }), true);
 });
