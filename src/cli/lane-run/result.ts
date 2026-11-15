@@ -16,6 +16,8 @@ export interface SessionResult {
   turns?: number;
   /** The session ended at its spend cap. */
   capped?: boolean;
+  /** The Stop refusal the session met three times running with no edit between them (first line). */
+  noProgress?: string;
   /** The session's final result line when it starts with `BLOCKER:`. */
   blocker?: string;
 }
@@ -25,6 +27,94 @@ export const exitNoDelivery = 74;
 export const exitSessionBlocked = 73;
 /** The session stopped at its spend cap (`--max-budget-usd`); the commit, if any, is not shipped. */
 export const exitBudgetCapped = 75;
+
+/** The session made no progress: three identical Stop refusals with no edit between them. */
+export const exitNoProgress = 79;
+/** Identical Stop refusals, with no edit between them, that end a lane. */
+export const noProgressAttempts = 3;
+
+const editTools = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+
+const transcriptEventSchema = z.object({
+  type: z.unknown(),
+  subtype: z.unknown().optional(),
+  hookErrors: z.array(z.string()).optional(),
+  message: z
+    .object({
+      content: z
+        .array(
+          z.object({
+            type: z.unknown(),
+            name: z.unknown().optional(),
+            input: z.unknown().optional(),
+          }),
+        )
+        .optional()
+        .catch(undefined),
+    })
+    .optional()
+    .catch(undefined),
+});
+
+/**
+ * The refusal text repeated by the last `noProgressAttempts` Stop attempts of a transcript when the work tree
+ * did not change between them (no Edit, Write, MultiEdit or NotebookEdit call with new input), else undefined.
+ * The refusal text names the failing tests, so equal text is an equal failing-test set.
+ */
+export function repeatedStopRefusal(transcript: string): string | undefined {
+  const attempts: { reason: string; edits: string }[] = [];
+  let edits: string[] = [];
+  for (const line of transcript.split('\n')) {
+    if (line.trim() === '') continue;
+    let json: unknown;
+    try {
+      json = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const event = transcriptEventSchema.safeParse(json);
+    if (!event.success) continue;
+    const { type, subtype, hookErrors, message } = event.data;
+    if (type === 'system' && subtype === 'stop_hook_summary') {
+      const reason = (hookErrors ?? [])
+        .map((error) => error.replace(/^\[[^\]]*\]:\s*/u, '').trim())
+        .filter((error) => error !== '')
+        .join('\n');
+      if (reason === '') continue;
+      attempts.push({ reason, edits: edits.join('\n') });
+      edits = [];
+    } else if (type === 'assistant')
+      for (const part of message?.content ?? [])
+        if (part.type === 'tool_use' && editTools.has(String(part.name)))
+          edits.push(JSON.stringify(part.input));
+  }
+  const last = attempts.slice(-noProgressAttempts);
+  if (last.length < noProgressAttempts) return undefined;
+  const [first] = last;
+  const stuck = last.every(
+    (attempt, index) =>
+      attempt.reason === first?.reason && (index === 0 || attempt.edits === ''),
+  );
+  return stuck ? first?.reason : undefined;
+}
+
+/** The first line of the repeated refusal of a session transcript, found by session id; undefined when none. */
+export function sessionNoProgress(sessionId: string): string | undefined {
+  if (!/^[\w-]+$/u.test(sessionId)) return undefined;
+  const projects = join(configHome(), 'projects');
+  try {
+    for (const directory of readdirSync(projects)) {
+      const file = join(projects, directory, `${sessionId}.jsonl`);
+      if (existsSync(file))
+        return repeatedStopRefusal(readFileSync(file, 'utf8'))
+          ?.split('\n')[0]
+          ?.slice(0, 200);
+    }
+  } catch {
+    // No transcript directory: no verdict.
+  }
+  return undefined;
+}
 
 /** The final non-empty line of the session result text when it is a `BLOCKER:` line. */
 export function blockerOf(text: unknown): { blocker?: string } {
@@ -79,6 +169,7 @@ export function parseSessionResult(
   stdout: string,
   stderr = '',
   turnsOf: (sessionId: string) => number | undefined = sessionTurns,
+  noProgressOf: (sessionId: string) => string | undefined = sessionNoProgress,
 ): SessionResult {
   let parsed: unknown;
   try {
@@ -113,10 +204,15 @@ export function parseSessionResult(
     typeof record.session_id === 'string'
       ? turnsOf(record.session_id)
       : undefined;
+  const noProgress =
+    failed && typeof record.session_id === 'string'
+      ? noProgressOf(record.session_id)
+      : undefined;
   return {
     ok: !failed,
     detail: `session ${subtype}`,
     cost,
+    ...(noProgress === undefined ? {} : { noProgress }),
     ...(turns === undefined ? {} : { turns }),
     ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),
     ...blockerOf(record.result),

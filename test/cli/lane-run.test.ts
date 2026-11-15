@@ -50,6 +50,7 @@ import {
 } from '../../src/cli/lane-run/red-check.ts';
 import {
   parseSessionResult,
+  repeatedStopRefusal,
   transcriptTurns,
 } from '../../src/cli/lane-run/result.ts';
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
@@ -2045,4 +2046,80 @@ test('lane run leaves the lockfile alone when package.json did not change', asyn
   );
   assert.equal(verdict.exitCode, 0, verdict.line);
   assert.equal(shipped[0]?.subjects.length, 1);
+});
+
+// Stop refusals as the session transcript records them (stop_hook_summary lines, one JSON object per line).
+const stopHook =
+  "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH'; exit 2; }; exec krn hook stop";
+function refusal(text: string): string {
+  return JSON.stringify({
+    type: 'system',
+    subtype: 'stop_hook_summary',
+    hookCount: 1,
+    hookInfos: [{ command: stopHook }],
+    hookErrors: [`[${stopHook}]: ${text}\n`],
+    preventedContinuation: false,
+    hasOutput: true,
+  });
+}
+const failingRefusal =
+  'Stop refused: 1 related test(s) fail that passed at the base:\n- test/parse.test.ts: parses a plain list\nFix them and commit, or end with a line `BLOCKER: <what stops you>`.';
+function edit(text: string): string {
+  return JSON.stringify({
+    type: 'assistant',
+    message: {
+      content: [
+        {
+          type: 'tool_use',
+          name: 'Edit',
+          input: { file_path: 'src/parse.ts', new_string: text },
+        },
+      ],
+    },
+  });
+}
+
+test('three identical Stop refusals with no edit between them are no progress', () => {
+  const transcript = [
+    refusal(failingRefusal),
+    refusal(failingRefusal),
+    refusal(failingRefusal),
+  ].join('\n');
+  assert.match(repeatedStopRefusal(transcript) ?? '', /parses a plain list/u);
+});
+
+test('an edit between refusals, a changed refusal or only two refusals is progress', () => {
+  const same = refusal(failingRefusal);
+  assert.equal(
+    repeatedStopRefusal([same, edit('a'), same, same].join('\n')),
+    undefined,
+  );
+  assert.equal(
+    repeatedStopRefusal(
+      [same, same, refusal(`${failingRefusal} again`)].join('\n'),
+    ),
+    undefined,
+  );
+  assert.equal(repeatedStopRefusal([same, same].join('\n')), undefined);
+});
+
+test('a failed session whose transcript shows no progress exits 79 naming the repeated refusal', async () => {
+  const config = mkdtempSync(join(tmpdir(), 'krn-lane-run-config-'));
+  mkdirSync(join(config, 'projects', 'p'), { recursive: true });
+  writeFileSync(
+    join(config, 'projects', 'p', 'sess-np.jsonl'),
+    `${[refusal(failingRefusal), refusal(failingRefusal), refusal(failingRefusal)].join('\n')}\n`,
+  );
+  process.env.CLAUDE_CONFIG_DIR = config;
+  try {
+    const { verdict } = await run(
+      `printf '%s' '{"type":"result","subtype":"error_max_turns","is_error":true,"session_id":"sess-np","total_cost_usd":1.5}'; exit 0`,
+    );
+    assert.equal(verdict.exitCode, 79);
+    assert.match(verdict.line, /no progress: 3 identical Stop refusals/u);
+    assert.match(verdict.line, /Stop refused: 1 related test/u);
+  } finally {
+    delete process.env.CLAUDE_CONFIG_DIR;
+    rmSync(config, { recursive: true, force: true });
+  }
 });
