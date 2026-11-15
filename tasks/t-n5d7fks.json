@@ -1,7 +1,11 @@
 {
   "id": "t-n5d7fks",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop-merged-lane test passes: ship keeps worktree and branch, Stop does not refuse a merged lane, next lane start prunes merged lanes"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A lane that merged stops cleanly (S21)",

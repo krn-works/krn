@@ -23,7 +23,6 @@ function receiver(options: {
   check?: string;
   existing?: string;
   mergedBefore?: string;
-  failRemove?: boolean;
   dirty?: boolean;
   branch?: string;
   target?: string;
@@ -115,8 +114,6 @@ function receiver(options: {
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
     if (a.includes('--git-common-dir')) return out('/r/.git\n');
-    if (options.failRemove && a[0] === 'worktree')
-      return { code: 1, stdout: '', stderr: 'fatal: cannot remove' };
     if (a[0] === 'merge-tree') {
       // The pre-push trial merges clean; the trial after the PR turned dirty conflicts, shaped
       // like git merge-tree --write-tree --name-only: exit 1, tree id, paths, blank line.
@@ -155,24 +152,22 @@ function receiver(options: {
 const auto = { auto_merge: { merge_method: 'squash' }, state: 'open' };
 const merged = { state: 'closed', merged: true, merge_commit_sha: merge };
 
-test('ship pushes, creates, auto-merges, waits through the merge and cleans up', async () => {
+test('ship pushes, creates, auto-merges, waits through the merge and leaves the lane in place', async () => {
   const r = receiver({ pulls: [auto, merged] });
   const out = await shipCommand(args, r);
   assert.match(out, /^pr: #7 o\/r a{40}$/mu);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.match(
     out,
-    /^cleanup: removed worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x$/mu,
+    /^lane: worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x kept; /mu,
   );
-  // The removed worktree was the caller's cwd: name where to cd next.
+  // The lane ends at the merge: the worktree and branch stay for the next lane start to prune.
   assert.match(out, /^main checkout: \/r$/mu);
   const order = [
     'push origin feat-x',
     'gh pr list',
     'gh pr create',
     'gh pr merge 7 --repo o/r --auto --squash',
-    'worktree remove --force /r/.krn/worktrees/feat-x',
-    'branch -D feat-x',
   ];
   let at = -1;
   for (const step of order) {
@@ -181,6 +176,8 @@ test('ship pushes, creates, auto-merges, waits through the merge and cleans up',
     at = found;
   }
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
+  assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
+  assert.ok(!r.calls.some((c) => c.includes('branch -D')));
 });
 
 test('ship on a repository whose default branch is master opens the PR against master', async () => {
@@ -387,23 +384,16 @@ test('exit 0 means merged: each unmerged verdict exits with its own code and kee
   );
 });
 
-test('a rerun after the PR merged only cleans up and pushes nothing', async () => {
+test('a rerun after the PR merged only records it and pushes nothing', async () => {
   const r = receiver({ pulls: [auto], mergedBefore: `7 ${merge}\n` });
   const out = await shipCommand(args, r);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.match(out, /^cleanup: removed worktree /mu);
-  assert.ok(r.calls.some((c) => c.includes('branch -D feat-x')));
+  assert.match(out, /^lane: worktree .* kept; /mu);
+  assert.ok(!r.calls.some((c) => c.includes('branch -D')));
   for (const step of ['push', 'pr create', 'pr merge', 'node --test'])
     assert.ok(!r.calls.some((c) => c.includes(step)), step);
   const lookup = r.calls.find((c) => c.includes('--state merged')) ?? '';
   assert.ok(lookup.includes(`headRefOid == "${head}"`), lookup);
-});
-
-test('a refused worktree removal after the merge is a warning, not a failed ship', async () => {
-  const r = receiver({ pulls: [auto, merged], failRemove: true });
-  const out = await shipCommand(args, r);
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.match(out, /^warning: cleanup failed \(.*cannot remove/mu);
 });
 
 test('a refused push exits 70 and names the --force rerun after a rebase', async () => {

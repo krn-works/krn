@@ -17,7 +17,7 @@ import { rebaseGenerated } from './rebase-generated.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict outside generated files (a conflict only in generated files, before the push or after the base moved during the wait, is regenerated and force-pushed), 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict outside generated files (a conflict only in generated files, before the push or after the base moved during the wait, is regenerated and force-pushed), 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -111,16 +111,11 @@ export async function shipCommand(
   // The PR is merged by now: a refused removal is a warning, never a failed ship.
   const task =
     process.env.KRN_TASK ?? /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1];
+  // The lane ends here: the worktree and branch stay, and the lead prunes merged lanes at the next lane start.
   const cleanup = (sha: string) => {
     recordShip(main, { branch, sha, ...(task ? { task } : {}) });
-    if (worktree === main) return 'cleanup: skipped (not a linked worktree)';
-    try {
-      git(['worktree', 'remove', '--force', worktree], main);
-      git(['branch', '-D', branch], main);
-    } catch (error) {
-      return `warning: cleanup failed (${(error as Error).message.split('\n')[0]}); rerun krn pr ship to clean up\nmain checkout: ${main}`;
-    }
-    return `cleanup: removed worktree ${worktree} and branch ${branch}\nmain checkout: ${main}`;
+    return `lane: worktree ${worktree} and branch ${branch} kept; the next krn lane start prunes merged lanes
+main checkout: ${main}`;
   };
   const localHead = git(['rev-parse', 'HEAD']);
   const mergedBefore = (
