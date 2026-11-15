@@ -8,8 +8,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (file: string): string => readFileSync(`${root}${file}`, 'utf8');
 const files = [
   'docs/program/lead-rules.md',
-  '.claude/skills/krn-lead/SKILL.md',
-  '.claude/skills/krn-lead/lanes.md',
+  '.claude/skills/delivery-lead/SKILL.md',
+  '.claude/skills/delivery-lead/lanes.md',
 ];
 const words = 'one two three four five six seven eight nine ten twelve';
 const limitLine = /\b(at most|maximum|cap of|at once|live worktrees?)\b/i;

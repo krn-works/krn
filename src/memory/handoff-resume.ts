@@ -1,6 +1,6 @@
 import { cutText } from './cut-text.ts';
 
-// One owner for the handoff's consolidated resume block: the fields krn-handoff requires and
+// One owner for the handoff's consolidated resume block: the fields delivery-handoff requires and
 // the section text SessionStart injects.
 export const resumeFields = [
   {

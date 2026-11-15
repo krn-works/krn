@@ -83,7 +83,7 @@ test('SessionStart replay: a lead that sees .mcp.json in git status finds the sa
 
 test('the lead skill tells the lead to grep the index before calling anything foreign', () => {
   const skill = readFileSync(
-    join(root, '.agents/skills/krn-lead/SKILL.md'),
+    join(root, '.agents/skills/delivery-lead/SKILL.md'),
     'utf8',
   );
   assert.match(skill, /capability index/u);

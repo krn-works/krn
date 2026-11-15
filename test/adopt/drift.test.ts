@@ -231,3 +231,18 @@ test('drift reports a deleted skill support file as missing', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// KRN adopts itself: the skills in .agents/skills that the installer owns are its output, never hand-written.
+test('this repository has no adoption drift in the skills the installer writes', () => {
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  const drift = adoptionDrift(repo);
+  const skills = [...drift.drifted, ...drift.missing].filter((file) =>
+    file.startsWith('.agents/skills/'),
+  );
+  assert.deepEqual(skills, []);
+  assert.ok(
+    drift.kept.includes('.agents/skills/delivery-lead/SKILL.md'),
+    'delivery-lead is installed here',
+  );
+  assert.ok(drift.kept.includes('.agents/skills/delivery-lead/lanes.md'));
+});

@@ -15,12 +15,12 @@ import {
 
 /** Lead skills and agents: a worker never leads, hands off or runs a retro, and their listings cost context. */
 export const LEAD_ONLY = [
-  '.agents/skills/krn-lead',
-  '.agents/skills/krn-handoff',
-  '.agents/skills/krn-retro',
-  '.claude/skills/krn-lead',
-  '.claude/skills/krn-handoff',
-  '.claude/skills/krn-retro',
+  '.agents/skills/delivery-lead',
+  '.agents/skills/delivery-handoff',
+  '.agents/skills/delivery-retro',
+  '.claude/skills/delivery-lead',
+  '.claude/skills/delivery-handoff',
+  '.claude/skills/delivery-retro',
 ];
 
 const isLeadOnly = (file: string) =>

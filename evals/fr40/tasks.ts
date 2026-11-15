@@ -24,7 +24,7 @@ export type Template = (typeof TEMPLATES)[number];
 
 /** Where each convention is recorded; arm material in later slices cites these sources. */
 export const SOURCES: Readonly<Record<Template, string>> = {
-  'commit-title-id': 'AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md',
+  'commit-title-id': 'AGENTS.md KRN-11; .agents/skills/delivery-lead/SKILL.md',
   trailer: 'docs/program/repository-workflow.md (Ticket:/Refs: trailer)',
   'agent-state':
     'docs/program/repository-workflow.md (.krn/ state paths); KRN-08',

@@ -51,7 +51,7 @@
     "recorded_at": "2026-10-09",
     "valid_from": "2026-10-09",
     "valid_to": null,
-    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md"
+    "source": "AGENTS.md KRN-11; .agents/skills/delivery-lead/SKILL.md"
   },
   {
     "id": "r-trailer",
@@ -150,7 +150,7 @@
     "recorded_at": "2026-11-08",
     "valid_from": "2026-11-08",
     "valid_to": null,
-    "source": ".agents/skills/krn-lead/SKILL.md"
+    "source": ".agents/skills/delivery-lead/SKILL.md"
   },
   {
     "id": "r-shard-weights",

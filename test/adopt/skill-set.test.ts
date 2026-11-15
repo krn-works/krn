@@ -22,6 +22,7 @@ import {
 
 const everything = [
   'delivery-lead',
+  'delivery-handoff',
   'delivery-retro',
   'python',
   'php',
@@ -58,7 +59,7 @@ test('a language stack gets the core skills only, never a per-language prose ski
     withRoot(marker, (root) =>
       assert.deepEqual(
         skillSet(root, everything),
-        ['delivery-lead', 'delivery-retro'],
+        ['delivery-lead', 'delivery-handoff', 'delivery-retro'],
         marker,
       ),
     );
@@ -66,7 +67,7 @@ test('a language stack gets the core skills only, never a per-language prose ski
 
 const frontendSkills = ['cube-css', 'cube-review', 'design-to-build'];
 const wordpressSkills = [...frontendSkills, 'acf-component', 'wp-runtime'];
-const core = ['delivery-lead', 'delivery-retro'];
+const core = ['delivery-lead', 'delivery-handoff', 'delivery-retro'];
 
 test('a WordPress repository gets the core skills plus the boilerplate skills, limited to what exists', () => {
   withRoot('wp-config.php', (root) => {

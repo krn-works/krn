@@ -124,7 +124,7 @@ export function detectHarness(
 }
 
 // Operator 2026-11-06 (t-5av8etp): a relayed Claude lead never stops on permission prompts; other
-// agents keep their own defaults. Operator 2026-11-01 (t-h7xt8m3): krn-handoff passes the
+// agents keep their own defaults. Operator 2026-11-01 (t-h7xt8m3): delivery-handoff passes the
 // successor's model and effort; only Claude takes these flags.
 export function agentFlags(
   harness: Harness,

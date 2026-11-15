@@ -23,7 +23,7 @@ export const guarded = ['tasks/', 'docs/program/roadmap.md'];
 export const harness: readonly string[] = harnessPaths;
 
 /**
- * The path entries of a Scope line or comma list. A prose entry ("krn-lead skill text") names no path;
+ * The path entries of a Scope line or comma list. A prose entry ("delivery-lead skill text") names no path;
  * a path inside prose (".claude/settings.json autoCompactWindow") still counts.
  */
 export function parseScope(text: string): string[] {

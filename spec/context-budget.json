@@ -2,13 +2,13 @@
   "files": {
     ".agents/skills/architecture/SKILL.md": 5072,
 
-    ".agents/skills/krn-handoff/SKILL.md": 4995,
+    ".agents/skills/delivery-handoff/SKILL.md": 4995,
 
-    ".agents/skills/krn-lead/SKILL.md": 6260,
+    ".agents/skills/delivery-lead/SKILL.md": 6260,
 
-    ".agents/skills/krn-lead/lanes.md": 3569,
+    ".agents/skills/delivery-lead/lanes.md": 3569,
 
-    ".agents/skills/krn-retro/SKILL.md": 2695,
+    ".agents/skills/delivery-retro/SKILL.md": 2784,
 
     ".agents/skills/typescript/SKILL.md": 3167,
 
@@ -18,11 +18,11 @@
 
     "docs/program/hardening-checklist.md": 3183,
 
-    "docs/program/lead-rules.md": 6102,
+    "docs/program/lead-rules.md": 6684,
 
     "docs/program/proposals.md": 636,
 
-    "docs/program/repository-workflow.md": 8940,
+    "docs/program/repository-workflow.md": 8975,
 
     "docs/program/roadmap.md": 5154
   }

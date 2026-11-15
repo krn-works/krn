@@ -10,10 +10,10 @@ const workflow = readFileSync(
   'utf8',
 );
 
-test('the lead role is tied to the krn-lead skill in one workflow paragraph', () => {
+test('the lead role is tied to the delivery-lead skill in one workflow paragraph', () => {
   const paragraph = workflow
     .split('\n\n')
-    .find((block) => block.includes('`krn-lead`') && /lead/u.test(block));
-  assert.ok(paragraph, 'workflow names the krn-lead role owner');
+    .find((block) => block.includes('`delivery-lead`') && /lead/u.test(block));
+  assert.ok(paragraph, 'workflow names the delivery-lead role owner');
   assert.match(paragraph, /worktree/u);
 });
