@@ -1,0 +1,12 @@
+{
+  "id": "t-19ghpsk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 3,
+  "title": "Audit a public WordPress row for the s-skill standards",
+  "after": [],
+  "body": [
+    "Outcome: the standards audit measures the s-skill-* records on a row that is WordPress or frontend.\nWhy: t-3zqj578 drained the three public rows but none applies to s-skill-*.\nProof: evals/standards-audit.md shows a non-n/a s-skill-* cell."
+  ]
+}
