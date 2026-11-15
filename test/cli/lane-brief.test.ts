@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { laneBrief } from '../../evals/fr40/lanes.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
 import { BUDGET } from '../../src/brain/packet.ts';
+import { gatesBlock } from '../../src/brain/worker-packet.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 
 // KRN-12: the receiver is the FR-40 lane runner; its arm-B prompt is the measured carrier.
@@ -93,7 +94,13 @@ test('a repository without records gets the brief and the worker rules', () => {
     spawnSync('git', ['init', '-q', dir]);
     const result = lane(dir, [], 'Fix the parser.\n');
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `Fix the parser.\n\n${workerRules(dir)}\n`);
+    // The universal enforced gates apply to any repository, so the brief names them before the rules.
+    const gates = gatesBlock(dir, new Date().toISOString().slice(0, 10));
+    assert.ok(gates !== undefined);
+    assert.equal(
+      result.stdout,
+      `Fix the parser.\n\n${gates}\n\n${workerRules(dir)}\n`,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
