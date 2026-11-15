@@ -9,6 +9,7 @@ import {
   declaresNotAffected,
   declaresNotReproducible,
   isBugBody,
+  isTestFile,
   markedTests,
   splitClauses,
 } from '../../src/brain/acceptance-clauses.ts';
@@ -236,4 +237,32 @@ test('clause 7: sweep call sites join the stated clauses, are read back from the
 test('clause 6: a bug body is told apart from a feature body', () => {
   assert.equal(isBugBody('Bug: the total is wrong when empty'), true);
   assert.equal(isBugBody('Add a --json flag to the list command'), false);
+});
+
+// Outside php row 1115k: the lane changed tests/run.php and Stop answered
+// "no test file changed on this branch".
+test('a runner script directly under tests/ is a test file in php, python and js', () => {
+  for (const path of [
+    'tests/run.php',
+    'test/run.py',
+    'tests/run.js',
+    'pkg/tests/run.php',
+  ])
+    assert.equal(isTestFile(path), true, path);
+  for (const path of ['src/run.php', 'tests/fixtures/data.php', 'run.py'])
+    assert.equal(isTestFile(path), false, path);
+});
+
+// Outside php row 1115k: "PHP method names can't contain a space", so the
+// lane could not mark a test `clause 1` (php.log BLOCKER of t-04ewf93).
+test('a clause marker reads identifier forms where a name cannot hold a space', () => {
+  for (const name of [
+    'public function testClause1(): void',
+    'def test_clause_1():',
+    'func TestClause1Parses(t *testing.T)',
+    "test('Clause 1: parses')",
+  ])
+    assert.ok(clauseMarker(1).test(name), name);
+  for (const name of ['testClause12', 'subclause 1', 'testclause1x'])
+    assert.ok(!clauseMarker(1).test(name), name);
 });

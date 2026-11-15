@@ -33,9 +33,16 @@ function clean(part: string): string {
   return part.replace(/\s+/gu, ' ').trim();
 }
 
-/** The marker a test carries for clause `n` (1-based): `clause 2` in a test name or comment. */
+/**
+ * The marker a test carries for clause `n` (1-based): `clause 2` in a test
+ * name or comment, or `test_clause_2` / `testClause2` where a name cannot
+ * hold a space (PHP, Python, Go methods).
+ */
 export function clauseMarker(n: number): RegExp {
-  return new RegExp(`\\bclause[ _-]?${n}\\b(?!\\d)`, 'iu');
+  return new RegExp(
+    `(?:(?<![A-Za-z0-9])[cC]|(?<=[a-z0-9])C)(?:lause|LAUSE)[ _-]?${n}(?!\\d)`,
+    'u',
+  );
 }
 
 /** Whether a commit message declares clause `n` not reproducible, with a reason. */
@@ -95,8 +102,8 @@ export function clauseSection(
 ): string {
   const clauses = statedClauses(body, sweep);
   if (clauses.length === 0)
-    return `Acceptance clauses (write them first):\nThe task states under 2 clauses. Before any code, write at least 3 numbered clauses ("1. ...") for what it must do, covering the stack edge cases that apply (${EDGE_CASES}). For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end until at least 3 clauses are proven.`;
-  return `Acceptance clauses (cover every one):\n${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n- For each clause N, commit a test whose name contains "clause N" that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end while a clause is uncovered.`;
+    return `Acceptance clauses (write them first):\nThe task states under 2 clauses. Before any code, write at least 3 numbered clauses ("1. ...") for what it must do, covering the stack edge cases that apply (${EDGE_CASES}). For each clause N, commit a test whose name contains "clause N" (testClauseN or test_clause_N where names cannot hold a space) that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end until at least 3 clauses are proven.`;
+  return `Acceptance clauses (cover every one):\n${clauses.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n- For each clause N, commit a test whose name contains "clause N" (testClauseN or test_clause_N where names cannot hold a space) that fails against the base source and passes on your commit; when a clause cannot be reproduced, put a line "Clause N: not reproducible: <reason>" in a commit message; when the behaviour already works, keep a test named "clause N" that is green at the base and put a line "Clause N: characterizes: <reason>" in a commit message. Your session is refused its end while a clause is uncovered.`;
 }
 
 /**
@@ -196,7 +203,9 @@ export const TEST_FILE = [
   /_test\.(?:py|go)$/u,
   /_spec\.rb$/u,
   /Test\.php$/u,
-  /(?:^|\/)tests?\/[^/]+\.[cm]?js$/u,
+  // A runner script directly under test/ or tests/ (tests/run.php, the
+  // repository's own harness) is a test file in any language.
+  /(?:^|\/)tests?\/[^/]+\.(?:[cm]?js|php|py)$/u,
 ];
 
 export const isTestFile = (path: string) => TEST_FILE.some((p) => p.test(path));
