@@ -192,7 +192,6 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/cli/doctor-unattended.ts',
   ],
   herdr: ['src/successor/host-herdr.ts'],
-  hc: ['src/successor/host-hc.ts'],
   claude: [],
   bw: [],
   git: [

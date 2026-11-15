@@ -107,7 +107,7 @@ export function retireMode(
         pause(Math.min(5, remaining / 1000));
     }
   }
-  const ledgerPath = join(cwd, '.krn', 'successors', 'launches.jsonl');
+  const ledgerPath = join(cwd, '.krn', 'successors', 'panes.jsonl');
   try {
     rewriteLedger(
       ledgerPath,
@@ -230,7 +230,7 @@ export function retirePredecessors(
     return;
   }
 
-  const ledgerPath = join(options.cwd, '.krn', 'successors', 'launches.jsonl');
+  const ledgerPath = join(options.cwd, '.krn', 'successors', 'panes.jsonl');
   let launches: LaunchRecord[];
   try {
     launches = readLaunches(ledgerPath);

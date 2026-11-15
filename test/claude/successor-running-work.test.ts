@@ -123,7 +123,7 @@ function retire(t: Cleanup, children: boolean, ledger: boolean) {
   if (ledger) {
     mkdirSync(join(root, '.krn', 'successors'), { recursive: true });
     writeFileSync(
-      join(root, '.krn', 'successors', 'launches.jsonl'),
+      join(root, '.krn', 'successors', 'panes.jsonl'),
       `${record}\n`,
     );
   }
@@ -203,10 +203,7 @@ test('launch keeps a recorded predecessor whose agent has a live child shell', (
   });
   const cwd = join(root, 'project');
   mkdirSync(join(cwd, '.krn', 'successors'), { recursive: true });
-  writeFileSync(
-    join(cwd, '.krn', 'successors', 'launches.jsonl'),
-    `${record}\n`,
-  );
+  writeFileSync(join(cwd, '.krn', 'successors', 'panes.jsonl'), `${record}\n`);
   installAgent(bin, 'successor-agent', join(dirname(calls), 'agent-calls'));
   const result = spawnSync(
     process.execPath,

@@ -29,7 +29,6 @@
     "test/claude/context-restart-plan.test.ts": 0.6,
     "test/claude/context-restart.test.ts": 0.9,
     "test/claude/cut-text.test.ts": 0.1,
-    "test/claude/handoff-requests-sections.test.ts": 0.8,
     "test/claude/handoff-requests.test.ts": 4.7,
     "test/claude/identifier-index.test.ts": 0.1,
     "test/claude/memory-budget-hook.test.ts": 0.7,
