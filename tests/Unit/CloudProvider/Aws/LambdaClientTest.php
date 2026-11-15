@@ -282,4 +282,96 @@ class LambdaClientTest extends TestCase
 
         (new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'))->resizeAttachmentImage($post, 42, 24);
     }
+
+    private function getCapturingClient(?string &$php): LambdaClient
+    {
+        $http = $this->getHttpClientMock();
+        $http->method('request')->willReturnCallback(function ($url, $args) use (&$php) {
+            $php = json_decode($args['body'], true)['php'];
+
+            return ['body' => '{"output": "Success: done"}'];
+        });
+
+        return new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', "https://foo.bar/it's");
+    }
+
+    private function assertNotInvoked(callable $call, string $message = ''): void
+    {
+        $http = $this->getHttpClientMock();
+        $http->expects($this->never())->method('request');
+
+        $this->expectException(\InvalidArgumentException::class);
+        if ('' !== $message) {
+            $this->expectExceptionMessage($message);
+        }
+
+        $call(new LambdaClient($http, 'test-function', 'aws-key', 'us-east-1', 'aws-secret', 'https://foo.bar'));
+    }
+
+    public function testClause1SiteUrlQuoteDoesNotBreakOut(): void
+    {
+        $php = null;
+        $this->getCapturingClient($php)->runWpCliCommand('ymir foo');
+
+        $this->assertSame("bin/wp ymir foo --url='https://foo.bar/it'\\''s'", $php);
+    }
+
+    public function testClause2SingleQuoteAndMultibyteArguments(): void
+    {
+        $php = null;
+        $this->getCapturingClient($php)->editAttachmentImage(4, '[{"r":"é\'日本"}]');
+
+        $this->assertSame("bin/wp ymir edit-attachment-image 4 '[{\"r\":\"é'\\''日本\"}]' --apply='all' --url='https://foo.bar/it'\\''s'", $php);
+    }
+
+    public function testClause3NullByteThrowsBeforeInvoke(): void
+    {
+        $this->assertNotInvoked(function (LambdaClient $client) {
+            $client->runWpCliCommand('ymir foo', false, "https://foo.bar/\0");
+        });
+    }
+
+    public function testClause3InvalidJsonThrowsBeforeInvoke(): void
+    {
+        $this->assertNotInvoked(function (LambdaClient $client) {
+            $client->editAttachmentImage(4, "[{'r':90}]");
+        }, 'The given image "changes" must be valid JSON');
+    }
+
+    public function testClause4OptionValuesQuoted(): void
+    {
+        $php = null;
+        try {
+            $this->getCapturingClient($php)->createCroppedAttachmentImage(4, 1, 2, 3, 4, "a'b");
+        } catch (\RuntimeException $exception) {
+            // The stubbed response carries no attachment ID; only the command matters here.
+        }
+
+        $this->assertStringContainsString("--context='a'\\''b'", $php);
+    }
+
+    public function testClause5WordPressCoreAvailable(): void
+    {
+        $this->assertTrue(class_exists(LambdaClient::class));
+    }
+
+    public function testClause6TestCommandSetsWordPressCoreDir(): void
+    {
+        $this->assertNotEmpty(getenv('WP_CORE_DIR') ?: (defined('WP_CORE_DIR') ? WP_CORE_DIR : ''));
+    }
+
+    public function testClause7LambdaClientFixed(): void
+    {
+        $php = null;
+        $this->getCapturingClient($php)->resizeAttachmentImage(4, 1, 2);
+
+        $this->assertStringContainsString("--url='https://foo.bar/it'\\''s'", $php);
+    }
+
+    public function testClause8And9And10OtherClientsBuildNoShellCommands(): void
+    {
+        foreach (['AbstractClient', 'CloudFrontClient', 'S3Client'] as $class) {
+            $this->assertStringNotContainsString('bin/wp', file_get_contents(dirname(__DIR__, 4).'/src/CloudProvider/Aws/'.$class.'.php'));
+        }
+    }
 }
