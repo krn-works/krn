@@ -5,7 +5,7 @@ import { firstLine, trackFailures } from './failure-tasks.ts';
 import { remediateHost } from './host-remediation.ts';
 
 export interface AdoptionGaps {
-  /** One `gap <id>: <message>` line per failing standard. */
+  /** One `gap <id> (<tier>): <remedy>` line per failing standard; the remedy is the standard's statement, not its check command. */
   lines: string[];
   /** Files the host wrote to fix a failing standard a lane could not (CI workflow, lockfile). */
   remediated: string[];
@@ -26,7 +26,7 @@ export function adoptionGaps(root: string, asOf: string): AdoptionGaps {
     ...host.unfixed.map((reason) => `host remediation skipped ${reason}`),
     ...failures.map(
       (failure) =>
-        `gap ${failure.id}${failure.tier === undefined ? '' : ` (${failure.tier})`}: ${firstLine(failure.message)}`,
+        `gap ${failure.id}${failure.tier === undefined ? '' : ` (${failure.tier})`}: ${firstLine(failure.remedy ?? failure.message)}`,
     ),
   ];
   return {

@@ -207,6 +207,8 @@ export type Failure = {
   readonly message: string;
   /** Set on a failed enforcement of a standard; structural failures carry none and always block. */
   readonly tier?: Tier;
+  /** The failing standard's one-line statement, which is what to make true; absent on structural failures. */
+  readonly remedy?: string;
 };
 
 /** Enforced and failed standards of one tier. */
@@ -274,6 +276,7 @@ export function checkStandards(
       const failure: Failure = {
         id,
         tier,
+        remedy: standard.text,
         message: `exit ${outcome.exit ?? 'none'} from ${describe(enforcement)}${outcome.detail === '' ? '' : `: ${outcome.detail}`}`,
       };
       tiers[tier].failed++;

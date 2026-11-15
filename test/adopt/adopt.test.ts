@@ -144,6 +144,8 @@ test('adopt refuses a path that is not a git repository and a ref that is not a 
   const notRepo = adopt(plain);
   assert.equal(notRepo.status, 64);
   assert.match(notRepo.stderr, /not a git repository/u);
+  assert.match(notRepo.stderr, /run git init there/u);
+  assert.match(notRepo.stderr, /--init --stack ts\|php\|python/u);
   const badRef = spawnSync(
     process.execPath,
     [cli, 'adopt', scratch(), '--ref', 'main'],
@@ -662,6 +664,12 @@ test('adopt prints every failing standard as a gap and writes one tracker task p
     .filter((line) => line.startsWith('gap '));
   assert.ok(gaps.length > 0, first.stdout);
   assert.ok(gaps.some((line) => /^gap s-\S+ \((floor|reflex)\): /u.test(line)));
+  for (const line of gaps)
+    assert.doesNotMatch(
+      line,
+      /exit \S+ from /u,
+      `gap shows the check: ${line}`,
+    );
   const titles = readdirSync(join(root, 'tasks')).map(
     (file) =>
       (

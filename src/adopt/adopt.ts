@@ -612,7 +612,9 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
 
 function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   if (!existsSync(join(root, '.git')))
-    throw new Error(`${root} is not a git repository root`);
+    throw new Error(
+      `${root} is not a git repository root: run git init there, or pass --init --stack ts|php|python for an empty directory`,
+    );
   const sub = detectSubpackage(root);
   if (sub !== undefined)
     options = {

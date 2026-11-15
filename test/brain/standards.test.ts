@@ -236,10 +236,16 @@ test('checkStandards runs enforced standards, counts advisory ones and names eac
   assert.equal(report.enforced, 4);
   assert.equal(report.advisory, 1);
   assert.deepEqual(report.failures, [
-    { id: 's-broken', tier: 'floor', message: 'exit 1 from false: it broke' },
+    {
+      id: 's-broken',
+      tier: 'floor',
+      remedy: 'The repository tracks automated tests.',
+      message: 'exit 1 from false: it broke',
+    },
     {
       id: 's-slow',
       tier: 'floor',
+      remedy: 'The repository tracks automated tests.',
       message: 'exit none from sleep: timed out after 5 ms',
     },
     {
