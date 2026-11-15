@@ -1,7 +1,11 @@
 {
   "id": "t-49e7434",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regrade.ts prints corrected paired K - P (2/12 vs 3/12, -8.3 pp, CI, p=1.000) over the 20 dev-unit index regrade; committed evals/d23/regrade-index.md; tests cover table parse and summary"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "The corrected K vs PB result from the --index regrade is published under evals/d23",
