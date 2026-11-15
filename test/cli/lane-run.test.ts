@@ -399,6 +399,7 @@ test('lane run starts the session in the sandbox with only the App credential', 
   process.env.GH_TOKEN = 'operator-token';
   process.env.GITHUB_TOKEN = 'operator-token';
   process.env.SSH_AUTH_SOCK = '/run/agent.sock';
+  delete process.env.KRN_APP_CACHE_DIR;
   try {
     const { verdict } = await run(
       `printf '%s\\n' "$@" > ${seen}/argv; env > ${seen}/env`,
@@ -417,7 +418,12 @@ test('lane run starts the session in the sandbox with only the App credential', 
       /^GIT_CONFIG_VALUE_\d+=.*github-app-token\.ts' git-credential$/mu,
     );
   } finally {
-    for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'SSH_AUTH_SOCK'])
+    for (const name of [
+      'GH_TOKEN',
+      'GITHUB_TOKEN',
+      'SSH_AUTH_SOCK',
+      'KRN_APP_CACHE_DIR',
+    ])
       if (saved[name] === undefined) delete process.env[name];
       else process.env[name] = saved[name];
     rmSync(seen, { recursive: true, force: true });
