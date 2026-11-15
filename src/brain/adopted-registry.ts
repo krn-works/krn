@@ -31,6 +31,28 @@ export function readRegistry(file: string): string[] {
   }
 }
 
+/**
+ * The registered paths that still exist, and how many were dropped. A registry that lost paths is
+ * rewritten without them, so a scratch repository removed from disk never serves a refresh or a doctor run.
+ */
+export function pruneRegistry(file: string): {
+  roots: string[];
+  pruned: number;
+} {
+  const listed = readRegistry(file);
+  const roots = listed.filter((root) => existsSync(root));
+  const pruned = listed.length - roots.length;
+  if (pruned > 0) writeRegistry(file, roots);
+  return { roots, pruned };
+}
+
+function writeRegistry(file: string, roots: string[]): void {
+  mkdirSync(dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(roots, null, 2)}\n`);
+  renameSync(temporary, file);
+}
+
 const inside = (child: string, parent: string) => {
   const path = relative(parent, child);
   return path !== '' && !path.startsWith('..') && !path.includes(`${sep}..`);
@@ -49,9 +71,6 @@ export function registerAdopted(
   const file = registryPath(env);
   const known = readRegistry(file);
   if (known.includes(real)) return false;
-  mkdirSync(dirname(file), { recursive: true });
-  const temporary = `${file}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify([...known, real], null, 2)}\n`);
-  renameSync(temporary, file);
+  writeRegistry(file, [...known, real]);
   return true;
 }

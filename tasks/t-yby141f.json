@@ -1,7 +1,11 @@
 {
   "id": "t-yby141f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "registry reads prune missing paths and report the count; adopt runs of outside-acceptance and standards-audit use scratch registries; tests in drift, standards-audit, outside-acceptance pass"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Scripts never write scratch repositories into the host adopted registry, and registry reads prune missing paths",

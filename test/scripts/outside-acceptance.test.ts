@@ -38,6 +38,7 @@ import {
   repoUrl,
   rowCredentialArgs,
   rowGreen,
+  scratchRegistryEnv,
   seedTask,
   workflowFiles,
   writeSeedTask,
@@ -745,4 +746,10 @@ test('the seed push of a private row uses the host login and every lane push or 
     assert.ok(args.some((a) => a.includes('github-app-token')));
     assert.ok(args.every((a) => !a.includes('gh auth')));
   }
+});
+
+test('a row adopts into a scratch registry inside its scratch directory', () => {
+  assert.deepEqual(scratchRegistryEnv('/scratch/rows'), {
+    KRN_ADOPTED_REGISTRY: '/scratch/rows/registry.json',
+  });
 });

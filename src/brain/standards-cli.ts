@@ -23,7 +23,7 @@ import {
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
-import { readRegistry, registryPath } from './adopted-registry.ts';
+import { pruneRegistry, registryPath } from './adopted-registry.ts';
 import { effectRows, effectTotals, readExposures } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
@@ -668,7 +668,9 @@ export function adoptedRepositories(root: string): string[] {
 /** The repositories of the host registry `krn adopt` writes; an error when none is registered. */
 export function hostRepositories(): string[] {
   const file = registryPath();
-  const listed = readRegistry(file);
+  const { roots: listed, pruned } = pruneRegistry(file);
+  if (pruned > 0)
+    process.stderr.write(`pruned ${pruned} missing paths from ${file}\n`);
   if (listed.length === 0)
     throw new StandardsInputError(
       `krn standards harvest: no repository given and none registered in ${file}`,

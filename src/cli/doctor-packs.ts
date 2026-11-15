@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { missingPackRecords } from '../adopt/drift.ts';
-import { readRegistry, registryPath } from '../brain/adopted-registry.ts';
+import { pruneRegistry, registryPath } from '../brain/adopted-registry.ts';
 
 export const PACK_STALE_EXIT = 65;
 
@@ -12,7 +12,10 @@ export function packsReport(file: string = registryPath()): {
 } {
   const lines: string[] = [];
   let stale = 0;
-  for (const root of readRegistry(file)) {
+  const { roots, pruned } = pruneRegistry(file);
+  if (pruned > 0)
+    lines.push(`registry-pruned=${pruned} missing paths removed from ${file}`);
+  for (const root of roots) {
     if (!existsSync(join(root, '.git'))) continue;
     const missing = missingPackRecords(root);
     if (missing.length === 0) continue;
