@@ -1,12 +1,21 @@
 // fast-covers: src/brain/task-quality.ts
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { TASK_RULES } from '../../src/brain/task-quality.ts';
+import {
+  allTaskQualityFailures,
+  TASK_RULES,
+} from '../../src/brain/task-quality.ts';
 
 // KRN-12: runs the real `krn standards` entry on scratch trackers, KRN's own tasks and an init skeleton.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -157,4 +166,41 @@ test('a task-quality record fails `krn standards check --record` on a violating 
   );
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stderr, /s-task-named-proof/u);
+});
+
+test('allTaskQualityFailures names a vague open task and passes a measured one (npm run lint gate)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'lint-quality-'));
+  try {
+    mkdirSync(join(root, 'tasks'));
+    const task = (body: string[]) =>
+      JSON.stringify({
+        id: 't-lint000',
+        title: 'Lint gate',
+        status: 'open',
+        priority: 2,
+        created: '2026-11-15',
+        after: [],
+        body,
+      });
+    writeFileSync(
+      join(root, 'tasks', 't-lint000.json'),
+      task(['Outcome: it is better.']),
+    );
+    assert.ok(
+      allTaskQualityFailures(root).some((f) =>
+        /no measurable "Outcome:"/u.test(f),
+      ),
+    );
+    writeFileSync(
+      join(root, 'tasks', 't-lint000.json'),
+      task([
+        'Outcome: krn task check exits 0.',
+        'Files: src/task/cli.ts.',
+        'Proof: the task command test passes.',
+      ]),
+    );
+    assert.deepEqual(allTaskQualityFailures(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
