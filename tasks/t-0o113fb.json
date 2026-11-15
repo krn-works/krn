@@ -1,0 +1,19 @@
+{
+  "id": "t-0o113fb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "The Markdown renderer cannot render nodes that plugins add",
+  "after": [],
+  "body": [
+    "Bugs seen in mistune: (1) create_markdown(renderer=MarkdownRenderer(), plugins=['task_lists']) fails with an AttributeError on 'list_item' for '- [x] a task' instead of returning '- [x] a task\\n'; a MarkdownRenderer subclass that defines task_list_item must have it used. (2) With the table plugin, MarkdownRenderer cannot render a table: '| A | B |\\n|---|---|\\n| 1 | 2 |\\n' must give '| A | B |\\n| --- | --- |\\n| 1 | 2 |\\n'. (3) Rendering a standalone list_item token (type 'list_item' with a paragraph child) through render_token with a BlockState fails; it should give '- x\\n\\n'. The RST renderer has the same gap for the list item and table nodes."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
