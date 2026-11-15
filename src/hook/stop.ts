@@ -33,7 +33,7 @@ import {
 
 export { withinPackage };
 
-import { statesBlocker } from '../brain/blocker.ts';
+import { statesBlocker } from '../brain/proof-line.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import {
   claudeJudge,

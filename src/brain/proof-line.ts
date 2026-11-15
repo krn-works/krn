@@ -95,3 +95,10 @@ export function proofOf(input: {
 export function proofLine(p: Proof): string {
   return `proof: clauses ${p.clauses}/${p.clausesTotal}, red-first ${p.redFirst}, precedent ${p.precedent} modules, stop refusals ${p.stopRefusals}`;
 }
+
+/** Whether the message states a blocker on a line of its own, bold or plain: the one reader for the Stop hook and the lane run. */
+export function statesBlocker(message: unknown): boolean {
+  return (
+    typeof message === 'string' && /^\s*\**BLOCKER:\**\s*\S/mu.test(message)
+  );
+}

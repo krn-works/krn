@@ -1,8 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { statesBlocker } from '../../brain/blocker.ts';
-import { countStopRefusals } from '../../brain/proof-line.ts';
+import { countStopRefusals, statesBlocker } from '../../brain/proof-line.ts';
 import { configHome } from '../../harness/claude.ts';
 
 export const exitCredentialUnavailable = 69;
