@@ -1,0 +1,14 @@
+{
+  "id": "t-8d5kfma",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "The pack carries a Rust column and krn adopt --init --stack rust is born green",
+  "after": [
+    "t-h7ta2da"
+  ],
+  "body": [
+    "Why: Fable 1115f slice 7; detectStack knows Rust but the pack has zero Rust records.\nOutcome: at least 6 enforced Rust records (committed Cargo.lock, fmt check, clippy deny-warnings, no library unwrap, pinned toolchain, tests present) and an init rust stack, in one PR including plants.\nFiles: standards/records.json, src/adopt/init.ts, scripts/standards-audit.ts, test/scripts/planted-records.test.ts.\nProof: fixtures, init rust 0 FAIL, planted N/N bite, one public Rust clone with zero false-red.\nSerial: after the harvest slice; changes the enforced set and planted matrix."
+  ]
+}

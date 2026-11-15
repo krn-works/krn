@@ -1,0 +1,12 @@
+{
+  "id": "t-h7ta2da",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Harvest tonight's ledger into the pack: every candidate enforced with a plant or rejected in writing",
+  "after": [],
+  "body": [
+    "Why: Fable 1115f slice 6.\nOutcome: krn standards harvest --from-ledger over the three private outside rows and KRN; each candidate becomes an enforced record with a plant or a written rejection.\nFiles: standards/records.json, src/cli/standards-ledger.ts, planted matrix.\nProof: candidates undisposed 0, planted matrix N/N, false-red 0.\nSerial: changes the enforced set and its planted matrix; no other lane may touch them in parallel."
+  ]
+}
