@@ -117,6 +117,15 @@ class RemoteZipInfo:
             i += fieldsz
 
 
+def safe_join(base, name):
+    """Return base/name, raising if the resolved path is outside base."""
+    base = pathlib.Path(base).resolve()
+    dest = (base/name).resolve()
+    if dest != base and base not in dest.parents:
+        raise Exception(f'unsafe path: {name!r} resolves outside {str(base)!r}')
+    return base/name
+
+
 class RemoteZipFile:
     fmt_eocd = '<IHHHHIIH'  # end of central directory
     fmt_eocd64 = '<IQHHIIQQQQ'  # end of central directory ZIP64
@@ -223,10 +232,10 @@ class RemoteZipFile:
 
             path = path or pathlib.Path('.')
 
-            outpath = path/member
+            outpath = safe_join(path, getattr(member, 'filename', member))
             os.makedirs(outpath.parent, exist_ok=True)
             with self.open(member) as fpin:
-                with open(path/member, mode='wb') as fpout:
+                with open(outpath, mode='wb') as fpout:
                     while True:
                         r = fpin.read(65536)
                         if not r:
@@ -354,6 +363,7 @@ def download_file(f, rzf, args):
     else:
         path = pathlib.Path(f.filename)
         if args.full_filepaths:
+            safe_join('.', f.filename)
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
             path = path.name
