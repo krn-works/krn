@@ -1,0 +1,12 @@
+{
+  "id": "t-bkbkmbd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Bootstrap and drain proven on three fresh public repositories (php, npm, py)",
+  "after": [],
+  "body": [
+    "Why: the three orphan-base rows were tuned against eight defects and came from operator repos (d-fe0823); KRN needs mechanism proof on untuned, public-safe repos while t-d19z692 waits for private repos (d-174575).\nOutcome: three small permissively licensed public GitHub repos (one php, one npm, one python; no test command at the base preferred; under ~5k LOC) cloned as scratch copies under /mnt/storage/tmp/krn-outside-public/{php,npm,py} with UPSTREAM.json {url, license} and the history shape scripts/outside-acceptance.ts expects; then node scripts/outside-acceptance.ts --scratch /mnt/storage/tmp/krn-outside-public per stack: adopt 0, first-test PR merged, drain 0 with zero lead turns; every failure is a KRN defect fixed with a regression test in its own PR (Refs this task).\nProof: three new rows in .krn/runs/outside/summary.txt with drain exit 0 and all PRs merged; outside/* branches deleted afterwards. Paid: about nine Sonnet sessions."
+  ]
+}

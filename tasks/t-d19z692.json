@@ -10,6 +10,7 @@
   ],
   "body": [
     "Why: Fable plan 1114d slice 6 (folds t-db6tyeb): acceptance of the breakthrough.\nOutcome: in scratch clones/forks of one php/wordpress, one npm and one python operator repo: adopt exit 0, first test merged via krn lane run, one real task drained by krn lane run --ready --max 2 with zero lead turns; rows in .krn/runs/outside/summary.txt.\nProof: 3 rows exit 0, graded; every failure becomes a KRN defect task. Paid: about 9 sessions.",
-    "repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx)\nkrn-works/krn outside/php | php | 0 | #868 | 75 (doctor vault window, before fix) then 73/74 (see notes) | #868 #871 | 8 | under 2 (per-session $0.15-0.22 where printed)\nkrn-works/krn outside/npm | npm | 0 | #872 | 73 then 74 | #872 #874 | 7 | under 2\nkrn-works/krn outside/py | py | 0 | #875 | 73 | #875 #878 | 5 | under 2"
+    "repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx)\nkrn-works/krn outside/php | php | 0 | #868 | 75 (doctor vault window, before fix) then 73/74 (see notes) | #868 #871 | 8 | under 2 (per-session $0.15-0.22 where printed)\nkrn-works/krn outside/npm | npm | 0 | #872 | 73 then 74 | #872 #874 | 7 | under 2\nkrn-works/krn outside/py | py | 0 | #875 | 73 | #875 #878 | 5 | under 2",
+    "Annotation 2026-11-15: mechanism proof moves to the public-repo rows task; operator-repo rows wait for private repos (d-174575, t-nhz6nn6) because krn-works/krn is public (d-fe0823)."
   ]
 }
