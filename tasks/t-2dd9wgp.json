@@ -1,0 +1,12 @@
+{
+  "id": "t-2dd9wgp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "An outside row drains a real upstream-bug task graded by the held-back fix test",
+  "after": [],
+  "body": [
+    "Why: Fable 1115a slice 1; every outside row so far drains only the bootstrap first-test task.\nOutcome: scripts/outside-acceptance.ts takes --task-file seeding one fixed-issue task per public row (a small upstream bug; the fix commit test is held back as hidden grader); summary gains a hidden column.\nProof: three public rows drain 0 and the hidden upstream test passes on the merged SHA. Paid about $0.15 per row. Public-source copies only."
+  ]
+}

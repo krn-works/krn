@@ -1,0 +1,14 @@
+{
+  "id": "t-abe0fm1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Harder public outside rows: red test on base, npm workspaces monorepo, WordPress plugin",
+  "after": [
+    "t-2dd9wgp"
+  ],
+  "body": [
+    "Why: Fable 1115a slice 2.\nOutcome: three new public rows (repo with a failing test on base, npm workspaces monorepo, public WordPress plugin) adopt 0 and drain 0, each failure fixed in KRN with a regression test.\nProof: rows in .krn/runs/outside/summary.txt. Paid, small."
+  ]
+}

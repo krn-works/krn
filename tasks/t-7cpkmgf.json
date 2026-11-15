@@ -1,0 +1,12 @@
+{
+  "id": "t-7cpkmgf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Outside rows write exposures and proposals and harvest promotes cross-repo candidates",
+  "after": [],
+  "body": [
+    "Why: Fable 1115a slice 3; the brain has one exposure line and one proposal.\nOutcome: each outside row appends exposures and runs krn standards propose on Stop refusals; harvest over row checkouts promotes any candidate seen in >=2 repos into an enforced pack record.\nProof: krn standards effect shows >=6 rows; harvest output committed; krn standards check passes. Free."
+  ]
+}
