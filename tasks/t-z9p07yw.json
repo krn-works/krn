@@ -1,7 +1,11 @@
 {
   "id": "t-z9p07yw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "init ts/php/python audit 0 FAIL; php composer.lock fixed; three empty-dir tests"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "krn adopt --init yields a born-green ts, php and python project with zero audit FAIL",

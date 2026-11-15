@@ -10,6 +10,8 @@ export type InitStack = (typeof INIT_STACKS)[number];
 export interface InitReport {
   stack: InitStack;
   written: string[];
+  /** Skeleton parts that could not be produced; the project is not born green until they are. */
+  warnings: string[];
 }
 
 const BASE = 'main';
@@ -242,6 +244,19 @@ export function initDirectory(root: string, named?: string): InitReport {
     writeFileSync(path, text);
     written.push(file);
   }
+  const warnings: string[] = [];
+  if (stack === 'php' && !existsSync(join(root, 'composer.lock'))) {
+    const locked = spawnSync(
+      'composer',
+      ['update', '--no-install', '--no-interaction', '--no-scripts'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    if (locked.status === 0) written.push('composer.lock');
+    else
+      warnings.push(
+        `composer.lock not written (composer update exited ${locked.status ?? 'without a status'}): run \`composer update\` and commit it`,
+      );
+  }
   const configured = git(root, ['config', 'user.name']).stdout.trim() !== '';
   const identity = configured
     ? []
@@ -257,5 +272,5 @@ export function initDirectory(root: string, named?: string): InitReport {
   ]);
   if (commit.status !== 0)
     throw new Error(`initial commit failed: ${commit.stderr}`);
-  return { stack, written };
+  return { stack, written, warnings };
 }

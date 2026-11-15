@@ -104,23 +104,16 @@ test('--init refuses a git repository with commits and accepts one without', () 
   );
 });
 
-test('--init python leaves no failing standard; php fails only on the composer.lock that composer install writes', () => {
-  const py = dir();
-  assert.equal(
-    krn('adopt', py, '--init', '--stack', 'python', '--no-canary').status,
-    0,
-  );
-  const green = krn('standards', 'check', '--root', py);
-  assert.equal(green.status, 0, green.stderr + green.stdout);
-  const php = dir();
-  assert.equal(
-    krn('adopt', php, '--init', '--stack', 'php', '--no-canary').status,
-    0,
-  );
-  const red = krn('standards', 'check', '--root', php);
-  assert.deepEqual(
-    red.stderr.match(/s-[a-z-]+(?=: exit)/gu),
-    ['s-php-composer-lock'],
-    red.stderr,
-  );
-});
+// Born green: an empty directory adopted with --init passes every applicable standard, tracker included.
+for (const stack of ['ts', 'php', 'python']) {
+  test(`--init ${stack} in an empty directory leaves zero failing standards`, () => {
+    const root = dir();
+    const run = krn('adopt', root, '--init', '--stack', stack, '--no-canary');
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stderr, '', 'init warned that the skeleton is incomplete');
+    const check = krn('standards', 'check', '--root', root);
+    assert.equal(check.status, 0, check.stderr + check.stdout);
+    assert.match(check.stdout, /, 0 failed,/u);
+    assert.ok(existsSync(join(root, 'tasks')), 'tracker');
+  });
+}

@@ -148,6 +148,8 @@ export function adoptCommand(args: string[]): void {
       );
     }
     for (const file of init.written) process.stdout.write(`wrote ${file}\n`);
+    for (const warning of init.warnings)
+      process.stderr.write(`init warning: ${warning}\n`);
     process.stdout.write(`init ${init.stack}: git init on main, committed\n`);
     tracker = true;
     values.test ??= initTestCommand(init.stack) ?? '';
