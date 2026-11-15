@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { countStopRefusals } from '../../brain/proof-line.ts';
 import { configHome } from '../../harness/claude.ts';
 
 export const exitCredentialUnavailable = 69;
@@ -18,6 +19,8 @@ export interface SessionResult {
   capped?: boolean;
   /** The Stop refusal the session met three times running with no edit between them (first line). */
   noProgress?: string;
+  /** Stop refusals the session transcript shows. */
+  stopRefusals?: number;
   /** The session's final result line when it starts with `BLOCKER:`. */
   blocker?: string;
 }
@@ -116,6 +119,22 @@ export function sessionNoProgress(sessionId: string): string | undefined {
   return undefined;
 }
 
+/** The Stop refusals of a session, counted from its transcript by session id; undefined when none is found. */
+export function sessionStopRefusals(sessionId: string): number | undefined {
+  if (!/^[\w-]+$/u.test(sessionId)) return undefined;
+  const projects = join(configHome(), 'projects');
+  try {
+    for (const directory of readdirSync(projects)) {
+      const file = join(projects, directory, `${sessionId}.jsonl`);
+      if (existsSync(file))
+        return countStopRefusals(readFileSync(file, 'utf8'));
+    }
+  } catch {
+    // No transcript directory: the count stays unknown.
+  }
+  return undefined;
+}
+
 /** The final non-empty line of the session result text when it is a `BLOCKER:` line. */
 export function blockerOf(text: unknown): { blocker?: string } {
   if (typeof text !== 'string') return {};
@@ -170,6 +189,7 @@ export function parseSessionResult(
   stderr = '',
   turnsOf: (sessionId: string) => number | undefined = sessionTurns,
   noProgressOf: (sessionId: string) => string | undefined = sessionNoProgress,
+  refusalsOf: (sessionId: string) => number | undefined = sessionStopRefusals,
 ): SessionResult {
   let parsed: unknown;
   try {
@@ -208,10 +228,15 @@ export function parseSessionResult(
     failed && typeof record.session_id === 'string'
       ? noProgressOf(record.session_id)
       : undefined;
+  const stopRefusals =
+    typeof record.session_id === 'string'
+      ? refusalsOf(record.session_id)
+      : undefined;
   return {
     ok: !failed,
     detail: `session ${subtype}`,
     cost,
+    ...(stopRefusals === undefined ? {} : { stopRefusals }),
     ...(noProgress === undefined ? {} : { noProgress }),
     ...(turns === undefined ? {} : { turns }),
     ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),

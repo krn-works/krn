@@ -131,6 +131,7 @@ export async function drainReady(
     say(`${id} ${id} exit=${verdict.exitCode} ${seconds}s`);
     // The verdict line carries the merge or the blocker's reason; an unattended drain has no other record of it.
     say(verdict.line);
+    if (verdict.proof !== undefined) say(verdict.proof);
     exitCode = verdict.exitCode;
     if (verdict.exitCode === 0) {
       streak = 0;

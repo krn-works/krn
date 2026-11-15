@@ -19,6 +19,8 @@ export type Exposure = {
   outcome: Record<string, Outcome>;
   lane_ok: boolean;
   rework: number;
+  /** The lane's proof line (clauses, red-first, precedent, Stop refusals), when the run ended with one. */
+  proof?: string;
 };
 
 /** The exposure of one finished run: every served record shares the run's outcome. */
@@ -30,6 +32,7 @@ export function exposureOf(input: {
   withheld: readonly string[];
   laneOk: boolean;
   rework: number;
+  proof?: string;
 }): Exposure {
   const result: Outcome =
     input.laneOk && input.rework === 0 ? 'followed' : 'violated';
@@ -42,12 +45,18 @@ export function exposureOf(input: {
     outcome: Object.fromEntries(input.served.map((id) => [id, result])),
     lane_ok: input.laneOk,
     rework: input.rework,
+    ...(input.proof === undefined ? {} : { proof: input.proof }),
   };
 }
 
-/** Appends one exposure; a run that served and withheld nothing leaves no line. */
+/** Appends one exposure; a run that served, withheld and proved nothing leaves no line. */
 export function appendExposure(main: string, exposure: Exposure): void {
-  if (exposure.served.length === 0 && exposure.withheld.length === 0) return;
+  if (
+    exposure.served.length === 0 &&
+    exposure.withheld.length === 0 &&
+    exposure.proof === undefined
+  )
+    return;
   const path = join(main, EXPOSURES_FILE);
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(path, `${JSON.stringify(exposure)}\n`);

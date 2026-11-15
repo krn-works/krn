@@ -1,7 +1,11 @@
 {
   "id": "t-vw4spdt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane-run verdict test prints the proof line with the 4 counts from the Stop log, brief and tree"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Every lane ending prints the proof line: clauses, red-first, precedent, Stop refusals",

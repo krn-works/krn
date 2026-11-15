@@ -1,6 +1,13 @@
-import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { appendExposure, exposureOf } from '../../brain/exposures.ts';
+import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
 import { renderPrBody } from '../pr-body.ts';
@@ -43,7 +50,48 @@ export async function laneVerdict(
     (result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`) +
     (result.turns === undefined ? '' : ` turns ${result.turns}`);
   // Every ending logs which standards the run was served and how it ended (the effect report reads it).
-  const expose = (laneOk: boolean): void => {
+  // The proof line counts what the lane really holds: its brief, its commits and tests, its Stop refusals.
+  const proofOfLane = (): string => {
+    try {
+      const range = `origin/${lane.base}..HEAD`;
+      const changed = git(path, ['diff', '--name-only', range])
+        .split('\n')
+        .filter((file) => file !== '');
+      const tests = new Map<string, string>();
+      for (const file of changed)
+        try {
+          tests.set(file, readFileSync(join(path, file), 'utf8'));
+        } catch {
+          /* A deleted file holds no test. */
+        }
+      const first = git(path, ['rev-list', '--reverse', range]).split('\n')[0];
+      return proofLine(
+        proofOf({
+          brief: lane.brief,
+          tests,
+          messages: git(path, ['log', '--format=%B', range]),
+          firstCommitFiles:
+            first === undefined || first === ''
+              ? []
+              : git(path, ['show', '--name-only', '--format=', first])
+                  .split('\n')
+                  .filter((file) => file !== ''),
+          stopRefusals: result.stopRefusals ?? 0,
+        }),
+      );
+    } catch {
+      return proofLine(
+        proofOf({
+          brief: lane.brief,
+          tests: new Map(),
+          messages: '',
+          firstCommitFiles: [],
+          stopRefusals: result.stopRefusals ?? 0,
+        }),
+      );
+    }
+  };
+  const expose = (laneOk: boolean, proved: string): void => {
     try {
       appendExposure(
         main,
@@ -55,6 +103,7 @@ export async function laneVerdict(
           withheld: lane.withheldIds,
           laneOk,
           rework: red === undefined ? 0 : 1,
+          proof: proved,
         }),
       );
     } catch {
@@ -67,7 +116,8 @@ export async function laneVerdict(
     reason: string,
     exitCode = exitNoDelivery,
   ): Promise<LaneVerdict> => {
-    expose(false);
+    const proved = proofOfLane();
+    expose(false, proved);
     if (task !== undefined)
       try {
         await releaseClaim(main, task);
@@ -78,6 +128,7 @@ export async function laneVerdict(
       line: `lane ${label}: ${reason} (${kept}${task === undefined ? '' : ', claim released'}) model ${model}${spent}${served}`,
       exitCode,
       packet: lane.packet,
+      proof: proved,
     };
   };
 
@@ -233,11 +284,13 @@ export async function laneVerdict(
       rmSync(redFile, { force: true });
       rmSync(parkedFile(main, slug), { force: true });
     }
-    expose(merged);
+    const proved = proofOfLane();
+    expose(merged, proved);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,
       exitCode: merged ? 0 : exitNoDelivery,
       packet: lane.packet,
+      proof: proved,
     };
   } catch (error) {
     // A throw after the claim (git, ship push, red Check, timeout) must not leave the claim live.

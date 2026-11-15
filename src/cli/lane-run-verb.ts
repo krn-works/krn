@@ -17,6 +17,8 @@ async function drainCommand(args: string[]): Promise<void> {
 export async function laneRunVerb(rest: string[]): Promise<void> {
   if (rest.includes('--ready')) return drainCommand(rest);
   const verdict = await laneRunCommand(rest);
-  process.stdout.write(`${verdict.line}\n`);
+  process.stdout.write(
+    `${verdict.line}\n${verdict.proof === undefined ? '' : `${verdict.proof}\n`}`,
+  );
   process.exitCode = verdict.exitCode;
 }
