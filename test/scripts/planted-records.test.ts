@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -153,4 +159,27 @@ test('the Rust records accept the plain layouts and refuse the plain violations'
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+test('every enforced boilerplate frontend and WordPress record has a plant, so the matrix bites on it', () => {
+  const pack = JSON.parse(
+    readFileSync(
+      fileURLToPath(new URL('../../standards/records.json', import.meta.url)),
+      'utf8',
+    ),
+  ) as {
+    id: string;
+    status: string;
+    provenance: { origin: string };
+    enforcement: { kind: string };
+  }[];
+  const enforced = pack.filter(
+    (r) =>
+      r.status === 'accepted' &&
+      r.provenance.origin.startsWith('boilerplate-2026 ') &&
+      r.enforcement.kind !== 'advisory',
+  );
+  assert.ok(enforced.length >= 4, `only ${enforced.length} records`);
+  for (const record of enforced)
+    assert.ok(PLANTS[record.id], `${record.id} has no plant`);
 });

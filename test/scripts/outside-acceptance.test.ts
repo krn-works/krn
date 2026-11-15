@@ -271,9 +271,29 @@ test('the shipped task file holds one public fixed-issue row per stack and parse
   const rows = parseTaskFile(shippedRows);
   assert.deepEqual(
     rows.map((row) => row.stack),
-    ['php', 'npm', 'py', 'php-red', 'npm-workspaces', 'wp-plugin'],
+    ['php', 'npm', 'py', 'php-red', 'npm-workspaces', 'wp-plugin', 'frontend'],
   );
   for (const row of rows) assert.match(row.fix, /^[0-9a-f]{7,40}$/u);
+});
+
+test('clause 5 and clause 6: the frontend row grades a held-back component test and names its fix', () => {
+  const row = parseTaskFile(shippedRows).find((r) => r.stack === 'frontend');
+  assert.ok(row, 'no frontend row');
+  assert.match(row.upstream, /^https:\/\/github\.com\//u);
+  assert.equal(row.license, 'MIT');
+  assert.deepEqual(row.hidden, [
+    'packages/tailwind-merge/tests/important-modifier.test.ts',
+  ]);
+  assert.match(row.test ?? '', /vitest/u);
+  assert.match(row.related ?? '', /\{files\}/u);
+});
+
+test('clause 7: the frontend row seeds a priority-0 task whose acceptance is the row test', () => {
+  const row = parseTaskFile(shippedRows).find((r) => r.stack === 'frontend');
+  assert.ok(row);
+  const seeded = JSON.parse(hiddenSeedTask(row, '2026-11-15').text);
+  assert.equal(seeded.priority, 0);
+  assert.equal(seeded.acceptance[0].verify, row.test);
 });
 
 test('a task file refuses a malformed, private or escaping row before anything is pushed', () => {
