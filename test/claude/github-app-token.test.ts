@@ -91,6 +91,11 @@ const capturedInstallation = {
   absent: captured[1] ?? {},
 };
 
+/** A stub installation token with the real shape: ghs_ plus 36 alphanumerics. */
+function stubToken(label: string): string {
+  return `ghs_${label.padStart(36, 'x')}`;
+}
+
 async function fakes(
   t: { after(fn: () => void): void },
   options: { items?: unknown[]; expiresIn?: number } = {},
@@ -133,7 +138,7 @@ async function fakes(
     json(
       res,
       {
-        token: `ghs_token${count}`,
+        token: stubToken(`token${count}`),
         expires_at: new Date(
           Date.now() + (options.expiresIn ?? 3600) * 1000,
         ).toISOString(),
@@ -183,7 +188,7 @@ test('the token request carries a verifiable RS256 JWT and names the repository'
   const before = Math.floor(Date.now() / 1000);
   const result = await exec(helper, ['token'], f.env);
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout, 'ghs_token1\n');
+  assert.equal(result.stdout, `${stubToken('token1')}\n`);
   const [request] = f.github.requests;
   assert.ok(request);
   assert.equal(request.url, '/app/installations/77/access_tokens');
@@ -219,7 +224,10 @@ test('git-credential get answers only for github.com and store/erase do nothing'
     'protocol=https\nhost=github.com\n\n',
   );
   assert.equal(got.code, 0, got.stderr);
-  assert.equal(got.stdout, 'username=x-access-token\npassword=ghs_token1\n');
+  assert.equal(
+    got.stdout,
+    `username=x-access-token\npassword=${stubToken('token1')}\n`,
+  );
   const other = await exec(
     helper,
     ['git-credential', 'get'],
@@ -241,8 +249,14 @@ test('git-credential get answers only for github.com and store/erase do nothing'
 
 test('the token is cached 0600 without the key, reused, and re-minted near expiry', async (t) => {
   const f = await fakes(t);
-  assert.equal((await exec(helper, ['token'], f.env)).stdout, 'ghs_token1\n');
-  assert.equal((await exec(helper, ['token'], f.env)).stdout, 'ghs_token1\n');
+  assert.equal(
+    (await exec(helper, ['token'], f.env)).stdout,
+    `${stubToken('token1')}\n`,
+  );
+  assert.equal(
+    (await exec(helper, ['token'], f.env)).stdout,
+    `${stubToken('token1')}\n`,
+  );
   assert.equal(f.minted(), 1);
   const path = join(f.runtime, 'krn-app-token.json');
   assert.equal(statSync(path).mode & 0o777, 0o600);
@@ -252,11 +266,14 @@ test('the token is cached 0600 without the key, reused, and re-minted near expir
   writeFileSync(
     path,
     JSON.stringify({
-      token: 'ghs_old',
+      token: stubToken('old'),
       expires_at: new Date(Date.now() + 200_000).toISOString(),
     }),
   );
-  assert.equal((await exec(helper, ['token'], f.env)).stdout, 'ghs_token2\n');
+  assert.equal(
+    (await exec(helper, ['token'], f.env)).stdout,
+    `${stubToken('token2')}\n`,
+  );
   assert.equal(f.minted(), 2);
 });
 
@@ -267,13 +284,19 @@ test('a raised reuse margin re-mints a cache that a session could outlive', asyn
   writeFileSync(
     path,
     JSON.stringify({
-      token: 'ghs_old',
+      token: stubToken('old'),
       expires_at: new Date(Date.now() + 1_800_000).toISOString(),
     }),
   );
-  assert.equal((await exec(helper, ['token'], f.env)).stdout, 'ghs_old\n');
+  assert.equal(
+    (await exec(helper, ['token'], f.env)).stdout,
+    `${stubToken('old')}\n`,
+  );
   const raised = { ...f.env, KRN_APP_REUSE_MARGIN_SECONDS: '3000' };
-  assert.equal((await exec(helper, ['token'], raised)).stdout, 'ghs_token2\n');
+  assert.equal(
+    (await exec(helper, ['token'], raised)).stdout,
+    `${stubToken('token2')}\n`,
+  );
 });
 
 test('without XDG_RUNTIME_DIR nothing is cached', async (t) => {
@@ -290,7 +313,7 @@ test('the cache directory named by the launcher serves a helper without XDG_RUNT
   const { XDG_RUNTIME_DIR: _x, ...sandboxed } = f.env;
   assert.equal(
     (await exec(helper, ['token'], sandboxed)).stdout,
-    'ghs_token1\n',
+    `${stubToken('token1')}\n`,
   );
   assert.equal(f.minted(), 1);
   assert.equal(
@@ -378,7 +401,10 @@ test('the gh wrapper runs the real gh with the minted token and does not recurse
         }),
     ),
   );
-  assert.deepEqual(out, { code: 0, stdout: 'token=ghs_token1 args=pr list\n' });
+  assert.deepEqual(out, {
+    code: 0,
+    stdout: `token=${stubToken('token1')} args=pr list\n`,
+  });
 });
 
 test('the launcher environment resets the helper list before installing the helper', () => {
@@ -480,7 +506,7 @@ test('a launched session gets the App credential unless --operator-token is pass
   );
   assert.ok(pairs.includes('GIT_CONFIG_VALUE_0='));
   assert.ok(pairs.some((p) => p.startsWith('GIT_CONFIG_VALUE_1=!')));
-  assert.ok(!pairs.some((p) => p.includes('ghs_token')));
+  assert.ok(!pairs.some((p) => p.includes('ghs_')));
   assert.equal(f.minted(), 1);
 
   const operator = await launch(t, ['--operator-token'], f.env);
@@ -511,14 +537,20 @@ test('a lane session serves the cached token and fails closed on a miss without 
   const f = await fakes(t);
   await exec(helper, ['token'], f.env);
   const lane = { ...f.env, KRN_SESSION_CLASS: 'lane' };
-  assert.equal((await exec(helper, ['token'], lane)).stdout, 'ghs_token1\n');
+  assert.equal(
+    (await exec(helper, ['token'], lane)).stdout,
+    `${stubToken('token1')}\n`,
+  );
   const credential = await exec(
     helper,
     ['git-credential', 'get'],
     lane,
     'host=github.com\n',
   );
-  assert.match(credential.stdout, /password=ghs_token1\n/u);
+  assert.equal(
+    credential.stdout,
+    `username=x-access-token\npassword=${stubToken('token1')}\n`,
+  );
   assert.equal(f.minted(), 1);
 
   // Cache gone and bw serve reachable: the lane still must not mint.
@@ -546,8 +578,11 @@ test('KRN_APP_REPOSITORY scopes the token to that repository through its own ins
   });
   // The pilot token never answers for krn-works/krn, nor the reverse.
   const krn = await exec(helper, ['token'], f.env);
-  assert.equal(krn.stdout, 'ghs_token2\n');
-  assert.equal((await exec(helper, ['token'], env)).stdout, 'ghs_token1\n');
+  assert.equal(krn.stdout, `${stubToken('token2')}\n`);
+  assert.equal(
+    (await exec(helper, ['token'], env)).stdout,
+    `${stubToken('token1')}\n`,
+  );
   assert.equal(f.minted(), 2);
 });
 
@@ -586,7 +621,7 @@ test('a planted non-installation token in the cache is discarded and never writt
   );
   const result = await exec(helper, ['token'], f.env);
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout, 'ghs_token1\n');
+  assert.equal(result.stdout, `${stubToken('token1')}\n`);
   assert.match(result.stderr, /discarded a cached token/u);
   assert.equal(f.minted(), 1);
 
@@ -596,4 +631,24 @@ test('a planted non-installation token in the cache is discarded and never writt
     expires_at: new Date(Date.now() + 86_400_000).toISOString(),
   });
   assert.equal(existsSync(path), false);
+});
+
+test('a short ghs_ token planted in the cache is discarded and replaced by a fresh mint', async (t) => {
+  const f = await fakes(t);
+  const path = join(f.env.KRN_APP_CACHE_DIR as string, 'krn-app-token.json');
+  writeFileSync(
+    path,
+    JSON.stringify({
+      token: 'ghs_token12',
+      expires_at: '2027-01-15T00:00:00.000Z',
+    }),
+  );
+  const result = await exec(helper, ['token'], f.env);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout, `${stubToken('token1')}\n`);
+  assert.equal(f.minted(), 1);
+  assert.equal(
+    JSON.parse(readFileSync(path, 'utf8')).token,
+    stubToken('token1'),
+  );
 });

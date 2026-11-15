@@ -314,6 +314,7 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
             '    pnpmConfigStoreDir: process.env.pnpm_config_store_dir ?? null,',
             '    runtimeBusEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => /^(?:XDG_RUNTIME_DIR|DBUS_|SYSTEMD_)/u.test(key))),',
             '    tmpdir: process.env.TMPDIR,',
+            '    appCacheDir: process.env.KRN_APP_CACHE_DIR,',
             '    tmpdirAtImport,',
             '    tmpdirAtRuntime,',
             '    eventFile: process.env.KRN_TEST_EVENT_FILE,',
@@ -333,6 +334,7 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
           encoding: 'utf8',
           env: {
             ...process.env,
+            KRN_APP_CACHE_DIR: join(directory, 'real-app-cache'),
             KRN_TEST_STRICT: '1',
             KRN_TEST_SHARDS: String(shards),
             pnpm_config_store_dir: expectedPnpmStoreDirectory,
@@ -417,11 +419,13 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
         pnpmConfigStoreDir,
         runtimeBusEnvironment,
         tmpdir,
+        appCacheDir,
         tmpdirAtImport,
         tmpdirAtRuntime,
         eventFile,
         fixtureDirectory,
       } of environments) {
+        assert.equal(appCacheDir, join(tmpdir, 'app-cache'));
         assert.ok(home.startsWith(join(stateRoot, 'test-suite-run-')));
         assert.notEqual(home, parentHome);
         assert.equal(path, process.env.PATH);

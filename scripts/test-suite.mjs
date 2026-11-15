@@ -243,6 +243,8 @@ function childEnvironment(
     XDG_CONFIG_HOME: join(home, '.config'),
     XDG_DATA_HOME: join(home, '.local', 'share'),
     XDG_STATE_HOME: join(home, '.local', 'state'),
+    // A lane's cache directory is the main checkout's real token cache; no test may mint into it.
+    KRN_APP_CACHE_DIR: join(temp, 'app-cache'),
     MISE_DATA_DIR: parentMiseDataDirectory(),
     // Node creates this best-effort cache. Keep it outside disposable shard
     // TMPDIRs so subsequent runners and inherited child nodes can reuse it.
