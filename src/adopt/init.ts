@@ -287,9 +287,10 @@ const GATES: Record<InitStack, InitGates> = {
     test: 'cargo test',
   },
   python: {
-    install: 'python -m pip install -r requirements-dev.txt',
-    lint: 'ruff check .',
-    typecheck: 'mypy .',
+    install:
+      'python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-dev.txt',
+    lint: '.venv/bin/ruff check .',
+    typecheck: '.venv/bin/mypy .',
     test: 'python -m unittest discover -s tests -t .',
   },
   php: {
