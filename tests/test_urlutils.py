@@ -493,3 +493,13 @@ def test_unicodey():
 
 def test_str_repr():
     assert str(URL("http://googlewebsite.com/e-shops.aspx")) == "http://googlewebsite.com/e-shops.aspx"
+
+
+def test_password_without_username():
+    url = URL('http://:secret@example.com/path')
+    assert url.password == 'secret'
+    assert url.to_text() == 'http://:secret@example.com/path'
+    assert url.get_authority(with_userinfo=True) == ':secret@example.com'
+    url.password = 'p@ss'
+    assert url.to_text() == 'http://:p%40ss@example.com/path'
+    assert URL(url.to_text()).password == 'p@ss'
