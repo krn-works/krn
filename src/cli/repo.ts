@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ContractError, resolveContract } from '../repo/contract.ts';
+import { FormatError } from '../repo/formats.ts';
 import {
   crawlSite,
   diffGoldenMaster,
@@ -69,8 +70,9 @@ export function repoCommand(args: string[]): Promise<void> | void {
     const resolved = resolveContract(root);
     process.stdout.write(`${JSON.stringify(resolved, null, 2)}\n`);
   } catch (error) {
-    if (!(error instanceof ContractError)) throw error;
+    if (!(error instanceof ContractError || error instanceof FormatError))
+      throw error;
     process.stderr.write(`krn repo contract: ${error.message}\n`);
-    process.exitCode = 65;
+    process.exitCode = error instanceof FormatError ? error.exitCode : 65;
   }
 }

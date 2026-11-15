@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { claudeAgent } from '../harness/claude.ts';
+import { taskFile } from '../task/paths.ts';
 import { startLane } from './lane.ts';
 import { laneRunCommand } from './lane-run.ts';
 
@@ -78,7 +79,7 @@ export async function runCanary(
     const fastCheck = new URL('../../scripts/fast-check.ts', import.meta.url)
       .pathname;
     const marker = `node --input-type=module -e "import { treeKey } from '${fastCheck}'; import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('.krn/cache', { recursive: true }); writeFileSync('.krn/cache/fast-pass', treeKey(process.cwd()));"`;
-    const close = `node -e "const fs = require('node:fs'); const f = 'tasks/${TASK}.json'; const t = JSON.parse(fs.readFileSync(f, 'utf8')); t.status = 'closed'; t.resolution = { kind: 'done', ref: null, note: '' }; fs.writeFileSync(f, JSON.stringify(t, null, 2) + '\\n');"`;
+    const close = `node -e "const fs = require('node:fs'); const f = '${taskFile(TASK)}'; const t = JSON.parse(fs.readFileSync(f, 'utf8')); t.status = 'closed'; t.resolution = { kind: 'done', ref: null, note: '' }; fs.writeFileSync(f, JSON.stringify(t, null, 2) + '\\n');"`;
     const action =
       options.deliver === false
         ? 'true'

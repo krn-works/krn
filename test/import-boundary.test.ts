@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -7,7 +13,9 @@ import {
   BINARIES,
   check,
   checkBinaries,
+  checkStores,
   LAYERS,
+  PRODUCT_WORKSHOP_EXCEPTIONS,
   specifiers,
 } from '../scripts/boundaries.ts';
 
@@ -156,4 +164,36 @@ test('the layer map names no removed area or unused edge', () => {
   assert.deepEqual(LAYERS.evals, []);
   assert.equal(LAYERS.brain?.includes('cli'), false);
   assert.equal(LAYERS.brain?.includes('evals/fr40/tasks.ts'), false);
+});
+
+test('product never imports workshop, except the listed edges, which may only shrink', () => {
+  const root = fixture({
+    'src/successor/x.ts': 'export const x = 1;',
+    'src/task/y.ts': "import { x } from '../successor/x.ts';",
+  });
+  const layers = { ...LAYERS, task: [...(LAYERS.task ?? []), 'successor'] };
+  const found = check(root, layers);
+  assert.equal(found.length, 1);
+  assert.match(found[0]?.edge ?? '', /product never imports workshop/u);
+  for (const edge of PRODUCT_WORKSHOP_EXCEPTIONS) {
+    const [file] = edge.split(' -> ');
+    assert.ok(file && existsSync(join(repo, file)), `${edge} still exists`);
+  }
+});
+
+test('tasks/ and the record files are named in code only by their owner', () => {
+  const root = fixture({
+    'src/task/own.ts': "export const own = 'tasks/t-1.json';",
+    'src/brain/own.ts': "export const own = '.agents/records.json';",
+    'src/hook/bad.ts':
+      "export const a = 'tasks/t-1.json';\nexport const b = `standards/records.json`;",
+    'src/hook/prose.ts':
+      "// 'tasks/x.json' in a comment\nexport const p = 'the `tasks/<id>.json` file';",
+  });
+  const found = checkStores(root);
+  assert.deepEqual(
+    found.map((v) => `${v.file}:${v.line}`),
+    ['src/hook/bad.ts:1', 'src/hook/bad.ts:2'],
+  );
+  assert.deepEqual(checkStores(repo), []);
 });

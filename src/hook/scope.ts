@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir } from '../harness/claude.ts';
+import { TASKS_DIR } from '../task/paths.ts';
 
 // PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
 // the roadmap unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
@@ -17,7 +18,7 @@ import { harnessPaths, hookProjectDir } from '../harness/claude.ts';
 // A lane session whose scope cannot be resolved is allowed (nothing to compare with); a KRN_ROLE=worker
 // session without a scope has an empty one.
 // Tracker state is the lead's alone: a worker edit outside Scope is refused.
-export const guarded = ['tasks/', 'docs/program/roadmap.md'];
+export const guarded = [`${TASKS_DIR}/`, 'docs/program/roadmap.md'];
 // Harness files outside Scope are allowed and reported: a red test that needs one must not stay red,
 // and a refusal there left finished work uncommitted in D23 (units 470 and 547).
 export const harness: readonly string[] = harnessPaths;

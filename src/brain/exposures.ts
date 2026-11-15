@@ -11,6 +11,7 @@ import {
   readFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { assertFormat } from '../repo/formats.ts';
 import { metricReader } from './metrics.ts';
 
 /** Where the log lives, relative to the main checkout. */
@@ -143,6 +144,7 @@ function normalized(row: Partial<Exposure>): Exposure {
 
 /** Every exposure of the log, in order; blank lines are skipped and a malformed line is an error. */
 export function readExposures(main: string): Exposure[] {
+  assertFormat(main, 'krn.exposure');
   const path = join(main, EXPOSURES_FILE);
   if (!existsSync(path)) return [];
   return readFileSync(path, 'utf8')

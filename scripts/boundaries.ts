@@ -15,7 +15,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   successor: ['harness', 'memory', 'task', 'repo'],
   fs: [],
   harness: [],
-  outcome: ['harness', 'repo'],
+  outcome: ['harness', 'repo', 'task'],
   state: [],
   deliver: ['repo'],
   ci: ['deliver', 'repo'],
@@ -24,7 +24,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   'cli-kit': [],
   task: ['cli-kit', 'fs', 'repo'],
   evals: [],
-  hook: ['brain', 'harness', 'repo', 'state'],
+  hook: ['brain', 'harness', 'repo', 'state', 'task'],
   brain: ['cli-kit', 'harness', 'repo'],
   cli: [
     'cli-kit',
@@ -39,6 +39,49 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     'task',
   ],
 };
+
+/**
+ * Product is what an adopted repository runs; workshop is the operator's own delivery tooling (ADR 0017).
+ * Product never imports workshop. `cli` is the verbs over both and `deliver`/`ci`/`evals`/`core` sit
+ * outside the split until their ADR moves them. An exception is a `file -> workshop area` edge present
+ * when the rule landed; the list may only shrink.
+ */
+export const PRODUCT: readonly string[] = [
+  'task',
+  'brain',
+  'hook',
+  'adopt',
+  'repo',
+  'harness',
+];
+export const WORKSHOP: readonly string[] = [
+  'successor',
+  'context',
+  'state',
+  'memory',
+  'outcome',
+];
+export const PRODUCT_WORKSHOP_EXCEPTIONS: readonly string[] = [
+  'src/hook/stop.ts -> state',
+];
+
+/**
+ * A store is reached only through its owner: code outside the owner names the path through the
+ * owner's helpers, never as a quoted literal.
+ */
+export const STORES: ReadonlyArray<{
+  readonly name: string;
+  readonly owner: string;
+  readonly literal: RegExp;
+}> = [
+  { name: 'tasks/', owner: 'src/task/', literal: /(?<!\\)['"`]tasks\/(?!<)/u },
+  {
+    name: 'record files',
+    owner: 'src/brain/',
+    literal:
+      /['"`](?:standards\/records\.json|\.agents\/(?:records|decisions)\.json|\.krn\/brain\/exposures\.jsonl)/u,
+  },
+];
 
 export type Violation = {
   readonly file: string;
@@ -113,6 +156,17 @@ export function check(
           line,
           specifier,
           edge: `${edge} (area "${from}" missing from LAYERS)`,
+        });
+      else if (
+        PRODUCT.includes(from) &&
+        WORKSHOP.includes(to) &&
+        !PRODUCT_WORKSHOP_EXCEPTIONS.includes(`${rel} -> ${to}`)
+      )
+        violations.push({
+          file: rel,
+          line,
+          specifier,
+          edge: `${edge} (product never imports workshop)`,
         });
       else if (
         to !== from &&
@@ -219,9 +273,42 @@ export function checkBinaries(
   return violations;
 }
 
+export type StoreViolation = {
+  readonly file: string;
+  readonly line: number;
+  readonly store: string;
+  readonly owner: string;
+};
+
+/** Quoted store paths in code (comments blanked) outside the store's owner. */
+export function checkStores(root: string): StoreViolation[] {
+  const source = join(root, 'src');
+  const found: StoreViolation[] = [];
+  for (const file of existsSync(source) ? walk(source) : []) {
+    const rel = relative(root, file).split(sep).join('/');
+    const code = blank(readFileSync(file, 'utf8'));
+    for (const store of STORES) {
+      if (rel.startsWith(store.owner)) continue;
+      for (const match of code.matchAll(new RegExp(store.literal, 'gu')))
+        found.push({
+          file: rel,
+          line: code.slice(0, match.index).split('\n').length,
+          store: store.name,
+          owner: store.owner,
+        });
+    }
+  }
+  return found;
+}
+
 export function main(root: string): number {
   const violations = check(root);
   const spawns = checkBinaries(root);
+  const stores = checkStores(root);
+  for (const v of stores)
+    process.stderr.write(
+      `${v.file}:${v.line}: names ${v.store} outside its owner ${v.owner} (STORES in scripts/boundaries.ts)\n`,
+    );
   for (const v of spawns)
     process.stderr.write(
       `${v.file}:${v.line}: '${v.binary}' is called outside its owners (BINARIES in scripts/boundaries.ts)\n`,
@@ -230,7 +317,7 @@ export function main(root: string): number {
     process.stderr.write(
       `${v.file}:${v.line}: forbidden import ${v.edge} ('${v.specifier}')\n`,
     );
-  const total = violations.length + spawns.length;
+  const total = violations.length + spawns.length + stores.length;
   if (total > 0)
     process.stderr.write(
       `boundaries FAIL: ${total} violation(s); layer map and binary owners: scripts/boundaries.ts\n`,

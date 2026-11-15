@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
+import { assertFormat } from '../repo/formats.ts';
 import { commentFileTaskId, parseComments } from './comments.ts';
 import {
   createTaskId,
@@ -114,6 +115,7 @@ function deadAfterFindings(records: Map<TaskId, TaskRecord>): string[] {
 }
 
 export function loadTaskIndex(root: string): Map<TaskId, TaskRecord> {
+  assertFormat(root, 'krn.task');
   const { findings, records } = scanTaskDirectory(root);
   if (findings.length > 0) throw new TaskDataError(findings);
   return records;
