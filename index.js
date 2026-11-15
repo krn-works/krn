@@ -27,9 +27,20 @@ function createObjects (acc, p) {
 
 function parseLink(link) {
   try {
-    var parts     =  link.split(';')
-      , linkUrl   =  parts.shift().replace(/[<>]/g, '')
-      , parsedUrl =  url.parse(linkUrl)
+    var close     =  link.indexOf('>')
+      , parts
+      , linkUrl;
+
+    if (close !== -1) {
+      // take the URL up to the closing '>' so ';' inside it survives
+      linkUrl = link.slice(0, close).replace(/[<>]/g, '');
+      parts = link.slice(close + 1).split(';');
+    } else {
+      parts = link.split(';');
+      linkUrl = parts.shift().replace(/[<>]/g, '');
+    }
+
+    var parsedUrl =  url.parse(linkUrl)
       , qry       =  qs.parse(parsedUrl.query);
 
     var info = parts
