@@ -40,5 +40,5 @@ test('krn hook scope refuses a worker write to tracker state outside its Scope',
 test('krn hook with an unknown hook name exits 64 naming the hooks', () => {
   const result = hook(['nope'], '');
   assert.equal(result.status, 64);
-  assert.match(result.stderr, /krn hook <stop\|session\|scope\|stash>/u);
+  assert.match(result.stderr, /krn hook <stop\|session\|scope\|stash\|edit>/u);
 });

@@ -46,6 +46,8 @@ test('Claude context budget settings wire documented hooks and read-only reader'
       'Read',
       // A worker may not write tracker, roadmap or harness files outside its Scope.
       'Write|Edit|NotebookEdit|Bash',
+      // The first edit of a file kind brings the records scoped to it.
+      'Edit|Write|MultiEdit',
     ],
   );
   const reader =

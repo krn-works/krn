@@ -1,7 +1,11 @@
 {
   "id": "t-ctnaq2e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PreToolUse edit hook (src/hook/edit-standards.ts, krn hook edit) installed by adopt and in KRN; test on verbatim Edit/Write capture"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "The first edit of a file kind brings its standards into the session",

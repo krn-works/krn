@@ -27,6 +27,8 @@ export type Exposure = {
   outcome: Record<string, Outcome>;
   lane_ok: boolean;
   rework: number;
+  /** The file kind an edit-moment exposure served (`php`, `*.css`), so the moment fires once per kind and session. */
+  scope?: string;
   /** The lane's proof line (clauses, red-first, precedent, Stop refusals), when the run ended with one. */
   proof?: string;
 };

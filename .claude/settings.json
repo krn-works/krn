@@ -165,6 +165,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/src/hook/edit-standards.ts\"",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },

@@ -9,6 +9,7 @@ const scripts: Readonly<Record<string, string>> = {
   session: 'src/hook/session-start.ts',
   scope: 'src/hook/scope.ts',
   stash: 'src/hook/stash.ts',
+  edit: 'src/hook/edit-standards.ts',
 };
 
 /** Runs the hook script with this process's stdin, environment and exit status. */
