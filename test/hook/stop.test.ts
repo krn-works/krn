@@ -69,13 +69,15 @@ const optOut = {
   KRN_ACCEPTANCE_CLAUSES: '0',
 };
 
-function clone() {
-  const dir = mkdtempSync(join(tmpdir(), 'worker-stop-'));
+// The clone owns its package.json: node reads the nearest one, and a host tmp parent may hold an invalid one.
+function clone(parent = tmpdir()) {
+  const dir = mkdtempSync(join(parent, 'worker-stop-'));
   sh(dir, 'init', '-q', '-b', 'main');
   sh(dir, 'config', 'user.email', 'a@b.c');
   sh(dir, 'config', 'user.name', 'a');
   mkdirSync(join(dir, 'src'));
   mkdirSync(join(dir, 'test'));
+  writeFileSync(join(dir, 'package.json'), '{}\n');
   writeFileSync(join(dir, 'src/a.ts'), 'export const a = 1;\n');
   sh(dir, 'add', '.');
   sh(dir, 'commit', '-q', '-m', 'base');
@@ -1110,8 +1112,10 @@ test('clause 9: one shared list names the placeholders and a non-empty file of t
   }
 });
 
-test('clause 12: the --red mode prints a test red at the base and nothing for one green at the base', () => {
-  const dir = clone();
+test('clause 12, clause 14, clause 16: the --red mode prints a test red at the base and nothing for one green at the base, under a tmp parent with an invalid package.json', () => {
+  const parent = mkdtempSync(join(tmpdir(), 'worker-stop-parent-'));
+  writeFileSync(join(parent, 'package.json'), '');
+  const dir = clone(parent);
   try {
     const body =
       "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from '../src/a.ts';\ntest('a', () => assert.equal(a, 2));\n";
@@ -1139,7 +1143,7 @@ test('clause 12: the --red mode prints a test red at the base and nothing for on
     assert.equal(green.status, 0, green.stderr);
     assert.equal(green.stdout.trim(), '');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(parent, { recursive: true, force: true });
   }
 });
 
