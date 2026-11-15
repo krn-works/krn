@@ -116,3 +116,23 @@ fn test_clause_4_5_6_7_unaffected_io_error_downcast() {
     let error = bail_error().unwrap_err();
     assert!(error.downcast_ref::<io::Error>().is_some());
 }
+
+#[derive(Debug)]
+struct EmptyError;
+
+impl std::fmt::Display for EmptyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("empty")
+    }
+}
+
+impl std::error::Error for EmptyError {}
+
+// clause 8: edge case, a zero-sized error type still downcasts.
+#[test]
+fn test_clause_8_zero_sized_error_downcast() {
+    let error = Error::new(EmptyError);
+    assert!(error.downcast_ref::<EmptyError>().is_some());
+    assert_eq!("empty", error.to_string());
+    assert!(error.downcast::<EmptyError>().is_ok());
+}
