@@ -673,6 +673,17 @@ test('a base without a required check merges the clean PR directly when auto-mer
   assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
 
+test('a base with no branch protection rule merges the PR directly when auto-merge is refused', async () => {
+  const r = receiver({
+    pulls: [merged],
+    autoRefusal:
+      'GraphQL: Pull request Protected branch rules not configured for this branch (enablePullRequestAutoMerge)',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+});
+
 test('any other auto-merge refusal still fails the ship', async () => {
   const r = receiver({ pulls: [merged], autoRefusal: 'GraphQL: not allowed' });
   await assert.rejects(shipCommand(args, r), /not allowed/u);
