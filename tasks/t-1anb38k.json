@@ -1,7 +1,11 @@
 {
   "id": "t-1anb38k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-xmmvdwy",
+    "note": "Operator 2026-11-15: no invented per-language skills nobody uses; adopted repos get real skill sets (boilerplate-2026 for WordPress/frontend, typescript where TS) via t-xmmvdwy."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The python stack skill meets the stack-skill bar",

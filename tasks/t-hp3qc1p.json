@@ -1,7 +1,11 @@
 {
   "id": "t-hp3qc1p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-xmmvdwy",
+    "note": "One boilerplate-2026 skill set, not one frontend skill."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The frontend stack skill meets the stack-skill bar",
