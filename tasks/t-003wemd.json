@@ -1,7 +1,11 @@
 {
   "id": "t-003wemd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "assoc_in builds missing level over null/scalar"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "make the base test command green",
@@ -14,8 +18,8 @@
   "acceptance": [
     {
       "verify": "php tests/shim.php src/get_in.php tests/GetInTest.php",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

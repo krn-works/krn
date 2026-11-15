@@ -54,6 +54,9 @@ function assoc_in(array $array, array $keys, $value)
 
     $current = &$array;
     foreach ($keys as $key) {
+        if (!is_array($current)) {
+            $current = [];
+        }
         if (!array_key_exists($key, $current)) {
             $current[$key] = [];
         }
