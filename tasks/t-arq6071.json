@@ -1,0 +1,12 @@
+{
+  "id": "t-arq6071",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 3,
+  "title": "The walkthrough doctor steps depend on the host Product entry being fresh",
+  "after": [],
+  "body": [
+    "Why: the first-day walkthrough runs krn doctor, which exits 78 whenever the host Product entry lags origin/main (init and clone doctor steps failed for that reason alone on 2026-11-15).\nOutcome: the walkthrough judges those doctor steps independent of host entry freshness, or runs doctor against a hermetic entry.\nFiles: scripts/first-day-walkthrough.ts and its test.\nProof: the walkthrough passes with a stale host entry."
+  ]
+}
