@@ -25,3 +25,4 @@ htmlcov
 coverage.xml
 demo.py
 uv.lock
+.krn/
