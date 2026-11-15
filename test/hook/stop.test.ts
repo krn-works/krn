@@ -1654,6 +1654,32 @@ test('clause 2: a marked test that passes on head covers its clause even when it
   }
 });
 
+test('clause 1: a happy-path-only clause set is refused once naming the missing boundary class, then passes', () => {
+  const dir = clone();
+  try {
+    clauseBranch(dir, { 'test/a.test.ts': '// clause 1 clause 2\n' });
+    const env = {
+      ...clauseEnv(dir),
+      KRN_TASK_BODY: '1. Parse the header line\n2. Print the parsed header',
+    };
+    const reason = judgeStop(payload(dir), env, () => []) ?? '';
+    assert.match(reason, /no clause covers a boundary case/u);
+    assert.match(reason, /empty input/u);
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      '// clause 1 clause 2 empty input\n',
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'boundary');
+    assert.equal(
+      judgeStop(payload(dir), env, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('clause 1: the clauses a lane brief states reach Stop through KRN_TASK_BODY whatever the task record says', () => {
   const dir = clone();
   try {
