@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   adoptArgs,
+  adoptEnv,
   baseCommit,
   caseCounts,
   defaultScratch,
@@ -496,4 +497,9 @@ test('every support file of the discriminating rows exists and the mock shim ser
     { encoding: 'utf8', cwd: dir },
   );
   assert.equal(run.status, 0, run.stderr);
+});
+
+test('adoptEnv drops the test-first arm and keeps the rest', () => {
+  const env = adoptEnv({ KRN_TEST_FIRST: '1', PATH: '/bin', HOME: '/h' });
+  assert.deepEqual(env, { PATH: '/bin', HOME: '/h' });
 });

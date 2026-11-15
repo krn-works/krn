@@ -1,7 +1,11 @@
 {
   "id": "t-genkwpz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pre-registered, 9 of 12 runs graded at the cap: K+tf not better than K on any row, lower on py-fs-sweep; arm closed, adopt-env defect fixed with a test"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Test-first arm verdict on discriminating outside rows",

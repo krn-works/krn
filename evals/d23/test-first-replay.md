@@ -30,3 +30,5 @@ Attempts that exposed defects (all counted in spend, $1.81 in total of the $2 ca
 4. php rerun only: pass.
 
 Verdict: no clear signal. Both arms pass 3/3 hidden rows at about $0.13 per row, so test-first costs nothing measurable and gains nothing measurable at n=3 on rows K already solves; the rule stays opt-in (`KRN_TEST_FIRST=1`). The replay's worth was the two defects it found in the test-first check on non-JS and plain-directory repositories. The installed `krn` needs a reinstall before the fix reaches lanes in other repositories (install and seal need a separate grant).
+
+Closed by `evals/test-first-verdict.md`: K+test-first did not beat K on the discriminating rows; the arm stays opt-in and is closed.

@@ -254,6 +254,15 @@ export function hookPath(root: string, pathEnv: string | undefined): string {
   return [join(root, 'bin'), ...(pathEnv ? [pathEnv] : [])].join(delimiter);
 }
 
+/**
+ * The environment of `krn adopt`: the test-first arm applies to the worker's session, not to the
+ * canary, whose clean tree changes no test and would be refused by the test-first Stop check.
+ */
+export function adoptEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { KRN_TEST_FIRST: _arm, ...rest } = env;
+  return rest;
+}
+
 /** The commit a krn entry reports in `krn doctor` output (`entry-commit=<sha>`), if it reports one. */
 export function entryCommit(doctorOutput: string): string | undefined {
   const sha = /^entry-commit=([0-9a-f]{40})$/mu.exec(doctorOutput)?.[1];
@@ -733,7 +742,7 @@ function acceptStack(
     const { test: _delivered, ...withoutTest } = config;
     const adoptConfig: AdoptFlags =
       named?.named && named.matched.length === 0 ? withoutTest : config;
-    const adopt = run(krn, adoptArgs(dir, adoptConfig), dir, rowEnv);
+    const adopt = run(krn, adoptArgs(dir, adoptConfig), dir, adoptEnv(rowEnv));
     const keep = (name: string, text: string) =>
       appendFileSync(
         join(dirname(options.summary), `${stack}.log`),
