@@ -1,7 +1,11 @@
 {
   "id": "t-7cpkmgf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rows append exposures and propose on Stop refusals; harvest promotes cross-repo candidates onto enforced records; live run: effect 11 rows, harvest 0 candidates (no refusals), check PASS"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Outside rows write exposures and proposals and harvest promotes cross-repo candidates",
