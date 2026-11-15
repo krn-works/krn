@@ -1976,3 +1976,73 @@ test('lane run refuses any other task on a vacuous contract before the session',
   assert.match(out.verdict.line, /vacuous test command/u);
   assert.equal(out.shipped, 0);
 });
+
+const lockedManifest = (version: string) =>
+  `${JSON.stringify({ name: 'locked-pkg', version }, null, 2)}\n`;
+const lockfileOf = (version: string) =>
+  `${JSON.stringify(
+    {
+      name: 'locked-pkg',
+      version,
+      lockfileVersion: 3,
+      requires: true,
+      packages: { '': { name: 'locked-pkg', version } },
+    },
+    null,
+    2,
+  )}\n`;
+
+async function runWithManifest(action: string, files: Record<string, string>) {
+  const { base, repo, claude } = fixture(action, files);
+  process.env.KRN_LANE_CLAUDE = claude;
+  const shipped: { lock: string; subjects: string[] }[] = [];
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async (args) => {
+          const worktree = args[args.indexOf('--worktree') + 1] as string;
+          shipped.push({
+            lock: readFileSync(join(worktree, 'package-lock.json'), 'utf8'),
+            subjects: git(worktree, 'log', '--format=%s', 'origin/main..HEAD')
+              .split('\n')
+              .filter(Boolean),
+          });
+          return 'verdict: merged abc1234';
+        },
+        mint: async () => undefined,
+      },
+    );
+    return { verdict, shipped };
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+}
+
+test('lane run regenerates the tracked lockfile on the host when the worker changed package.json', async () => {
+  const { verdict, shipped } = await runWithManifest(
+    `sed -i 's/"1.0.0"/"2.0.0"/' package.json; ${deliver()}`,
+    {
+      'package.json': lockedManifest('1.0.0'),
+      'package-lock.json': lockfileOf('1.0.0'),
+    },
+  );
+  assert.equal(verdict.exitCode, 0, verdict.line);
+  assert.equal(shipped.length, 1);
+  assert.equal(JSON.parse(shipped[0]?.lock ?? '').version, '2.0.0');
+  assert.match(shipped[0]?.subjects[0] ?? '', /regenerate the lockfile/u);
+});
+
+test('lane run leaves the lockfile alone when package.json did not change', async () => {
+  const { verdict, shipped } = await runWithManifest(
+    `echo y > note.txt; git add note.txt; ${deliver()}`,
+    {
+      'package.json': lockedManifest('1.0.0'),
+      'package-lock.json': lockfileOf('1.0.0'),
+    },
+  );
+  assert.equal(verdict.exitCode, 0, verdict.line);
+  assert.equal(shipped[0]?.subjects.length, 1);
+});
