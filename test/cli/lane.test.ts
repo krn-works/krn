@@ -397,7 +397,10 @@ test('lane drop refuses an unknown lane with exit 64', () => {
   try {
     const result = lane(repo, 'drop', 'nothing');
     assert.equal(result.status, 64);
-    assert.match(result.stderr, /lane nothing does not exist/u);
+    assert.match(
+      result.stderr,
+      /lane nothing does not exist; run git worktree list/u,
+    );
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

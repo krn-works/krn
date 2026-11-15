@@ -1,0 +1,12 @@
+{
+  "id": "t-zjekzhw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "lane run preflight names the remedy when origin is unreachable",
+  "after": [],
+  "body": [
+    "Found by scripts/first-day-walkthrough.ts. `krn lane run --task ID` in a repo without origin fails \"preflight: origin unreachable with the lane credentials (git ls-remote: fatal: 'origin' does not appear to be a git repository); no session started\" and names no remedy; add \"add the GitHub remote (git remote add origin URL) and push the default branch, or check the lane credentials\". Regression test on the preflight; add the probe to the walkthrough. Outside this lane's scope (src/cli/lane-run/*)."
+  ]
+}

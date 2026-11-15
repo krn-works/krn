@@ -109,6 +109,11 @@ test('krn lane brief refuses an empty brief, a bad date and a bad task id', () =
     assert.equal(result.status, 64, `${args.join(' ')}: ${result.stderr}`);
     assert.equal(result.stdout, '');
   }
+  const empty = lane(repo, [], '');
+  assert.match(
+    empty.stderr,
+    /pass --file PATH or pipe the brief text on stdin/u,
+  );
 });
 
 test('a pytest repository on master without a tracker gets its own commands, never npm', () => {
