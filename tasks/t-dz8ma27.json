@@ -1,0 +1,12 @@
+{
+  "id": "t-dz8ma27",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "A boundary clause named in a Python test is recognised",
+  "after": [],
+  "body": [
+    "Source: outside py bug row 1115l on ed2a8f0 (.krn/runs/outside/py.log:882, summary.txt row \"py ... 73 ... hidden fail 2/6\")\nWhy: the boundary-clause floor (t-781d08h, fd072f4) refused a lane whose committed clause 3 and clause 6 tests name empty input and non-ASCII text; the lane could not see the matching rule and stopped with BLOCKER; the refusal is a false red introduced by fd072f4 (missingBoundary/namesBoundary in src/brain/acceptance-clauses.ts).\nOutcome: a boundary clause is recognised when the clause text or the marked test (name, body, comments in any stack's test syntax, e.g. pytest `test_clause_3_empty_input`, \"non-ascii\", \"unicode\", \"\") names the class; the refusal names the exact words it accepts so a lane can satisfy it.\nFiles: src/brain/acceptance-clauses.ts, src/hook/stop.ts, test/brain/acceptance-clauses.test.ts\nProof: regression test on a verbatim capture of the lane's tests and commit (worktree /mnt/storage/tmp/krn-outside/runs/py-1794760112570/.krn/worktrees/t-0x3pmx6) red before, green after; the py bug row drains 0 with hidden pass.\nPredicted: outside drain == 0 in >= 1 rows"
+  ]
+}
