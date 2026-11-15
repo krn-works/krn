@@ -53,3 +53,53 @@ No accepted record never applies: the `s-skill-*` records need WordPress or fron
 | s-skill-wp-runtime | n/a | n/a | n/a |
 
 FAIL cells per row: php=5, npm=4, py=3
+
+## After the rows drain their remediation tasks
+
+`krn adopt --tracker` already files one `Make standard <id> pass` task per failed floor or reflex record, once (a rerun finds the title; `test/adopt/adopt.test.ts`). Each row above was cloned to a scratch directory, adopted, and its `Make standard` tasks were drained by one headless `claude -p --model sonnet` session per row (no remote, about $0.4 budget each; `s-lockfile-committed` deliberately skipped), committed, then `node scripts/standards-audit.ts` was rerun over the drained clones. The drain edits only the row's CI workflow, linter config and README.
+
+FAIL cells per row, before -> after: php 5 -> 0, npm 4 -> 1, py 3 -> 0. `s-ci-runs-tests`, `s-linter-configured`, `s-readme-test-command` pass on all 3 rows (3 of 3, target was 2); `s-test-command` and `s-php-composer-scripts` pass on php. The one remaining FAIL (`s-lockfile-committed`, npm) is a real gap the drain did not take. False-red cells: 0. The `s-skill-*` records stay `n/a`: no public row is WordPress or frontend.
+
+| record | php | npm | py |
+| --- | --- | --- | --- |
+| s-tests-tracked | pass | pass | pass |
+| s-test-command | pass | pass | pass |
+| s-test-exit-code | pass | pass | pass |
+| s-ci-runs-tests | pass | pass | pass |
+| s-lockfile-committed | n/a | FAIL | n/a |
+| s-no-secrets-tracked | pass | pass | pass |
+| s-no-dependency-dirs-tracked | pass | pass | pass |
+| s-gitignore-deps | n/a | pass | pass |
+| s-linter-configured | pass | pass | pass |
+| s-typescript-strict | n/a | pass | n/a |
+| s-readme-test-command | pass | pass | pass |
+| s-no-conflict-markers | pass | pass | pass |
+| s-one-instruction-file | pass | pass | pass |
+| s-clean-checkout-tests | pass | pass | pass |
+| s-regression-lowest-layer | advisory | advisory | advisory |
+| s-plainest-input | advisory | advisory | advisory |
+| s-receiver-evidence | advisory | advisory | advisory |
+| s-role-names | advisory | advisory | advisory |
+| s-exit-codes | advisory | advisory | advisory |
+| s-secrets-redacted | advisory | advisory | advisory |
+| s-no-shared-stash | advisory | advisory | advisory |
+| s-task-records | pass | pass | pass |
+| s-repo-contract | pass | pass | pass |
+| s-agent-state | pass | pass | pass |
+| s-finish-gate | pass | pass | pass |
+| s-ticket-trailer | advisory | advisory | advisory |
+| s-php-composer-lock | pass | n/a | n/a |
+| s-php-composer-scripts | pass | n/a | n/a |
+| s-php-no-raw-request-output | pass | n/a | n/a |
+| s-php-no-tracked-salts | pass | n/a | n/a |
+| s-semantic-commits | pass | pass | pass |
+| s-noninteractive-remote-commands | pass | pass | pass |
+| s-no-whitespace-errors | pass | pass | pass |
+| s-skill-acf-component | n/a | n/a | n/a |
+| s-skill-cube-css | n/a | n/a | n/a |
+| s-skill-cube-review | n/a | n/a | n/a |
+| s-skill-design-to-build | n/a | n/a | n/a |
+| s-skill-plesk-deploy | n/a | n/a | n/a |
+| s-skill-wp-runtime | n/a | n/a | n/a |
+
+FAIL cells per row: php=0, npm=1, py=0
