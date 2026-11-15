@@ -2127,3 +2127,25 @@ test('a failed session whose transcript shows no progress exits 79 naming the re
     rmSync(config, { recursive: true, force: true });
   }
 });
+
+test('clause 6: a lane ending prints the proof line from the real Stop log, the brief and the tree', async () => {
+  const config = mkdtempSync(join(tmpdir(), 'krn-lane-run-config-'));
+  mkdirSync(join(config, 'projects', 'p'), { recursive: true });
+  writeFileSync(
+    join(config, 'projects', 'p', 'sess-pl.jsonl'),
+    `${[refusal(failingRefusal), edit('a'), refusal(`${failingRefusal} again`)].join('\n')}\n`,
+  );
+  process.env.CLAUDE_CONFIG_DIR = config;
+  try {
+    const { verdict } = await run(
+      `printf '%s' '{"type":"result","subtype":"error_max_turns","is_error":true,"session_id":"sess-pl","total_cost_usd":1.5}'; exit 0`,
+    );
+    assert.match(
+      verdict.proof ?? '',
+      /^proof: clauses \d+\/\d+, red-first [01], precedent \d+ modules, stop refusals 2$/u,
+    );
+  } finally {
+    delete process.env.CLAUDE_CONFIG_DIR;
+    rmSync(config, { recursive: true, force: true });
+  }
+});

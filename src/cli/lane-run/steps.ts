@@ -9,6 +9,8 @@ export interface LaneVerdict {
   exitCode: number;
   /** sha256 of the brain packet the session prompt carried; null when it carried none or no session prompt was built. */
   packet?: string | null;
+  /** The proof line of the run: clauses, red-first, precedent, Stop refusals. */
+  proof?: string;
 }
 
 /** The steps a task run takes outside its own logic; tests replace the ones that reach GitHub. */
