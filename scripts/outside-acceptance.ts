@@ -3,6 +3,7 @@ import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -45,6 +46,8 @@ export interface RunOptions {
   taskFile?: string;
   /** Where the harvest over the row checkouts is written. */
   harvest: string;
+  /** How many times each row runs, serially, each from a fresh clone. */
+  reps: number;
 }
 
 /** The only branches this script may push or delete: orphan bases outside/<stack>. */
@@ -71,6 +74,7 @@ export function parseOptions(
     windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
     harvest: join(root, '.krn/runs/outside/harvest.txt'),
+    reps: 1,
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
@@ -100,6 +104,11 @@ export function parseOptions(
       if (!/^[1-9]\d*$/u.test(text))
         throw new Error('outside-acceptance: --max needs a positive integer');
       options.max = Number(text);
+    } else if (arg === '--reps') {
+      const text = value();
+      if (!/^[1-9]\d*$/u.test(text))
+        throw new Error('outside-acceptance: --reps needs a positive integer');
+      options.reps = Number(text);
     } else throw new Error(`outside-acceptance: unknown argument ${arg}`);
   }
   if (options.stacks.length === 0) options.stacks = [...defaultStacks];
@@ -214,6 +223,22 @@ export function caseCounts(output: string): CaseCounts | undefined {
   return passed + failed === 0 ? undefined : { passed, total: passed + failed };
 }
 
+/**
+ * The names of the cases a runner reported failing: pytest `FAILED path::name - reason` (a parametrize
+ * suffix is kept), TAP `not ok N - name` and the PHP shim's `FAIL T::name #n`. Each name appears once.
+ */
+export function failedCases(output: string): string[] {
+  const names = new Set<string>();
+  for (const line of output.split('\n')) {
+    const found =
+      /^(?:FAILED|ERROR) (\S+?::\S+?)(?: - .*)?$/u.exec(line)?.[1] ??
+      /^not ok \d+ - (.+)$/u.exec(line)?.[1] ??
+      /^FAIL (\S+) #\d+/u.exec(line)?.[1];
+    if (found !== undefined) names.add(found.replace(/^.*::/u, ''));
+  }
+  return [...names];
+}
+
 /** The graded measures of a fixed-issue row beyond pass or fail. */
 export interface RowMetrics {
   cases?: CaseCounts | undefined;
@@ -221,6 +246,8 @@ export interface RowMetrics {
   regressions: number | undefined;
   /** Distinct records the Stop gate refused. */
   refusals: number;
+  /** Names of the hidden cases that failed on the merged tree. */
+  failed?: string[];
 }
 
 /** The summary cells of the graded measures: `cases P/T | regressions N | refusals N | turns N`. */
@@ -334,6 +361,9 @@ export function gradedRow(input: RowInput): string {
       ? []
       : metricsCells(input.metrics, drain?.turns)),
   ];
+  const failed = input.metrics?.failed;
+  if (failed !== undefined && failed.length > 0)
+    cells.push(`failed ${failed.join(' ')}`);
   const row = cells.join(' | ');
   return input.note === undefined ? row : `${row} | ${input.note}`;
 }
@@ -663,6 +693,24 @@ export function harvestRows(
   ];
 }
 
+/**
+ * The remote lane branches a row's clone owns: a task id of the clone that is also a head on the remote
+ * and whose history starts at this row's orphan base. A lane branch left by an earlier run of the same row
+ * has the same name (the ids are deterministic) and would make the next push non-fast-forward.
+ */
+export function ownedLaneBranches(
+  taskIds: string[],
+  remoteHeads: string[],
+  rootSubject: (branch: string) => string | undefined,
+  stack: string,
+): string[] {
+  return taskIds.filter(
+    (id) =>
+      remoteHeads.includes(id) &&
+      rootSubject(id) === `chore: orphan base for ${stack}`,
+  );
+}
+
 function acceptStack(
   stack: string,
   options: RunOptions,
@@ -725,6 +773,30 @@ function acceptStack(
       `outside-acceptance: ${stack}: no parent of the fix commit`,
     );
   let pushed = false;
+  const dropOwnedLaneBranches = (): void => {
+    const tasksDir = join(dir, 'tasks');
+    if (!existsSync(tasksDir)) return;
+    const ids = readdirSync(tasksDir)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length));
+    const heads = git(['ls-remote', '--heads', 'origin'])
+      .output.split('\n')
+      .map((line) => line.split('\t')[1]?.replace('refs/heads/', ''))
+      .filter((name): name is string => name !== undefined);
+    const owned = ownedLaneBranches(
+      ids,
+      heads,
+      (id) => {
+        if (git(['fetch', '--quiet', 'origin', id]).status !== 0)
+          return undefined;
+        return git(['log', '--format=%s', '--max-parents=0', 'FETCH_HEAD'])
+          .output.trim()
+          .split('\n')[0];
+      },
+      stack,
+    );
+    for (const id of owned) git(['push', 'origin', '--delete', id]);
+  };
   try {
     mkdirSync(dirname(dir), { recursive: true });
     for (const step of [['clone', '--quiet', '--no-checkout', source, dir]])
@@ -775,6 +847,7 @@ function acceptStack(
         `## ${name}\n${text}\n`,
       );
     keep('adopt', adopt.output);
+    dropOwnedLaneBranches();
     // Adopt cannot take install or related without --ref: carry them from the scratch copy's krn.json.
     const clonePath = join(dir, 'krn.json');
     if (existsSync(clonePath))
@@ -859,6 +932,10 @@ function acceptStack(
         regressions,
         refusals: refusedRecords(readExposures(dir)).length,
       };
+      const failedNames = failedCases(
+        `${graded.stdout ?? ''}${graded.stderr ?? ''}`,
+      );
+      if (failedNames.length > 0) metrics.failed = failedNames;
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
     collectRow(
@@ -885,7 +962,10 @@ function acceptStack(
       drain: drainFacts(drain.status, drain.output),
     });
   } finally {
-    if (pushed) git(['push', 'origin', '--delete', branch]);
+    if (pushed) {
+      dropOwnedLaneBranches();
+      git(['push', 'origin', '--delete', branch]);
+    }
   }
 }
 
@@ -914,7 +994,8 @@ if (import.meta.main) {
           )
           .map((row) => ({ stack: row.stack, hidden: row }));
   const checkouts: string[] = [];
-  for (const { stack, hidden } of picked) {
+  const repeated = Array.from({ length: options.reps }, () => picked).flat();
+  for (const { stack, hidden } of repeated) {
     let row: string;
     try {
       row = acceptStack(stack, options, root, hidden, checkouts);
