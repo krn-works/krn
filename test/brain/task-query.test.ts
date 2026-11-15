@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { exposureOf, servedOverlap } from '../../src/brain/exposures.ts';
-import { taskKey, taskQueryText } from '../../src/brain/task-query.ts';
+import {
+  taskKey,
+  taskQueryText,
+  touchedPaths,
+} from '../../src/brain/task-query.ts';
 import { lanePacket } from '../../src/brain/worker-packet.ts';
 
 const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
@@ -140,6 +144,29 @@ test('served overlap is the mean Jaccard of different tasks and krn standards ef
       done.stdout,
       'overlap: mean Jaccard 0.11 over 3 pair(s) of 3 task(s)\n',
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('touchedPaths lists what the working tree changed against HEAD in a real git repository', () => {
+  const root = repository({ 'a.txt': 'one\n', 'b.txt': 'one\n' });
+  const git = (...args: string[]) =>
+    spawnSync(
+      'git',
+      ['-c', 'user.name=T', '-c', 'user.email=t@e.invalid', ...args],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    );
+  try {
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-q', '-m', 'x');
+    assert.deepEqual(touchedPaths(root), []);
+    writeFileSync(join(root, 'b.txt'), 'two\n');
+    assert.deepEqual(touchedPaths(root), ['b.txt']);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

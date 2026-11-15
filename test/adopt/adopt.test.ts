@@ -322,7 +322,8 @@ test('adopt seeds the conventions file from the instruction files and the packet
     new Date().toISOString().slice(0, 10),
     'fixture',
   );
-  assert.ok(packet !== null && packet.records.length > 0);
+  // The seeded records restate the instruction files the model already holds: none is served again.
+  assert.deepEqual(packet?.records ?? [], []);
   // A rerun keeps hand edits to the seeded file.
   const edited = '[]\n';
   writeFileSync(join(root, '.krn/conventions.json'), edited);
