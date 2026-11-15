@@ -13,7 +13,7 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, posix, resolve } from 'node:path';
+import { dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   clauseMarker,
@@ -33,6 +33,7 @@ import {
 
 export { withinPackage };
 
+import { shipRecordDir } from '../repo/ship-record.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
@@ -900,20 +901,77 @@ export function shippedMerge(root: string, message: unknown): boolean {
   const sha = /^[\s>*`-]*verdict: merged ([0-9a-f]{7,40})\b/mu.exec(
     message,
   )?.[1];
-  if (sha === undefined) return false;
+  return sha !== undefined && onBase(root, sha);
+}
+
+function onBase(root: string, sha: string): boolean {
   const named = loadContract(root).contract?.base ?? 'main';
-  const onBase = () =>
+  const merged = () =>
     [`origin/${named}`, named].some(
       (ref) =>
         git(root, ['merge-base', '--is-ancestor', sha, ref]).status === 0,
     );
-  if (onBase()) return true;
+  if (merged()) return true;
   const fetched = spawnSync('git', ['fetch', '-q', 'origin', named], {
     cwd: root,
     encoding: 'utf8',
     timeout: 30_000,
   });
-  return fetched.status === 0 && onBase();
+  return fetched.status === 0 && merged();
+}
+
+/**
+ * Where `krn pr ship` recorded a merged ship for this session's lane, whose branch and worktree it then
+ * removed. The last message need not repeat the verdict: lanes ended "the branch was deleted after merge"
+ * and were refused. The record counts only while the lane branch is gone (the hook runs in a removed
+ * worktree or the main checkout) and its merge commit is on the base. It is found by branch, worktree
+ * directory name or the session's KRN_TASK.
+ */
+export function recordedShip(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  branch = '',
+): boolean {
+  const named = loadContract(root).contract?.base ?? 'main';
+  if (branch !== '' && branch !== named) return false;
+  let main: string | undefined;
+  if (existsSync(root)) {
+    const common = git(root, [
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-common-dir',
+    ]);
+    if (common.status === 0) main = dirname(common.stdout);
+  }
+  const marker = `${sep}.krn${sep}worktrees${sep}`;
+  const at = root.indexOf(marker);
+  if (main === undefined && at >= 0) main = root.slice(0, at);
+  if (main === undefined) return false;
+  const lane = at >= 0 ? root.slice(at + marker.length).split(sep)[0] : '';
+  const dir = join(main, shipRecordDir);
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return false;
+  }
+  for (const name of names) {
+    try {
+      const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
+        branch?: unknown;
+        task?: unknown;
+        sha?: unknown;
+      };
+      const ours =
+        (lane !== '' && record.branch === lane) ||
+        (env.KRN_TASK !== undefined && record.task === env.KRN_TASK);
+      if (ours && typeof record.sha === 'string' && onBase(main, record.sha))
+        return true;
+    } catch {
+      /* An unreadable record proves nothing. */
+    }
+  }
+  return false;
 }
 
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
@@ -971,6 +1029,7 @@ export function judgeStop(
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
   if (subagent && shippedMerge(root, fields?.last_assistant_message))
     return undefined;
+  if (recordedShip(root, env, branch)) return undefined;
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.

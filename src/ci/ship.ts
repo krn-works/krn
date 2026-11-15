@@ -9,6 +9,7 @@ import {
   run,
   sleep,
 } from '../deliver/transport.ts';
+import { recordShip } from '../repo/ship-record.ts';
 import { titleProblem } from './commit-title.ts';
 import { withReplyCheck } from './gh-reply.ts';
 import { gitLockError } from './git-lock.ts';
@@ -108,7 +109,10 @@ export async function shipCommand(
     git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
   );
   // The PR is merged by now: a refused removal is a warning, never a failed ship.
-  const cleanup = () => {
+  const task =
+    process.env.KRN_TASK ?? /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1];
+  const cleanup = (sha: string) => {
+    recordShip(main, { branch, sha, ...(task ? { task } : {}) });
     if (worktree === main) return 'cleanup: skipped (not a linked worktree)';
     try {
       git(['worktree', 'remove', '--force', worktree], main);
@@ -141,7 +145,7 @@ export async function shipCommand(
     return [
       `pr: #${mergedPr} ${repo} ${localHead}`,
       `verdict: merged ${mergedSha}`,
-      cleanup(),
+      cleanup(mergedSha ?? 'unknown'),
     ].join('\n');
   }
 
@@ -373,7 +377,11 @@ export async function shipCommand(
   }
   const lines = [`pr: #${pr} ${repo} ${head}`, waited];
   if (/^verdict: merged /mu.test(waited)) {
-    lines.push(cleanup());
+    lines.push(
+      cleanup(
+        /^verdict: merged ([0-9a-f]{7,40})/mu.exec(waited)?.[1] ?? 'unknown',
+      ),
+    );
     return lines.join('\n');
   }
   const exitCode =
