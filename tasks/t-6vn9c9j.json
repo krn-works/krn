@@ -4,9 +4,9 @@
   "resolution": null,
   "created": "2026-11-15",
   "priority": 0,
-  "title": "An adopted repository gets architecture and its stack skill",
+  "title": "The installer copies whole skill directories chosen by stack",
   "after": [],
   "body": [
-    "Source: operator 2026-11-15 (\"rób skille per stack\"): an adopted Python repository gets none of the skills this repository works with.\nWhy: `krn adopt` (src/adopt/adopt.ts:474-497) installs only src/adopt/skills/ delivery-lead and delivery-retro; the universal `architecture` skill and any language skill (only TypeScript exists, .agents/skills/typescript) never reach an adopted repo, so the brain carries rules (standards pack) but no per-stack procedure.\nOutcome: adopt installs `architecture` in every repo and one skill per detected stack (typescript, python, php, wordpress, go, rust, frontend from boilerplate-2026 skills), each free of KRN-process text, under .agents/skills with the .claude/skills link; `krn adopt --verify`/drift report a missing or stale stack skill; existing adopted repos get them on re-adopt.\nFiles: src/adopt/skills/, src/adopt/adopt.ts, src/brain/first-test.ts (stack detection), test/adopt/\nProof: adopt on the py, php, npm, go and rust outside scratch copies writes architecture plus the stack skill; an outside py row drains 0 with the python skill present.\nPredicted: outside adopt == 0 in >= 5 rows"
+    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 1\nWhy: the installer copies only SKILL.md and installs two fixed skills; no stack selection, no python stack (operator 2026-11-15: one universal skill system, per-stack skills).\nOutcome: src/adopt/skill-set.ts alone maps repository facts to the skill set (core + one stack skill); writeSkills copies whole skill directories (lanes.md ships); first-test.ts detects python; drift reports a missing or changed skill file.\nFiles: src/adopt/adopt.ts, src/adopt/skill-set.ts, src/brain/first-test.ts, src/adopt/drift.ts, test/adopt/\nProof: adopt on a py fixture writes the core skills plus python and no other stack skill; drift reports a deleted lanes.md.\nPredicted: outside adopt == 0 in >= 5 rows"
   ]
 }

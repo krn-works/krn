@@ -1,0 +1,14 @@
+{
+  "id": "t-wm195av",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Outside rows prove they run KRN's own core skills",
+  "after": [
+    "t-a8va9ce"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-skills-1115l.md slice 6\nWhy: nothing proves an outside repo runs the same skills as KRN.\nOutcome: each outside row records the hash of its installed core skills; it equals KRN own; py, php, go and rust rows drain 0.\nFiles: scripts/outside-acceptance.ts or src/adopt/census.ts, test/adopt/parity.test.ts\nProof: four rows print a matching skill hash and drain 0.\nPredicted: outside drain == 0 in >= 4 rows"
+  ]
+}
