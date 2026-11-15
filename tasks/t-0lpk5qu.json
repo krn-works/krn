@@ -1,0 +1,21 @@
+{
+  "id": "t-0lpk5qu",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "one real test and a test command",
+  "after": [],
+  "body": [
+    "Outcome: the repository has one real test and a test command in krn.json that runs it; \"vacuous\" is dropped from krn.json.",
+    "Why: the base declares no test command, and lane run admits only this task on it.",
+    "Proof: the test command exits 0 and runs at least one test."
+  ],
+  "acceptance": [
+    {
+      "verify": "node --test test/*.test.mjs",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
