@@ -1,10 +1,16 @@
 // krn adopt --init: git init and a test skeleton.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 
-export const INIT_STACKS = ['ts', 'php', 'python'] as const;
+export const INIT_STACKS = ['ts', 'php', 'python', 'wp-plugin', 'go'] as const;
 export type InitStack = (typeof INIT_STACKS)[number];
 
 export interface InitReport {
@@ -29,11 +35,61 @@ function git(root: string, args: string[]) {
 /** The stack named by a manifest in the directory, undefined when none is there. */
 export function detectInitStack(root: string): InitStack | undefined {
   if (existsSync(join(root, 'package.json'))) return 'ts';
-  if (existsSync(join(root, 'composer.json'))) return 'php';
+  if (existsSync(join(root, 'go.mod'))) return 'go';
+  if (existsSync(join(root, 'composer.json')))
+    return hasPluginHeader(root) ? 'wp-plugin' : 'php';
   for (const file of ['pyproject.toml', 'setup.py', 'requirements.txt'])
     if (existsSync(join(root, file))) return 'python';
   return undefined;
 }
+
+/** A top-level PHP file whose opening comment names a WordPress plugin. */
+function hasPluginHeader(root: string): boolean {
+  try {
+    return readdirSync(root).some(
+      (name) =>
+        name.endsWith('.php') &&
+        /^[ \t*@]*Plugin Name:/mu.test(
+          readFileSync(join(root, name), 'utf8').slice(0, 8192),
+        ),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pluginFile(name: string): string {
+  return [
+    '<?php',
+    '/**',
+    ` * Plugin Name: ${name}`,
+    ' * Version: 0.1.0',
+    ` * Text Domain: ${name}`,
+    ' */',
+    '',
+    "if ( ! defined( 'ABSPATH' ) ) {",
+    '    exit;',
+    '}',
+    '',
+  ].join('\n');
+}
+
+function pluginReadme(name: string): string {
+  return `=== ${name} ===\nStable tag: 0.1.0\n\n== Description ==\n${name}.\n`;
+}
+
+const smokeGo = [
+  'package project',
+  '',
+  'import "testing"',
+  '',
+  'func TestProjectTestCommandRuns(t *testing.T) {',
+  '\tif 1+1 != 2 {',
+  '\t\tt.Fatal("arithmetic is broken")',
+  '\t}',
+  '}',
+  '',
+].join('\n');
 
 const smokeTs = [
   "import assert from 'node:assert/strict';",
@@ -141,8 +197,17 @@ export function ciWorkflow(
       ],
       run('npm test'),
     );
-  if (stack === 'php')
+  if (stack === 'php' || stack === 'wp-plugin')
     return workflow([], run('composer install --no-interaction && make test'));
+  if (stack === 'go')
+    return workflow(
+      [
+        '      - uses: actions/setup-go@v5',
+        '        with:',
+        '          go-version-file: go.mod',
+      ],
+      run('go test ./...'),
+    );
   return workflow(
     [
       '      - uses: actions/setup-python@v5',
@@ -182,8 +247,23 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       'test/smoke.test.ts': smokeTs,
       [ci]: ciWorkflow(stack),
     };
-  if (stack === 'php')
+  if (stack === 'go')
     return {
+      'go.mod': `module example.com/${name}\n\ngo 1.22\n`,
+      [`${name}_test.go`]: smokeGo,
+      '.golangci.yml': 'version: "2"\n',
+      '.gitignore': 'bin/\n',
+      'README.md': readme(name, 'go test ./...'),
+      [ci]: ciWorkflow(stack),
+    };
+  if (stack === 'php' || stack === 'wp-plugin')
+    return {
+      ...(stack === 'wp-plugin'
+        ? {
+            [`${name}.php`]: pluginFile(name),
+            'readme.txt': pluginReadme(name),
+          }
+        : {}),
       'composer.json': json({
         name: `project/${name}`,
         'require-dev': { 'phpunit/phpunit': '^11' },
@@ -212,6 +292,7 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
 
 /** The test command the adoption contract records for a skeleton that detection cannot name. */
 export function initTestCommand(stack: InitStack): string | undefined {
+  if (stack === 'go') return 'go test ./...';
   return stack === 'python'
     ? 'python -m unittest discover -s tests'
     : undefined;
@@ -219,7 +300,9 @@ export function initTestCommand(stack: InitStack): string | undefined {
 
 /** The install command a fresh checkout needs before its tests run. */
 export function initInstallCommand(stack: InitStack): string | undefined {
-  return stack === 'php' ? 'composer install' : undefined;
+  return stack === 'php' || stack === 'wp-plugin'
+    ? 'composer install'
+    : undefined;
 }
 
 /**
@@ -267,7 +350,10 @@ export function initDirectory(root: string, named?: string): InitReport {
     written.push(file);
   }
   const warnings: string[] = [];
-  if (stack === 'php' && !existsSync(join(root, 'composer.lock'))) {
+  if (
+    (stack === 'php' || stack === 'wp-plugin') &&
+    !existsSync(join(root, 'composer.lock'))
+  ) {
     const locked = spawnSync(
       'composer',
       ['update', '--no-install', '--no-interaction', '--no-scripts'],
