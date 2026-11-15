@@ -27,8 +27,9 @@ function createObjects (acc, p) {
 
 function parseLink(link) {
   try {
-    var parts     =  link.split(';')
-      , linkUrl   =  parts.shift().replace(/[<>]/g, '')
+    var close     =  link.indexOf('>')
+      , parts     =  close === -1 ? link.split(';') : link.slice(close + 1).split(';')
+      , linkUrl   =  (close === -1 ? parts.shift() : link.slice(0, close)).replace(/[<>]/g, '')
       , parsedUrl =  url.parse(linkUrl)
       , qry       =  qs.parse(parsedUrl.query);
 
