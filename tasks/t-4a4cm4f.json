@@ -1,0 +1,14 @@
+{
+  "id": "t-4a4cm4f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests` exits 2 on the clean master tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. t False, \"krn canary\" E AssertionError: krn canary E assert False =========================== short test summary info ============================ ERROR tests/test_import.py - AssertionError: krn canary !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!! 1 error in 0.11s",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}
