@@ -164,6 +164,8 @@ src/state/write.ts: Writers for the capsule a
 src/successor/command.ts: Child process helpe
 src/successor/compose.ts: Launch composition.
 src/successor/handoff-requests.ts: Handoff re
+src/successor/host-failure.ts: What the termi
+src/successor/host-hc.ts: The Herdr desktop (
 src/successor/host-herdr.ts: The Herdr adapte
 src/successor/intent-to-task.ts: Prompt to ta
 src/successor/launch.ts: Successor launch.

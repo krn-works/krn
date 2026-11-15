@@ -2,6 +2,7 @@
 // agent sessions without knowing which terminal multiplexer hosts them.
 
 import { sleep } from './command.ts';
+import { hcHost } from './host-hc.ts';
 import { herdrHost } from './host-herdr.ts';
 
 declare const refBrand: unique symbol;
@@ -72,9 +73,12 @@ export function isFailure(value: unknown): value is HostFailure {
   return typeof value === 'object' && value !== null && 'exit' in value;
 }
 
-// Herdr is the only host; HC_TERMINAL_ID will select another by environment.
+// The Herdr desktop app (hc) hosts the terminal named by HC_TERMINAL_ID; the
+// Herdr multiplexer, the default, the pane named by HERDR_PANE_ID. A terminal
+// started by hc inherits the core's HERDR_* variables (observed with hc 0.1.20),
+// so HC_TERMINAL_ID wins when both are set.
 export function selectHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
-  return herdrHost(env);
+  return env.HC_TERMINAL_ID ? hcHost(env) : herdrHost(env);
 }
 
 // How often a launch asks the host whether the successor's agent has shown.

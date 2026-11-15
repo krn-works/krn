@@ -72,14 +72,18 @@ function replyScript({ stdout = '', stderr = '', status = 0 }: Reply): string {
 }
 
 /**
- * Writes `herdr` into `bin`: a stub that runs only shell builtins, so a call
+ * Writes `herdr` (or the multiplexer CLI `command`, such as `hc`) into `bin`: a stub that runs only shell builtins, so a call
  * costs a shell start instead of a Node start (4 against 57 ms on the lead
  * host). It logs each call, then answers it from `replies`. Its replies and
  * log live in the sibling directory `herdr`; answers the log's path, which
  * exists from the first call.
  */
-export function installHerdr(bin: string, replies: Replies): string {
-  const state = join(dirname(bin), 'herdr');
+export function installHerdr(
+  bin: string,
+  replies: Replies,
+  command = 'herdr',
+): string {
+  const state = join(dirname(bin), command);
   const table = join(state, 'replies');
   for (const [key, entry] of Object.entries(replies)) {
     assert.ok(
@@ -94,7 +98,7 @@ export function installHerdr(bin: string, replies: Replies): string {
     });
   }
   const calls = join(state, 'calls');
-  writeExecutable(join(bin, 'herdr'), [
+  writeExecutable(join(bin, command), [
     '#!/bin/sh',
     `replies=${quote(table)}`,
     `calls=${quote(calls)}`,

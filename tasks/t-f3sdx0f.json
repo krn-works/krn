@@ -1,7 +1,11 @@
 {
   "id": "t-f3sdx0f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hc host adapter (src/successor/host-hc.ts) chosen by HC_TERMINAL_ID over HERDR_PANE_ID; every hc call tested against verbatim hc 0.1.20 captures (test/fixtures/hc), incl. a launcher run with retire-by-label. Live proof still open: run 'successor-launch.ts' then '--retire' from a Claude lead inside the desktop app window; hc round trips (run/get/send/wait/label/kill) were run read-write against the live hc core from the lane, but the lane is not inside an hc terminal."
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Successor relay works inside the Herdr desktop app (hc) as well as the herdr multiplexer",
