@@ -44,6 +44,7 @@ import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
+//   krn hook stop --red        prints the changed test files that fail against the base (the lane proof line's red-first)
 //   krn hook stop --check      runs them; exit 0 only with a commit and green tests
 // D23 arm K ended 7 of 20 n100 runs without a commit (four in under 40 s), and a scoped test list given to the
 // agent measured +5 pp at lower cost. A worker session (KRN_SESSION_CLASS=lane or KRN_ROLE=worker) is refused
@@ -709,12 +710,13 @@ function clauseRefusal(
     ),
   );
   const red = redAtBase(root, from, [...candidates], run, shell, contract);
+  const characterization = testsOnlyDiff(root, from);
   const uncovered = clauses.flatMap((text, i) => {
     const n = numberOf(i);
     if (declaresNotReproducible(messages, n)) return [];
     const proven = marked(n).some(
       (file) =>
-        red.has(file) &&
+        (characterization || red.has(file)) &&
         runTestFile(root, file, run, shell, contract).length === 0,
     );
     return proven ? [] : [`clause ${n}: ${text.slice(0, 80)}`];
@@ -738,6 +740,32 @@ function runTestFile(
         dir,
         relatedCommand(contract, withinPackage(contract.related ?? '', [file])),
       );
+}
+
+/**
+ * Characterization mode: the branch changes only test files (and tracker records), so no source exists
+ * for a test to be red against; a test that passes at the base and on head is the proof.
+ */
+function testsOnlyDiff(root: string, from: string): boolean {
+  const changed = changedSinceBase(root, from);
+  return (
+    changed.some(isTestFile) &&
+    changed.every((path) => isTestFile(path) || path.startsWith('tasks/'))
+  );
+}
+
+/** The changed test files of the branch that fail against the base source: what the lane proof line counts as red-first. */
+export function redTestsAtBase(
+  root: string,
+  run: Runner = runTests,
+  shell: CommandRunner = runCommand,
+): string[] {
+  const { contract } = loadContract(root);
+  const from = base(root, contract);
+  const changed = changedSinceBase(root, from).filter(
+    (path) => isTestFile(path) && existsSync(join(root, path)),
+  );
+  return [...redAtBase(root, from, changed, run, shell, contract)];
 }
 
 /** The files among `changed` that fail against the base source, run with the head file in place in a detached worktree. */
@@ -794,9 +822,10 @@ function testFirstRefusal(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
   const red = redAtBase(root, from, changed, run, shell, contract);
+  const characterization = testsOnlyDiff(root, from);
   const proven = changed.find(
     (file) =>
-      red.has(file) &&
+      (characterization || red.has(file)) &&
       runTestFile(root, file, run, shell, contract).length === 0,
   );
   if (proven !== undefined) return undefined;
@@ -1163,6 +1192,11 @@ function main() {
   const root = resolve(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
   if (mode === '--related') {
     process.stdout.write(`${related(root).join('\n')}\n`);
+    return;
+  }
+  if (mode === '--red') {
+    const red = redTestsAtBase(root);
+    process.stdout.write(red.length > 0 ? `${red.join('\n')}\n` : '');
     return;
   }
   if (mode === '--check') {

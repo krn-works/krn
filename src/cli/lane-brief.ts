@@ -42,7 +42,7 @@ export function workerRules(
 
 /** On by default (KRN_TEST_FIRST=0 drops it): the Stop hook enforces it. */
 export const TEST_FIRST_RULE =
-  'Test first: prove red at base. Before you change source, commit or at least write a test that fails against the base source and shows the defect or missing behavior; your session is refused its end unless a changed test fails at the base and passes on your commit.';
+  'Test first: prove red at base. Before you change source, commit or at least write a test that fails against the base source and shows the defect or missing behavior; your session is refused its end unless a changed test fails at the base and passes on your commit. Characterization mode: when the task only adds tests for behaviour that already works and you change no source, a diff of test files alone passes when the new tests pass at the base and on your commit; any source change still needs a test that is red at the base.';
 
 function baseWorkerRules(repo: string): string {
   if (existsSync(join(repo, STOP_SCRIPT)))

@@ -92,6 +92,10 @@
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"
     },
+    "src/cli/lane-run/verdict.ts": {
+      "receivers": ["node"],
+      "real": "test/hook/stop.test.ts"
+    },
     "src/cli/lane-run/steps.ts": {
       "receivers": ["node"],
       "real": "test/cli/lane-run.test.ts"
