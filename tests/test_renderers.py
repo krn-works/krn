@@ -81,3 +81,55 @@ class TestRendererMethodRegistration(TestCase):
             renderer.render_token(token, BlockState()),
             '<a href="/wiki/python">Python</a>',
         )
+
+
+def test_markdown_task_list_item():
+    from mistune import create_markdown
+    from mistune.renderers.markdown import MarkdownRenderer
+
+    md = create_markdown(renderer=MarkdownRenderer(), plugins=["task_lists"])
+    assert md("- [x] a task") == "- [x] a task\n"
+    assert md("- [ ] todo") == "- [ ] todo\n"
+
+
+def test_markdown_task_list_item_override():
+    from mistune import create_markdown
+    from mistune.renderers.markdown import MarkdownRenderer
+
+    class R(MarkdownRenderer):
+        def task_list_item(self, token, state):
+            return "- TASK\n"
+
+    md = create_markdown(renderer=R(), plugins=["task_lists"])
+    assert md("- [x] a task") == "- TASK\n"
+
+
+def test_markdown_table():
+    from mistune import create_markdown
+    from mistune.renderers.markdown import MarkdownRenderer
+
+    md = create_markdown(renderer=MarkdownRenderer(), plugins=["table"])
+    assert md("| A | B |\n|---|---|\n| 1 | 2 |\n") == "| A | B |\n| --- | --- |\n| 1 | 2 |\n"
+    assert md("| A | B |\n|:--|--:|\n| 1 | 2 |\n") == "| A | B |\n| :--- | ---: |\n| 1 | 2 |\n"
+
+
+def test_standalone_list_item_token():
+    from mistune.core import BlockState
+    from mistune.renderers.markdown import MarkdownRenderer
+
+    token = {"type": "list_item", "children": [{"type": "paragraph", "children": [{"type": "text", "raw": "x"}]}]}
+    assert MarkdownRenderer().render_token(token, BlockState()) == "- x\n\n"
+
+
+def test_rst_list_item_and_table():
+    from mistune import create_markdown
+    from mistune.core import BlockState
+    from mistune.renderers.rst import RSTRenderer
+
+    md = create_markdown(renderer=RSTRenderer(), plugins=["table", "task_lists"])
+    assert md("| A | B |\n|---|---|\n| 1 | 2 |\n") == (
+        "+---+---+\n| A | B |\n+===+===+\n| 1 | 2 |\n+---+---+\n"
+    )
+    assert md("- [x] a task") == "- [x] a task\n"
+    token = {"type": "list_item", "children": [{"type": "paragraph", "children": [{"type": "text", "raw": "x"}]}]}
+    assert RSTRenderer().render_token(token, BlockState()) == "- x\n\n"

@@ -1,7 +1,11 @@
 {
   "id": "t-0o113fb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Markdown and RST renderers render list_item, task_list_item and table"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "The Markdown renderer cannot render nodes that plugins add",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

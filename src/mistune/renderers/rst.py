@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterable, List, cast
 
 from ..core import BaseRenderer, BlockState
 from ..util import strip_end
-from ._list import render_list
+from ._list import render_list, render_list_item, render_task_list_item
 
 
 class RSTRenderer(BaseRenderer):
@@ -147,3 +147,30 @@ class RSTRenderer(BaseRenderer):
 
     def list(self, token: Dict[str, Any], state: BlockState) -> str:
         return render_list(self, token, state)
+
+    def list_item(self, token: Dict[str, Any], state: BlockState) -> str:
+        return render_list_item(self, token, state)
+
+    def task_list_item(self, token: Dict[str, Any], state: BlockState) -> str:
+        return render_task_list_item(self, token, state)
+
+    def table(self, token: Dict[str, Any], state: BlockState) -> str:
+        head, body = token["children"]
+        header = [self._table_cell(c, state) for c in head["children"]]
+        rows = [[self._table_cell(c, state) for c in r["children"]] for r in body["children"]]
+        widths = [max(len(r[i]) for r in [header] + rows) for i in range(len(header))]
+
+        def rule(ch: str) -> str:
+            return "+" + "+".join(ch * (w + 2) for w in widths) + "+"
+
+        def line(cells: List[str]) -> str:
+            return "|" + "|".join(" " + c.ljust(w) + " " for c, w in zip(cells, widths)) + "|"
+
+        out = [rule("-"), line(header), rule("=")]
+        for r in rows:
+            out.append(line(r))
+            out.append(rule("-"))
+        return "\n".join(out) + "\n\n"
+
+    def _table_cell(self, cell: Dict[str, Any], state: BlockState) -> str:
+        return self.render_children(cell, state).replace("\n", " ")

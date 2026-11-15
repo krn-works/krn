@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, cast
 
 from ..core import BaseRenderer, BlockState
 from ..util import strip_end
-from ._list import render_list
+from ._list import render_list, render_list_item, render_task_list_item
 
 fenced_re = re.compile(r"^[`~]+", re.M)
 
@@ -133,6 +133,30 @@ class MarkdownRenderer(BaseRenderer):
 
     def list(self, token: Dict[str, Any], state: BlockState) -> str:
         return render_list(self, token, state)
+
+    def list_item(self, token: Dict[str, Any], state: BlockState) -> str:
+        return render_list_item(self, token, state)
+
+    def task_list_item(self, token: Dict[str, Any], state: BlockState) -> str:
+        return render_task_list_item(self, token, state)
+
+    def table(self, token: Dict[str, Any], state: BlockState) -> str:
+        head, body = token["children"]
+        header_cells = head["children"]
+        rows = [[self._table_cell(c, state) for c in header_cells]]
+        aligns = [c["attrs"].get("align") for c in header_cells]
+        for row in body["children"]:
+            rows.append([self._table_cell(c, state) for c in row["children"]])
+        markers = {"left": ":---", "right": "---:", "center": ":---:"}
+        lines = ["| " + " | ".join(rows[0]) + " |"]
+        lines.append("| " + " | ".join(markers.get(a or "", "---") for a in aligns) + " |")
+        for cells in rows[1:]:
+            lines.append("| " + " | ".join(cells) + " |")
+        return "\n".join(lines) + "\n\n"
+
+    def _table_cell(self, cell: Dict[str, Any], state: BlockState) -> str:
+        text = self.render_children(cell, state).replace("\n", " ")
+        return re.sub(r"(?<!\\)\|", r"\\|", text)
 
 
 def _escape_block_prefix(text: str) -> str:
