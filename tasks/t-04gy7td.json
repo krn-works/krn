@@ -1,0 +1,19 @@
+{
+  "id": "t-04gy7td",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "File, path and named-tuple helpers each have a bug",
+  "after": [],
+  "body": [
+    "Bugs seen in boltons: (1) FilePerms.from_int(0o007) does not round-trip through int(), and from_int(0o070) gives user permissions where only group should have them; revoking a permission from a FilePerms leaves the integer value wrong (a user write bit revoked from 0o600 style permissions must leave 0o400). (2) When flushing the part file of an AtomicSaver fails, the part file is left open and on disk and the failure is not cleaned up, so it should close and remove the part file and never create the destination. (3) iter_find_files given a directory path that ends with a path separator returns a different set of files than the same path without the trailing separator. (4) namedtuple and namedlist given a field name such as 'value\\u00b2' (alphanumeric but not a valid identifier) fail with SyntaxError instead of the documented ValueError, and with rename=True they do not rename it. (5) pathutils.shrinkuser when the home directory is the filesystem root '/' does not shorten paths under it to '~/project/file' and the root itself to '~'."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

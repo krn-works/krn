@@ -52,3 +52,5 @@ nosetests.xml
 *.sw[op]
 
 .cache/
+.krn/
+__pycache__/
