@@ -7,6 +7,6 @@
   "title": "Composer-only PHP repositories are adopted with the PHP records column",
   "after": [],
   "body": [
-    "Why: Fable 1115f slice 1; src/adopt/adopt.ts seeds by detectStack, so a composer.json repo without PHPUnit misses the PHP column.\nOutcome: the adoption seed takes its stack from repositoryFacts.\nFiles: src/adopt/adopt.ts and its test.\nProof: a fixture with composer.json and no PHPUnit seeds the nine PHP records and drift reports 0."
+    "Why: Fable 1115f slice 1; src/adopt/adopt.ts seeds by detectStack, so a composer.json repo without PHPUnit misses the PHP column.\nOutcome: adopting a fixture with composer.json and no PHPUnit seeds 9 PHP records (the seed takes its stack from repositoryFacts) and krn adopt drift reports 0.\nFiles: src/adopt/adopt.ts and its test.\nProof: the adopt test passes on that fixture: 9 PHP records seeded, drift 0."
   ]
 }
