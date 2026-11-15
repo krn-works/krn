@@ -96,6 +96,8 @@ export function lanePacket(
   });
 }
 
+export { clauseSection } from './acceptance-clauses.ts';
+
 /** The brief the worker receives: the packet as a conventions block, then the lead's brief. */
 export function packetBrief(packet: Packet | null, brief: string): string {
   if (packet === null || packet.records.length === 0) return brief;
