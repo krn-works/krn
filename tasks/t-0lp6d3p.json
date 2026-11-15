@@ -1,0 +1,19 @@
+{
+  "id": "t-0lp6d3p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Cache, counter, JSON line, size and URL helpers each have a bug",
+  "after": [],
+  "body": [
+    "Bugs seen in boltons: (1) ThresholdCounter.update({'a': 3, 'b': 2, 'zero': 0}) and update(['a'], a=3, b=2) do not add the mapping counts or keyword counts (zero counts must not create items) and total is wrong; compaction after a mapping update must match the same data fed one by one; most_common(0) returns something other than []. (2) LRI/LRU .update() with no source, only keywords, or with the cache itself as source raises TypeError or mishandles keys. (3) jsonutils.reverse_iter_lines ignores the encoding of a text file opened with encoding='latin-1', ignores encoding= on a binary stream, and detaches a text stream so it cannot be read afterwards. (4) strutils.bytes2human(1024 ** 8) is wrong for the largest unit (should be '1Y'). (5) URL('http://:secret@example.com/path') with a password but no username drops the password in to_text() and get_authority(with_userinfo=True), and setting url.password = 'p@ss' must round-trip percent-quoted."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
