@@ -8,6 +8,8 @@ import { failingFiles, outOfScope } from '../../evals/d23/grade.ts';
 import {
   classifyUnit,
   mcnemarP,
+  pairedSummary,
+  parseCompareTable,
   regradeUnit,
   summaryLine,
   type UnitGrade,
@@ -146,4 +148,69 @@ test('unit selection drops a follow-up PR whose task an earlier first-parent com
     '\u0001Record trims without a PR suffix (t-kfydr8a)\ndocs/z.md\n',
   ].join('');
   assert.deepEqual(select(parseLog(log), {}), ['585']);
+});
+
+const compareSlice = `| pr | arm | plain functional/applied | --index functional/applied | differs |
+|---|---|---|---|---|
+| 473 | K | true/true | true/true | false |
+| 476 | P | false/true | false/false | true |
+| 478 | K | false/true | false/false | true |
+| 524 | K | false/true | false/true | false |
+| 524 | P | true/true | true/true | false |
+`;
+
+test('the plain-versus-index table is read cell by cell and the differing arms are counted', () => {
+  const cells = parseCompareTable(compareSlice);
+  assert.equal(cells.length, 5);
+  assert.deepEqual(cells[1], {
+    pr: '476',
+    arm: 'P',
+    plain: { functional: false, applied: true },
+    index: { functional: false, applied: false },
+  });
+  assert.equal(
+    cells.filter((c) => c.index.applied !== c.plain.applied).length,
+    2,
+  );
+  assert.equal(
+    cells.filter((c) => c.index.functional !== c.plain.functional).length,
+    0,
+  );
+});
+
+test('the corrected paired summary names both counts, the difference, its interval and p', () => {
+  const arm = (functional: boolean) => ({
+    ran: true,
+    applied: true,
+    excluded: [],
+    failureTail: {},
+    failToPass: {},
+    passToPassHidden: {},
+    regressions: [],
+    fullSuiteRan: false,
+    functional,
+    outOfScope: [],
+    scopeClean: true,
+  });
+  const unit = (pr: string, k: boolean, p: boolean) =>
+    ({
+      pr,
+      parent: '',
+      merge: '',
+      failToPass: [],
+      passToPassHidden: [],
+      validOnMerge: true,
+      K: arm(k),
+      P: arm(p),
+    }) satisfies UnitGrade;
+  const line = pairedSummary([
+    unit('1', true, false),
+    unit('2', false, true),
+    unit('3', false, true),
+    unit('4', false, false),
+  ]);
+  assert.match(
+    line,
+    /^corrected paired K - P: K 1\/4, P 2\/4, difference -25\.0 pp, 95% CI \[[^\]]+\], McNemar p=1\.000$/,
+  );
 });

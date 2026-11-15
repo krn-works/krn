@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { type Observation, pairedDifference } from './analysis.ts';
 import {
   type ArmGrade,
   type Classified,
@@ -62,6 +63,56 @@ export function summaryLine(grades: UnitGrade[]): string {
     paired.filter((g) => g.K.functional && !g.P.functional).length,
     paired.filter((g) => g.P.functional && !g.K.functional).length,
   )}`;
+}
+
+/** Paired K - P over the units valid on the merge where both arms produced a patch, with a clustered 95% CI and the exact McNemar p. */
+export function pairedSummary(grades: UnitGrade[]): string {
+  const paired = grades.filter((g) => g.validOnMerge && g.K.ran && g.P.ran);
+  const obs: Observation[] = paired.flatMap((g) =>
+    (['K', 'P'] as const).map((arm) => ({
+      unit: g.pr,
+      arm,
+      run: 1,
+      correct: g[arm].functional,
+      scopeClean: g[arm].scopeClean,
+      refusal: false,
+      costUsd: 0,
+    })),
+  );
+  const d = pairedDifference(obs, 'K', 'P');
+  const n = paired.length;
+  const k = paired.filter((g) => g.K.functional).length;
+  const p = paired.filter((g) => g.P.functional).length;
+  const pp = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)} pp`;
+  return `corrected paired K - P: K ${k}/${n}, P ${p}/${n}, difference ${pp(d.diff)}, 95% CI [${pp(d.ciLow)}, ${pp(d.ciHigh)}], McNemar p=${mcnemarP(
+    paired.filter((g) => g.K.functional && !g.P.functional).length,
+    paired.filter((g) => g.P.functional && !g.K.functional).length,
+  )}`;
+}
+
+export interface TableCell {
+  pr: string;
+  arm: string;
+  plain: { functional: boolean; applied: boolean };
+  index: { functional: boolean; applied: boolean };
+}
+
+/** Rows of the plain-versus-index comparison table: `| pr | arm | f/a | f/a | differs |`. */
+export function parseCompareTable(md: string): TableCell[] {
+  const pair = (s: string) => {
+    const [f, a] = s.trim().split('/');
+    return { functional: f === 'true', applied: a === 'true' };
+  };
+  return md
+    .split('\n')
+    .map((l) => l.split('|').map((c) => c.trim()))
+    .filter((c) => /^\d+$/.test(c[1] ?? '') && /^(K|P)$/.test(c[2] ?? ''))
+    .map((c) => ({
+      pr: c[1] ?? '',
+      arm: c[2] ?? '',
+      plain: pair(c[3] ?? ''),
+      index: pair(c[4] ?? ''),
+    }));
 }
 
 export function table(grades: UnitGrade[]): string {
@@ -209,7 +260,7 @@ async function main() {
     (u) =>
       JSON.parse(readFileSync(join(out, `${u}.json`), 'utf8')) as UnitGrade,
   );
-  const report = `${table(grades)}\n\n${summaryLine(grades)}\n`;
+  const report = `${table(grades)}\n\n${summaryLine(grades)}\n${pairedSummary(grades)}\n`;
   writeFileSync(join(out, 'table.md'), report);
   process.stdout.write(report);
 }
