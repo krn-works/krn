@@ -30,7 +30,7 @@ import {
 
 export const remoteUrl = 'https://github.com/krn-works/krn.git';
 export const summaryHeader =
-  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden | hook';
+  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden | hook | cases | suite regressions | stop refusals | turns';
 const defaultStacks = ['php', 'npm', 'py'];
 
 export interface RunOptions {
@@ -127,6 +127,8 @@ export function baseCommit(
 export interface AdoptFlags {
   base?: string;
   test?: string;
+  /** The base's existing suite, run on the worker's merged tree before the hidden files return: its failures are regressions. */
+  suite?: string;
   install?: string;
   related?: string;
 }
@@ -144,6 +146,7 @@ export interface DrainFacts {
   merged: number;
   prs: string[];
   usd: number;
+  turns: number;
 }
 
 /** Read the drain's output: one `<id> <id> exit=N` line per session, shipped PR numbers and cost. */
@@ -167,7 +170,70 @@ export function drainFacts(exitCode: number, output: string): DrainFacts {
   let usd = 0;
   for (const match of output.matchAll(/cost \$(\d+(?:\.\d+)?)/gu))
     usd += Number(match[1]);
-  return { exitCode, sessions, merged, prs, usd: Math.round(usd * 100) / 100 };
+  let turns = 0;
+  for (const match of output.matchAll(/\bturns (\d+)/gu))
+    turns += Number(match[1]);
+  return {
+    exitCode,
+    sessions,
+    merged,
+    prs,
+    usd: Math.round(usd * 100) / 100,
+    turns,
+  };
+}
+
+/** Passed and total test cases a runner printed: pytest, TAP or node:test, or the PHP shim's `ran N, failed M`. */
+export interface CaseCounts {
+  passed: number;
+  total: number;
+}
+
+export function caseCounts(output: string): CaseCounts | undefined {
+  const count = (pattern: RegExp): number | undefined => {
+    const found = pattern.exec(output)?.[1];
+    return found === undefined ? undefined : Number(found);
+  };
+  const shim = /ran (\d+), failed (\d+)/u.exec(output);
+  if (shim) {
+    const total = Number(shim[1]);
+    return { passed: total - Number(shim[2]), total };
+  }
+  const tapPass = count(/^# pass (\d+)/mu);
+  if (tapPass !== undefined) {
+    const failed = count(/^# fail (\d+)/mu) ?? 0;
+    return { passed: tapPass, total: tapPass + failed };
+  }
+  const summary = /^=+ (.*?) in [\d.]+s/mu.exec(output)?.[1] ?? output;
+  const passed = Number(/(\d+) passed/u.exec(summary)?.[1] ?? 0);
+  const failed =
+    Number(/(\d+) failed/u.exec(summary)?.[1] ?? 0) +
+    Number(/(\d+) errors?/u.exec(summary)?.[1] ?? 0);
+  return passed + failed === 0 ? undefined : { passed, total: passed + failed };
+}
+
+/** The graded measures of a fixed-issue row beyond pass or fail. */
+export interface RowMetrics {
+  cases?: CaseCounts | undefined;
+  /** Existing-suite cases (or one for a red run without counts) failing on the merged tree before the hidden test is restored. */
+  regressions: number | undefined;
+  /** Distinct records the Stop gate refused. */
+  refusals: number;
+}
+
+/** The summary cells of the graded measures: `cases P/T | regressions N | refusals N | turns N`. */
+export function metricsCells(
+  metrics: RowMetrics,
+  turns: number | undefined,
+): string[] {
+  return [
+    metrics.cases === undefined
+      ? 'none'
+      : `${metrics.cases.passed}/${metrics.cases.total}`,
+    metrics.regressions === undefined ? 'none' : String(metrics.regressions),
+    String(metrics.refusals),
+    turns === undefined ? 'none' : String(turns),
+  ];
 }
 
 export interface RowInput {
@@ -176,6 +242,7 @@ export interface RowInput {
   firstPr: string;
   drain: DrainFacts | undefined;
   hidden?: HiddenResult;
+  metrics?: RowMetrics;
   /** The krn commit the row's hooks ran, against the checkout HEAD it must equal. */
   hook?: { commit: string | undefined; head: string };
   note?: string;
@@ -227,6 +294,9 @@ export function gradedRow(input: RowInput): string {
     `$${(drain?.usd ?? 0).toFixed(2)}`,
     input.hidden ?? 'none',
     hookCell(input.hook),
+    ...(input.metrics === undefined
+      ? []
+      : metricsCells(input.metrics, drain?.turns)),
   ];
   const row = cells.join(' | ');
   return input.note === undefined ? row : `${row} | ${input.note}`;
@@ -245,6 +315,8 @@ export interface HiddenRow {
   /** Run in the merged tree after the hidden files are restored; exit 0 is a pass. KRN_ROOT names this repository. */
   hiddenVerify: string;
   test?: string;
+  /** The base's existing suite, run on the worker's merged tree before the hidden files return: its failures are regressions. */
+  suite?: string;
   install?: string;
   /** The related-test command (with {files}) the Stop gate runs, when detection would pick one the host cannot run. */
   related?: string;
@@ -324,6 +396,8 @@ export function parseTaskFile(text: string): HiddenRow[] {
     if (install !== '') row.install = install;
     const related = text('related', true);
     if (related !== '') row.related = related;
+    const suite = text('suite', true);
+    if (suite !== '') row.suite = suite;
     if (field('redBase') === true) row.redBase = true;
     const support = field('support');
     if (support !== undefined) {
@@ -697,11 +771,32 @@ function acceptStack(
     keep('drain', drain.output);
     let hidden: HiddenResult = 'none';
     let note: string | undefined;
+    let metrics: RowMetrics | undefined;
     if (hiddenRow) {
       // The upstream fix's test files are restored over the merged tree, then run: the drain never saw them.
       git(['fetch', '--quiet', 'origin', branch]);
       git(['checkout', '--quiet', '--force', '--detach', 'FETCH_HEAD']);
       const merged = git(['rev-parse', 'HEAD']).output.trim().slice(0, 7);
+      // The row's existing suite on the worker's tree, before any hidden file is restored.
+      const suite = hiddenRow.suite
+        ? spawnSync('sh', ['-c', hiddenRow.suite], {
+            cwd: dir,
+            encoding: 'utf8',
+            env: { ...rowEnv, KRN_ROOT: root },
+            maxBuffer: 1 << 28,
+          })
+        : undefined;
+      const suiteCases = caseCounts(
+        `${suite?.stdout ?? ''}${suite?.stderr ?? ''}`,
+      );
+      const regressions =
+        suite === undefined
+          ? undefined
+          : suite.status === 0
+            ? 0
+            : suiteCases === undefined
+              ? 1
+              : suiteCases.total - suiteCases.passed || 1;
       for (const path of hiddenRow.hidden) {
         const shown = run('git', ['show', `${hiddenRow.fix}:${path}`], source);
         if (shown.status !== 0)
@@ -719,6 +814,11 @@ function acceptStack(
       });
       keep('hidden', `${graded.stdout ?? ''}${graded.stderr ?? ''}`);
       hidden = hiddenResult(graded.status ?? 70);
+      metrics = {
+        cases: caseCounts(`${graded.stdout ?? ''}${graded.stderr ?? ''}`),
+        regressions,
+        refusals: refusedRecords(readExposures(dir)).length,
+      };
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
     collectRow(dir, stack, krn, root);
@@ -731,6 +831,7 @@ function acceptStack(
     return gradedRow({
       hook,
       hidden,
+      ...(metrics === undefined ? {} : { metrics }),
       ...(note === undefined ? {} : { note }),
       stack,
       adoptExit: adopt.status,

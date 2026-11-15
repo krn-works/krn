@@ -13,6 +13,7 @@ import test from 'node:test';
 import {
   adoptArgs,
   baseCommit,
+  caseCounts,
   defaultScratch,
   drainFacts,
   entryCommit,
@@ -21,6 +22,7 @@ import {
   hiddenSeedTask,
   hookCell,
   hookPath,
+  metricsCells,
   outsideBranch,
   parseOptions,
   parseTaskFile,
@@ -101,6 +103,7 @@ test('drain facts count sessions, merged verdicts, PRs and cost', () => {
     merged: 1,
     prs: ['#901', '#902'],
     usd: 0.37,
+    turns: 12,
   });
 });
 
@@ -408,4 +411,69 @@ test('a row whose hook commit differs from the checkout HEAD is skewed and not g
     });
   assert.equal(rowGreen(row(head)), true);
   assert.equal(rowGreen(row(stale)), false);
+});
+
+test('case counts read pytest, TAP and the PHP shim output as passed over total', () => {
+  assert.deepEqual(caseCounts('==== 2 failed, 5 passed in 0.12s ===='), {
+    passed: 5,
+    total: 7,
+  });
+  assert.deepEqual(caseCounts('5 passed in 0.01s'), { passed: 5, total: 5 });
+  assert.deepEqual(caseCounts('ok 1 - a\n# tests 4\n# pass 3\n# fail 1\n'), {
+    passed: 3,
+    total: 4,
+  });
+  assert.deepEqual(caseCounts('FAIL T::a #0\nran 6, failed 2\n'), {
+    passed: 4,
+    total: 6,
+  });
+  assert.equal(caseCounts('no runner output'), undefined);
+});
+
+test('a graded row carries the hidden-case fraction, regressions, refusals and turns after the hook', () => {
+  const drain = drainFacts(
+    0,
+    't-a t-a exit=0 1s\nPR #5 cost $0.2 turns 31\nverdict: merged abc1234def',
+  );
+  assert.equal(drain.turns, 31);
+  const row = gradedRow({
+    stack: 'py',
+    adoptExit: 0,
+    firstPr: '#5',
+    drain,
+    hidden: 'fail',
+    metrics: { cases: { passed: 3, total: 5 }, regressions: 0, refusals: 1 },
+  });
+  assert.match(row, /\| fail \| none \| 3\/5 \| 0 \| 1 \| 31$/u);
+  assert.deepEqual(
+    metricsCells(
+      { cases: undefined, regressions: undefined, refusals: 0 },
+      undefined,
+    ),
+    ['none', 'none', '0', 'none'],
+  );
+});
+
+test('a task row may name the existing suite whose failures count as regressions', () => {
+  const row = (extra: object) =>
+    JSON.stringify({
+      rows: [
+        {
+          stack: 'py',
+          upstream: 'https://github.com/o/r.git',
+          license: 'MIT',
+          fix: 'abc1234',
+          title: 't',
+          body: ['b'],
+          hidden: ['tests/t.py'],
+          hiddenVerify: 'true',
+          ...extra,
+        },
+      ],
+    });
+  assert.equal(
+    parseTaskFile(row({ suite: 'pytest -q' }))[0]?.suite,
+    'pytest -q',
+  );
+  assert.equal(parseTaskFile(row({}))[0]?.suite, undefined);
 });

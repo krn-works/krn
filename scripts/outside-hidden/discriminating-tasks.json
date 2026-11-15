@@ -1,0 +1,118 @@
+{
+  "rows": [
+    {
+      "stack": "py-omd-compare",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "c463d1633a075c398d6ffad7d8653064a615b696",
+      "title": "An ordered multi-dict compares equal to a plain dict whose values differ",
+      "body": [
+        "Bug: an OrderedMultiDict built from [('a', 1), ('b', 2)] reports == True against {'a': 999, 'b': 2} when the multi-dict is on the left of the comparison, and != against it is False. The same happens for the multi-dict behind URL query parameters (QueryParamDict). Comparing a dict on the left already behaves."
+      ],
+      "hidden": ["tests/test_dictutils.py", "tests/test_urlutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py tests/test_urlutils.py -k \"test_eq_with_dict or test_query_param_dict_eq_with_dict\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-omd-addlist",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "a1ea1030ed85137e999c0bd9b11d16368d3ab241",
+      "title": "Adding an iterator of values to an ordered multi-dict corrupts it",
+      "body": [
+        "Bug: OrderedMultiDict.addlist('a', iter([1, 2, 3])) or with a generator leaves the dict inconsistent: keys() and repr() show the key while getlist('a') returns [] and get('a') raises IndexError. An empty generator records the key with no values so len() disagrees with keys(). Lists and tuples work."
+      ],
+      "hidden": ["tests/test_dictutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py -k \"test_addlist_iterator\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-dict-updates",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "bbadc7ae1dcfbb0e71ec3a852e8bca3a6f75199b",
+      "title": "Several ordered multi-dict and one-to-one / many-to-many mapping operations misbehave",
+      "body": [
+        "Bugs seen in boltons mapping types: (1) OrderedMultiDict([(None, None)]) compares equal to OrderedMultiDict([(None, None), (None, None)]), also for QueryParamDict. (2) update() with an iterable that repeats a key not yet present keeps only one of its values: update([('a', 1), ('a', 3)]) gives getlist('a') == [1] or worse, not [1, 3]. (3) OneToOne.update(iter([...])) with a one-shot iterator misses entries, and an unhashable value part way through the input leaves the mapping half updated instead of unchanged with a TypeError. (4) oto |= {'c': 2, 'd': 1} does not update in place with the inverse kept consistent. (5) ManyToMany.add('new', []) with an unhashable value raises TypeError but leaves a stray key behind. (6) ManyToMany(other) copy shares state with the original, so adding to the copy changes the original. (7) ManyToMany.replace('a', 'new') where 'new' already exists loses or mixes up its values."
+      ],
+      "hidden": ["tests/test_dictutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_dictutils.py -k \"test_eq_none_items or test_update_iterable_repeated_new_key or test_one_to_one_update_iterator or test_one_to_one_ior or test_many_to_many_add_unhashable or test_many_to_many_copy_independent or test_many_to_many_replace_existing_key\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-gc-types",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "f898d8f81aa85a3a7c3b187b5d45b329bc471a72",
+      "title": "gc, type and trace helpers lose state or miss objects",
+      "body": [
+        "Bugs seen in boltons: (1) gcutils.get_all(Base) misses live instances of subclasses of Base; get_all(Base, include_subtypes=False) must still return only exact instances. (2) Using the toggle_gc context manager, or nesting one GCToggler inside itself, leaves the garbage collector enabled or disabled the wrong way after exit: the state before entering must come back. (3) typeutils.get_all_subclasses fails for a class whose metaclass defines its own subclasses behaviour (a class with a custom metaclass). (4) debugutils.wrap_trace with a hook that returns a truthy value for a 'raise' event should suppress the exception and make the traced method return None, but the call still raises or misbehaves."
+      ],
+      "hidden": [
+        "tests/test_gcutils.py",
+        "tests/test_typeutils.py",
+        "tests/test_debugutils_trace.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_gcutils.py tests/test_typeutils.py tests/test_debugutils_trace.py -k \"test_get_all_subtypes or test_toggle_gc_restores_state or test_get_all_subclasses_metaclass or test_trace_raise_suppressed\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-barrel-list",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "e00c10a809525027b8167fbb7ac233cfc25a01f5",
+      "title": "BarrelList indexing and insertion go wrong once it is split into sublists",
+      "body": [
+        "Bug: after BarrelList(range(30000)) has been mutated (bl.pop(0); bl.insert(0, 0)) so that it holds several sublists: bl[len(bl)] returns an element from the middle instead of raising IndexError; bl.insert(len(bl), 'x') inserts mid-list instead of appending (insert past either end must clamp like list.insert); and pop() raises IndexError on a non-empty list after indexed pops emptied the last sublist."
+      ],
+      "hidden": ["tests/test_listutils.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_listutils.py -k \"test_barrel_list_getitem_past_end or test_barrel_list_insert_at_end or test_barrel_list_pop_after_tail_drained\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-sweep",
+      "upstream": "https://github.com/mahmoud/boltons.git",
+      "license": "BSD-3-Clause",
+      "fix": "1216b467c10b852d08aa6895c80b6b9ec8f990d8",
+      "title": "Cache, counter, JSON line, size and URL helpers each have a bug",
+      "body": [
+        "Bugs seen in boltons: (1) ThresholdCounter.update({'a': 3, 'b': 2, 'zero': 0}) and update(['a'], a=3, b=2) do not add the mapping counts or keyword counts (zero counts must not create items) and total is wrong; compaction after a mapping update must match the same data fed one by one; most_common(0) returns something other than []. (2) LRI/LRU .update() with no source, only keywords, or with the cache itself as source raises TypeError or mishandles keys. (3) jsonutils.reverse_iter_lines ignores the encoding of a text file opened with encoding='latin-1', ignores encoding= on a binary stream, and detaches a text stream so it cannot be read afterwards. (4) strutils.bytes2human(1024 ** 8) is wrong for the largest unit (should be '1Y'). (5) URL('http://:secret@example.com/path') with a password but no username drops the password in to_text() and get_authority(with_userinfo=True), and setting url.password = 'p@ss' must round-trip percent-quoted."
+      ],
+      "hidden": [
+        "tests/test_cacheutils.py",
+        "tests/test_jsonutils.py",
+        "tests/test_strutils.py",
+        "tests/test_urlutils.py"
+      ],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests/test_cacheutils.py tests/test_jsonutils.py tests/test_strutils.py tests/test_urlutils.py -k \"test_threshold_counter or test_cache_update_optional_source or test_reverse_iter_lines_uses_file_encoding or test_reverse_iter_lines_uses_explicit_binary_encoding or test_reverse_iter_lines_keeps_text_stream_attached or test_bytes2human or test_password_without_username\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    },
+    {
+      "stack": "py-osc-hang",
+      "upstream": "https://github.com/tartley/colorama.git",
+      "license": "BSD-3-Clause",
+      "fix": "bfa8c22e8f9b51ad3428c165087540cea5d44a1f",
+      "title": "Certain terminal title escape sequences make colorama hang or mishandle",
+      "body": [
+        "Bug: writing an OSC (operating system command) sequence to a colorama-wrapped stream with conversion on misbehaves: '\\x1b]' followed by 64 semicolons and a terminator that is not BEL makes the regex hang or crash; '\\x1b]0\\x07' with no title argument and '\\x1b]1;title\\x07' must not set the window title; only OSC 0 and OSC 2 with exactly one title argument may."
+      ],
+      "hidden": ["colorama/tests/ansitowin32_test.py"],
+      "hiddenVerify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama/tests/ansitowin32_test.py -k \"test_osc_codes\"",
+      "test": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama",
+      "suite": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama",
+      "related": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+    }
+  ]
+}
