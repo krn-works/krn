@@ -15,7 +15,7 @@ pull request whose `Ticket:` task stays open.
 
 ADR 0014 D8 selected one Git-backed task tracker because tasks must travel with
 their repository. The tracker replaces the legacy Git-ref `krn task` queue and
-the host-SQLite `krn work` design recorded in ADR 0011. Paperclip integration
+the former host-SQLite `krn work` design (former ADR 0011, removed; its project-cutover plan was never built). Paperclip integration
 was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461
 (merge 26446dd5).
 The tracker starts empty: no Paperclip or legacy queue records are imported.
