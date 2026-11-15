@@ -1,7 +1,11 @@
 {
   "id": "t-gm98qy4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/cli/command-table.test.ts: every command has a help row; README and CONTEXT name every command and krn.json field"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "README, CONTEXT and per-verb help name every command, flag and krn.json field",
