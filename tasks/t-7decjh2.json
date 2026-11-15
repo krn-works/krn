@@ -1,7 +1,11 @@
 {
   "id": "t-7decjh2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/standards-audit.ts --planted: 39-40 of 40 applicable enforced records bite per init stack (gofmt skipped when absent); test/scripts/planted-records.test.ts passes, missing plant fails"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Every enforced record bites: a planted violation turns the check red in each init stack",
