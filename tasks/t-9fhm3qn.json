@@ -1,7 +1,11 @@
 {
   "id": "t-9fhm3qn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "operator 2026-11-15: the exposed trees (Rekurencja Antyspam PRs 868 871 882 883, Tallystick 872 874 888, krn-search-lab 875 878 884) are the operator's own projects and may stay public; no Support request; repo stays public (Actions minutes free only while public)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Operator: GitHub Support purges the six PR refs that serve client code on krn-works/krn",
