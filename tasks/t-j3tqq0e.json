@@ -1,0 +1,12 @@
+{
+  "id": "t-j3tqq0e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Lane Stop hook checks the lane worktree, not the lead cwd",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15: S26 lane (krn-lane subagent) reported its Stop hook evaluated the lead worktree .krn/worktrees/plan-at-start after the lead cd-ed into it, not the lane worktree adopted-gates-run.\nOutcome: the Stop hook for a subagent resolves the worktree from the lane session (its claim or last edited path), not the shared session cwd.\nProof: test feeds a SubagentStop payload with cwd of another worktree and a lane claim; the hook checks the claimed worktree."
+  ]
+}

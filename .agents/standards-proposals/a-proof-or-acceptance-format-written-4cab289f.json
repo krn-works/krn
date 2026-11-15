@@ -1,0 +1,8 @@
+{
+  "text": "A proof or acceptance format written for humans must be parsed by the same code that executes it, with a test that runs a real sample line through the runner",
+  "kind": "check",
+  "evidence": [
+    "832cad5"
+  ],
+  "recorded_at": "2026-11-15"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-r9x7zf4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Concurrent lane fast checks share the machine instead of each saturating it",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15 S1 retro: npm run fast took 2260s (test 1101s) with 4 lanes each running fast at --test-concurrency=0; load avg 70-95.\nOutcome: fast-check caps test concurrency by host load or a shared slot lock under .krn/tmp so N parallel fasts finish no slower than serial.\nProof: a test runs two fast-check test phases against one slot lock and observes them serialized."
+  ]
+}
