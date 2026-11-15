@@ -1310,6 +1310,67 @@ test('the Stop hook refuses a floor and an unwaived reflex standard and only rep
   }
 });
 
+test('the Stop hook names the record id and file:line of a planted violation, passes after the fix, and skips a waived record', () => {
+  const dir = clone();
+  try {
+    const record = (change: Record<string, unknown>) => ({
+      id: 's-planted',
+      type: 'standard',
+      area: 'tests',
+      layer: 'universal',
+      audience: 'worker',
+      tier: 'floor',
+      text: 'No PLANTED marker.',
+      why: 'The marker is forbidden.',
+      provenance: { origin: 'test', evidence: ['README.md'], proposals: [] },
+      enforcement: {
+        kind: 'command',
+        run: "! git grep -qIE 'PLANTED' -- 'src/*.ts'",
+      },
+      applies: { stacks: [], needs: [], paths: [], terms: [] },
+      status: 'accepted',
+      recorded_at: '2026-01-01',
+      valid_from: '2026-01-01',
+      valid_to: null,
+      supersedes: [],
+      ...change,
+    });
+    mkdirSync(join(dir, '.agents'), { recursive: true });
+    const stop = (change: Record<string, unknown> = {}) => {
+      writeFileSync(
+        join(dir, '.agents/standards.json'),
+        JSON.stringify([record(change)]),
+      );
+      return spawnSync(process.execPath, [hook], {
+        cwd: dir,
+        encoding: 'utf8',
+        input: JSON.stringify(payload(dir)),
+        env: { ...process.env, ...lane(dir) },
+      });
+    };
+    writeFileSync(
+      join(dir, 'src/a.ts'),
+      'export const a = 2;\nexport const b = 1; // PLANTED\n',
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const refused = stop();
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /s-planted/u);
+    assert.match(refused.stderr, /src\/a\.ts:2/u);
+    assert.equal(
+      stop({ tier: 'reflex', waiver: 'accepted for the migration' }).status,
+      0,
+    );
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'fix');
+    assert.equal(stop().status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a refused Stop names the violated record and why, and logs the violation to the exposure log', () => {
   const dir = clone();
   try {
