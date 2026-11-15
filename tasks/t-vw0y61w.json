@@ -1,0 +1,14 @@
+{
+  "id": "t-vw0y61w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-php-composer-lock pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-php-composer-lock` no longer fails s-php-composer-lock.",
+    "Why: adoption found this reflex standard failing: exit 1 from [ ! -f composer.json ] || git ls-files --error-unmatch composer.lock >/dev/null 2>&1",
+    "Proof: `krn standards check --record s-php-composer-lock`"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-7eyyh8f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "make the base test command green",
+  "after": [],
+  "body": [
+    "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+    "Why: adoption found a red base: red base: the repository's own test command `php tests/shim.php src/get_in.php tests/GetInTest.php` exits 1 on the clean master tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. Could not open input file: tests/shim.php",
+    "Proof: the test command in krn.json exits 0 on the delivered tree."
+  ]
+}
