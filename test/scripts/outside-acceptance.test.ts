@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -20,6 +21,7 @@ import {
   drainFacts,
   entryCommit,
   failedCases,
+  failedRow,
   gradedRow,
   harvestRows,
   hiddenResult,
@@ -42,6 +44,7 @@ import {
   rowGreen,
   scratchRegistryEnv,
   seedTask,
+  sweepOwnedRows,
   workflowFiles,
   writeSeedTask,
 } from '../../scripts/outside-acceptance.ts';
@@ -769,4 +772,27 @@ test('clause 1: a row checkout that is not a git repository is skipped and repor
     /^harvest: 0 candidates from 0 proposals in 0 repositories/u,
   );
   assert.equal(lines.at(-1), 'promoted: none');
+});
+
+test('clause 6: a row that threw names the repository its --repo choice gave, not the default', () => {
+  const row = failedRow(
+    'py',
+    { py: 'krn-works/outside-py' },
+    new Error(
+      'outside-acceptance: py: tests/test_unzip_http.py not in the fix',
+    ),
+  );
+  assert.ok(row.startsWith('krn-works/outside-py outside/py | py | 1 |'));
+  assert.ok(failedRow('py', undefined, 'x').startsWith('krn-works/krn '));
+});
+
+test('clause 7: sweeping a finished invocation leaves the rows of another invocation sharing the scratch directory', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'krn-sweep-'));
+  const mine = join(scratch, 'runs', 'py-1');
+  const theirs = join(scratch, 'runs', 'py-upstream-2');
+  mkdirSync(join(mine, '.krn', 'worktrees', 'a'), { recursive: true });
+  mkdirSync(join(theirs, '.krn', 'worktrees', 'b'), { recursive: true });
+  sweepOwnedRows([mine, join(scratch, 'runs', 'never-created')]);
+  assert.equal(existsSync(mine), false);
+  assert.equal(existsSync(join(theirs, '.krn', 'worktrees', 'b')), true);
 });

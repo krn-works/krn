@@ -741,6 +741,31 @@ function collectRow(
     run(krn, [...args, '--root', dir], dir);
 }
 
+/** The summary row of a stack whose run threw: it names the repository the row was pushing to. */
+export function failedRow(
+  stack: string,
+  repos: Readonly<Record<string, string>> | undefined,
+  error: unknown,
+): string {
+  return gradedRow({
+    repo: repoFor(repos, stack),
+    stack,
+    adoptExit: 1,
+    firstPr: 'none',
+    drain: undefined,
+    note: error instanceof Error ? error.message : String(error),
+  });
+}
+
+/**
+ * Removes the row directories this invocation created. Another invocation sharing the scratch
+ * directory keeps its own rows: wiping the whole `runs` directory pulled a running row's clone
+ * and lane worktree out from under it.
+ */
+export function sweepOwnedRows(owned: readonly string[]): void {
+  for (const dir of owned) rmSync(dir, { recursive: true, force: true });
+}
+
 /** The harvest over the row checkouts: its report lines, with every promotable pack record marked harvested. */
 export function harvestRows(
   checkouts: readonly string[],
@@ -806,12 +831,14 @@ function acceptStack(
   root: string,
   hiddenRow?: HiddenRow,
   checkouts: string[] = [],
+  owned: string[] = [],
 ): string {
   const branch = outsideBranch(stack);
   const repo = repoFor(options.repos, stack);
   const source = hiddenRow
     ? join(options.scratch, 'runs', `${stack}-upstream-${Date.now()}`)
     : join(options.scratch, stack);
+  if (hiddenRow) owned.push(source);
   if (hiddenRow) {
     mkdirSync(dirname(source), { recursive: true });
     const cloned = run(
@@ -828,6 +855,7 @@ function acceptStack(
       `outside-acceptance: no scratch copy ${source}; pass --scratch DIR or set KRN_OUTSIDE_SCRATCH to the directory holding the ${stack} copy`,
     );
   const dir = join(options.scratch, 'runs', `${stack}-${Date.now()}`);
+  owned.push(dir);
   const krn = join(root, 'bin/krn');
   const rowEnv = {
     ...process.env,
@@ -1093,19 +1121,14 @@ if (import.meta.main) {
           )
           .map((row) => ({ stack: row.stack, hidden: row }));
   const checkouts: string[] = [];
+  const owned: string[] = [];
   const repeated = Array.from({ length: options.reps }, () => picked).flat();
   for (const { stack, hidden } of repeated) {
     let row: string;
     try {
-      row = acceptStack(stack, options, root, hidden, checkouts);
+      row = acceptStack(stack, options, root, hidden, checkouts, owned);
     } catch (error) {
-      row = gradedRow({
-        stack,
-        adoptExit: 1,
-        firstPr: 'none',
-        drain: undefined,
-        note: error instanceof Error ? error.message : String(error),
-      });
+      row = failedRow(stack, options.repos, error);
     }
     appendFileSync(options.summary, `${row}\n`);
     console.log(row);
@@ -1115,7 +1138,6 @@ if (import.meta.main) {
   writeFileSync(options.harvest, `${harvest.join('\n')}\n`);
   for (const line of harvest) console.log(line);
   // A red row keeps its clone: the session transcript and lane logs there are the evidence.
-  if (failed === 0)
-    rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
+  if (failed === 0) sweepOwnedRows(owned);
   process.exit(failed === 0 ? 0 : 1);
 }
