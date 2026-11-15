@@ -1,7 +1,11 @@
 {
   "id": "t-kbrgvkb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "host dependency: empty /mnt/storage/tmp/krn/package.json made node reject type stripping in tmp clones; clone() now owns a package.json, regression test under an invalid-package parent"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "stop.test.ts clause 12 passes on a developer host, not only in CI",
