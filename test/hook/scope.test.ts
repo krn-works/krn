@@ -32,7 +32,7 @@ test('a worker edit of tasks/x.json is denied, and allowed when Scope names task
 });
 
 test('tracker paths are denied to a worker; harness files are allowed and reported; other files are allowed', () => {
-  for (const path of ['docs/program/roadmap.md', 'tasks/t-1.json'])
+  for (const path of ['tasks/t-1.json'])
     assert.match(
       decide(write(`${root}/${path}`), worker('src/')) ?? '',
       /Refused/u,
@@ -75,7 +75,7 @@ test('NotebookEdit and visible Bash writes are held to the same scope', () => {
   for (const command of [
     'echo x > tasks/t-1.json',
     'cat a | tee tasks/t-2.json',
-    "sed -i 's/a/b/' docs/program/roadmap.md",
+    "sed -i 's/a/b/' tasks/t-3.json",
   ])
     assert.match(decide(bash(command), env) ?? '', /Refused/u, command);
   for (const command of [

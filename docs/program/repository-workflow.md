@@ -62,6 +62,6 @@ Keep the minimal set of true, current docs. Delete outdated docs; Git history is
 The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository adds the following on top of them; the project skills `delivery-lead`, `delivery-handoff` and `delivery-retro` carry the same additions until this repository installs the universal set.
 
 - **Handoff:** the capsule is written only with `krn state set` and `krn state accept` and checked with `krn state check --root .`; `krn state handoff` generates `handoff.md` beside it. `node scripts/claude/handoff-requests.ts <handoff path>` checks that it names every open operator task, and `node scripts/claude/operator-inbox.ts open` lists prompts without a disposition. The next session starts with `node scripts/claude/successor-launch.ts --name "<slice purpose>" --model claude-opus-5-5 --effort medium --prompt "<prompt>"` and retires its predecessor with `--retire`.
-- **Retro:** `krn state retro --task <id>` prints the skeleton; rules go through `spec/rules.json`; refresh the generated roadmap with `node scripts/claude/roadmap-prune.ts`.
+- **Retro:** `krn state retro --task <id>` prints the skeleton; rules go through `spec/rules.json`.
 - **Ship:** run `bin/krn pr ship`; the required check is defined in [lead rules](lead-rules.md).
 - **Hooks:** `src/context/gauge.ts` and `scripts/codex/context-hook.ts` advise `delivery-handoff`; the watchdog successor prompt names `delivery-lead`.
