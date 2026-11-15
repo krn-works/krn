@@ -25,6 +25,8 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), then `bin/krn pr ship --worktree <path> --title <title> --body-file <file>`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Codex workers and `npm run gate` are opt-in, never prerequisites. Use Conventional Commits.
 - With lanes running, the lead stops launching new lanes, drains the running ones, then hands off.
 - Unattended, never ask the operator: park the decision as a decide task (`krn task create`) and launch the successor.
+- Fable plan requests follow `docs/program/fable-plan-brief.md`.
+- SessionStart injects the capability index (`docs/generated/capability-index.md`): before calling anything foreign, unknown or missing, grep the index and src; fast regenerates it.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
 - A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
 - A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.
