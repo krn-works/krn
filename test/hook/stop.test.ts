@@ -20,6 +20,7 @@ import {
   inspect,
   judgeStop,
   linkPackageModules,
+  recordedShip,
   relatedTests,
   selectTests,
   shippedMerge,
@@ -28,6 +29,7 @@ import {
   withinPackage,
 } from '../../src/hook/stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
+import { recordShip } from '../../src/repo/ship-record.ts';
 
 const hook = fileURLToPath(new URL('../../src/hook/stop.ts', import.meta.url));
 
@@ -1517,5 +1519,75 @@ test('clauses: the arm off leaves Stop unchanged', () => {
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a lane whose ship merged and removed its branch and worktree may stop without repeating the verdict', () => {
+  // Evidence: lanes of 2026-11-15 ended "the branch was deleted after merge, so the hook sees no commit"
+  // after `krn pr ship` printed its merged verdict (t-t76x6w0).
+  const origin = mkdtempSync(join(tmpdir(), 'stop-origin-'));
+  const main = clone();
+  try {
+    sh(main, 'checkout', '-q', 'main');
+    sh(origin, 'init', '-q', '--bare', '-b', 'main');
+    sh(main, 'remote', 'add', 'origin', origin);
+    sh(main, 'push', '-q', 'origin', 'main');
+    const tree = join(main, '.krn/worktrees/ship-lane');
+    sh(main, 'worktree', 'add', '-q', '-b', 'ship-lane', tree, 'main');
+    writeFileSync(join(tree, 'src/b.ts'), 'export const b = 1;\n');
+    sh(tree, 'add', '.');
+    sh(tree, 'commit', '-q', '-m', 'lane work');
+    const env = {
+      CLAUDE_PROJECT_DIR: tree,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_SCOPE: 'src/',
+      KRN_TASK: 't-abcdefg',
+    };
+    // Before the ship the lane is judged on its own commit, never on a record.
+    assert.equal(recordedShip(tree, env, 'ship-lane'), false);
+    // The merge: origin main takes the lane commit, then ship records it and removes branch and worktree.
+    sh(tree, 'push', '-q', 'origin', 'ship-lane:main');
+    const merged = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: tree,
+      encoding: 'utf8',
+    }).stdout.trim();
+    recordShip(main, { branch: 'ship-lane', sha: merged, task: 't-abcdefg' });
+    sh(main, 'worktree', 'remove', '--force', tree);
+    sh(main, 'branch', '-D', 'ship-lane');
+    // The hook sees the removed worktree, or the main checkout still behind origin.
+    for (const [cwd, branch] of [
+      [tree, ''],
+      [main, 'main'],
+    ] as const) {
+      assert.equal(
+        judgeStop(
+          payload(cwd, 'the branch was deleted after merge'),
+          { ...env, CLAUDE_PROJECT_DIR: cwd },
+          () => [],
+          branch,
+        ),
+        undefined,
+        cwd,
+      );
+    }
+    // No ship recorded for another lane and task: still refused.
+    const other = { ...env, KRN_TASK: 't-zzzzzzz', CLAUDE_PROJECT_DIR: main };
+    assert.match(
+      judgeStop(payload(main), other, () => [], 'main') ?? '',
+      /no commit/u,
+    );
+    // A record whose commit is not on the base proves nothing.
+    recordShip(main, {
+      branch: 'ghost',
+      sha: '0123456789abcdef0123456789abcdef01234567',
+      task: 't-zzzzzzz',
+    });
+    assert.match(
+      judgeStop(payload(main), other, () => [], 'main') ?? '',
+      /no commit/u,
+    );
+  } finally {
+    for (const path of [origin, main])
+      rmSync(path, { recursive: true, force: true });
   }
 });
