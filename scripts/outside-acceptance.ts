@@ -19,6 +19,7 @@ import { harvestCandidates, renderHarvest } from '../src/brain/proposals.ts';
 import { parseUnified } from '../src/brain/record.ts';
 import { readProposals, repositoryRoot } from '../src/brain/standards-cli.ts';
 import {
+  failureArgs,
   promoteCandidates,
   proposeArgs,
   refusedRecords,
@@ -495,11 +496,15 @@ function collectRow(
   stack: string,
   krn: string,
   root: string,
+  failures: string[][] = [],
 ): void {
   const exposures = readExposures(dir);
   for (const exposure of exposures) appendExposure(root, exposure);
   const pack = parseUnified(JSON.parse(readFileSync(packFile(root), 'utf8')));
-  for (const args of proposeArgs(refusedRecords(exposures), pack, stack))
+  for (const args of [
+    ...proposeArgs(refusedRecords(exposures), pack, stack),
+    ...failures,
+  ])
     run(krn, [...args, '--root', dir], dir);
 }
 
@@ -692,7 +697,13 @@ function acceptStack(
       hidden = hiddenResult(graded.status ?? 70);
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
-    collectRow(dir, stack, krn, root);
+    collectRow(
+      dir,
+      stack,
+      krn,
+      root,
+      failureArgs(stack, hidden, drain.status ?? 70),
+    );
     checkouts.push(dir);
     return gradedRow({
       hidden,
