@@ -232,8 +232,11 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   );
   assert.equal(read.contract.test, '.venv/bin/python -m pytest');
   assert.equal(read.contract.related, '.venv/bin/python -m pytest {files}');
-  // Without --ref: no CI workflow and no tasks/ seed.
-  assert.equal(existsSync(join(root, '.github')), false);
+  // Without --ref: no shared CI call and no tasks/ seed; the host writes a workflow that runs the recorded test command.
+  const workflow = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+  assert.match(workflow, /pull_request:/u);
+  assert.ok(workflow.includes(`${body.install} && ${body.test}`), workflow);
+  assert.doesNotMatch(workflow, /project-ci\.yml/u);
   assert.equal(existsSync(join(root, 'tasks')), false);
   const stop = stopAsLane(root);
   assert.equal(stop.status, 2, stop.stderr);

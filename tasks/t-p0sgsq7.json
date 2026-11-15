@@ -1,7 +1,11 @@
 {
   "id": "t-p0sgsq7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "last sandbox-masked cells (s-ci-runs-tests py+npm, s-lockfile-committed npm) now written by the host at adopt; real re-adopt of public npm and py clones passes both records; other records were drained earlier"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Re-adopting a previously adopted repository files and drains tasks for newly failing standards",

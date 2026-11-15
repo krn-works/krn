@@ -117,6 +117,42 @@ function workflow(setup: string[], run: string): string {
   ].join('\n');
 }
 
+/** What a CI workflow runs when the project needs more than the skeleton: `install` before `test`. */
+export interface CiCommands {
+  install?: string | undefined;
+  test?: string | undefined;
+}
+
+/** The CI workflow a stack's skeleton carries: one job running the stack's test command on every pull request. */
+export function ciWorkflow(
+  stack: InitStack,
+  commands: CiCommands = {},
+): string {
+  const run = (test: string) =>
+    commands.install === undefined
+      ? (commands.test ?? test)
+      : `${commands.install} && ${commands.test ?? test}`;
+  if (stack === 'ts')
+    return workflow(
+      [
+        '      - uses: actions/setup-node@v4',
+        '        with:',
+        '          node-version: 24',
+      ],
+      run('npm test'),
+    );
+  if (stack === 'php')
+    return workflow([], run('composer install --no-interaction && make test'));
+  return workflow(
+    [
+      '      - uses: actions/setup-python@v5',
+      '        with:',
+      "          python-version: '3.12'",
+    ],
+    run('python -m unittest discover -s tests'),
+  );
+}
+
 function skeleton(root: string, stack: InitStack): Record<string, string> {
   const name =
     root
@@ -144,14 +180,7 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       '.gitignore': 'node_modules/\n',
       'README.md': readme(name, 'npm test'),
       'test/smoke.test.ts': smokeTs,
-      [ci]: workflow(
-        [
-          '      - uses: actions/setup-node@v4',
-          '        with:',
-          '          node-version: 24',
-        ],
-        'npm test',
-      ),
+      [ci]: ciWorkflow(stack),
     };
   if (stack === 'php')
     return {
@@ -169,7 +198,7 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       'README.md': readme(name, 'make test'),
       Makefile: 'test:\n\tvendor/bin/phpunit\n',
       'tests/SmokeTest.php': smokePhp,
-      [ci]: workflow([], 'composer install --no-interaction && make test'),
+      [ci]: ciWorkflow(stack),
     };
   return {
     'tests/test_smoke.py': smokePython,
@@ -177,14 +206,7 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
     'pyproject.toml': `[tool.ruff]\nline-length = 100\n`,
     '.gitignore': '__pycache__/\n.venv/\nvenv/\n',
     'README.md': readme(name, 'python -m unittest discover -s tests'),
-    [ci]: workflow(
-      [
-        '      - uses: actions/setup-python@v5',
-        '        with:',
-        "          python-version: '3.12'",
-      ],
-      'python -m unittest discover -s tests',
-    ),
+    [ci]: ciWorkflow(stack),
   };
 }
 
