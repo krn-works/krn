@@ -1,7 +1,11 @@
 {
   "id": "t-mmyjfjn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "App installation accepted Workflows write 2026-11-15 (fresh token permissions show workflows:write); ci.yml:67 names test/agents-render.test.ts; grep -c 'npm run preflight' ci.yml prints 0"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "ci.yml names the rules check once the App can write workflows",
