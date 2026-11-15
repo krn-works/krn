@@ -69,7 +69,7 @@ function pinnedTokens(line: string): string[] {
 
 /** A line cut to `limit`, with any pinned token the cut lost appended whole. */
 function cutKeeping(line: string, limit: number): string {
-  const cut = cutText(line, limit);
+  const cut = cutText(line, limit).trimEnd();
   const lost = pinnedTokens(line).filter((token) => !cut.includes(token));
   return lost.length > 0 ? `${cut} ${lost.join(' ')}` : cut;
 }
@@ -103,7 +103,7 @@ export function buildIndex(root: string, ceiling = indexBudget): string {
     const [head = '', ...rest] = line.split('  ');
     const name = head.trim();
     // The command syntax stays whole (a lead greps it); only the summary is cut.
-    return `${name}: ${cutText(rest.join(' ').trim(), Math.max(lineLimit - name.length, 20))}`;
+    return `${name}: ${cutText(rest.join(' ').trim(), Math.max(lineLimit - name.length, 20)).trimEnd()}`;
   });
   const fit = (limit: number) => raw.map((line) => cutKeeping(line, limit));
   for (let limit = moduleLineLimit; limit >= minModuleLineLimit; limit--) {

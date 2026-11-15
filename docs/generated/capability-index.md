@@ -7,12 +7,12 @@ krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root
 krn standards check|propose|harvest|effect|retire [...]: check [--record ID] [--ro
 krn doctor: reports the host `krn task` entry, its commit and origin/main; exit 78
 krn state check|resume|set|accept|handoff|retro [--root DIR]: delivery-loop capsul
-krn lane start|run|drop|brief [...]: run: start the lane, run one headless claude 
+krn lane start|run|drop|brief [...]: run: start the lane, run one headless claude
 krn decide add|list|close [...]: operator decisions: rows with a recommendation, a
 krn findings validate <file>: check review findings JSON: confirmed needs path:lin
 krn repo contract [--root DIR]: print the repo contract as JSON: base branch, test
 krn plan [--root DIR]: one line: plan points left per account (5h, 7d) from .krn/p
-krn adopt <path> [--tracker] [--ref SHA [--install|--lint|--typecheck CMD]] [--test CMD] [--init [--stack S]]: write krn.json from 
+krn adopt <path> [--tracker] [--ref SHA [--install|--lint|--typecheck CMD]] [--test CMD] [--init [--stack S]]: write krn.json from
 krn hook stop|scope [--check|--related]: Claude Code hook entry: stdin payload in;
 krn ci wait|logs: wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-
 krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]: in a branch worktree
@@ -27,7 +27,7 @@ src/adopt/drift.ts: Drift of an adopted repo
 src/adopt/failure-tasks.ts: A failing standa
 src/adopt/first-turn.ts: `krn adopt <path> -
 src/adopt/gaps.ts: Adoption gaps: every stan
-src/adopt/host-remediation.ts: Host-applied 
+src/adopt/host-remediation.ts: Host-applied
 src/adopt/init.ts: krn adopt --init: git ini
 src/adopt/journal.ts: A write journal for ad
 src/adopt/stop-hook.ts: The hook command `kr
@@ -35,7 +35,7 @@ src/adopt/verify.ts: `krn adopt <path> --ver
 src/brain/acceptance-clauses.ts: Smallest pi
 src/brain/adopted-registry.ts: The host regi
 src/brain/exposures.ts: The exposure log: on
-src/brain/first-test.ts: First-test recipes 
+src/brain/first-test.ts: First-test recipes
 src/brain/global-standards.ts: The user-leve
 src/brain/lane-proposal.ts: A failed lane pr
 src/brain/packet.ts: Deterministic brain pac
@@ -48,11 +48,11 @@ src/brain/skill-harvest.ts: Harvest of a rep
 src/brain/standards-cli.ts: `krn standards c
 src/brain/standards-review.ts: `krn standard
 src/brain/standards.ts: The standards pack (
-src/brain/task-quality.ts: The task-quality 
+src/brain/task-quality.ts: The task-quality
 src/brain/worker-packet.ts: Conventions pack
 src/ci/app-token.ts: GitHub App token mintin
 src/ci/commit-title.ts: A squash merge makes
-src/ci/gh-reply.ts: (no header) exports Gh, 
+src/ci/gh-reply.ts: (no header) exports Gh,
 src/ci/git-lock.ts: Transient git refusals w
 src/ci/logs.ts: (no header) exports logsUsag
 src/ci/rebase-generated.ts: Ship's rebase of
@@ -61,17 +61,17 @@ src/ci/wait.ts: (no header) exports stopExit
 src/cli-kit/command-error.ts: (no header) ex
 src/cli-kit/flag-value.ts: Reads the value t
 src/cli-kit/usage-error.ts: (no header) expo
-src/cli/adopt.ts: `krn adopt <path>`: write 
+src/cli/adopt.ts: `krn adopt <path>`: write
 src/cli/ci.ts: (no header) exports ciCommand
-src/cli/decide.ts: Operator decisions: rows 
-src/cli/doctor-host.ts: (no header) exports 
+src/cli/decide.ts: Operator decisions: rows
+src/cli/doctor-host.ts: (no header) exports
 src/cli/doctor-packs.ts: `krn doctor` pack s
 src/cli/doctor-unattended.ts: (no header) ex
 src/cli/entry-pin.ts: Product entry pin: whi
 src/cli/findings.ts: Review findings: a sche
 src/cli/help.ts: Usage text for the commands
 src/cli/hook.ts: `krn hook <name> [args]`: t
-src/cli/index.ts: Command router: one table 
+src/cli/index.ts: Command router: one table
 src/cli/lane-brief.ts: (no header) exports w
 src/cli/lane-canary.ts: Lane canary on a pil
 src/cli/lane-lock.ts: (no header) exports sl
@@ -95,12 +95,12 @@ src/cli/lane-run/worktree.ts: (no header) ex
 src/cli/lane.ts: (no header) exports laneUsa
 src/cli/ledger.ts: (no header) exports ledge
 src/cli/main.ts: (no header) exports main
-src/cli/outside-git.ts: (no header) exports 
+src/cli/outside-git.ts: (no header) exports
 src/cli/plan.ts: `krn plan`: one line with p
 src/cli/pr-body.ts: (no header) exports prBo
 src/cli/pr.ts: (no header) exports prCommand
-src/cli/repo.ts: `krn repo contract`: print 
-src/cli/standards-ledger.ts: `krn standards 
+src/cli/repo.ts: `krn repo contract`: print
+src/cli/standards-ledger.ts: `krn standards
 src/cli/standards-tasks.ts: `krn standards c
 src/cli/state.ts: (no header) exports stateC
 src/context/cc-clearing-watch.ts: Watches wh
@@ -108,7 +108,7 @@ src/context/disk-pressure.ts: Disk-volume pr
 src/context/gauge.ts: Context gauge hook: ad
 src/context/io.ts: Strict object narrowing f
 src/context/plan-sample.ts: Status line comm
-src/context/replay.ts: Replays a transcript 
+src/context/replay.ts: Replays a transcript
 src/context/report.ts: Per-transcript contex
 src/context/restart.ts: SessionStart restart
 src/core/index.ts: Shared identity and outco
@@ -123,6 +123,7 @@ src/harness/claude.ts: Claude Code specifics
 src/harness/memory-directory.ts: (no header)
 src/harness/transcripts.ts: (no header) expo
 src/hook/lead-file-read.ts: Lead file-read h
+src/hook/outcome-judge.ts: The outcome arm o
 src/hook/scope.ts: (no header) exports guard
 src/hook/session-standards.ts: The standards
 src/hook/session-start.ts: SessionStart hook
@@ -156,17 +157,17 @@ src/repo/ship-record.ts: (no header) exports
 src/state/capsule.ts: The outcome capsule fi
 src/state/check.ts: `krn state check`: valid
 src/state/git.ts: (no header) exports git, g
-src/state/loss.ts: State loss: an open task 
+src/state/loss.ts: State loss: an open task
 src/state/resume.ts: `krn state resume`: the
-src/state/retro.ts: The retro skeleton `krn 
+src/state/retro.ts: The retro skeleton `krn
 src/state/runs.ts: (no header) exports Findi
 src/state/sandbox-placeholders.ts: .mcp.json
-src/state/write.ts: Writers for the capsule 
+src/state/write.ts: Writers for the capsule
 src/successor/command.ts: Child process help
 src/successor/compose.ts: Launch composition
 src/successor/handoff-requests.ts: Handoff r
 src/successor/host-failure.ts: What the term
-src/successor/host-hc.ts: The Herdr desktop 
+src/successor/host-hc.ts: The Herdr desktop
 src/successor/host-herdr.ts: The Herdr adapt
 src/successor/intent-to-task.ts: Prompt to t
 src/successor/launch.ts: Successor launch.

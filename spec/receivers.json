@@ -67,6 +67,11 @@
       "capture": ["test/fixtures/claude/headless-session-result.json"],
       "test": "test/cli/lane-run.test.ts"
     },
+    "src/hook/outcome-judge.ts": {
+      "receivers": ["claude", "git"],
+      "capture": ["test/fixtures/claude/headless-session-result.json"],
+      "test": "test/hook/outcome-judge.test.ts"
+    },
     "src/cli/lane-run/bootstrap.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"

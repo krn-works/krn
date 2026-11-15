@@ -34,6 +34,11 @@ import {
 export { withinPackage };
 
 import { shipRecordDir } from '../repo/ship-record.ts';
+import {
+  claudeJudge,
+  type JudgeCall,
+  outcomeRefusal,
+} from './outcome-judge.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
@@ -628,7 +633,7 @@ export function inspect(
 }
 
 /** The task body as clauses: the record's body (KRN_TASK), else the brief text in KRN_TASK_BODY. */
-function taskClauses(root: string, env: NodeJS.ProcessEnv): string[] {
+function taskBody(root: string, env: NodeJS.ProcessEnv): string {
   const raw = taskText(root, env);
   let body = env.KRN_TASK_BODY ?? '';
   if (raw !== '')
@@ -642,7 +647,11 @@ function taskClauses(root: string, env: NodeJS.ProcessEnv): string[] {
     } catch {
       body = raw;
     }
-  return splitClauses(body);
+  return body;
+}
+
+function taskClauses(root: string, env: NodeJS.ProcessEnv): string[] {
+  return splitClauses(taskBody(root, env));
 }
 
 /** The clause arm follows the red-at-base default: on where the contract has a real test command; KRN_ACCEPTANCE_CLAUSES=0 opts out. */
@@ -1054,6 +1063,7 @@ export function judgeStop(
   branch = '',
   shell: CommandRunner = runCommand,
   standards: StandardsRunner = standardsBlockers,
+  outcomeJudge: JudgeCall = claudeJudge,
 ): string | undefined {
   const fields = payload as {
     cwd?: unknown;
@@ -1080,9 +1090,11 @@ export function judgeStop(
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
     // The adopt canary proves the test gate on a fresh repository, which may not meet its reflex standards yet.
     if (env.KRN_LANE === 'canary') return undefined;
+    const settled = () =>
+      outcomeRefusal(root, env, payload, taskBody(root, env), outcomeJudge);
     const asOf = new Date().toISOString().slice(0, 10);
     const failing = standards(root, asOf);
-    if (failing.length === 0) return undefined;
+    if (failing.length === 0) return settled();
     // A standard already red at the merge base is not this branch's doing: it is reported, never blocking.
     const from = base(root, loadContract(root).contract);
     const red = from
@@ -1091,7 +1103,7 @@ export function judgeStop(
         )
       : new Set<string>();
     const blockers = failing.filter((line) => !red.has(standardKey(line)));
-    if (blockers.length === 0) return undefined;
+    if (blockers.length === 0) return settled();
     logViolations(root, payload, blockers);
     const inherited = failing.length - blockers.length;
     const preExisting =
