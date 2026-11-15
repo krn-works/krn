@@ -1,7 +1,11 @@
 {
   "id": "t-swx5eqw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "init --stack wp-plugin and go: empty-dir tests show standards check 0 failed; before: wp-like composer init 1 FAIL (s-php-composer-scripts) and no wp-plugin stack, go refused"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "krn adopt --init yields born-green wp-plugin and go projects",

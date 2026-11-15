@@ -1,7 +1,13 @@
 // fast-covers: src/adopt/init.ts
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -105,7 +111,7 @@ test('--init refuses a git repository with commits and accepts one without', () 
 });
 
 // Born green: an empty directory adopted with --init passes every applicable standard, tracker included.
-for (const stack of ['ts', 'php', 'python']) {
+for (const stack of ['ts', 'php', 'python', 'wp-plugin', 'go']) {
   test(`--init ${stack} in an empty directory leaves zero failing standards`, () => {
     const root = dir();
     const run = krn('adopt', root, '--init', '--stack', stack, '--no-canary');
@@ -117,3 +123,62 @@ for (const stack of ['ts', 'php', 'python']) {
     assert.ok(existsSync(join(root, 'tasks')), 'tracker');
   });
 }
+
+test('--init wp-plugin writes a plugin header, a matching readme and a passing PHPUnit test', () => {
+  const root = dir();
+  const run = krn(
+    'adopt',
+    root,
+    '--init',
+    '--stack',
+    'wp-plugin',
+    '--no-canary',
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const files = spawnSync('git', ['ls-files'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).stdout.split('\n');
+  assert.ok(files.includes('readme.txt'));
+  assert.ok(files.some((file) => /^[^/]+\.php$/u.test(file)));
+  const check = krn(
+    'standards',
+    'check',
+    '--root',
+    root,
+    '--record',
+    's-wp-release-version-matches-readme',
+  );
+  assert.equal(check.status, 0, check.stderr + check.stdout);
+});
+
+test('--init detects wp-plugin from a plugin header and go from go.mod', () => {
+  const wp = dir();
+  writeFileSync(join(wp, 'composer.json'), '{}\n');
+  writeFileSync(
+    join(wp, 'demo.php'),
+    '<?php\n/**\n * Plugin Name: Demo\n */\n',
+  );
+  const wpRun = krn('adopt', wp, '--init', '--no-canary');
+  assert.equal(wpRun.status, 0, wpRun.stderr);
+  assert.match(wpRun.stdout, /init wp-plugin:/u);
+  const go = dir();
+  writeFileSync(join(go, 'go.mod'), 'module demo\n\ngo 1.22\n');
+  const goRun = krn('adopt', go, '--init', '--no-canary');
+  assert.equal(goRun.status, 0, goRun.stderr);
+  assert.match(goRun.stdout, /init go:/u);
+});
+
+test('--init go writes a module, a Go test file and a CI job with the Go toolchain', () => {
+  const root = dir();
+  assert.equal(
+    krn('adopt', root, '--init', '--stack', 'go', '--no-canary').status,
+    0,
+  );
+  const files = git(root, 'ls-files').stdout.split('\n');
+  assert.ok(files.includes('go.mod'));
+  assert.ok(files.some((file) => file.endsWith('_test.go')));
+  const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+  assert.match(ci, /actions\/setup-go@v5/u);
+  assert.match(ci, /go test \.\/\.\.\./u);
+});
