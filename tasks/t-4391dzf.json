@@ -1,0 +1,18 @@
+{
+  "id": "t-4391dzf",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship's PrView schema reads a null statusCheckRollup as [] (no checks yet); regression test red before, green after."
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship waits through a pr view whose check rollup is null",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16 shipping #1186 (t-gt33vxe): `krn pr ship` exited 70 with a zod error \"statusCheckRollup: Invalid input: expected array, received null\" right after it enabled auto-merge; the PR then merged unattended (79b3af4) while ship had already given up, and a rerun refused with 66 (empty diff).\nOutcome: ship reads a gh pr view whose statusCheckRollup is null as no checks yet and keeps waiting to its verdict.\nProof: a ship test whose fake gh answers pr view with statusCheckRollup null, then merged, ends in `verdict: merged`.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
