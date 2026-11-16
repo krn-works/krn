@@ -9,6 +9,7 @@ compatibility: Requires the krn CLI on PATH and git; works in any repository sta
 The repository's rules live as records in its standards store, not as prose. Ask the store for the ones that apply to what you are doing now: `krn standards query "<what you are doing>" --file <path>`.
 
 - Describe the action in a few words (`add a zod schema for the config file`) and pass every file you will edit with `--file`; add `--stack <stack>` to name the stack, `--budget <tokens>` to cap the answer and `--json` when a tool reads the result.
+- `INDEX.md` beside this file lists every enforced rule of the shipped pack, one line each (id, path scope, rule); read it once, then query for the full text.
 - Follow each record printed: its text is a requirement, its `why` is the reason, and a record with an enforcement command names the check that runs at Stop.
 - Query again when the task moves to other files or a new kind of change; the answer is scoped to the files and words you give.
 - `krn standards --help` lists the other verbs (`check`, `review`, `propose`); `krn standards review` prints `file:line` for each violation in your diff before you stop.
