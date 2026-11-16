@@ -1,0 +1,18 @@
+{
+  "id": "t-rqvz60g",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scope.ts: heredoc bodies stripped, operators inside quotes masked, relative targets resolved after each cd segment; new scope test fails on the old code (exit 1) and passes now (14/14)"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Main-checkout guard refuses only real main-checkout writes",
+  "after": [],
+  "body": [
+    "Source: lane report for #1169/#1172 (2026-11-16): the main-checkout guard from #1158 (src/hook/scope.ts) refused krn-lane Bash calls that wrote nothing in the main checkout: heredoc bodies parsed as commands, `>` inside quoted `'<task-id>'` placeholders read as redirects, and relative redirect targets resolved against the payload cwd instead of the `cd <worktree> &&` that precedes them.\nOutcome: judge() returns no refusal for a krn-lane Bash call whose only main-checkout matches come from heredoc bodies, quoted text, or relative paths after `cd <own worktree>`; a real `sed -i <main>/src/x.ts` still gets the refusal.\nWhy: a false refusal breaks every lane and teaches agents to work around the guard.\nProof: test/hook/scope.test.ts cases for the three shapes return no refusal; the existing refusal cases still refuse.\nFiles: src/hook/scope.ts, test/hook/scope.test.ts"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

@@ -122,30 +122,79 @@ export function worker(
   return { scope: [], unscoped: true };
 }
 
+/** Drops heredoc bodies: their lines are data for the command, never commands themselves. */
+function stripHeredocs(command: string): string {
+  const lines = command.split('\n');
+  const kept: string[] = [];
+  let terminator: string | undefined;
+  for (const line of lines) {
+    if (terminator !== undefined) {
+      if (line.replace(/^\t+/u, '') === terminator) terminator = undefined;
+      continue;
+    }
+    kept.push(line);
+    const open = /<<-?\s*(["']?)([\w.-]+)\1/u.exec(line);
+    if (open) terminator = open[2];
+  }
+  return kept.join('\n');
+}
+
+/**
+ * Neutralises shell operators inside quotes: `'<task-id>'` or `"a > b"` is text, not a redirect.
+ * Quoted paths keep their characters, so a quoted redirect target still resolves.
+ */
+function maskQuotes(command: string): string {
+  return command.replace(/'[^']*'|"[^"]*"/gu, (quoted) =>
+    quoted
+      .slice(1, -1)
+      .replace(/[<>|;&]/gu, '_')
+      .replace(/\s/gu, '_'),
+  );
+}
+
 // Write targets a Bash command shows cheaply: redirections, tee and sed -i operands.
-function bashTargets(command: string): string[] {
+function segmentTargets(segment: string): string[] {
   const found: string[] = [];
-  for (const match of command.matchAll(
-    /(?:^|[^>&\d])\d*>>?\s*(["']?)([^\s"'|;&<>]+)\1/gu,
-  ))
-    found.push(match[2] as string);
-  for (const match of command.matchAll(/\btee\s+(?:-\w+\s+)*([^\s|;&<>]+)/gu))
-    found.push(match[1] as string);
-  for (const match of command.matchAll(
-    /\bsed\s+(?:-\w+\s+)*-i\S*\s+(?:-e\s+)?(?:'[^']*'|"[^"]*"|\S+)\s+(\S+)/gu,
+  for (const match of segment.matchAll(
+    /(?:^|[^>&\d<])\d*>>?\s*([^\s|;&<>()]+)/gu,
   ))
     found.push(match[1] as string);
-  found.push(...commandTargets(command));
+  for (const match of segment.matchAll(/\btee\s+(?:-\w+\s+)*([^\s|;&<>]+)/gu))
+    found.push(match[1] as string);
+  for (const match of segment.matchAll(
+    /\bsed\s+(?:-\w+\s+)*-i\S*\s+(?:-e\s+)?\S+\s+(\S+)/gu,
+  ))
+    found.push(match[1] as string);
+  found.push(...commandTargets(segment));
   return found.filter((target) => target !== '/dev/null');
 }
 
-const unquote = (word: string) => word.replace(/^(["'])(.*)\1$/u, '$2');
+/**
+ * Write targets with the directory each one is relative to: a `cd DIR` segment moves the
+ * directory for the segments after it, so `cd <worktree> && echo x > out` writes the worktree.
+ */
+export function bashTargets(command: string, cwd: string): string[] {
+  const text = maskQuotes(stripHeredocs(command));
+  const found: string[] = [];
+  let dir = cwd;
+  for (const segment of text.split(/&&|\|\||[;\n]|(?<![>&])&(?![>&])/u)) {
+    const cd = /^\s*cd\s+([^\s|]+)\s*$/u.exec(segment);
+    if (cd) {
+      const to = cd[1] as string;
+      dir = to.startsWith('~') || to === '-' ? dir : resolve(dir, to);
+      continue;
+    }
+    for (const target of segmentTargets(segment))
+      found.push(isAbsolute(target) ? target : resolve(dir, target));
+  }
+  return found;
+}
 
 /** Operands of rm, mv, cp and git add/checkout --/commit; anything else is unknown and allowed. */
 function commandTargets(command: string): string[] {
   const found: string[] = [];
-  for (const segment of command.split(/&&|\|\||[;|&\n]/u)) {
-    const words = segment.trim().split(/\s+/u).filter(Boolean).map(unquote);
+  for (const segment of command.split(/[|]/u)) {
+    const words = segment.trim().split(/\s+/u).filter(Boolean);
     const [name, ...rest] = words;
     const operands = (list: string[]) =>
       list.filter((word) => !word.startsWith('-'));
@@ -234,7 +283,7 @@ export function judge(
       targets.push(input.notebook_path);
   } else if (fields.tool_name === 'Bash') {
     if (typeof input.command === 'string')
-      targets.push(...bashTargets(input.command));
+      targets.push(...bashTargets(input.command, resolve(cwd)));
   } else return {};
   const escaped = targets.find((target) =>
     outsideOwnWorktree(
