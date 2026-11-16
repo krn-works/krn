@@ -1,0 +1,14 @@
+{
+  "id": "t-gt33vxe",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Unattended doctor checks skill permission entries for CC 2.1.325",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/advisor-and-model-features-2026-11-16.md: Claude Code 2.1.325 (2026-11-13) makes scheduled tasks and /loop prompt before running a skill that declares allowed-tools or hooks unless `Skill(name)` is in permissions.allow; an unattended prompt stalls a lane forever.\nOutcome: `krn doctor --unattended` lists every repository skill with allowed-tools or hooks that lacks a `Skill(name)` allow entry and exits 1 when one is missing; the repository's .claude/settings.json carries the entries so the check exits 0.\nWhy: the overnight goal requires runs that never wait for the operator.\nProof: a doctor test with a skill declaring allowed-tools and no allow entry exits 1; the live repo exits 0.\nFiles: src/cli/doctor.ts, .claude/settings.json, test/cli/doctor.test.ts"
+  ],
+  "kind": "defect",
+  "area": "doctor"
+}

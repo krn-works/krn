@@ -1,0 +1,14 @@
+{
+  "id": "t-nv4v0p8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "init ts flake: name the failing standard and fix its cause",
+  "after": [],
+  "body": [
+    "Source: CI-rules lane 2026-11-16: test/adopt/init.test.ts \"--init ts in an empty directory leaves zero failing standards\" failed twice inside `npm run fast` (one failing finish-tier standard, \"0 project\" records) after c9bd6c8 shipped the lockfile-retry hypothesis of t-qqzawff; it passes alone. The earlier root cause was wrong.\nOutcome: the failing standard's id and its failure output are captured from a failing run (the test prints them on failure), the cause is fixed, and 20 runs inside `npm run fast` under 3 concurrent lanes exit 0.\nWhy: this flake blocks lanes at fast and, since d9525dc, at ship's pre-push.\nProof: the close note names the standard and the cause; the test's failure message includes the standard id and its output.\nFiles: test/adopt/init.test.ts, src/adopt/init.ts\nLead (CI-rules lane evidence, 47c5bee): under `npm run`/`npm exec`, node_modules/.bin is on PATH, so in the fresh temp repo s-gate-typecheck-runs finds tsc and fails on missing @types/node; `node --test test/adopt/init.test.ts` exits 0 and `npm exec -- node --test test/adopt/init.test.ts` exits 1. Same class as #1151: the test must scrub the npm PATH entries for the child, or the gate must use the adopted repo's own tsc only."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}
