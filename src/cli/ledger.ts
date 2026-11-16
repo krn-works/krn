@@ -2,6 +2,10 @@ import { planScoredShare, predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
+  collectFirstPushGreen,
+  renderFirstPushGreen,
+} from '../outcome/first-push-green.ts';
+import {
   collectLedger,
   type LedgerOptions,
   renderLedger,
@@ -22,6 +26,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let checkCeiling = false;
   let predictions = false;
   let share = false;
+  let firstPushGreen = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
@@ -34,6 +39,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--share') {
       share = true;
+      continue;
+    }
+    if (flag === '--first-push-green') {
+      firstPushGreen = true;
       continue;
     }
     if (flag === '--check-ceiling') {
@@ -99,6 +108,20 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (firstPushGreen) {
+    const report = await collectFirstPushGreen({
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.repo === undefined ? {} : { repo: options.repo }),
+    });
+    if (share) {
+      process.stdout.write(`${(report.share ?? 0).toFixed(3)}\n`);
+      return;
+    }
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderFirstPushGreen(report),
+    );
+    return;
   }
   if (predictions && share) {
     process.stdout.write(
