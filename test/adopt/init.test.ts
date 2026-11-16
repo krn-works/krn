@@ -187,7 +187,7 @@ test('--init go writes a module, a Go test file and a CI job with the Go toolcha
   assert.ok(files.includes('go.mod'));
   assert.ok(files.some((file) => file.endsWith('_test.go')));
   const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
-  assert.match(ci, /actions\/setup-go@v5/u);
+  assert.match(ci, /actions\/setup-go@[0-9a-f]{40}/u);
   assert.match(ci, /go test \.\/\.\.\./u);
 });
 

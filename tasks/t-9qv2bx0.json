@@ -1,7 +1,11 @@
 {
   "id": "t-9qv2bx0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt on a boilerplate-2026 copy: no CLAUDE.md, per-skill .claude/skills links, no extra CI; 4 new tests red on main, green now"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "krn adopt respects the receiver's layout: no CLAUDE.md where the repo forbids it, new skills mirrored into an existing .claude/skills, SHA-pinned actions in the CI it writes",

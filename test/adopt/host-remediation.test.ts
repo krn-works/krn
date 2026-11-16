@@ -197,3 +197,49 @@ test('a vacuous contract gets a workflow that runs the stack test command, not t
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('the workflow written for a stack pins every action by a full commit sha', () => {
+  for (const files of [
+    { 'package.json': '{"name":"x","scripts":{"test":"node --test"}}\n' },
+    { 'requirements.txt': 'x\n', 'tests/test_a.py': '' },
+    { 'go.mod': 'module x\n\ngo 1.22\n' },
+  ]) {
+    const root = repo(files);
+    try {
+      const done = remediateHost(root, [fail('s-gate-in-ci')]);
+      const file = done.written[0] as string;
+      const uses = [
+        ...readFileSync(join(root, file), 'utf8').matchAll(
+          /^\s*(?:-\s+)?uses:\s*(\S+)/gmu,
+        ),
+      ];
+      assert.ok(uses.length > 0, 'the workflow uses an action');
+      for (const [, ref] of uses)
+        assert.match(ref as string, /^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a workflow that runs a mise task reaching the test command keeps the repository without a second workflow', () => {
+  const root = repo({
+    'package.json': '{"name":"x"}\n',
+    'krn.json': '{"test":"node --test tests/"}\n',
+    'mise.toml':
+      '[tasks."check:test"]\nrun = "node --test tests/"\n\n[tasks.check]\ndepends = [\n  "check:lint",\n  "check:test",\n]\n',
+    '.github/workflows/build.yml':
+      'name: build\non: push\njobs:\n  check:\n    steps:\n      - run: mise run check\n',
+  });
+  try {
+    const done = remediateHost(root, [fail('s-gate-in-ci')]);
+    assert.deepEqual(done.written, []);
+    assert.match(
+      done.unfixed.join('\n'),
+      /already runs in .github\/workflows\/build\.yml/u,
+    );
+    assert.equal(existsSync(join(root, '.github/workflows/ci.yml')), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

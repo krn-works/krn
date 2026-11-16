@@ -277,7 +277,25 @@ function writeRuleFile(
   }
 }
 
-/** Rules and standards go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the blocks too. */
+/**
+ * True when a test of the repository asserts that CLAUDE.md does not exist: such a repository
+ * keeps its instructions in AGENTS.md alone, so adopt must not create the link.
+ */
+function forbidsClaudeFile(root: string): boolean {
+  const absent =
+    /\bfalse\b|\.not\b|not\.exist|doesNotExist|refute|assert\.ok\(\s*!|toBe\(false\)/u;
+  for (const dir of ['test', 'tests', '__tests__']) {
+    const base = join(root, dir);
+    if (!existsSync(base)) continue;
+    for (const file of filesUnder(base))
+      if (/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file))
+        for (const line of readFileSync(join(base, file), 'utf8').split('\n'))
+          if (line.includes('CLAUDE.md') && absent.test(line)) return true;
+  }
+  return false;
+}
+
+/** Rules and standards go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the blocks too. A repository whose tests forbid CLAUDE.md gets none. */
 function writeRules(
   root: string,
   standards: readonly Standard[],
@@ -288,6 +306,10 @@ function writeRules(
   if (isSymlink(link)) report.unchanged.push('CLAUDE.md');
   else if (existsSync(link))
     writeRuleFile(root, 'CLAUDE.md', standards, report);
+  else if (forbidsClaudeFile(root))
+    report.skipped.push(
+      'CLAUDE.md (a test of the repository asserts it is absent)',
+    );
   else {
     symlinkSync('AGENTS.md', link);
     report.written.push('CLAUDE.md');
@@ -520,7 +542,8 @@ function writeSkills(
   refresh: boolean,
 ): void {
   const sites = new Set(siteSkillNames());
-  for (const name of skillSet(root, [...universalSkills(), ...sites])) {
+  const installed = skillSet(root, [...universalSkills(), ...sites]);
+  for (const name of installed) {
     const own = join('.agents', 'skills', name);
     if (
       !refresh &&
@@ -544,7 +567,21 @@ function writeSkills(
     mkdirSync(dirname(link));
     symlinkSync(join('..', '.agents', 'skills'), link);
     report.written.push(projectRelative('skills'));
-  } else report.unchanged.push(projectRelative('skills'));
+  } else if (!isSymlink(link) && lstatSync(link).isDirectory())
+    for (const name of installed) mirrorSkill(link, name, report);
+  else report.unchanged.push(projectRelative('skills'));
+}
+
+/** A .claude/skills directory of per-skill links gets one relative link per installed skill. */
+function mirrorSkill(dir: string, name: string, report: AdoptionReport): void {
+  const entry = join(dir, name);
+  const relativeEntry = join(projectRelative('skills'), name);
+  if (existsSync(entry) || isSymlink(entry)) {
+    report.unchanged.push(relativeEntry);
+    return;
+  }
+  symlinkSync(join('..', '..', '.agents', 'skills', name), entry);
+  report.written.push(relativeEntry);
 }
 
 /**
