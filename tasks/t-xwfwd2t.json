@@ -1,7 +1,11 @@
 {
   "id": "t-xwfwd2t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt canary runs the suite on the clean base and with the adoption files and refuses a newly red test by name; repo-pinned mise tools used; test/adopt/canary.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The adopt canary runs the repository's own suite before and after the adoption files land and refuses a newly red test",

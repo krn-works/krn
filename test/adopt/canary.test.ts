@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -11,7 +12,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { namedTests } from '../../src/adopt/verify.ts';
+import {
+  failedTestNames,
+  namedTests,
+  pinnedToolBins,
+} from '../../src/adopt/verify.ts';
 
 // KRN-12: the canary runs against real runners (node --test, vitest, pytest) through the real `krn adopt` entry.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -39,8 +44,11 @@ function fixture(files: Record<string, string>): string {
 }
 
 function krn(root: string, ...args: string[]) {
+  // A nested `node --test` inside this runner would inherit its child-process context and report green.
+  const { NODE_TEST_CONTEXT: _context, ...env } = process.env;
   return spawnSync(process.execPath, [cli, 'adopt', root, ...args], {
     encoding: 'utf8',
+    env: { ...env, KRN_CANARY_TIMEOUT_MS: '900000' },
   });
 }
 
@@ -342,4 +350,49 @@ test('a canary past its time limit keeps what adopt wrote and reports the canary
       .split('\n').length,
     1,
   );
+});
+
+test('adopt refuses and rolls back when its files turn a test green on the clean base red', () => {
+  const root = fixture({
+    'package.json': JSON.stringify({ scripts: { test: 'node --test' } }),
+    'sum.test.js':
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\n" +
+      "import { existsSync } from 'node:fs';\n" +
+      "test('sum', () => assert.equal(1 + 1, 2));\n" +
+      "test('the repository has no CLAUDE.md', () => assert.equal(existsSync('CLAUDE.md'), false));\n",
+  });
+  const run = krn(root);
+  assert.equal(run.status, 64, run.stdout + run.stderr);
+  assert.match(
+    run.stderr,
+    /adoption files turn the repository's own tests red/u,
+  );
+  assert.match(run.stderr, /newly red: the repository has no CLAUDE\.md/u);
+  assert.equal(existsSync(join(root, 'CLAUDE.md')), false);
+  const trees = spawnSync('git', ['worktree', 'list'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(trees.stdout.trim().split('\n').length, 1);
+});
+
+test('failedTestNames reads node:test spec, tap and pytest failure lines', () => {
+  assert.deepEqual(
+    failedTestNames(
+      '✔ ok one (1.2ms)\n✖ contract size (0.4ms)\nnot ok 3 - skills mirror\nFAILED tests/a.py::t - assert 1\n',
+    ),
+    ['contract size', 'skills mirror', 'tests/a.py::t'],
+  );
+});
+
+test('pinnedToolBins reads only the [tools] pins and ignores a repository without mise.toml', () => {
+  const none = fixture({ 'README.md': 'x\n' });
+  assert.deepEqual(pinnedToolBins(none), []);
+  const unpinned = fixture({ 'mise.toml': '[env]\nNODE = "1.2.3"\n' });
+  assert.deepEqual(pinnedToolBins(unpinned), []);
+  const pinned = fixture({
+    'mise.toml': `[tools]\nnode = "${process.versions.node}"\n`,
+  });
+  for (const bin of pinnedToolBins(pinned))
+    assert.ok(existsSync(join(bin, 'node')) || existsSync(join(bin, 'npm')));
 });
