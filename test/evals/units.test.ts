@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { readManifest } from '../../evals/units/screening.ts';
 import {
   buildUnit,
   loadUnits,
@@ -122,7 +123,8 @@ test('the unit format refuses a record without a base, a spec or a hidden file',
 });
 
 test('the committed batch holds the pilot units, each with its hidden file and the pilot repository names', () => {
-  const units = loadUnits(unitsDir);
+  const screening = new Set(readManifest().map((r) => r.id));
+  const units = loadUnits(unitsDir).filter((u) => !screening.has(u.unit.id));
   assert.ok(units.length >= 10);
   const repos = new Set(units.map((u) => u.unit.repo));
   assert.deepEqual([...repos].sort(), [

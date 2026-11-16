@@ -1,0 +1,19 @@
+{
+  "id": "t-1zp9219",
+  "repo": "christhomas/ai.world",
+  "base": "fcfe7717e123de4a62d2926601fa532088925db8",
+  "reference": "b4d96f3bbb79a32b93ccac8e02eb5b35a58a7929",
+  "task": {
+    "title": "A release cannot be cut from a slow machine, because the suite times out before it can pass",
+    "body": "Found trying to cut v0.100.0. `chore release` runs the whole suite as its first act — *\"a release is the wrong place to find out\"* — and on a small ARM box that suite cannot pass, so the release stops before it has written anything.\n\n## What happens\n\nThree different files, three runs, all the same shape:\n\n```\n× server/serve.test.ts   welcomes a player with the world as it stands        125,663ms\n× server/sim.test.ts     tells everybody in the world, not only whoever swung  55,675ms\n× src/world/structures.test.ts  clears what was growing inside the rails      285,806ms\n```\n\n`testTimeout` is `120_000`. None of these is a failure of the code — every one of them is a test that did not get to the end of its work in time, on a tree CI had already passed green.\n\n## Why, with a number\n\n**Growing a patch is about twenty times slower here.** `workers/country.worker.ts` puts it at *\"about six hundred milliseconds\"* on the machine it was written for. Measured on this one, over two hundred seeds through `growPatch`: **2794.9s, or 14 seconds each**.\n\nSo a test that grows a handful of patches is budgeted at two minutes against work that takes twenty times what the budget assumed. `nproc` here is 4.\n\n## Why `VITEST_WORKERS` does not help\n\nIt is the right escape hatch for the wrong problem. `maxWorkers` is already `'50%'`, which on four cores **is** two — so `VITEST_WORKERS=2` changes nothing, and the second attempt behaved exactly like the first. Its own comment is about a *shared* machine, where the cure is fewer workers fighting each other. This is a *slow* machine, where two workers are already the right number and the clock is simply wrong.\n\n## What it costs\n\n`chore release` cannot be run here at all. Not \"is slow\" — cannot: it aborts on a red suite, and the suite is red for reasons that have nothing to do with what is being released. Which makes the machine that does the work the one machine that cannot ship it.\n\n## Done when\n\n- the suite can be given a longer clock from outside, the way `chore shots` can be given `PATIENCE` since #350 — one number, raising the budget and never lowering it, default exactly as it is now\n- `chore release` passes that through, so a slow machine can cut a release unattended\n- nothing changes for anybody on a fast desk\n\n## Worth saying out loud\n\nThe repository already has the right instinct written down twice. `vite.config.ts` on starvation: *\"a starved measurement does not look starved, it looks broken.\"* And `PATIENCE` exists in `shots.cjs` for exactly this reason — playwright's thirty seconds were *\"right for the machine this was written on and are not a property of the game.\"* The same is true of two minutes here."
+  },
+  "spec": "A release cannot be cut from a slow machine, because the suite times out before it can pass",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tools/testclock.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tools/testclock.test.ts\"",
+  "committed": "2026-09-18",
+  "issue": "https://github.com/christhomas/ai.world/issues/362"
+}

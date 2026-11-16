@@ -1,0 +1,19 @@
+{
+  "id": "t-3roilh7",
+  "repo": "scaleway/scaleway-sdk-go",
+  "base": "6caeb1dfe968017019623b017ffb90138a88a988",
+  "reference": "d27bc272986bb231c0d01bb52729233f5d4fed10",
+  "task": {
+    "title": "Scaleway configuration file can't be shared by a group",
+    "body": "Hello.\n\nWe manage environments with linux groups and since #2574, there is a warning on the standard output:\n\n```\nWARNING: Scaleway configuration file permissions are too permissive. That is insecure.\nYou can fix it with the command 'chmod 0600 /mnt/environments/env1/.config/scw/config.yaml'\n```\n\nThis breaks our tooling.\n\nEither:\n\n- add an option for this use case\n- emit warnings and errors in standard error output to make it filterable by `2> /dev/null`.\n\nRegards."
+  },
+  "spec": "Scaleway configuration file can't be shared by a group",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "scw/config_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./scw/",
+  "committed": "2026-10-23",
+  "issue": "https://github.com/scaleway/scaleway-sdk-go/issues/3383"
+}

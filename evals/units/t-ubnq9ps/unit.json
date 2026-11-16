@@ -1,0 +1,19 @@
+{
+  "id": "t-ubnq9ps",
+  "repo": "openvax/gtfparse",
+  "base": "be449cbed70be8f515bb92b3eb2f43e55276917c",
+  "reference": "a80b0827e982c32409d78aa707d6350374b6555a",
+  "task": {
+    "title": "Bound temporary attribute-expansion memory for large GTFs",
+    "body": "The pandas/Arrow reader expands an entire GTF's raw attributes into Python objects and builds a full-length Python list for every discovered attribute before assembling the final table. With pandas 3's compact Arrow strings, temporary Python values can dominate peak memory even though they are not needed in the final representation.\n\nIn the current optimization investigation, complete 4.12-million-row files require roughly 4–6 GiB peak RSS. An unbatched faster parser/Arrow-construction candidate improves load time but produced higher GENCODE RSS than the 3.0.0 observation (about 5.3 GiB versus 4.0 GiB, with another candidate run around 5.8 GiB). These physical-RSS observations vary on the shared workstation; the whole-file Python allocations are directly visible in `parse_gtf_and_expand_attributes` and `expand_attribute_strings`.\n\nFor configured Arrow string storage, expand and construct attributes in bounded row batches, retaining Arrow buffers rather than all Python strings/lists simultaneously. Preserve first-seen column order, blank values for missing attributes including late-discovered columns and gaps, repeated attributes, fixed-field collisions, global progress/cancellation behavior, column selection and all supported inputs. Keep configured Python/object string behavior compatible and preserve the public `expand_attribute_strings` result contract.\n\nVerify full-file content, dtypes and peak memory against 3.0.0 and the historical Polars path; keep repeated throughput measurements separate from single-file scaling observations. Related optimization work requested directly by the user after PR #89.\n"
+  },
+  "spec": "Bound temporary attribute-expansion memory for large GTFs",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/test_attribute_optimization.py"
+  },
+  "install": "python3 -m venv .venv && for x in test tests dev; do .venv/bin/python -m pip install -q pytest -e \".[$x]\" && exit 0; done; .venv/bin/python -m pip install -q pytest -e .",
+  "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_attribute_optimization.py\"",
+  "committed": "2026-10-06",
+  "issue": "https://github.com/openvax/gtfparse/issues/91"
+}

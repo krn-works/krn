@@ -1,0 +1,19 @@
+{
+  "id": "t-1h5cuo1",
+  "repo": "instana/go-sensor",
+  "base": "ed41e97d01020231467189012cc58180714226a5",
+  "reference": "5e6e4b91bc5020f5c9ff64637f2110148c2bbfab",
+  "task": {
+    "title": "[Bug]: Sensor throws multiple errors every second when trying to get Docker stats on AWS Fargate",
+    "body": "### Problem Description\n\nI have recently added the go-sensor to a Golang application that is run on AWS Fargate. While it is logging _some_ metrics to Instana, multiple times per second it is raising a warning for \n\n`instana: WARN: failed to retrieve Docker container stats: malformed task stats response: unexpected block i/o op \"Sync\"`\n\nI have followed the Instana instructions for Fargate and I cannot for life of me figure out what's wrong here.\n\n### Instana Customer Name\n\nIBM (Hashicorp)\n\n### Minimal, Complete, Verifiable, Example\n\nAdd the environment variables for `INSTANA_AGENT_KEY` and `INSTANA_ENDPOINT_URL`\n\nIn my main.go\n\n```go\n\t\topts := instana.DefaultOptions()\n\t\topts.LogLevel = instana.Debug\n\t\tinstana.StartMetrics(opts)\n```\n\nDeploy to AWS Fargate.\n\n(We have logs directed to CloudWatch so we can see what's going on, and you can observe in the container logs\n\n<img width=\"1084\" height=\"486\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/963ec7b1-bbe6-4379-991f-849ca2c4beb9\" />\n\n### Go Version\n\ngo1.24.1\n\n### go.mod\n\npartial\n\n```shell\n\tgithub.com/instana/go-sensor v1.73.2 // indirect\n```\n\n### go env\n\n```shell\nI cannot. It's running in an AWS Fargate container.\n```"
+  },
+  "spec": "[Bug]: Sensor throws multiple errors every second when trying to get Docker stats on AWS Fargate",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "aws/ecs_metadata_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./aws/",
+  "committed": "2026-07-02",
+  "issue": "https://github.com/instana/go-sensor/issues/1539"
+}

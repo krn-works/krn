@@ -1,0 +1,19 @@
+{
+  "id": "t-1jzziyy",
+  "repo": "christhomas/ai.world",
+  "base": "cc52ac5de32d0024247439bd52cf07ddf26f2e37",
+  "reference": "bafb021366d216b48fdbc13ffbc45bcaf22f031f",
+  "task": {
+    "title": "The mountain shot has never taken a picture",
+    "body": "Found while trying to get the before-and-after #307 asks for.\n\n## What is wrong\n\n`chore shots mountain` has never produced `docs/screenshots/mountain.png`. There is no such file in the repository and there never has been. Every run of it says:\n\n```\nmissed mountain     nothing to photograph in this world today\n```\n\n## Why\n\nTwo things, and the first is enough on its own.\n\n**1. It is taken in the world with no mountains in it.** Every shot in `tools/shots.cjs` falls back to `world: 'road'`, and the mountain shot has no `world` of its own, so it inherits it. A road-tree world is not `shaped` — asked at runtime, its sampler answers `shaped: false`, `mesh: null`, `country: null` — so its high ground is `massifs`, and `planMassifs` puts **none** on seed 3. `ranges` is `null` there by construction (`terrain.ts` only builds it for a mesh or a patch country). The shot's search reads `ranges.peaks` and falls back to `massifs`; both are empty, so it returns `null` every time.\n\nThe massif #307 is about — Stonecrown Highlands, the grey slab in its picture — is the **endless** country's. Asked in that world the same search answers immediately: peaks at 20.7, 20.4 and 20.3 terraces within 900 tiles of the middle, with solid ground on all four sides 70 tiles out.\n\n**2. Nothing noticed, because a shot that finds nothing is not a failure.** `missed` is the right answer for a shot that genuinely cannot be taken today, so a shot that can *never* be taken reads exactly like a shot that is merely unlucky.\n\n## And a second thing, found on the way\n\nThe timeouts are the machine the tool was written on rather than a property of the game. On a small ARM box with no GPU — chromium on a software rasteriser — a dev-mode page takes ~27s to load and a world ~150s to become driveable, against playwright's 30s default and the tool's hard-coded 60s. Every run fails with a timeout that reads like a broken game. The budget wants to be one number that can be raised.\n\n## Done when\n\n- `chore shots mountain` produces a picture\n- it is taken in a world that has a mountain in it\n- the run can be given more time on a slow machine without editing the file\n\n## Not in this\n\nThe picture it takes is of high country with snow on it rather than of a massif, because seed 3's tallest peak lifts about twenty terraces. Framing it on rock worth photographing is #307's own problem and is left there."
+  },
+  "spec": "The mountain shot has never taken a picture",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tools/shotlist.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tools/shotlist.test.ts\"",
+  "committed": "2026-09-18",
+  "issue": "https://github.com/christhomas/ai.world/issues/350"
+}

@@ -1,0 +1,308 @@
+[
+  {
+    "id": "t-h1o47ic",
+    "repo": "nuncaeslupus/integral-job-search",
+    "issue": "https://github.com/nuncaeslupus/integral-job-search/issues/632",
+    "fixPr": "https://github.com/nuncaeslupus/integral-job-search/pull/695",
+    "base": "b6eb35e26686cf9828840d6311c6c6958ae337fe",
+    "fix": "dc7f7a88b0a9b261d1bf94da8850f44a0f12fad0",
+    "committed": "2026-10-03",
+    "test": "timeout 600 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_offer_period_read.py\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 4,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 4
+    }
+  },
+  {
+    "id": "t-1dfok53",
+    "repo": "nilesh32236/opencode-ai-reviewer",
+    "issue": "https://github.com/nilesh32236/opencode-ai-reviewer/issues/546",
+    "fixPr": "https://github.com/nilesh32236/opencode-ai-reviewer/pull/552",
+    "base": "339d9c0e7326760effe750575eb3b934189a6d22",
+    "fix": "7df6047fa10e9193779f37051041c77e2967f98e",
+    "committed": "2026-09-16",
+    "test": "timeout 600 npx --no-install jest \"lib/tests/utils/safe-exec.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1zp9219",
+    "repo": "christhomas/ai.world",
+    "issue": "https://github.com/christhomas/ai.world/issues/362",
+    "fixPr": "https://github.com/christhomas/ai.world/pull/363",
+    "base": "fcfe7717e123de4a62d2926601fa532088925db8",
+    "fix": "b4d96f3bbb79a32b93ccac8e02eb5b35a58a7929",
+    "committed": "2026-09-18",
+    "test": "timeout 600 npx --no-install vitest run \"tools/testclock.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1jzziyy",
+    "repo": "christhomas/ai.world",
+    "issue": "https://github.com/christhomas/ai.world/issues/350",
+    "fixPr": "https://github.com/christhomas/ai.world/pull/351",
+    "base": "cc52ac5de32d0024247439bd52cf07ddf26f2e37",
+    "fix": "bafb021366d216b48fdbc13ffbc45bcaf22f031f",
+    "committed": "2026-09-18",
+    "test": "timeout 600 npx --no-install vitest run \"tools/shotlist.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2ec15be",
+    "repo": "szhekpisov/diffyml",
+    "issue": "https://github.com/szhekpisov/diffyml/issues/189",
+    "fixPr": "https://github.com/szhekpisov/diffyml/pull/191",
+    "base": "d860a72288124a9f65741468ad778cdc01e6dd54",
+    "fix": "adb4cb3b54046ac9d2c675d452148a139182607f",
+    "committed": "2026-07-02",
+    "test": "timeout 600 go test -count=1 ./pkg/diffyml/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1wk1ujt",
+    "repo": "instana/go-sensor",
+    "issue": "https://github.com/instana/go-sensor/issues/1598",
+    "fixPr": "https://github.com/instana/go-sensor/pull/1600",
+    "base": "3aa3b2416309664ad1d4d5c3ccb0bfe9cfc9a763",
+    "fix": "1740063a3464750bfaff9c14a9e2e92c902dcd7b",
+    "committed": "2026-08-24",
+    "test": "timeout 600 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1h5cuo1",
+    "repo": "instana/go-sensor",
+    "issue": "https://github.com/instana/go-sensor/issues/1539",
+    "fixPr": "https://github.com/instana/go-sensor/pull/1542",
+    "base": "ed41e97d01020231467189012cc58180714226a5",
+    "fix": "5e6e4b91bc5020f5c9ff64637f2110148c2bbfab",
+    "committed": "2026-07-02",
+    "test": "timeout 600 go test -count=1 ./aws/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-es4ysir",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/981",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/982",
+    "base": "0e0a28279ccd8959dee7e9e07cca200ef27b06c2",
+    "fix": "1726b0724c57be9e79564ec0907d0874a3163397",
+    "committed": "2026-09-24",
+    "test": "timeout 600 go test -count=1 ./pkg/client/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-3roilh7",
+    "repo": "scaleway/scaleway-sdk-go",
+    "issue": "https://github.com/scaleway/scaleway-sdk-go/issues/3383",
+    "fixPr": "https://github.com/scaleway/scaleway-sdk-go/pull/3539",
+    "base": "6caeb1dfe968017019623b017ffb90138a88a988",
+    "fix": "d27bc272986bb231c0d01bb52729233f5d4fed10",
+    "committed": "2026-10-23",
+    "test": "timeout 600 go test -count=1 ./scw/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1luw0zh",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1889",
+    "fixPr": "https://github.com/ukama/ukama/pull/1890",
+    "base": "8ca4d294d84af4516e5e274e0227206219818a42",
+    "fix": "a5fb3f99d6880e44945222dfa1ac6a1781d4dcc3",
+    "committed": "2026-11-11",
+    "test": "timeout 600 go test -count=1 ./systems/services/msgClient/internal/registry/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1zx7a2l",
+    "repo": "scion-frontiers/farmtable",
+    "issue": "https://github.com/scion-frontiers/farmtable/issues/76",
+    "fixPr": "https://github.com/scion-frontiers/farmtable/pull/134",
+    "base": "696caccc9e0c3a3c435b922faf0bb331cdead145",
+    "fix": "f33d68ae4d2916d5ea1b3383254f5048e7a1fd36",
+    "committed": "2026-07-22",
+    "test": "timeout 600 go test -count=1 ./internal/server/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2mt7ny4",
+    "repo": "hiero-ledger/hiero-sdk-go",
+    "issue": "https://github.com/hiero-ledger/hiero-sdk-go/issues/1858",
+    "fixPr": "https://github.com/hiero-ledger/hiero-sdk-go/pull/1861",
+    "base": "0a6bcc24ae210d3e3fa53957777895151f30dfab",
+    "fix": "22803c01db5ca78ee696c9172cb92dfb02e40aff",
+    "committed": "2026-10-13",
+    "test": "timeout 600 go test -count=1 ./sdk/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2pnabl3",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/911",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/934",
+    "base": "7fa99330ade77891683dde55c39790fc03172fe9",
+    "fix": "84cac1a619a0466dac9f50537657d05f31f0a587",
+    "committed": "2026-11-09",
+    "test": "timeout 600 go test -count=1 ./internal/tui/screens/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2c8n9wq",
+    "repo": "fgrosse/go-coverage-report",
+    "issue": "https://github.com/fgrosse/go-coverage-report/issues/109",
+    "fixPr": "https://github.com/fgrosse/go-coverage-report/pull/113",
+    "base": "7752bdc735305e63c6f2739d47f2c7ceb8c9438d",
+    "fix": "2d3d0a9621e933d9849ef63873c88ad1557786be",
+    "committed": "2026-10-02",
+    "test": "timeout 600 go test -count=1 ./cmd/go-coverage-report/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-29p07em",
+    "repo": "econumo/econumo",
+    "issue": "https://github.com/econumo/econumo/issues/184",
+    "fixPr": "https://github.com/econumo/econumo/pull/187",
+    "base": "25296308ce03a8e502d8264e56955662888abf31",
+    "fix": "2d150b93f3adb1b2a7dac201b4ba31b1896428eb",
+    "committed": "2026-08-02",
+    "test": "timeout 600 go test -count=1 ./web/src/features/classifications/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1mnfo5c",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4196",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4409",
+    "base": "9110a09307be66943b385198bad14745784886db",
+    "fix": "d59dcbfa667b6c4f958eb0acb639841b15e8344c",
+    "committed": "2026-11-06",
+    "test": "timeout 600 go test -count=1 ./prover-ray/recursion/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-ubnq9ps",
+    "repo": "openvax/gtfparse",
+    "issue": "https://github.com/openvax/gtfparse/issues/91",
+    "fixPr": "https://github.com/openvax/gtfparse/pull/94",
+    "base": "be449cbed70be8f515bb92b3eb2f43e55276917c",
+    "fix": "a80b0827e982c32409d78aa707d6350374b6555a",
+    "committed": "2026-10-06",
+    "test": "timeout 600 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_attribute_optimization.py\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-cjthuri",
+    "repo": "DeebotUniverse/client.py",
+    "issue": "https://github.com/DeebotUniverse/client.py/issues/1702",
+    "fixPr": "https://github.com/DeebotUniverse/client.py/pull/1706",
+    "base": "4bc625b32aa1e4e1ab9cfb1069ea990f4be9556e",
+    "fix": "aa530c9671b890d4a7d1312490c566e9f3640ab7",
+    "committed": "2026-07-30",
+    "test": "timeout 600 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_authentication.py\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 4,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  }
+]
