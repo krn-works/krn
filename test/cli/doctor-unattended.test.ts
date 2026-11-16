@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { skillsMissingPermission } from '../../src/cli/doctor-skills.ts';
 import {
   type Probe,
   serveElapsedSeconds,
@@ -120,4 +121,49 @@ test('exits 67 naming the GitHub App not installed when gh answers the captured 
   );
   assert.deepEqual(seen, [['api', 'repos/acme/private-app', '--silent']]);
   assert.ok(!report.text.includes(secret));
+});
+
+function skillRepository(allow: string[]): string {
+  const root = mkdtempSync(join(tmpdir(), 'krn-skills-'));
+  const real = readFileSync(
+    new URL('../../.agents/skills/architecture/SKILL.md', import.meta.url),
+    'utf8',
+  );
+  // The real frontmatter of a repository skill, with the declaration the check looks for added.
+  const text = real.replace(
+    /^---\n/u,
+    '---\nallowed-tools: Bash(git status)\n',
+  );
+  const dir = join(root, '.agents', 'skills', 'architecture');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'SKILL.md'), text);
+  mkdirSync(join(root, '.claude'));
+  writeFileSync(
+    join(root, '.claude', 'settings.json'),
+    JSON.stringify({ permissions: { allow } }),
+  );
+  return root;
+}
+
+test('a skill declaring allowed-tools without a Skill allow entry fails with exit 1 naming it', () => {
+  const root = skillRepository([]);
+  const report = unattendedReport(
+    ['--unattended', '--root', root],
+    {},
+    stub({ etimes: 3600 }),
+  );
+  assert.equal(report.exitCode, 1);
+  assert.match(report.text, /^FAIL skills: Skill\(architecture\)/u);
+});
+
+test('the same skill passes the skill check once its Skill allow entry exists', () => {
+  const root = skillRepository(['Skill(architecture)']);
+  assert.deepEqual(skillsMissingPermission(root), []);
+});
+
+test('the live repository has an allow entry for every skill that declares allowed-tools or hooks', () => {
+  assert.deepEqual(
+    skillsMissingPermission(new URL('../..', import.meta.url).pathname),
+    [],
+  );
 });

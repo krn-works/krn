@@ -6,6 +6,7 @@ import {
   originUrl,
   repoSlug,
 } from '../adopt/verify.ts';
+import { skillsMissingPermission } from './doctor-skills.ts';
 import { tokenHelper } from './lane-run/environment.ts';
 
 /** The mint failed: no App token, so nothing can ship. */
@@ -13,6 +14,8 @@ export const exitMintFailed = 69;
 /** The vault session ends inside the window, or no vault session could be read. */
 export const exitVaultShort = 75;
 export const exitUsage = 64;
+/** A repository skill declares allowed-tools or hooks and has no Skill(name) allow entry. */
+export const exitSkillPermission = 1;
 /** The App token mints but the repository named by --root is not visible to the App. */
 export const exitAppNotInstalled = APP_NOT_INSTALLED_EXIT;
 
@@ -98,6 +101,15 @@ export function unattendedReport(
     return {
       text: 'usage: krn doctor --unattended [--window-hours N] [--root <repo>]  (N a positive number)\n',
       exitCode: exitUsage,
+    };
+  const rootFlag = args.indexOf('--root');
+  const skillRoot =
+    (rootFlag < 0 ? undefined : args[rootFlag + 1]) ?? process.cwd();
+  const missing = skillsMissingPermission(skillRoot);
+  if (missing.length > 0)
+    return {
+      text: `FAIL skills: ${missing.map((name) => `Skill(${name})`).join(', ')} missing from the project settings permissions.allow; an unattended run stalls on the prompt. Remedy: add each entry to permissions.allow, then rerun krn doctor --unattended.\n`,
+      exitCode: exitSkillPermission,
     };
   const sessionEnv = { ...env, KRN_SESSION_CLASS: undefined };
   const mint = probe(process.execPath, [tokenHelper, 'token'], sessionEnv);

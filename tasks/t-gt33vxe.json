@@ -1,7 +1,11 @@
 {
   "id": "t-gt33vxe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "doctor --unattended fails exit 1 naming skills with allowed-tools/hooks lacking Skill(name); tests pass, live repo has none missing"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Unattended doctor checks skill permission entries for CC 2.1.325",
