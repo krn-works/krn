@@ -31,6 +31,21 @@ const gaugeArgs = (...extra: string[]) => [
 const fixture = (name: string) =>
   readFileSync(new URL(`fixtures/${name}.jsonl`, import.meta.url), 'utf8');
 
+// A single-call turn mirrors its counters in its one `message` iteration; a derived
+// reading changes both, as the transcript writer does.
+const withTotal = (usage: { iterations: object[] }, total: number) => {
+  const counters = {
+    input_tokens: 2,
+    cache_read_input_tokens: 0,
+    cache_creation_input_tokens: total - 2,
+  };
+  return {
+    ...usage,
+    ...counters,
+    iterations: [{ ...usage.iterations[0], ...counters }],
+  };
+};
+
 test('gauge exports a pure last main-chain context reader', async () => {
   const module = await import(gaugeModule);
   assert.equal(typeof module.contextTotal, 'function');
@@ -45,6 +60,13 @@ test('gauge exports a pure last main-chain context reader', async () => {
     module.contextTotal(`${fixture('second')}\n${fixture('below')}`),
     95053,
   );
+});
+
+// Verbatim usage of a lead turn that called the advisor: iterations are executor,
+// advisor, executor, and the top-level counters sum both executor calls (131420).
+test('gauge reads an advisor turn as its last executor prompt, not the summed usage', async () => {
+  const module = await import(gaugeModule);
+  assert.equal(module.contextTotal(fixture('advisor-turn')), 2 + 64967 + 1482);
 });
 
 test('gauge caps its advisories at 150k and 200k of a 400k window', async () => {
@@ -232,12 +254,7 @@ test('gauge budget follows the project auto-compact window and ignores the measu
   // 2026-11-01 (interactive lead sessions started at 46.0k-47.7k).
   const reading = (total: number) => {
     const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
-    entry.message.usage = {
-      ...entry.message.usage,
-      input_tokens: 2,
-      cache_read_input_tokens: 0,
-      cache_creation_input_tokens: total - 2,
-    };
+    entry.message.usage = withTotal(entry.message.usage, total);
     return `${JSON.stringify(entry)}\n`;
   };
   const run = (text: string, session = 'session') => {
@@ -295,12 +312,7 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
   // Derived from the verbatim below capture by changing the usage counters only.
   const reading = (total: number) => {
     const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
-    entry.message.usage = {
-      ...entry.message.usage,
-      input_tokens: 2,
-      cache_read_input_tokens: 0,
-      cache_creation_input_tokens: total - 2,
-    };
+    entry.message.usage = withTotal(entry.message.usage, total);
     return `${JSON.stringify(entry)}\n`;
   };
   const run = (
@@ -429,12 +441,7 @@ test('host gauge serves every project except one that wires its own gauge', asyn
   // Derived from the verbatim below capture by changing the usage counters only.
   const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
   const run = (total: number, event: string, tool: object = {}) => {
-    entry.message.usage = {
-      ...entry.message.usage,
-      input_tokens: 2,
-      cache_read_input_tokens: 0,
-      cache_creation_input_tokens: total - 2,
-    };
+    entry.message.usage = withTotal(entry.message.usage, total);
     writeFileSync(transcript, `${JSON.stringify(entry)}\n`);
     const result = spawnSync(process.execPath, gaugeArgs('--host'), {
       env: {

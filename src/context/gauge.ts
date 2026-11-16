@@ -22,6 +22,20 @@ import { isWorkerSession } from '../hook/session.ts';
 import { object } from './io.ts';
 
 // Missing counters are invalid, rather than evidence of a small context.
+/**
+ * The prompt the model saw last in this turn. A turn that calls the advisor carries
+ * `usage.iterations` (executor, advisor, executor) and its top-level counters sum both
+ * executor calls, so the context is the last `message` iteration, not the total.
+ */
+function lastPrompt(usage: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(usage.iterations)) return usage;
+  for (let i = usage.iterations.length - 1; i >= 0; i -= 1) {
+    const step = object(usage.iterations[i]);
+    if (step.type === 'message') return step;
+  }
+  return usage;
+}
+
 export function gaugeReading(transcript: string): {
   total: number | undefined;
   boundary: string | undefined;
@@ -44,8 +58,7 @@ export function gaugeReading(transcript: string): {
     if (entry.type !== 'assistant' || entry.isSidechain === true) continue;
     const message = object(entry.message);
     if (message.usage === undefined) continue;
-    const usage = object(message.usage);
-    const counters = promptCounters(usage);
+    const counters = promptCounters(lastPrompt(object(message.usage)));
     let sum = 0;
     for (const counter of counters) {
       if (
