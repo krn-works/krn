@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,6 +18,8 @@ import {
   cacheOverLimit,
   commandsFor,
   dirBytes,
+  gradeWorktree,
+  INSTALL_SECONDS,
   type ManifestRow,
   pruneCache,
   readManifest,
@@ -177,4 +180,38 @@ test('cache pruning continues while free disk is under the floor', () => {
   const removed = pruneCache(root, lim, () => (free += 6));
   assert.equal(removed.length, 1);
   rmSync(root, { recursive: true, force: true });
+});
+
+test('a screened session is graded with the install time verification had', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'grade-timeout-'));
+  const path = process.env.PATH;
+  try {
+    // A `timeout` on PATH that records its seconds and runs the command, so the test sees the grade's install budget.
+    const bin = join(root, 'bin');
+    mkdirSync(bin);
+    const seen = join(root, 'seen');
+    writeFileSync(
+      join(bin, 'timeout'),
+      `#!/bin/sh\necho "$1" >> ${seen}\nshift\nexec "$@"\n`,
+    );
+    chmodSync(join(bin, 'timeout'), 0o755);
+    process.env.PATH = `${bin}:${path}`;
+    const wt = join(root, 'wt');
+    const unitDir = join(root, 'unit');
+    mkdirSync(wt);
+    mkdirSync(unitDir);
+    writeFileSync(join(unitDir, 'hidden.txt'), 'x');
+    const unit = {
+      install: 'true',
+      test: 'true',
+      hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+    } as unknown as Parameters<typeof gradeWorktree>[1];
+    const g = await gradeWorktree(wt, unit, unitDir, join(root, 'log'), root);
+    assert.equal(g.install, 0);
+    assert.equal(INSTALL_SECONDS, 900);
+    assert.equal(readFileSync(seen, 'utf8').trim().split('\n')[0], '900');
+  } finally {
+    process.env.PATH = path;
+    rmSync(root, { recursive: true, force: true });
+  }
 });
