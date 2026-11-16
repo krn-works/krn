@@ -1,7 +1,11 @@
 {
   "id": "t-5yd4nx8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr body prints Refs when commits carry Refs and no Ticket; test/cli/pr-body.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "krn pr body writes Ticket: when every commit carries Refs:",
