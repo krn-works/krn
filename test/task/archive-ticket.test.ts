@@ -134,3 +134,23 @@ test('close of an archived task is refused as already closed', async () => {
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('show answers for an archived id and an open task blocked by an archived one', async () => {
+  const repo = await archivedRepo();
+  try {
+    const archived = runCli(repo, ['archive', '--json']);
+    assert.equal(archived.status, 0, archived.stderr);
+    assert.ok(!existsSync(join(repo, 'tasks', 't-old.json')));
+    const shown = runCli(repo, ['show', 't-old', '--json']);
+    assert.equal(shown.status, 0, shown.stderr);
+    assert.match(shown.stdout, /"id": ?"t-old"/);
+    const blocked = runCli(repo, ['show', 't-open', '--json']);
+    assert.equal(blocked.status, 0, blocked.stderr);
+    assert.match(blocked.stdout, /t-old/);
+    const ready = runCli(repo, ['ready', '--explain', 't-open', '--json']);
+    assert.equal(ready.status, 0, ready.stderr);
+    assert.doesNotMatch(ready.stdout, /blocked by after task t-old/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});

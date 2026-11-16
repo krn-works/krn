@@ -32,31 +32,43 @@ function strings(value: unknown): string[] {
     : [];
 }
 
+function rawTask(source: string, fallbackId: string): Raw | undefined {
+  try {
+    const t = JSON.parse(source) as Record<string, unknown>;
+    return {
+      id: String(t.id ?? fallbackId),
+      status: String(t.status ?? ''),
+      created: String(t.created ?? ''),
+      after: strings(t.after),
+      text: strings(t.body).join('\n'),
+      acceptance: Array.isArray(t.acceptance) ? t.acceptance.length : 0,
+      resolution:
+        typeof t.resolution === 'object' && t.resolution !== null
+          ? (t.resolution as Raw['resolution'])
+          : null,
+    };
+  } catch {
+    // an unreadable record is `krn task check`'s finding
+    return undefined;
+  }
+}
+
+/** Live `tasks/<id>.json` records and archived `tasks/archive/*.jsonl` lines. */
 function readTasks(root: string): Raw[] {
   const dir = join(root, 'tasks');
   if (!existsSync(dir)) return [];
+  const sources: [string, string][] = [];
+  for (const name of readdirSync(dir).filter((n) => n.endsWith('.json')))
+    sources.push([readFileSync(join(dir, name), 'utf8'), name]);
+  const archive = join(dir, 'archive');
+  if (existsSync(archive))
+    for (const name of readdirSync(archive).filter((n) => n.endsWith('.jsonl')))
+      for (const line of readFileSync(join(archive, name), 'utf8').split('\n'))
+        if (line !== '') sources.push([line, name]);
   const tasks: Raw[] = [];
-  for (const name of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
-    try {
-      const t = JSON.parse(readFileSync(join(dir, name), 'utf8')) as Record<
-        string,
-        unknown
-      >;
-      tasks.push({
-        id: String(t.id ?? name),
-        status: String(t.status ?? ''),
-        created: String(t.created ?? ''),
-        after: strings(t.after),
-        text: strings(t.body).join('\n'),
-        acceptance: Array.isArray(t.acceptance) ? t.acceptance.length : 0,
-        resolution:
-          typeof t.resolution === 'object' && t.resolution !== null
-            ? (t.resolution as Raw['resolution'])
-            : null,
-      });
-    } catch {
-      // an unreadable record is `krn task check`'s finding
-    }
+  for (const [source, name] of sources) {
+    const task = rawTask(source, name);
+    if (task !== undefined) tasks.push(task);
   }
   return tasks.sort((a, b) => a.id.localeCompare(b.id));
 }

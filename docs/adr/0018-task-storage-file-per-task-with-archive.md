@@ -39,7 +39,7 @@ The file-per-task decision of ADR 0015 is reaffirmed. A single JSONL file, SQLit
 
 1. **Open tasks: one file each, `tasks/<id>.json`, as today.**
 2. **Closed tasks: archived.**
-   - A task closed for more than 14 days moves into `tasks/archive/<YYYY-MM>.jsonl`.
+   - A closed task created more than 1 day ago moves into `tasks/archive/<YYYY-MM>.jsonl` (age measured from `created`; lead calibration 2026-11-16, autonomy grant, replacing 14 days because the tracker held 737 closed files). Blocker resolution reads the archive, so a task whose `after` names an archived task stays correct.
    - The month is the task's immutable `created` month. There is one record per line, sorted by id.
    - Placement is a pure function of the record, so two archive runs produce identical bytes.
    - The lead's retro runs `krn task archive`. It is the only writer.

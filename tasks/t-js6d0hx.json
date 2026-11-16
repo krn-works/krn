@@ -1,7 +1,11 @@
 {
   "id": "t-js6d0hx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "archive age 1 day; tasks/*.json 767->36; show/blocker tests pass"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Task commands answer in under half a second and closed tasks archive (S17)",
