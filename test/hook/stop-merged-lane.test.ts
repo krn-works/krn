@@ -11,7 +11,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { PRUNE_GRACE_MS, pruneMergedLanes } from '../../src/cli/lane.ts';
+import {
+  checkLaneBudget,
+  PRUNE_GRACE_MS,
+  pruneMergedLanes,
+} from '../../src/cli/lane.ts';
 import { judgeStop } from '../../src/hook/stop.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
 
@@ -111,6 +115,38 @@ test('a merged lane with uncommitted work is not pruned', () => {
     );
     assert.equal(existsSync(lane), true);
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the lane budget skips a merged clean lane inside the prune grace and lists what it counts', () => {
+  const { root, main, lane, sha } = mergedLane();
+  const before = process.env.KRN_LANE_MAX_LIVE;
+  process.env.KRN_LANE_MAX_LIVE = '1';
+  try {
+    recordShip(main, { branch: 'feat-x', sha });
+    // Young ship: the grace keeps the worktree, yet the budget does not count it.
+    assert.deepEqual(pruneMergedLanes(main, 'main'), []);
+    assert.equal(existsSync(lane), true);
+    assert.doesNotThrow(() => checkLaneBudget(main, 'main'));
+
+    const open = join(main, '.krn', 'worktrees', 'open-lane');
+    git(main, 'worktree', 'add', '-q', '--no-track', '-b', 'open-lane', open);
+    assert.throws(
+      () => checkLaneBudget(main, 'main'),
+      /1 live lane worktrees.*counted: open-lane \(no ship record\)/u,
+    );
+
+    // A merged lane with uncommitted work still counts, with its state named.
+    git(main, 'worktree', 'remove', '--force', open);
+    writeFileSync(join(lane, 'wip.txt'), 'unsaved\n');
+    assert.throws(
+      () => checkLaneBudget(main, 'main'),
+      /counted: feat-x \(merged, uncommitted changes\)/u,
+    );
+  } finally {
+    if (before === undefined) delete process.env.KRN_LANE_MAX_LIVE;
+    else process.env.KRN_LANE_MAX_LIVE = before;
     rmSync(root, { recursive: true, force: true });
   }
 });

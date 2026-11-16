@@ -91,7 +91,7 @@ function freeGb(dir: string): number | undefined {
   }
 }
 
-export function checkLaneBudget(main: string): void {
+export function checkLaneBudget(main: string, base?: string): void {
   const minFree = limit('KRN_LANE_MIN_FREE_GB', 5);
   for (const dir of [
     main,
@@ -107,15 +107,78 @@ export function checkLaneBudget(main: string): void {
   const dir = join(main, '.krn', 'worktrees');
   // Only real worktrees count: a lane worktree holds a `.git` file; a test fixture or a
   // leftover directory under .krn/worktrees does not block a lane (t-tj1g7m9).
-  const live = existsSync(dir)
-    ? readdirSync(dir, { withFileTypes: true }).filter(
-        (e) => e.isDirectory() && existsSync(join(dir, e.name, '.git')),
-      ).length
-    : 0;
-  if (live >= maxLive)
+  // A lane whose ship record names a merge commit on origin/<base> and that holds no uncommitted
+  // change is finished: it stays on disk during the prune grace but never fills the budget.
+  const merged = base ? mergedShipBranches(main, base) : new Set<string>();
+  const live: string[] = [];
+  if (existsSync(dir))
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (!e.isDirectory() || !existsSync(join(dir, e.name, '.git'))) continue;
+      const clean = (): boolean => {
+        const status = gitRun(join(dir, e.name), ['status', '--porcelain']);
+        return status.status === 0 && status.stdout.trim() === '';
+      };
+      if (merged.has(e.name) && clean()) continue;
+      live.push(e.name);
+    }
+  if (live.length >= maxLive)
     throw new CliUsageError(
-      `lane budget: ${live} live lane worktrees in ${dir} (maximum ${maxLive}, KRN_LANE_MAX_LIVE); ship or remove a lane first`,
+      `lane budget: ${live.length} live lane worktrees in ${dir} (maximum ${maxLive}, KRN_LANE_MAX_LIVE); ship or remove a lane first; counted: ${live
+        .map((name) => `${name} (${laneState(main, name, base)})`)
+        .join(', ')}`,
     );
+}
+
+function laneState(main: string, name: string, base?: string): string {
+  const record = shipRecord(main, name);
+  if (!record) return 'no ship record';
+  if (base && isMergedOn(main, base, record.sha))
+    return 'merged, uncommitted changes';
+  return 'shipped, merge not on base';
+}
+
+function shipRecord(
+  main: string,
+  branch: string,
+): { branch: string; sha: string } | undefined {
+  try {
+    const record = JSON.parse(
+      readFileSync(
+        join(main, shipRecordDir, `${encodeURIComponent(branch)}.json`),
+        'utf8',
+      ),
+    );
+    if (typeof record.sha === 'string' && /^[0-9a-f]{7,40}$/u.test(record.sha))
+      return { branch, sha: record.sha };
+  } catch {
+    /* No usable record. */
+  }
+  return undefined;
+}
+
+function isMergedOn(main: string, base: string, sha: string): boolean {
+  return (
+    gitRun(main, ['merge-base', '--is-ancestor', sha, `origin/${base}`])
+      .status === 0
+  );
+}
+
+/** Lane branches whose ship record names a merge commit that is on origin/<base>. */
+function mergedShipBranches(main: string, base: string): Set<string> {
+  const dir = join(main, shipRecordDir);
+  const merged = new Set<string>();
+  if (!existsSync(dir)) return merged;
+  for (const name of readdirSync(dir)) {
+    try {
+      const { branch, sha } = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+      if (typeof branch !== 'string' || branch === base) continue;
+      if (!/^[0-9a-f]{7,40}$/u.test(String(sha))) continue;
+      if (isMergedOn(main, base, sha)) merged.add(branch);
+    } catch {
+      /* Not a ship record. */
+    }
+  }
+  return merged;
 }
 
 const git = gitWith((message) => new CliUsageError(message));
@@ -427,7 +490,7 @@ export async function startLane(
   fetchBase(main, base);
   // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
   pruneMergedLanes(main, base);
-  checkLaneBudget(main);
+  checkLaneBudget(main, base);
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
   // An adoption committed only locally is invisible to a worktree cut from origin/<base>.
   if (
