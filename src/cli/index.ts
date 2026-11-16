@@ -48,7 +48,8 @@ async function task(options: string[]): Promise<void> {
     }
   }
   const { taskCommand } = await import('../task/cli.ts');
-  await taskCommand(options);
+  const { claimPacket } = await import('../brain/claim-packet.ts');
+  await taskCommand(options, claimPacket);
 }
 
 // Typed by CommandName, so a command without help text or a help entry without a handler fails tsc.

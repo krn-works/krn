@@ -1,7 +1,11 @@
 {
   "id": "t-tsak7jn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node --test test/task/claim-packet.test.ts: pass; claim prints clauses and precedent within 400 tokens and stores clause ids"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A claimed task opens with its clauses and precedent (S18)",
