@@ -105,7 +105,7 @@ function namesPath(text: string): boolean {
 }
 
 const MANY_PRS =
-  /\b(?:[2-9]|\d{2,})\s*(?:PRs|pull requests)\b|\b(?:several|many|multi)\b/iu;
+  /\b(?:[2-9]|\d{2,}|several|many|multiple)\s*(?:\w+\s+)?(?:PRs|pull requests)\b|\bmulti-?(?:PR|pull request)s?\b/iu;
 
 function openFailure(
   rule: TaskRule,

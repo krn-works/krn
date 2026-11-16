@@ -107,6 +107,28 @@ test('krn task check fails on a violating record and names the rule finding', ()
   assert.equal(green.status, 0, green.stdout + green.stderr);
 });
 
+test('the one-pr rule fires only on a quantifier that qualifies PRs', () => {
+  const rule = (outcome: string) =>
+    taskQualityFailures(
+      tracker({ 't-quant01': { body: [outcome, GOOD[1], GOOD[2]] } }),
+      'one-pr',
+    );
+  assert.deepEqual(rule('Outcome: krn prints how many heads and exits 0.'), []);
+  assert.deepEqual(rule('Outcome: several checks pass and exit is 0.'), []);
+  assert.match(
+    rule('Outcome: split over several PRs, exit 0.').join(),
+    /more than one PR/u,
+  );
+  assert.match(
+    rule('Outcome: 3 PRs land, exit 0.').join(),
+    /more than one PR/u,
+  );
+  assert.match(
+    rule('Outcome: many pull requests merge.').join(),
+    /more than one PR/u,
+  );
+});
+
 test('a done close with a note, or a pre-rule record, is green', () => {
   const root = tracker({
     't-closed1': {

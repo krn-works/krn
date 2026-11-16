@@ -1,0 +1,18 @@
+{
+  "id": "t-ws0gx62",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "MANY_PRS narrowed, quality test added, task check quality exit 0 before and after"
+  },
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "One-PR rule fires only on PR counts",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: `krn task create` refused an Outcome containing \"how many heads\" with \"declares more than one PR\"; MANY_PRS in src/task/quality.ts matches a bare several/many/multi anywhere in the Outcome.\nOutcome: the one-pr rule fires only when a plural quantifier or a number of 2 or more directly qualifies PRs or pull requests; an Outcome saying \"how m-a-n-y heads\" (without the dashes) passes with exit 0.\nWhy: a false refusal makes leads rewrite correct task text.\nProof: a quality test: \"prints how many heads\" passes, \"split over several PRs\" and \"3 PRs\" still fail.\nFiles: src/task/quality.ts, test/task/quality.test.ts"
+  ],
+  "kind": "defect",
+  "area": "task"
+}
