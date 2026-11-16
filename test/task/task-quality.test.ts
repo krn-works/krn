@@ -1,4 +1,4 @@
-// fast-covers: src/brain/task-quality.ts
+// fast-covers: src/task/quality.ts
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -15,14 +15,19 @@ import { fileURLToPath } from 'node:url';
 import {
   allTaskQualityFailures,
   TASK_RULES,
-} from '../../src/brain/task-quality.ts';
+  type TaskRule,
+  taskQualityFailures,
+} from '../../src/task/quality.ts';
 
 // KRN-12: runs the real `krn standards` entry on scratch trackers, KRN's own tasks and an init skeleton.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const own = fileURLToPath(new URL('../..', import.meta.url));
 
-function krn(...args: string[]) {
-  return spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
+function krn(cwd: string, ...args: string[]) {
+  return spawnSync(process.execPath, [cli, ...args], {
+    cwd,
+    encoding: 'utf8',
+  });
 }
 
 const GOOD = [
@@ -44,10 +49,6 @@ function tracker(
       `${JSON.stringify({ id, status: 'open', resolution: null, created: '2026-11-15', priority: 2, title: 'T', after: [], body: GOOD, ...fields }, null, 2)}\n`,
     );
   return root;
-}
-
-function rule(root: string, name: string) {
-  return krn('standards', 'task-quality', '--rule', name, '--root', root);
 }
 
 const RED: [string, Record<string, unknown>, RegExp][] = [
@@ -80,14 +81,30 @@ const RED: [string, Record<string, unknown>, RegExp][] = [
 
 for (const [name, fields, message] of RED) {
   test(`task rule ${name} is red on a violating task and green on a good one`, () => {
-    const red = rule(tracker({ 't-redred1': fields }), name);
-    assert.equal(red.status, 1, red.stdout + red.stderr);
-    assert.match(red.stderr, message);
-    assert.match(red.stdout, new RegExp(`FAIL task-quality ${name}`, 'u'));
-    const green = rule(tracker({ 't-green01': {} }), name);
-    assert.equal(green.status, 0, green.stdout + green.stderr);
+    const red = taskQualityFailures(
+      tracker({ 't-redred1': fields }),
+      name as TaskRule,
+    );
+    assert.match(red.join('\n'), message);
+    assert.deepEqual(
+      taskQualityFailures(tracker({ 't-green01': {} }), name as TaskRule),
+      [],
+    );
   });
 }
+
+test('krn task check fails on a violating record and names the rule finding', () => {
+  const run = krn(
+    tracker({ 't-redred1': { body: ['Outcome: make it nicer', GOOD[1]] } }),
+    'task',
+    'check',
+    '--quality',
+  );
+  assert.notEqual(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stderr + run.stdout, /no measurable "Outcome:"/u);
+  const green = krn(tracker({ 't-green01': {} }), 'task', 'check', '--quality');
+  assert.equal(green.status, 0, green.stdout + green.stderr);
+});
 
 test('a done close with a note, or a pre-rule record, is green', () => {
   const root = tracker({
@@ -101,7 +118,7 @@ test('a done close with a note, or a pre-rule record, is green', () => {
       resolution: { kind: 'done', ref: null, note: '' },
     },
   });
-  assert.equal(rule(root, 'close-evidence').status, 0);
+  assert.deepEqual(taskQualityFailures(root, 'close-evidence'), []);
 });
 
 test('a dependency declared in after is green, and an unknown after id is red', () => {
@@ -109,63 +126,44 @@ test('a dependency declared in after is green, and an unknown after id is red', 
     't-dep0001': {},
     't-main001': { body: [...GOOD, 'After: t-dep0001'], after: ['t-dep0001'] },
   });
-  assert.equal(rule(ok, 'declared-dependencies').status, 0);
+  assert.deepEqual(taskQualityFailures(ok, 'declared-dependencies'), []);
   const dangling = tracker({ 't-main001': { after: ['t-gone001'] } });
-  assert.equal(rule(dangling, 'declared-dependencies').status, 1);
-});
-
-test('an unknown rule is a usage error', () => {
-  const run = rule(tracker({}), 'nonsense');
-  assert.equal(run.status, 64, run.stderr);
+  assert.equal(
+    taskQualityFailures(dangling, 'declared-dependencies').length,
+    1,
+  );
 });
 
 test('KRN own tasks pass every task rule: zero false-red', () => {
-  for (const name of TASK_RULES) {
-    const run = rule(own, name);
-    assert.equal(run.status, 0, `${name}: ${run.stderr}`);
-  }
+  assert.deepEqual(allTaskQualityFailures(own), []);
+  const run = krn(own, 'task', 'check', '--quality');
+  assert.equal(run.status, 0, run.stdout + run.stderr);
 });
 
-test('init seeds tasks that pass every task-quality record', () => {
+test('init seeds tasks that pass every task-quality rule', () => {
   const root = mkdtempSync(join(tmpdir(), 'krn-taskq-init-'));
-  const init = krn('adopt', root, '--init', '--stack', 'go', '--no-canary');
+  const init = krn(
+    own,
+    'adopt',
+    root,
+    '--init',
+    '--stack',
+    'go',
+    '--no-canary',
+  );
   assert.equal(init.status, 0, init.stderr + init.stdout);
-  for (const name of TASK_RULES) {
-    const run = rule(root, name);
-    assert.equal(run.status, 0, `${name}: ${run.stderr}`);
-  }
-  const check = krn('standards', 'check', '--tasks', '--root', root);
-  assert.equal(check.status, 0, check.stderr + check.stdout);
-  assert.doesNotMatch(check.stderr, /^task: /mu);
+  assert.deepEqual(allTaskQualityFailures(root), []);
 });
 
-test('the pack holds at least six enforced task-quality records, each naming a rule', () => {
+test('the standards pack holds no task-quality record: the rules live in krn task check', () => {
   const pack = JSON.parse(
     readFileSync(join(own, 'standards/records.json'), 'utf8'),
-  ) as { area?: string; enforcement: { kind: string; args?: string[] } }[];
-  const quality = pack.filter(
-    (r) => r.area === 'task-quality' && r.enforcement.kind !== 'advisory',
+  ) as { area?: string }[];
+  assert.deepEqual(
+    pack.filter((r) => r.area === 'task-quality'),
+    [],
   );
-  assert.ok(quality.length >= 6, `${quality.length}`);
-  const named = new Set(
-    quality.flatMap((r) => r.enforcement.args?.slice(3) ?? []),
-  );
-  for (const name of TASK_RULES) assert.ok(named.has(name), name);
-});
-
-test('a task-quality record fails `krn standards check --record` on a violating tracker', () => {
-  const root = tracker({ 't-redred1': { body: ['Outcome: nicer'] } });
-  writeFileSync(join(root, 'krn.json'), '{"test":"true","tracker":"krn"}\n');
-  const run = krn(
-    'standards',
-    'check',
-    '--record',
-    's-task-named-proof',
-    '--root',
-    root,
-  );
-  assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stderr, /s-task-named-proof/u);
+  assert.equal(TASK_RULES.length, 6);
 });
 
 test('allTaskQualityFailures names a vague open task and passes a measured one (npm run lint gate)', () => {
@@ -203,4 +201,18 @@ test('allTaskQualityFailures names a vague open task and passes a measured one (
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('krn task check ignores the quality rules unless --quality is given, and takes it once', () => {
+  const root = tracker({
+    't-redred1': { body: ['Outcome: make it nicer', GOOD[1], GOOD[2]] },
+  });
+  const plain = krn(root, 'task', 'check');
+  assert.equal(plain.status, 0, plain.stdout + plain.stderr);
+  const strict = krn(root, 'task', 'check', '--quality');
+  assert.notEqual(strict.status, 0);
+  assert.match(strict.stderr, /t-redred1: no measurable/u);
+  const twice = krn(root, 'task', 'check', '--quality', '--quality');
+  assert.notEqual(twice.status, 0);
+  assert.match(twice.stderr, /--quality may be supplied once/u);
 });

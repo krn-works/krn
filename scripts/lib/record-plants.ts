@@ -33,24 +33,6 @@ function jsonText(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-function task(id: string, fields: Record<string, unknown>): Edit {
-  return {
-    write: {
-      [`tasks/${id}.json`]: jsonText({
-        id,
-        status: 'open',
-        resolution: null,
-        created: '2026-11-15',
-        priority: 1,
-        title: 'A planted task',
-        after: [],
-        body: [],
-        ...fields,
-      }),
-    },
-  };
-}
-
 const TEST_FILE =
   /(^|\/)(tests?|__tests__|spec)\/|_test\.go$|(^|\/)test_[^/]*\.py$|\.(test|spec)\.[cm]?[jt]sx?$/;
 
@@ -59,12 +41,6 @@ function without(files: string[], pattern: RegExp): Record<string, null> {
     files.filter((f) => pattern.test(f)).map((f) => [f, null]),
   );
 }
-
-const MEASURED_OPEN = [
-  'Outcome: the command exits 0',
-  'Proof: a test run that passes',
-  'Files: src/a.ts',
-];
 
 /**
  * The tool a record's own enforcement needs to run at all: without it the record passes vacuously, so
@@ -216,33 +192,6 @@ export const PLANTS: Record<string, Plant> = {
             }),
           },
         },
-  's-task-states-proof': () => task('t-aaaaaa1', { body: ['Why: because'] }),
-  's-task-measurable-outcome': () =>
-    task('t-aaaaaa2', {
-      body: ['Outcome: make it nicer', 'Proof: a test run', 'Files: src/a.ts'],
-    }),
-  's-task-named-proof': () =>
-    task('t-aaaaaa3', {
-      body: ['Outcome: the command exits 0', 'Files: src/a.ts'],
-    }),
-  's-task-named-files': () =>
-    task('t-aaaaaa4', {
-      body: ['Outcome: the command exits 0', 'Proof: a test run that passes'],
-    }),
-  's-task-one-pr': () =>
-    task('t-aaaaaa5', {
-      body: ['Outcome: ships as 3 PRs', ...MEASURED_OPEN.slice(1)],
-    }),
-  's-task-declared-dependencies': () =>
-    task('t-aaaaaa6', {
-      body: [...MEASURED_OPEN, 'After: t-aaaaaa1'],
-    }),
-  's-task-close-evidence': () =>
-    task('t-aaaaaa7', {
-      status: 'closed',
-      resolution: { kind: 'done', note: '' },
-      body: MEASURED_OPEN,
-    }),
   's-ts-no-any': () => ({
     write: { 'src/any.ts': 'export const x: any = 1;\n' },
   }),
