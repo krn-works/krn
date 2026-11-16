@@ -46,7 +46,12 @@ const testTimeoutPattern =
 
 // Each entry is one file and one reason, as for waits.
 const allowWallClock = new Map([]);
-const allowTestTimeout = new Map([]);
+const allowTestTimeout = new Map([
+  [
+    'test/scripts/planted-records.test.ts',
+    'each stack installs real dependencies in adopt --init: 68-84 s at host load 56',
+  ],
+]);
 
 /** Wall-clock deltas and per-test timeouts in one file's text, as "file:line message". */
 export function clockProblems(file, text) {
