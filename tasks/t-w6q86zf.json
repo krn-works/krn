@@ -1,7 +1,11 @@
 {
   "id": "t-w6q86zf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "own index budget raised 5800 to 6400; fixture test adds a 200-byte record and render stays under budget; render --write exits 0"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "The own standards index has room for a new CI rule record",
