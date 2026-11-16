@@ -1,0 +1,16 @@
+{
+  "id": "t-gksekcn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Eval runners cap concurrent headless sessions",
+  "after": [
+    "t-26p4xm7"
+  ],
+  "body": [
+    "Source: t-ahsmyfp measurement (.krn/runs/lead/usage/report-before-v3.md): the week's concurrency peak of 69 sessions (2026-11-12 19:46Z) was headless sdk-cli sessions in .krn/worktrees/d23-requirements (516 sessions, judge and requirements prompts); no launcher script is in the repo; KRN_LANE_MAX_LIVE counts worktrees and does not bind them.\nOutcome: every eval runner that starts headless claude sessions (evals/replay once S6 ships, any d23 script) takes a host-wide session slot capped by KRN_EVAL_MAX_SESSIONS (default 4) and prints the wait; a test asserts at most N concurrent sessions with N=2 on a stub claude.\nProof: node --test test/evals/session-cap.test.ts: pass\nFiles: evals/replay/, evals/d23/"
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

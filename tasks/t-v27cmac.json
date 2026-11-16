@@ -1,0 +1,15 @@
+{
+  "id": "t-v27cmac",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The lane model rewrite is silent and untested live",
+  "after": [],
+  "body": [
+    "Source: t-ahsmyfp delivery #1223: scripts/claude/subagent-model.ts rewrites an explicit opus/fable on a krn-lane call to the pinned model without any notice, so a probe that names opus without a lane-model: line silently runs Sonnet; only the pure function is tested (KRN-12).\nOutcome: the hook prints a systemMessage naming the rewrite (asked model, run model, the lane-model: opt-in); a live krn-lane call with model opus records claude-sonnet-5-5 in its transcript, captured as a fixture.\nProof: node --test test/claude/subagent-model-hook.test.ts: pass (asserts the notice and the captured live model)\nFiles: scripts/claude/subagent-model.ts, test/claude/subagent-model-hook.test.ts",
+    "Live evidence 2026-11-16: a krn-lane Agent call with model opus from the lead session (466021be) recorded claude-sonnet-5-5 on both assistant turns (subagents/agent-a5cb93b9e17120e77.jsonl; fable appears only as advisorModel). The remaining work is the notice and a captured fixture."
+  ],
+  "kind": "defect",
+  "area": "harness"
+}
