@@ -1,0 +1,14 @@
+{
+  "id": "t-x2fk23k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A read-only krn command archives closed tasks inside a lane worktree",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, worktree .krn/worktrees/outdated-instructions (lane start at b48b462): after a read-only krn-reader audit ran krn commands there (krn --help, krn ledger --last 3), git status showed tasks/archive/2026-11.jsonl +14 rows and 14 tasks/t-*.json deleted (t-0p8v557, t-1v46dxv, t-cbsn9kz, ...) that nobody asked for; reverted with git checkout -- tasks/.\nOutcome: no read-only krn command (help, show, list, ledger) writes tasks/ in a worktree; archival happens only through an explicit krn task archive; a test asserts tasks/ is unchanged after the read-only verbs.\nProof: node --test test/task/archive-readonly.test.ts: pass (fixture worktree with tasks closed over 14 days; git status of tasks/ clean after the read-only verbs).\nFiles: src/task/archive.ts, src/task/store.ts"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

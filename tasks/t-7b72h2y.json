@@ -1,0 +1,17 @@
+{
+  "id": "t-7b72h2y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 3,
+  "title": "Research candidate: hand-written TypeScript type predicates in format readers",
+  "after": [],
+  "body": [
+    "Source: operator pasted 2026-11-16 a post about is-kit (https://github.com/necoz-oss/is-kit) with a comment: a hand-written TypeScript type predicate (x is T) is trusted by the compiler even when wrong; TS 5.5+ infers predicates only when provable; hand-written object-shape guards drift; optional(isString) vs optionalKey differs after a JSON round trip (undefined keys dropped).\nOutcome: an S30 research candidate evaluating a standards record: format readers (owners of spec/schema/*.v1.json) use inferred predicates or a schema validator; every hand-written x is T guard has a rejection test; optional-vs-missing keys are tested after a JSON round trip. No new dependency without a measured motivation.\nProof: grep -rn ' is [A-Z]' src --include=*.ts: every hand-written predicate listed in the candidate with a verdict.\nFiles: src/task/record.ts, src/brain/, .agents/records.json"
+  ],
+  "kind": "research",
+  "area": "brain",
+  "stack": [
+    "typescript"
+  ]
+}

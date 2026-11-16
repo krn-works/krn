@@ -1,0 +1,14 @@
+{
+  "id": "t-ckg6j0t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "npm run fast skips the CI rule coverage check for a new test/rules file",
+  "after": [],
+  "body": [
+    "Source: PR #1221 (t-y9gvftp), 2026-11-16: npm run fast PASSED with '0 tests' after adding test/rules/json-schema-subset.test.ts; CI then failed test/brain/ci-rule-coverage.test.ts ('every check CI runs maps to one enforced, scoped, dated record': + node --test test/rules/json-schema-subset.test.ts), one wasted CI round.\nOutcome: when a change adds or renames a file under test/rules/, npm run fast also runs test/brain/ci-rule-coverage.test.ts; a test asserts the selection.\nProof: node --test test/scripts/fast-check.test.ts: pass (selection for an added test/rules file contains test/brain/ci-rule-coverage.test.ts)\nFiles: scripts/fast-check.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
