@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { namedTests } from '../../src/adopt/canary.ts';
+import { namedTests } from '../../src/adopt/verify.ts';
 
 // KRN-12: the canary runs against real runners (node --test, vitest, pytest) through the real `krn adopt` entry.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -55,7 +55,7 @@ test('canary passes on a node:test repository whose Stop gate works and leaves t
   assert.equal(krn(root, '--no-canary').status, 0);
   git(root, 'add', '-A');
   git(root, 'commit', '-qm', 'adopt');
-  const run = krn(root, '--canary');
+  const run = krn(root, '--verify');
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /canary pass: .*exit 2.*exit 0/u);
   const status = spawnSync('git', ['status', '--porcelain'], {
@@ -74,7 +74,7 @@ test('canary fails when the Stop hook is disabled', () => {
   const root = fixture(nodeFiles);
   krn(root, '--no-canary');
   writeFileSync(join(root, '.claude/settings.json'), '{}\n');
-  const run = krn(root, '--canary');
+  const run = krn(root, '--verify');
   assert.equal(run.status, 1);
   assert.match(run.stdout, /canary fail: the Stop hook is not installed/u);
 });
@@ -92,7 +92,7 @@ test('adopt runs the canary after writing, fails on a red gate and records --no-
   assert.match(none.stdout, /canary bootstrap/u);
   assert.doesNotMatch(none.stdout, /canary skipped/u);
   assert.doesNotMatch(none.stderr, /everything adopt wrote was removed/u);
-  const only = krn(fixture({ 'README.md': 'x\n' }), '--canary');
+  const only = krn(fixture({ 'README.md': 'x\n' }), '--verify');
   assert.equal(only.status, 1);
   const declinedNone = krn(fixture({ 'README.md': 'x\n' }), '--no-canary');
   assert.equal(declinedNone.status, 0, declinedNone.stderr);
@@ -111,10 +111,10 @@ test('canary passes on a pytest repository and fails with the gate disabled', ()
   krn(root, '--no-canary');
   git(root, 'add', '-A');
   git(root, 'commit', '-qm', 'adopt');
-  const ok = krn(root, '--canary');
+  const ok = krn(root, '--verify');
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   writeFileSync(join(root, '.claude/settings.json'), '{}\n');
-  assert.equal(krn(root, '--canary').status, 1);
+  assert.equal(krn(root, '--verify').status, 1);
 });
 
 // The canary runs the real cargo, so the test exists only on a host whose cargo has a toolchain.
@@ -136,10 +136,10 @@ if (spawnSync('cargo', ['--version']).status === 0) {
     krn(root, '--no-canary');
     git(root, 'add', '-A');
     git(root, 'commit', '-qm', 'adopt');
-    const ok = krn(root, '--canary');
+    const ok = krn(root, '--verify');
     assert.equal(ok.status, 0, ok.stdout + ok.stderr);
     writeFileSync(join(root, '.claude/settings.json'), '{}\n');
-    assert.equal(krn(root, '--canary').status, 1);
+    assert.equal(krn(root, '--verify').status, 1);
   });
 }
 
@@ -155,10 +155,10 @@ test('canary passes on a php repository whose test runs under php and fails with
   krn(root, '--no-canary');
   git(root, 'add', '-A');
   git(root, 'commit', '-qm', 'adopt');
-  const ok = krn(root, '--canary');
+  const ok = krn(root, '--verify');
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   writeFileSync(join(root, '.claude/settings.json'), '{}\n');
-  assert.equal(krn(root, '--canary').status, 1);
+  assert.equal(krn(root, '--verify').status, 1);
 });
 
 test('canary breaks the test file the test command names, not another test file', () => {
@@ -296,7 +296,7 @@ test('adopt on a red clean tree exits 0 in bootstrap state with a seeded green-b
   });
   assert.equal(again.status, 0, again.stdout + again.stderr);
   assert.equal(readdirSync(join(root, 'tasks')).length, tasks.length);
-  const only = spawnSync(process.execPath, [cli, 'adopt', root, '--canary'], {
+  const only = spawnSync(process.execPath, [cli, 'adopt', root, '--verify'], {
     encoding: 'utf8',
     env,
   });

@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { adoptionGaps } from '../../src/adopt/gaps.ts';
-import { remediateHost } from '../../src/adopt/host-remediation.ts';
+import { remediateHost } from '../../src/adopt/init.ts';
 
 function repo(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'krn-host-remediation-'));

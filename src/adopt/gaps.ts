@@ -2,7 +2,7 @@
 
 import { standardsFailures } from '../brain/standards-cli.ts';
 import { firstLine, trackFailures } from './failure-tasks.ts';
-import { remediateHost } from './host-remediation.ts';
+import { remediateHost } from './init.ts';
 
 export interface AdoptionGaps {
   /** One `gap <id> (<tier>): <remedy>` line per failing standard; the remedy is the standard's statement, not its check command. */

@@ -15,7 +15,7 @@ import {
   BOOTSTRAP_TASK_TITLE,
   GREEN_BASE_TASK_TITLE,
 } from '../src/adopt/adopt.ts';
-import { namedTests } from '../src/adopt/canary.ts';
+import { namedTests } from '../src/adopt/verify.ts';
 import { appendExposure, readExposures } from '../src/brain/exposures.ts';
 import { harvestCandidates, renderHarvest } from '../src/brain/proposals.ts';
 import { parseUnified } from '../src/brain/record.ts';

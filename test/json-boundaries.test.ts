@@ -104,7 +104,7 @@ test('outcome, adopt and state readers accept captured files and reject look-ali
     '../src/outcome/plan-gauge.ts'
   );
   const { mcpConfigSchema } = await import('../src/adopt/first-turn.ts');
-  const { stopSettingsSchema } = await import('../src/adopt/canary.ts');
+  const { stopSettingsSchema } = await import('../src/adopt/verify.ts');
   const { settingsFileSchema } = await import('../src/adopt/adopt.ts');
   const { taskIdSchema } = await import('../src/state/check.ts');
 

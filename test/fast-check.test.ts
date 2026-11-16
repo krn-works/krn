@@ -565,10 +565,10 @@ test('changing the adopt canary selects the test that spawns the CLI entry with 
   const canary = 'test/adopt/canary.test.ts';
   const source = readFileSync(canary, 'utf8');
   const modules = cliCommandModules('.');
-  assert.ok(modules.get('adopt')?.has('src/adopt/canary.ts'));
+  assert.ok(modules.get('adopt')?.has('src/adopt/verify.ts'));
   assert.ok(
     selectTests(
-      ['src/adopt/canary.ts'],
+      ['src/adopt/verify.ts'],
       new Map([[canary, source]]),
       [],
       new Set(),
