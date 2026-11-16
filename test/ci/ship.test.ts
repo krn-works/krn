@@ -722,6 +722,20 @@ test('ship retries gh pr view after a TLS handshake timeout and merges', async (
   assert.ok(asked.length >= 3);
 });
 
+// KRN-12: verbatim stderr of gh failing to connect; the lead's ship exited 70 on it twice.
+test('ship retries gh pr view after gh cannot connect to the API and merges', async () => {
+  const stderr =
+    capture('fixtures/gh', 'gh-error-connecting').streams.stderr?.toString(
+      'utf8',
+    ) ?? '';
+  assert.match(stderr, /^error connecting to api\.github\.com$/mu);
+  const r = receiver({ pulls: [auto, merged] });
+  const { rest, asked } = flakyView(r, { times: 2, stderr });
+  const out = await shipCommand(args, rest);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(asked.length >= 3);
+});
+
 test('ship gives up on a network failure after three tries', async () => {
   const r = receiver({ pulls: [auto, merged] });
   const { rest, asked } = flakyView(r, { times: 99, stderr: tlsTimeout });
