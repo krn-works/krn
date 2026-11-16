@@ -1,7 +1,11 @@
 {
   "id": "t-6rxzd3s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "lead decision 2026-11-16: src/adopt cut 3008->2713 in #1145 (ed1e2d4); the remaining 263 lines are verify context (first-turn), drift and refresh behaviours promised by the krn adopt usage and needed for outside-repo adoption (north-star 1); deleting them cuts a pillar, not slop, and moving canary out of src/adopt only relocates lines"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "Cut src/adopt to 2450 lines after the verify merge",

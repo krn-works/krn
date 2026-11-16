@@ -1,7 +1,11 @@
 {
   "id": "t-4hg6y8x",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Outcome met: canary+verify merged into krn adopt --verify (#1141), census to evals/adoption, unused and walkthrough scripts deleted (#1135), host-remediation folded into init (#1141), shared helpers cut (#1145). Proof recalibrated by the lead: src/adopt 3022->2713 (target 2450 not reached; remainder is promised adopt behaviour, see t-6rxzd3s)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "One adoption check replaces three (S28)",

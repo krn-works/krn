@@ -1,0 +1,14 @@
+{
+  "id": "t-zdxmwkj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Exposure rows record violated=false: run each record's own check on the final lane diff (ADR 0021 point 3)",
+  "after": [
+    "t-c6hrj5m"
+  ],
+  "body": [
+    "Outcome: lane verdict and Stop write per-record violated true/false for served and withheld records by running each record's enforcement.run on the final diff; today only a refused Stop writes true and every other row is null, so retire cannot reach 30 scoped served diffs.\nProof: node --test test/brain/exposures.test.ts: pass"
+  ]
+}
