@@ -41,7 +41,9 @@ const own = JSON.parse(capture('pane-get.reply.jsonl')).result.pane as {
   workspace_id: string;
 };
 const hostEnvironment = Object.fromEntries(
-  Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
+  Object.entries(process.env).filter(
+    ([name]) => !name.startsWith('HERDR_') && !name.startsWith('HC_'),
+  ),
 );
 const record = JSON.stringify({
   pane_id: busyPane,
@@ -135,6 +137,7 @@ function retire(t: Cleanup, children: boolean, ledger: boolean) {
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: 'self',
+        KRN_TERMINAL_HOST: 'herdr',
         ...(ledger
           ? {}
           : {
@@ -223,6 +226,7 @@ test('launch keeps a recorded predecessor whose agent has a live child shell', (
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: 'caller',
+        KRN_TERMINAL_HOST: 'herdr',
         KRN_SUCCESSOR_AGENT: 'successor-agent',
       },
       encoding: 'utf8',

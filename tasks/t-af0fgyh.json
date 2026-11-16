@@ -1,0 +1,18 @@
+{
+  "id": "t-af0fgyh",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hc host restored; app is the baseline host when hc is on PATH; KRN_TERMINAL_HOST=herdr opts out"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "The relay opens successors in the Herdr app again",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16 (screenshots): the successor relay opened in the Herdr TUI (krn-desktop session) instead of the Herdr desktop app, while the operator is migrating fully to the app. Cause: #1108 (d80610b, S25 t-7yd86sx) deleted src/successor/host-hc.ts as an \"unused host\".\nOutcome: the hc host adapter, its test and fixtures are restored from d80610b^, terminal-host picks hc when HC_TERMINAL_ID is set, and a relay launched from a Herdr app terminal opens in the app.\nProof: `node --test test/claude/terminal-host-hc.test.ts` passes.\nFiles: src/successor/host-hc.ts, src/successor/terminal-host.ts, test/claude/terminal-host-hc.test.ts, test/fixtures/hc/"
+  ],
+  "kind": "defect",
+  "area": "successor"
+}

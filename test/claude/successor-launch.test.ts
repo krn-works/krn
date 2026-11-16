@@ -33,6 +33,7 @@ const hostEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
     ([name]) =>
       !name.startsWith('HERDR_') &&
+      !name.startsWith('HC_') &&
       !name.startsWith('CODEX_') &&
       !name.startsWith('CLAUDE') &&
       name !== 'KRN_SUCCESSOR_AGENT',
@@ -448,6 +449,7 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
       env: {
         ...launcherEnvironment(bin),
         HERDR_PANE_ID: 'caller-pane',
+        KRN_TERMINAL_HOST: 'herdr',
         KRN_SUCCESSOR_AGENT: 'claude',
       },
       encoding: 'utf8',
@@ -523,6 +525,7 @@ test('a successor held on a startup dialog is reported with its pane and the han
       env: {
         ...launcherEnvironment(bin),
         HERDR_PANE_ID: 'caller-pane',
+        KRN_TERMINAL_HOST: 'herdr',
         KRN_SUCCESSOR_AGENT: 'claude',
       },
       encoding: 'utf8',
@@ -1112,7 +1115,14 @@ test('the launcher script refuses an unattended launch when the doctor fails', (
   const run = spawnSync(
     process.execPath,
     [script, '--unattended', '--name', 'n', '--prompt', 'run its Verify'],
-    { encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: tmpdir() } },
+    {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env.PATH ?? '',
+        HOME: tmpdir(),
+        KRN_TERMINAL_HOST: 'herdr',
+      },
+    },
   );
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /unattended launch refused: FAIL/u);

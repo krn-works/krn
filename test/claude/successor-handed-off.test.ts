@@ -104,11 +104,16 @@ function setup(
     ...options.replies,
   });
   for (const key of Object.keys(process.env))
-    if (key.startsWith('HERDR_') || key.startsWith('KRN_PREDECESSOR_'))
+    if (
+      key.startsWith('HERDR_') ||
+      key.startsWith('HC_') ||
+      key.startsWith('KRN_PREDECESSOR_')
+    )
       delete process.env[key];
   Object.assign(process.env, {
     PATH: `${bin}:${previousEnv.PATH}`,
     HERDR_PANE_ID: 'self',
+    KRN_TERMINAL_HOST: 'herdr',
     ...options.env,
   });
   return { calls, root };

@@ -145,6 +145,7 @@ async function runProbe(
       PATH: bin,
       TMPDIR: scratch,
       HERDR_PANE_ID: ids.leadPane,
+      KRN_TERMINAL_HOST: 'herdr',
       HERDR_CALLS: calls,
       HERDR_FIXTURES: fixtures,
       HERDR_MODE: mode,
