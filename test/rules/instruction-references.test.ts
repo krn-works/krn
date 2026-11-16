@@ -18,6 +18,7 @@ const listed = (dir: string): string[] =>
   readdirSync(join(root, dir))
     .filter((file) => file.endsWith('.md'))
     .map((file) => `${dir}/${file}`);
+const generatedIndex = /\/(OWN-)?INDEX\.md$/u;
 // Every agent-facing page is checked as it appears; none is enumerated by hand.
 const documents = [
   'AGENTS.md',
@@ -26,8 +27,11 @@ const documents = [
   // proposals.md is the history register of retired mechanisms.
   ...listed('docs/program').filter((file) => !file.endsWith('/proposals.md')),
   ...listed('.claude/agents'),
-  ...walk('.claude/skills'),
-  ...walk('.agents/skills'),
+  ...walk('.claude/skills').filter((file) => !generatedIndex.test(file)),
+  // The generated standards indexes quote rules about other repositories' paths.
+  ...walk('.agents/skills').filter(
+    (file) => !/\/(OWN-)?INDEX\.md$/u.test(file),
+  ),
 ];
 // `work` is named only as replaced.
 const elsewhere = new Set(['work']);

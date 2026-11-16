@@ -1386,7 +1386,7 @@
     "layer": "universal",
     "audience": "worker",
     "tier": "reflex",
-    "text": "PHP code does not silence a function call with the `@` operator; it checks the result or catches the exception.",
+    "text": "PHP code does not silence a function call with the `@` prefix; it checks the result or catches the exception.",
     "why": "A suppressed warning hides the failure that tells the next reader what broke, so the code goes on with a false value.",
     "applies": {
       "stacks": ["php"],

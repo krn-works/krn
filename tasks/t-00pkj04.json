@@ -1,0 +1,18 @@
+{
+  "id": "t-00pkj04",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "own enforced records listed in OWN-INDEX.md beside the pack index, whole sentences, byte budgets asserted, drift test"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The standards index lists each repository's own enforced rules in whole sentences",
+  "after": [],
+  "body": [
+    "Source: lead handoff 2026-11-16 after #1181 (t-0sp26bn, 7154e85): the generated standards INDEX.md holds only the shipped pack; KRN's own enforced `s-ci-*` records (b3a8cf4, .agents/standards.json) are not shown to agents up front, and index rules are cut to the first sentence and mostly end in \"...\".\nOutcome: the standards skill index lists each repository's own enforced records (a repo-local section or second generated file) next to the pack, every rule shown as a whole sentence without a trailing \"...\", and the generator's drift check fails when either list is stale; the index stays within a measured byte budget recorded in the test.\nWhy: agents learn a repository's own CI rules only after a red Check; first-push-green is the brain metric.\nProof: a test generates the index for a fixture repo with one own record and finds it listed with its full sentence; a test asserts no index line ends in \"...\"; the drift check exits 1 after an own record is added and the index is not regenerated."
+  ],
+  "kind": "feature",
+  "area": "standards"
+}
