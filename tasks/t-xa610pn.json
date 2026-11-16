@@ -1,0 +1,16 @@
+{
+  "id": "t-xa610pn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "evals/replay absorbs the old harnesses' live driver and grading",
+  "after": [
+    "t-26p4xm7"
+  ],
+  "body": [
+    "Why: ADR 0021 point 6 folds three harnesses into evals/replay; the runner, arms and row format exist, the old harnesses remain.\nOutcome: scripts/outside-acceptance.ts, scripts/outside-testgrade.ts and evals/d23/harness.ts are deleted after evals/replay carries their live session driver, workspace preparation (arm B static CLAUDE.md, arm C KRN) and grading; their tests move to test/evals/replay-*.\nProof: `node evals/replay/run.ts --arms C --units 1 --dry: 1 row` and `test ! -e scripts/outside-acceptance.ts`."
+  ],
+  "kind": "debt",
+  "area": "evals"
+}
