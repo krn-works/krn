@@ -258,10 +258,7 @@ test('an adopted WordPress repository applies the enforced skill records and a n
 const TS_SKILL = '.agents/skills/typescript/SKILL.md';
 const tsSource = {
   path: TS_SKILL,
-  text: readFileSync(
-    fileURLToPath(new URL(`../../${TS_SKILL}`, import.meta.url)),
-    'utf8',
-  ),
+  text: readFileSync(join(capture, TS_SKILL), 'utf8'),
 };
 
 function ruleRecords() {

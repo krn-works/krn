@@ -495,6 +495,14 @@ function writeContract(
   );
 }
 
+/** True for the checkout that ships the pack and the installer skills: the one repository whose standards are not a copy of the pack. */
+function isProductCheckout(root: string): boolean {
+  return (
+    existsSync(join(root, 'standards', 'records.json')) &&
+    existsSync(join(root, 'src', 'adopt', 'skills'))
+  );
+}
+
 const skillsSource = fileURLToPath(new URL('./skills/', import.meta.url));
 
 /** Every skill directory the installer can copy, one per directory under src/adopt/skills. */
@@ -665,6 +673,12 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   };
   if (options.ref !== undefined && !/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
+  // The product checkout holds the pack and its own conventions and hooks: it adopts itself by
+  // installing the same skill files an adopted repository gets, and nothing else.
+  if (options.refresh === true && isProductCheckout(root)) {
+    writeSkills(root, report);
+    return report;
+  }
   // Everything that can refuse runs before the first write.
   const settings = readSettings(root);
   const standards = projectStandards(root, options);

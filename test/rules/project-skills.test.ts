@@ -11,7 +11,7 @@ const expected = [
   'delivery-handoff',
   'delivery-lead',
   'delivery-retro',
-  'typescript',
+  'standards',
 ];
 
 function skill(name: string): string {
