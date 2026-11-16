@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { z } from 'zod';
-import { checkCommand, krnInvocation } from './brief.ts';
+import { checkCommand } from './brief.ts';
 import { failingTests, lastLine } from './preflight.ts';
 
 /** The failing check's verdict line, its failing test files and the path of its full output. */
@@ -97,7 +97,6 @@ export function redCheckBrief(
   red: RedCheck,
   logs: string | Error,
 ): string {
-  const krn = krnInvocation(root);
   const head = `The previous attempt of this lane FAILED CI: the required Check concluded failure on ${red.sha.slice(0, 12)} in run ${red.run}.`;
   const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run \`${checkCommand(root)}\`; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: gh run view ${red.run} --log-failed.`;
   if (logs instanceof Error)
