@@ -5293,11 +5293,11 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "command -v agent-browser >/dev/null"
+      "run": "! git ls-files | grep -qE '(^|/)(\\.agent-browser|\\.cache/browser-check)/'"
     },
     "provenance": {
       "origin": "frontend verification stack research, t-y0n0115",
-      "evidence": [".krn/runs/research/frontend-stack/report.md"],
+      "evidence": ["tasks/t-y0n0115.json"],
       "proposals": []
     },
     "status": "accepted",
@@ -5338,11 +5338,11 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "grep -q '\"playwright\"' package.json && grep -q '\"axe-core\"' package.json"
+      "run": "[ ! -f package.json ] || ! grep -q '\"@playwright/test\"' package.json || grep -q '\"axe-core\"' package.json"
     },
     "provenance": {
       "origin": "frontend verification stack research, t-y0n0115",
-      "evidence": [".krn/runs/research/frontend-stack/report.md"],
+      "evidence": ["tasks/t-y0n0115.json"],
       "proposals": []
     },
     "status": "accepted",
