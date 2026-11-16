@@ -242,7 +242,14 @@ export async function shipCommand(
     process.env.KRN_TASK ?? /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1];
   // The lane ends here: the worktree and branch stay, and the lead prunes merged lanes at the next lane start.
   const cleanup = (sha: string) => {
-    recordShip(main, { branch, sha, ...(task ? { task } : {}) });
+    // `head` is the lane tip that merged: a later lane that reuses the branch name never matches it.
+    const head = git(['rev-parse', 'HEAD']);
+    recordShip(main, {
+      branch,
+      sha,
+      ...(head ? { head } : {}),
+      ...(task ? { task } : {}),
+    });
     if (task !== undefined)
       try {
         runtime.releaseClaim?.(main, worktree, task);

@@ -1,7 +1,11 @@
 {
   "id": "t-gqj3gan",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "prune keeps a worktree whose tip is not the shipped head (reused branch name, open PR); regression in test/hook/stop-merged-lane.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A lane worktree is pruned while its own ship still waits on an open PR",

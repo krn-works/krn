@@ -21,7 +21,7 @@ import {
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
 import { gitLockError } from '../repo/shell-text.ts';
-import { shipRecordDir } from '../repo/ship-record.ts';
+import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
 import {
   claimTask,
   inspectClaim,
@@ -243,7 +243,12 @@ export function pruneMergedLanes(
   if (!existsSync(dir)) return [];
   const removed: string[] = [];
   for (const name of readdirSync(dir)) {
-    let record: { branch?: unknown; sha?: unknown };
+    let record: {
+      branch?: unknown;
+      sha?: unknown;
+      head?: unknown;
+      at?: unknown;
+    };
     try {
       if (now - statSync(join(dir, name)).mtimeMs < PRUNE_GRACE_MS) continue;
       record = JSON.parse(readFileSync(join(dir, name), 'utf8'));
@@ -260,6 +265,9 @@ export function pruneMergedLanes(
       continue;
     const path = join(main, '.krn', 'worktrees', branch);
     if (existsSync(path)) {
+      // The record belongs to the lane that shipped it: a worktree whose tip is another commit is a
+      // later lane that reuses the branch name, and its own ship may still wait on an open PR.
+      if (!tipBelongsToRecord(path, record)) continue;
       const status = gitRun(path, ['status', '--porcelain']);
       if (status.status !== 0 || status.stdout.trim() !== '') continue;
       if (gitRun(main, ['worktree', 'remove', '--force', path]).status !== 0)
@@ -273,8 +281,30 @@ export function pruneMergedLanes(
     ]);
     if (has.status === 0) gitRun(main, ['branch', '-D', branch]);
     removed.push(branch);
+    process.stderr.write(
+      `lane prune: removed ${branch}: its ship merged as ${sha.slice(0, 12)} on origin/${base} and the worktree held no change\n`,
+    );
   }
   return removed;
+}
+
+/** A recorded head must equal the worktree tip; a record without one needs a tip no newer than the ship. */
+function tipBelongsToRecord(
+  path: string,
+  record: { head?: unknown; at?: unknown },
+): boolean {
+  const tip = gitRun(path, ['rev-parse', 'HEAD']);
+  if (tip.status !== 0) return false;
+  if (typeof record.head === 'string') return tip.stdout.trim() === record.head;
+  const committed = Number(
+    gitRun(path, ['log', '-1', '--format=%ct', 'HEAD']).stdout.trim(),
+  );
+  const shipped = Date.parse(String(record.at));
+  return (
+    Number.isFinite(committed) &&
+    Number.isFinite(shipped) &&
+    committed * 1000 <= shipped
+  );
 }
 
 function gitOk(root: string, args: string[]): boolean {
@@ -496,6 +526,8 @@ export async function startLane(
 
   const base = contractBase(origin);
   fetchBase(main, base);
+  // The branch name is free (checked above): a ship record under it is an earlier lane's.
+  forgetShip(main, slug);
   // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
   pruneMergedLanes(main, base);
   checkLaneBudget(main, base);

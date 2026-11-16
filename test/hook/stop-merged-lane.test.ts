@@ -150,3 +150,23 @@ test('the lane budget skips a merged clean lane inside the prune grace and lists
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a lane worktree that reuses a merged branch name and waits on an open PR is not pruned', () => {
+  const { root, main, lane, sha } = mergedLane();
+  try {
+    // The earlier lane of this branch name shipped: its record names the squash merge on origin.
+    const shippedHead = git(lane, 'rev-parse', 'HEAD');
+    recordShip(main, { branch: 'feat-x', sha, head: shippedHead });
+    // A later lane reuses the name and pushes a new commit whose PR is still open.
+    writeFileSync(join(lane, 'b.txt'), 'b\n');
+    git(lane, 'add', '.');
+    git(lane, 'commit', '-q', '-m', 'second lane, PR open');
+    assert.deepEqual(
+      pruneMergedLanes(main, 'main', Date.now() + PRUNE_GRACE_MS),
+      [],
+    );
+    assert.equal(existsSync(lane), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
