@@ -1,0 +1,14 @@
+{
+  "id": "t-gqj3gan",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A lane worktree is pruned while its own ship still waits on an open PR",
+  "after": [],
+  "body": [
+    "Source: 2026-11-16 lane t-xwfwd2t (branch adopt-canary, PR #1233, commit 00e136b): its worktree disappeared while its own krn pr ship was waiting on the Check; the PR stayed open with auto-merge enabled and merged later as 4d79c48. During that window the lead ran `krn task publish` (merged 34b0681; it prints \"the next krn lane start prunes merged lanes\") and two `krn lane start` calls (t-6mve9gw, t-g24ccsn lanes). The lane lost its ship verdict and reported a blocker.\nOutcome: no krn command removes a worktree whose branch has an open PR or a live ship; the prune names what it removed and why.\nProof: a test drives the prune with an open-PR lane worktree and asserts it survives.\nFiles: src/cli/lane.ts, src/ci/ship.ts"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

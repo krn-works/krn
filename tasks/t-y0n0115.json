@@ -1,0 +1,14 @@
+{
+  "id": "t-y0n0115",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Frontend verification stack: research the best browser tooling for agents and serve the winners as standards",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16 (verbatim): \"w tematyce działan frontendowych też chciałbym abyśmy realnie mieli wszystko najlepsze, np ta opensource browser od cloudflare + agent browser itp itd? chcemy absolutnie najlepszy setup w każdym aspekcie aplikować do naszych standardów w krn, krn ma serwować tylko najlepsze i przełomowe wnioski, po to chcemy brain i po to wszystko inne\".\nOutcome: one research report (krn-research, sources cited) that enumerates the current best agent-driven frontend verification stack: the open-source browser Cloudflare released (identify it exactly; do not guess), agent-browser (current global skill), Playwright/axe, visual-lab, boilerplate-2026 check:browser; for each, measured fit against our flows (render check, a11y, visual diff, perf/LCP) and a verdict adopt/trial/reject. Every adopt verdict becomes a stack-tagged standards record (frontend/wordpress) served by krn standards query, with a run check, and a task for its install path in boilerplate-2026.\nProof: krn standards query \"verify a frontend change in the browser\" --stack frontend returns the adopted records; the report lists rejected options with the reason.\nFiles: .krn/runs/research/frontend-stack/report.md, standards/records.json"
+  ],
+  "kind": "research",
+  "area": "brain"
+}
