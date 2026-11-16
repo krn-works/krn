@@ -17,8 +17,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   harness: [],
   outcome: ['harness', 'repo', 'task'],
   state: [],
-  deliver: ['repo'],
-  ci: ['deliver', 'repo'],
+  ci: ['repo'],
   adopt: ['brain', 'harness', 'task', 'repo'],
   repo: [],
   'cli-kit': [],
@@ -44,7 +43,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
 
 /**
  * Product is what an adopted repository runs; workshop is the operator's own delivery tooling (ADR 0017).
- * Product never imports workshop. `cli` is the verbs over both and `deliver`/`ci`/`evals`/`core` sit
+ * Product never imports workshop. `cli` is the verbs over both and `ci`/`evals`/`core` sit
  * outside the split until their ADR moves them. An exception is a `file -> workshop area` edge present
  * when the rule landed; the list may only shrink.
  */
@@ -185,13 +184,14 @@ export function check(
  * External binaries and the only src files that may name them as the command of a call. A new call
  * site must join an existing owner or add its file here, in review (a ratchet: the lists only shrink
  * unless review accepts a new owner). gh reads go through src/repo/gh.ts (ledger, window, adoption)
- * and src/deliver/transport.ts (delivery).
+ * and src/ci/ship.ts (delivery).
  */
 export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   gh: [
     'src/repo/gh.ts',
-    'src/deliver/transport.ts',
+    'src/ci/ship.ts',
     'src/cli/doctor-unattended.ts',
+    'src/cli/lane-run/steps.ts',
   ],
   herdr: ['src/successor/host-herdr.ts'],
   claude: [],

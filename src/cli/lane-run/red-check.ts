@@ -26,7 +26,7 @@ export const testSummarySchema = z.object({
   files: z.array(z.object({ file: z.string(), failed: z.number() })).optional(),
 });
 
-/** The failing job's step and its first finding in a `krn ci logs` capture; the first failing job is the cause, an aggregate job after it only repeats it. */
+/** The failing job's step and its first finding in a `gh run view --log-failed` capture; the first failing job is the cause, an aggregate job after it only repeats it. */
 export function redCheckFinding(logs: string): {
   job: string;
   section: string[];
@@ -99,9 +99,9 @@ export function redCheckBrief(
 ): string {
   const krn = krnInvocation(root);
   const head = `The previous attempt of this lane FAILED CI: the required Check concluded failure on ${red.sha.slice(0, 12)} in run ${red.run}.`;
-  const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run \`${checkCommand(root)}\`; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: ${krn} ci logs --run ${red.run}.`;
+  const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run \`${checkCommand(root)}\`; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: gh run view ${red.run} --log-failed.`;
   if (logs instanceof Error)
-    return `${head}\nThe CI log could not be read (${logs.message.split('\n')[0]}); read it with ${krn} ci logs --run ${red.run}.\n${demand}\n\n`;
+    return `${head}\nThe CI log could not be read (${logs.message.split('\n')[0]}); read it with gh run view ${red.run} --log-failed.\n${demand}\n\n`;
   const { job, section, finding } = redCheckFinding(logs);
   return `${head}\nFailing job and step: ${job}\nFirst finding: ${finding}\n${demand}\n\nFailing job log tail:\n\`\`\`\n${section.slice(-40).join('\n')}\n\`\`\`\n\n`;
 }

@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { run } from '../../src/ci/command.ts';
 import { assertNoConflict } from '../../src/ci/conflict-check.ts';
-import { run } from '../../src/deliver/transport.ts';
 
 // KRN-12: a real temporary git repository and the real git merge-tree.
 function git(cwd: string, ...args: string[]): string {

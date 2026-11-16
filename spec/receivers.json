@@ -17,18 +17,6 @@
       "receivers": ["git"],
       "real": "test/repo/contract.test.ts"
     },
-    "src/ci/logs.ts": {
-      "receivers": ["gh"],
-      "capture": [
-        "test/fixtures/gh/run-42486987437-attempt.stdout.txt",
-        "test/fixtures/gh/run-42486987437-jobs-attempt-1.stdout.json",
-        "test/fixtures/gh/run-42486987437-jobs-attempt-2.stdout.json",
-        "test/fixtures/gh/job-128750929767-log.stdout.log",
-        "test/fixtures/gh/job-128751105094-log.stdout.log",
-        "test/fixtures/gh/job-128751399200-log.stdout.log"
-      ],
-      "test": "test/ci/logs-capture.test.ts"
-    },
     "src/brain/metrics.ts": {
       "receivers": ["node"],
       "real": "test/brain/prediction-scorecard.test.ts"
@@ -56,14 +44,6 @@
     "src/cli/entry-pin.ts": {
       "receivers": ["git"],
       "real": "test/cli/entry-pin.test.ts"
-    },
-    "src/deliver/transport.ts": {
-      "receivers": ["gh"],
-      "capture": [
-        "test/fixtures/gh/pr-not-found.stderr.log",
-        "test/fixtures/gh/pr-not-found.stdout.json"
-      ],
-      "test": "test/deliver/transport-capture.test.ts"
     },
     "src/cli/lane-run/session.ts": {
       "receivers": ["claude", "git"],
@@ -237,6 +217,15 @@
     "src/hook/unpushed-delete.ts": {
       "receivers": ["git"],
       "real": "test/claude/unpushed-delete-hook.test.ts"
+    },
+    "src/ci/ship.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/gh/pr-not-found.stderr.log",
+        "test/fixtures/gh/pr-not-found.stdout.json",
+        "test/fixtures/gh/pr-1112-head-rollup.stdout.json"
+      ],
+      "test": "test/ci/ship.test.ts"
     }
   }
 }

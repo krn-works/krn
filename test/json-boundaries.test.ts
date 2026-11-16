@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CommandFailure, refusalSchema } from '../src/deliver/transport.ts';
+import { CommandFailure, refusalSchema } from '../src/ci/command.ts';
 import { failureLine } from '../src/hook/stop.ts';
 import { jsonObject } from '../src/repo/contract.ts';
 

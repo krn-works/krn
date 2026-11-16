@@ -57,7 +57,6 @@ async function task(options: string[]): Promise<void> {
 const commands: Record<CommandName, Handler> = {
   ledger: async (options) =>
     (await import('./ledger.ts')).ledgerCommand(options),
-  ci: async (options) => (await import('./ci.ts')).ciCommand(options),
   pr: async (options) => (await import('./pr.ts')).prCommand(options),
   task,
   lane: async (options) =>

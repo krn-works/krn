@@ -3,22 +3,14 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import {
-  CommandFailure,
-  checked,
-  github,
-  type Runner,
-  run,
-  sleep,
-} from '../deliver/transport.ts';
-import { readJson } from '../repo/json-text.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
+import { CommandFailure, checked, type Runner, run } from './command.ts';
 import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -34,7 +26,9 @@ export function ownsProductRelease(cwd: string): boolean {
   }
 }
 
-const transportExit = 71;
+const ghTimeoutMs = 30_000;
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
@@ -136,7 +130,13 @@ export async function shipCommand(
         )
       : runner(command, a, ...rest);
   };
-  const gh = runtime.gh ?? ((a) => github(a, cwd, scoped, wait));
+  const gh =
+    runtime.gh ??
+    (async (a) => {
+      const result = scoped('gh', a, cwd, undefined, ghTimeoutMs);
+      if (result.code !== 0) throw new CommandFailure(result);
+      return result.stdout;
+    });
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
 
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
@@ -149,14 +149,16 @@ export async function shipCommand(
     throw usageError('worktree has uncommitted changes; commit them first');
   const repo =
     values.repo ??
-    (await replied(gh, 'text', [
-      'repo',
-      'view',
-      '--json',
-      'nameWithOwner',
-      '--jq',
-      '.nameWithOwner',
-    ]));
+    (
+      await gh([
+        'repo',
+        'view',
+        '--json',
+        'nameWithOwner',
+        '--jq',
+        '.nameWithOwner',
+      ])
+    ).trim();
 
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
@@ -172,7 +174,7 @@ export async function shipCommand(
 main checkout: ${main}`;
   };
   const viewOf = (number: number) =>
-    replied(gh, 'json', [
+    gh([
       'pr',
       'view',
       String(number),
@@ -364,33 +366,20 @@ main checkout: ${main}`;
   ).trim();
   let pr = existing === '' ? NaN : Number(existing);
   if (Number.isNaN(pr)) {
-    let created: string;
-    try {
-      created = await replied(gh, 'text', [
-        'pr',
-        'create',
-        '--repo',
-        repo,
-        '--head',
-        branch,
-        '--base',
-        target,
-        '--title',
-        title,
-        '--body-file',
-        publishedBody,
-      ]);
-    } catch (error) {
-      if (error instanceof EmptyReply) throw error;
-      // A create retried after a timeout finds the PR its first attempt opened;
-      // gh names that PR's url in the refusal.
-      const opened =
-        error instanceof CommandFailure
-          ? /already exists:\s*(\S+\/pull\/\d+)/u.exec(error.result.stderr)?.[1]
-          : undefined;
-      if (opened === undefined) throw error;
-      created = opened;
-    }
+    const created = await gh([
+      'pr',
+      'create',
+      '--repo',
+      repo,
+      '--head',
+      branch,
+      '--base',
+      target,
+      '--title',
+      title,
+      '--body-file',
+      publishedBody,
+    ]);
     pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
     if (!Number.isInteger(pr))
       throw new Error(`gh pr create printed no PR url: ${created.trim()}`);
@@ -501,28 +490,6 @@ main checkout: ${main}`;
   });
 }
 
-class EmptyReply extends Error {
-  readonly exitCode = transportExit;
-}
-
-/** A gh reply that is empty or not JSON is a transport fault, not a verdict on the Check: ask once more. */
-async function replied(
-  gh: (args: string[]) => Promise<string>,
-  kind: 'json' | 'text',
-  args: string[],
-): Promise<string> {
-  const usable = (reply: string) =>
-    reply.trim() !== '' && (kind === 'text' || readJson(reply) !== undefined);
-  const first = await gh(args);
-  if (usable(first)) return kind === 'text' ? first.trim() : first;
-  // A create is not repeated: gh would refuse a second PR for the branch.
-  const second = args[1] === 'create' ? first : await gh(args);
-  if (usable(second)) return kind === 'text' ? second.trim() : second;
-  throw new EmptyReply(
-    `gh returned ${second.trim() === '' ? 'an empty' : 'a truncated'} reply to \`gh ${args.join(' ')}\` (transport fault, not a failed Check); rerun krn pr ship`,
-  );
-}
-
 /**
  * Polls the PR until it merges or stops: a red or never-started Check (74, 69), a conflict (76),
  * a moved head (77), a closed PR (79), an open PR no rule releases (80), a
@@ -596,7 +563,7 @@ async function waitForMerge(options: {
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
         74,
-        `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: bin/krn ci logs --run ${run}; rerun: gh run rerun ${run} --failed`}`,
+        `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }
     if (

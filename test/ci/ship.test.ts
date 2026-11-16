@@ -8,8 +8,8 @@ import {
   completeCloseExposure,
 } from '../../src/brain/close-exposure.ts';
 import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
+import { CommandFailure, run } from '../../src/ci/command.ts';
 import { ownsProductRelease, shipCommand } from '../../src/ci/ship.ts';
-import { CommandFailure, run } from '../../src/deliver/transport.ts';
 import { capture } from '../receivers/capture.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
@@ -251,22 +251,6 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   );
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
-});
-
-// Receiver capture (.krn/runs/lane-run-e2e/rerun2/stderr.txt): the retried
-// create after a timed-out first attempt that had opened PR 585.
-test('ship adopts the PR a timed-out create already opened', async () => {
-  const r = receiver({
-    pulls: [auto, merged],
-    createRefusal:
-      'a pull request for branch "feat-x" into branch "main" already exists:\nhttps://github.com/o/r/pull/7\n',
-  });
-  const out = await shipCommand(args, {
-    ...r,
-    completeClose: completeCloseExposure,
-  });
-  assert.match(out, /^pr: #7 o\/r a{40}$/mu);
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
 
 test('a red Check exits 74 and keeps the worktree', async () => {
@@ -583,64 +567,28 @@ test('ship refuses with exit 82 before the push when the base branch deploys wit
   );
 });
 
-function flaky(
-  r: ReturnType<typeof receiver>,
-  match: (a: string[]) => boolean,
-  replies: string[],
-) {
-  const queue = [...replies];
-  return {
-    ...r,
-    gh: async (a: string[]) => {
-      if (match(a) && queue.length > 0) {
-        r.calls.push(`gh ${a.join(' ')}`);
-        return queue.shift() as string;
-      }
-      return r.gh(a);
+// KRN-12: the refusal text is the verbatim stderr of `gh api repos/krn-works/krn/pulls/999999`.
+test('a gh refusal reaches the caller with the receiver stderr, without a retry', async () => {
+  const stderr =
+    capture('fixtures/gh', 'pr-not-found').streams.stderr?.toString('utf8') ??
+    '';
+  const { gh: _fake, ...r } = receiver({ pulls: [auto] });
+  let asked = 0;
+  await assert.rejects(
+    shipCommand(['--title', title, '--body-file', 'body.md'], {
+      ...r,
+      run: (command: string, a: string[], at?: string) => {
+        if (command !== 'gh') return r.run(command, a, at);
+        asked++;
+        return { code: 1, stdout: '', stderr };
+      },
+    }),
+    (e: Error) => {
+      assert.equal(e.message, stderr);
+      return true;
     },
-  };
-}
-const isPull = (a: string[]) => a[0] === 'pr' && a[1] === 'view';
-
-test('ship retries an empty pull reply once and then merges', async () => {
-  const r = flaky(receiver({ pulls: [auto, merged] }), isPull, ['']);
-  const out = await shipCommand(args, {
-    ...r,
-    completeClose: completeCloseExposure,
-  });
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-});
-
-test('ship with an empty gh pull reply twice exits 71 naming the command, never 74', async () => {
-  const r = flaky(receiver({ pulls: [auto] }), isPull, ['', '']);
-  await assert.rejects(shipCommand(args, r), (e: Failure) => {
-    assert.equal(e.exitCode, 71);
-    assert.match(e.message, /empty reply to `gh pr view 7 --repo o\/r/u);
-    return true;
-  });
-});
-
-test('ship with a truncated gh pull reply twice exits 71', async () => {
-  const r = flaky(receiver({ pulls: [auto] }), isPull, ['{"head":', '{"he']);
-  await assert.rejects(shipCommand(args, r), (e: Failure) => {
-    assert.equal(e.exitCode, 71);
-    assert.match(e.message, /truncated reply/u);
-    return true;
-  });
-});
-
-test('ship with an empty gh pr create reply exits 71 without a second create', async () => {
-  const r = flaky(
-    receiver({ pulls: [auto] }),
-    (a) => a[0] === 'pr' && a[1] === 'create',
-    [''],
   );
-  await assert.rejects(shipCommand(args, r), (e: Failure) => {
-    assert.equal(e.exitCode, 71);
-    assert.match(e.message, /gh pr create/u);
-    return true;
-  });
-  assert.equal(r.calls.filter((c) => c.startsWith('gh pr create')).length, 1);
+  assert.equal(asked, 1);
 });
 
 // KRN-12: the Proof command is the real weak-tests script over a real git commit that drops
@@ -795,7 +743,7 @@ test('a red Check names its run, the logs command and the rerun, and exits 74', 
     assert.equal(e.exitCode, 74);
     assert.match(
       e.message,
-      /Check concluded failure on a{40} in run 9; logs: bin\/krn ci logs --run 9; rerun: gh run rerun 9 --failed/u,
+      /Check concluded failure on a{40} in run 9; logs: gh run view 9 --log-failed; rerun: gh run rerun 9 --failed/u,
     );
     return true;
   });

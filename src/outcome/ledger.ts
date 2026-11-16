@@ -349,7 +349,7 @@ const exec = promisify(execFile);
  * fail a TLS handshake; a call ends after this and is tried again.
  */
 const CALL_TIMEOUT_MS = 5_000;
-// Not the shared deliver/transport github(): that one is spawnSync and would
+// Not spawnSync: a blocking call would
 // block the event loop, losing the concurrent row fetch that keeps this fast.
 const CALL_ATTEMPTS = 3;
 export const callRun =

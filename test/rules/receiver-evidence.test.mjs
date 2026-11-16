@@ -114,6 +114,6 @@ test('receiver evidence fails for an unregistered host module and a deleted capt
   rmSync(join(base, 'test/fixtures/gh/pr-not-found.stderr.log'));
   assert.deepEqual(receiverProblems(base), [
     'src/cli/new-receiver.ts spawns a receiver but is not in spec/receivers.json',
-    'spec/receivers.json src/deliver/transport.ts: capture test/fixtures/gh/pr-not-found.stderr.log missing under test/fixtures',
+    'spec/receivers.json src/ci/ship.ts: capture test/fixtures/gh/pr-not-found.stderr.log missing under test/fixtures',
   ]);
 });

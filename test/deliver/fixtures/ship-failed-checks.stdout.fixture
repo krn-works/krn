@@ -1,4 +1,0 @@
-{
-  "ok": false,
-  "reason": "check runs: 3; failing run index 1 is not completed successfully (status completed, conclusion failure)"
-}

@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { logsCommand } from '../../ci/logs.ts';
 import { shipCommand } from '../../ci/ship.ts';
 import { proofOfTitle } from '../pr-body.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
@@ -19,7 +18,7 @@ export interface LaneRunSteps {
   ship(args: string[]): Promise<string>;
   /** Mint the GitHub App token (warming its cache) before the session starts; a string is the failure. */
   mint(env: NodeJS.ProcessEnv): Promise<string | undefined>;
-  /** `krn ci logs --run RUN` output, read when a rerun follows a red Check. */
+  /** `gh run view RUN --log-failed` output, read when a rerun follows a red Check. */
   ciLogs?(run: string, cwd: string): Promise<string>;
 }
 
@@ -38,7 +37,17 @@ export function mintFailure(result: {
 }
 
 export const defaultSteps: Required<LaneRunSteps> = {
-  ciLogs: (run, cwd) => logsCommand(['--run', run], { cwd }),
+  ciLogs: async (run, cwd) => {
+    const result = spawnSync('gh', ['run', 'view', run, '--log-failed'], {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+      timeout: 120_000,
+    });
+    if (result.status !== 0)
+      throw new Error(result.stderr?.trim() || 'gh run view failed');
+    return result.stdout;
+  },
   start: async (args) => (await import('../lane.ts')).startLane(args),
   ship: async (args) =>
     shipCommand(args, {

@@ -1,5 +1,5 @@
 // Ship's pre-push trial merge: a branch that would conflict with its base exits 76 before anything is pushed.
-import type { Runner } from '../deliver/transport.ts';
+import type { Runner } from './command.ts';
 
 /**
  * Trial-merges HEAD into `origin/<target>` without touching the work tree. Returns when the

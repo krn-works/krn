@@ -1296,7 +1296,7 @@ test('redCheckOf reads the run and head of a red Check ship failure and nothing 
   const sha = 'dde09ec3d8ba484dce8afd4e4079fc84daefbe3a';
   assert.deepEqual(
     redCheckOf(
-      `Check concluded failure on ${sha} in run 43501009193; logs: bin/krn ci logs --run 43501009193; rerun: gh run rerun 43501009193 --failed`,
+      `Check concluded failure on ${sha} in run 43501009193; logs: gh run view 43501009193 --log-failed; rerun: gh run rerun 43501009193 --failed`,
     ),
     { sha, run: '43501009193' },
   );
@@ -1343,7 +1343,7 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
       if (shipCalls > 1) return 'verdict: merged abc1234';
       redSha = git(args[1] as string, 'rev-parse', 'HEAD');
       throw new Error(
-        `ship: Check concluded failure on ${redSha} in run 43501009193; logs: bin/krn ci logs --run 43501009193`,
+        `ship: Check concluded failure on ${redSha} in run 43501009193; logs: gh run view 43501009193 --log-failed`,
       );
     },
     mint: async () => undefined,
