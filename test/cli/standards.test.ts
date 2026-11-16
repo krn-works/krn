@@ -754,6 +754,49 @@ test('s-finish-gate enforcement accepts any Stop hook command and rejects a scri
     assert.equal(runsOn(run, settings), status, settings);
 });
 
+test('the typecheck and lint gate records leave a toolchain that cannot start to CI and fail a real error', () => {
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const stubs: [string, string, number][] = [
+    [
+      'mise shim without a version',
+      'echo "mise ERROR No version is set for shim: go" >&2; exit 1',
+      0,
+    ],
+    ['tool not installed', 'exit 127', 0],
+    ['real type error', 'echo "main.go:3: type error" >&2; exit 1', 1],
+    ['success', 'exit 0', 0],
+  ];
+  const gates: [string, string][] = [
+    ['s-gate-typecheck-runs', 'typecheck'],
+    ['s-gate-lint-runs', 'lint'],
+  ];
+  for (const [id, key] of gates) {
+    const run = enforcementOf(pack.find((s) => s.id === id));
+    for (const [name, body, status] of stubs) {
+      const root = repository({
+        'krn.json': JSON.stringify({ [key]: 'go vet' }),
+      });
+      try {
+        mkdirSync(join(root, 'bin'));
+        writeFileSync(join(root, 'bin', 'go'), `#!/bin/sh\n${body}\n`, {
+          mode: 0o755,
+        });
+        const done = spawnSync('sh', ['-c', run], {
+          cwd: root,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `${join(root, 'bin')}:${process.env.PATH}`,
+          },
+        });
+        assert.equal(done.status, status, `${id}: ${name}`);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+  }
+});
+
 test('KRN carries worker-stop as a project record that only a Stop hook entry satisfies', () => {
   const own = readProject(fileURLToPath(new URL('../..', import.meta.url)));
   const run = enforcementOf(

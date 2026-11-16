@@ -1,7 +1,11 @@
 {
   "id": "t-5hx87n2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "record command with PATH stub go: mise no-version shim -> exit 0, 127 -> 0, type error -> 1 (test/cli/standards.test.ts)"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Gate run records treat a toolchain that cannot start, including a version-less mise shim, as left to CI",
