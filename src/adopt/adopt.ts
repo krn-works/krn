@@ -510,10 +510,26 @@ export function universalSkills(): string[] {
   return readdirSync(skillsSource).sort();
 }
 
-/** Installs the skill set of this repository's stack, every file of each skill directory, under .agents/skills, linking .claude/skills to it when neither exists. */
-function writeSkills(root: string, report: AdoptionReport): void {
+/**
+ * Installs the skill set of this repository's stack, every file of each skill directory, under .agents/skills, linking .claude/skills to it when neither exists.
+ * A site skill the repository already has stays its own unless `refresh` asks for the pinned copy: it may be older than the repository's edits.
+ */
+function writeSkills(
+  root: string,
+  report: AdoptionReport,
+  refresh: boolean,
+): void {
   const sites = new Set(siteSkillNames());
   for (const name of skillSet(root, [...universalSkills(), ...sites])) {
+    const own = join('.agents', 'skills', name);
+    if (
+      !refresh &&
+      sites.has(name) &&
+      existsSync(join(root, own, 'SKILL.md'))
+    ) {
+      report.unchanged.push(own);
+      continue;
+    }
     const from = join(sites.has(name) ? SITE_SKILLS_DIR : skillsSource, name);
     for (const file of filesUnder(from).sort())
       writeIfChanged(
@@ -676,7 +692,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   // The product checkout holds the pack and its own conventions and hooks: it adopts itself by
   // installing the same skill files an adopted repository gets, and nothing else.
   if (options.refresh === true && isProductCheckout(root)) {
-    writeSkills(root, report);
+    writeSkills(root, report, true);
     return report;
   }
   // Everything that can refuse runs before the first write.
@@ -697,7 +713,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
       ? undefined
       : ciWorkflow(root, { ...options, ref: options.ref }, report);
   writeHooks(root, settings, report);
-  writeSkills(root, report);
+  writeSkills(root, report, options.refresh === true);
   writeIfChanged(root, PROJECT_STANDARDS, formatStandards(standards), report);
   writeRules(root, standards, report);
   ignoreAgentState(root, report);
