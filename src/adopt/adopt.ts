@@ -48,6 +48,7 @@ import {
   sessionCommand,
   stopCommand,
 } from './stop-hook.ts';
+import { onlyMissing, readWorkflows, workflowGates } from './workflow-gates.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -169,8 +170,21 @@ function ciWorkflow(
     );
     return undefined;
   }
+  // Fill gaps, never duplicate: a gate another workflow already runs is no input of the call.
+  const calls = readWorkflows(root)
+    .filter((workflow) => workflow.text.includes(sharedWorkflow))
+    .map((workflow) => workflow.file);
+  const gates = workflowGates(root, inputs, calls);
+  const filled = onlyMissing(inputs, gates);
+  if (!filled.lint && !filled.typecheck && !filled.test) {
+    const runners = [...new Set(Object.values(gates.runBy).flat())];
+    report.skipped.push(
+      `${path} (every contract gate already runs in ${runners.join(', ')})`,
+    );
+    return undefined;
+  }
   return renderWorkflow(
-    inputs,
+    filled,
     path.endsWith('krn-ci.yml') ? 'KRN CI' : 'CI',
     contract?.base ?? 'main',
   );

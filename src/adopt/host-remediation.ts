@@ -10,6 +10,7 @@ import {
   detectInitStack,
   type InitStack,
 } from './init.ts';
+import { GATE_KEYS, workflowGates } from './workflow-gates.ts';
 
 export interface HostRemediation {
   /** Files the host wrote. */
@@ -59,6 +60,8 @@ function contractCommands(root: string): CiCommands {
     const vacuous = (body as Record<string, unknown>).vacuous === true;
     return {
       install: read('install'),
+      lint: read('lint'),
+      typecheck: read('typecheck'),
       test: vacuous ? undefined : read('test'),
     };
   } catch {
@@ -78,17 +81,32 @@ function scriptDefined(root: string, name: string): boolean {
   }
 }
 
-function writeCi(root: string): string | undefined {
+/** Writes the CI workflow, or says why none was written. */
+function writeCi(root: string): { file: string } | { reason: string } {
   const stack = detectInitStack(root);
-  if (stack === undefined) return undefined;
+  if (stack === undefined)
+    return { reason: 'no stack detected to write a workflow for' };
   // A ci.yml of the repository's own keeps running; the call that proves tests goes beside it.
   const file = existsSync(join(root, '.github/workflows/ci.yml'))
     ? '.github/workflows/krn-ci.yml'
     : '.github/workflows/ci.yml';
-  if (existsSync(join(root, file))) return undefined;
+  if (existsSync(join(root, file))) return { reason: `${file} already exists` };
+  // Fill gaps, never duplicate: a contract gate another workflow already runs gets no step here.
+  const contract = contractCommands(root);
+  const gates = workflowGates(root, contract);
+  const omit = GATE_KEYS.filter((key) => (gates.runBy[key]?.length ?? 0) > 0);
+  if (omit.length > 0 && gates.missing.length === 0)
+    return {
+      reason: `every contract gate already runs in ${[...new Set(Object.values(gates.runBy).flat())].join(', ')}`,
+    };
+  const commands = {
+    lint: contract.lint,
+    typecheck: contract.typecheck,
+    ...commandsFor(root, stack),
+  };
   mkdirSync(dirname(join(root, file)), { recursive: true });
-  writeFileSync(join(root, file), ciWorkflow(stack, commandsFor(root, stack)));
-  return file;
+  writeFileSync(join(root, file), ciWorkflow(stack, commands, false, omit));
+  return { file };
 }
 
 /** Runs npm's lockfile-only install in `root`, so the lockfile follows package.json; throws npm's last line on failure. */
@@ -137,12 +155,9 @@ export function remediateHost(
     }
   }
   if (failing.has(CI_STANDARD)) {
-    const file = writeCi(root);
-    if (file === undefined)
-      result.unfixed.push(
-        `${CI_STANDARD}: no stack detected to write a workflow for`,
-      );
-    else result.written.push(file);
+    const ci = writeCi(root);
+    if ('reason' in ci) result.unfixed.push(`${CI_STANDARD}: ${ci.reason}`);
+    else result.written.push(ci.file);
   }
   // The lockfile standard reads `git ls-files`: a written file counts once it is staged.
   if (result.written.length > 0)

@@ -1,0 +1,14 @@
+{
+  "id": "t-mnk9rkb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "planted-records init-stack test holds under parallel lane load",
+  "after": [],
+  "body": [
+    "Outcome: test/scripts/planted-records.test.ts \"every applicable enforced record bites in each init stack\" passes under the host load of three parallel lanes running npm run fast; today it takes 121 s alone and timed out at 60 s inside npm run fast on 2026-11-16 (S27 lane, fast log 1048 s), so fast verdicts go red without a defect.\nWhy: a load-dependent timeout turns every lane's fast into a false FAIL and costs a rerun per lane.\nProof: `node --test test/scripts/planted-records.test.ts` finishes under 60 s, or the test is split per stack with a per-stack timeout that holds under load."
+  ],
+  "kind": "defect",
+  "area": "test"
+}

@@ -312,17 +312,23 @@ export function initGates(stack: InitStack): InitGates {
   return GATES[stack];
 }
 
-/** The CI workflow a stack's skeleton carries: one job running every gate command the skeleton installs a tool for. */
+/**
+ * The CI workflow a stack's skeleton carries: one job running every gate command the skeleton installs a tool for,
+ * minus the gates in `omit` that another workflow of the repository already runs.
+ */
 export function ciWorkflow(
   stack: InitStack,
   commands: CiCommands = {},
   gates = false,
+  omit: readonly ('lint' | 'typecheck' | 'test')[] = [],
 ): string {
   const own = gates ? GATES[stack] : undefined;
   const install = commands.install ?? own?.install;
-  const lint = commands.lint ?? own?.lint;
-  const typecheck = commands.typecheck ?? own?.typecheck;
-  const test = commands.test ?? own?.test ?? defaultTest(stack);
+  const kept = (key: 'lint' | 'typecheck' | 'test', run: string | undefined) =>
+    omit.includes(key) ? undefined : run;
+  const lint = kept('lint', commands.lint ?? own?.lint);
+  const typecheck = kept('typecheck', commands.typecheck ?? own?.typecheck);
+  const test = kept('test', commands.test ?? own?.test ?? defaultTest(stack));
   const runs = [install, lint, typecheck, test].filter(
     (run): run is string => run !== undefined,
   );

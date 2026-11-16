@@ -100,6 +100,46 @@ test('adopt --verify exits 0 when set and 1 naming the gap otherwise', () => {
   assert.equal(ruleset.status, 0, ruleset.stdout);
 });
 
+test('adopt --verify counts contract gate commands two workflows run as duplicate-ci', () => {
+  const ok = verify(repo, protectedBranch);
+  assert.match(ok.stdout, /^duplicate-ci: 0$/mu);
+  const twice = verify(repo, protectedBranch, '[]', (root) => {
+    mkdirSync(join(root, '.github/workflows'), { recursive: true });
+    for (const name of ['ci.yml', 'tests.yml'])
+      writeFileSync(
+        join(root, '.github/workflows', name),
+        'on:\n  pull_request:\n  cancel-in-progress: true\njobs:\n  test:\n    steps:\n      - run: true\n',
+      );
+  });
+  assert.equal(twice.status, 1, twice.stderr);
+  assert.match(twice.stdout, /^duplicate-ci: 1$/mu);
+  assert.match(
+    twice.stdout,
+    /^verify gap: duplicate-ci test `true` runs in \.github\/workflows\/ci\.yml, \.github\/workflows\/tests\.yml; keep one runner$/mu,
+  );
+});
+
+test('adopt --verify names an unreadable project record file as drift and still prints every other verdict', () => {
+  const stale = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    undefined,
+    undefined,
+    (root) =>
+      writeFileSync(
+        join(root, '.agents/standards.json'),
+        '{"records":[{"id":"s-old","type":"rule"}]}\n',
+      ),
+  );
+  assert.equal(stale.status, 1, stale.stderr);
+  assert.match(
+    stale.stdout,
+    /^verify drift: adoption files cannot be compared: \.agents\/standards\.json: /mu,
+  );
+  assert.match(stale.stdout, /^duplicate-ci: 0$/mu);
+});
+
 const withWorkflow = (name: string, contract?: string) => (root: string) => {
   mkdirSync(join(root, '.github/workflows'), { recursive: true });
   copyFileSync(
@@ -151,7 +191,7 @@ for (const origin of [
   test(`adopt --verify with origin ${origin ?? 'none'} says there is no GitHub host and skips the CI checks`, () => {
     const run = verify(repo, unpinned, '[]', () => {}, origin);
     assert.equal(run.status, 0, run.stdout + run.stderr);
-    assert.match(run.stdout, /^verify skipped: no GitHub host \(origin /u);
+    assert.match(run.stdout, /^verify skipped: no GitHub host \(origin /mu);
     assert.doesNotMatch(run.stdout + run.stderr, /placehol|verify gap/u);
   });
 }
