@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import test, { describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { PLANTS } from '../../scripts/lib/record-plants.ts';
@@ -56,6 +56,28 @@ describe('every applicable enforced record bites in each init stack', {
       assert.equal(match[1], match[2], `${stack}: ${done.out}`);
       assert.ok(Number(match[1]) >= 30, `${stack}: only ${match[1]} records`);
     });
+});
+
+// The npm run that starts the suite puts this repository's node_modules/.bin on PATH; a fixture must not see it.
+test('a node_modules/.bin compiler on PATH never judges the init fixture', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'planted-path-'));
+  try {
+    const bin = join(scratch, 'node_modules', '.bin');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(
+      join(bin, 'tsc'),
+      '#!/bin/sh\necho "error TS2688: Cannot find type definition file for node" >&2\nexit 2\n',
+      { mode: 0o755 },
+    );
+    const done = spawnSync(process.execPath, [audit, '--planted', 'ts'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}` },
+    });
+    assert.equal(done.status, 0, done.stdout + done.stderr);
+    assert.doesNotMatch(done.stdout, /red-at-baseline/);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('an enforced record without a plant, and a plant that does not bite, fail the matrix', () => {

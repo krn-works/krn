@@ -1,0 +1,18 @@
+{
+  "id": "t-pv70cr9",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Root cause: npm run puts the repo node_modules/.bin on PATH so the ts fixture typecheck ran KRN's tsc (error TS2688 Cannot find type definition file for 'node'); audit strips it; regression test plus 5 green runs under CPU burner"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Planted-records ts baseline typecheck is deterministic under load",
+  "after": [],
+  "body": [
+    "Outcome: test/scripts/planted-records.test.ts never reports s-gate-typecheck-runs red-at-baseline in the ts stack unless the baseline typecheck really fails; the baseline run is deterministic (no network fetch, no load-dependent kill).\nWhy: after #1143 and #1150 the ts stack still went red-at-baseline after ~41 s (under the 60 s timeout) in npm run fast of four lanes on 2026-11-16 (S17, S23, t-2xn2dqs, S15), passing when run alone; every lane's fast is red without a defect.\nProof: the test passes in 5 consecutive npm run fast runs under 3 parallel lanes, and the root cause (the baseline command and its stderr) is named in the PR."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
