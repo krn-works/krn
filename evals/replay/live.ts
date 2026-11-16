@@ -169,6 +169,9 @@ export async function screenUnit(
       () => runClaude(wt, promptOf(unit), env, o.sessionMs ?? 30 * 60_000, log),
       slotEnv,
     );
+    // The grade sees the session's source change on a fresh install: ignored leftovers of the session's own installs
+    // or builds (node_modules, .venv, dist) are not part of a change and can break the grading install.
+    if (session.ran) local(wt, 'clean', '-fdXq');
     const g = session.ran
       ? await gradeWorktree(wt, unit, dir, log, o.scratch)
       : undefined;
