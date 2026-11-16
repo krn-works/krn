@@ -1,7 +1,11 @@
 {
   "id": "t-c6d0jks",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane finish test ships a pushed fixture branch with notes and without, both verdict merged against a fake gh"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "krn lane finish ships a pushed lane branch that hit its turn ceiling",
