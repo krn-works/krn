@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   alias,
   frontmatterModel,
+  rewriteNotice,
   updatedInput,
 } from '../../scripts/claude/subagent-model.ts';
 import { events } from '../../src/dispatch/table.ts';
@@ -186,4 +187,47 @@ test('a lane call naming opus or fable runs the pinned lane model unless the pro
     ),
     { subagent_type: 'krn-lane', model: 'sonnet', prompt: optIn },
   );
+});
+
+test('a lane model rewrite prints a notice naming asked model, run model and the opt-in', () => {
+  const payload = call({
+    subagent_type: 'krn-lane',
+    model: 'opus',
+    prompt: 'p',
+  });
+  const run = spawnSync(process.execPath, [script], {
+    input: JSON.stringify(payload),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: fileURLToPath(new URL('../..', import.meta.url)),
+    },
+  });
+  assert.equal(run.status, 0);
+  const out = JSON.parse(run.stdout);
+  assert.match(out.systemMessage, /asked model opus/);
+  assert.match(out.systemMessage, /runs sonnet/);
+  assert.match(out.systemMessage, /lane-model: opus/);
+  assert.equal(
+    rewriteNotice(
+      call({ subagent_type: 'krn-lane', model: 'opus', prompt: 'p' }),
+      { subagent_type: 'krn-lane', model: 'opus' },
+    ),
+    undefined,
+  );
+});
+
+test('a live krn-lane call naming opus recorded the pinned model in its transcript', () => {
+  const turns = readFileSync(
+    fileURLToPath(
+      new URL('./fixtures/lane-opus-call-transcript.jsonl', import.meta.url),
+    ),
+    'utf8',
+  )
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.ok(turns.length >= 2);
+  for (const turn of turns)
+    assert.equal(turn.message.model, 'claude-sonnet-5-5');
 });

@@ -89,6 +89,20 @@ function laneModel(
   return { ...fields, subagent_type: laneAgent, model };
 }
 
+// Names a lane rewrite for the operator: asked model, run model and the opt-in line.
+export function rewriteNotice(
+  payload: unknown,
+  input: Record<string, unknown>,
+): string | undefined {
+  const asked = (payload as { tool_input?: { model?: unknown } } | null)
+    ?.tool_input?.model;
+  const name = alias(typeof asked === 'string' ? asked : undefined);
+  if (!name || !costly.has(name) || input.subagent_type !== laneAgent)
+    return undefined;
+  if (alias(String(input.model)) === name) return undefined;
+  return `krn-lane call asked model ${String(asked)} but runs ${String(input.model)}; add a line "lane-model: ${name}" to the prompt to opt in.`;
+}
+
 export function main() {
   let payload: unknown;
   try {
@@ -107,8 +121,10 @@ export function main() {
     (type) => frontmatterModel(agentsDir, type),
   );
   if (!input) return;
+  const notice = rewriteNotice(payload, input);
   process.stdout.write(
     `${JSON.stringify({
+      ...(notice ? { systemMessage: notice } : {}),
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         updatedInput: input,

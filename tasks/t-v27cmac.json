@@ -1,7 +1,11 @@
 {
   "id": "t-v27cmac",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hook prints systemMessage naming asked/run model and lane-model opt-in; live krn-lane opus transcript fixture records claude-sonnet-5-5; subagent-model-hook tests pass"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The lane model rewrite is silent and untested live",
