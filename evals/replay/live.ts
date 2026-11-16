@@ -11,7 +11,7 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { gradeWorktree } from '../units/screening.ts';
@@ -153,7 +153,8 @@ export async function screenUnit(
   const arm = ARMS.A;
   const slotEnv = o.env ?? process.env;
   const env = armEnv(arm, o.scratch, slotEnv);
-  const clone = join(o.sources, unit.repo.replace('/', '__'));
+  // Absolute: the session repository fetches from it with `git -C <session>`, which would resolve a relative path there.
+  const clone = resolve(o.sources, unit.repo.replace('/', '__'));
   mkdirSync(o.scratch, { recursive: true });
   const log = join(o.scratch, `${unit.id}-${rep}.log`);
   try {
