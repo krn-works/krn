@@ -233,6 +233,8 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       files[fill(file.replace(/\.tpl$/u, ''))] = fill(
         readFileSync(join(SKELETONS, dir, file), 'utf8'),
       );
+  // An empty template would be an empty tracked file here, which the sandbox-placeholder rule rejects.
+  if (stack === 'python') files['tests/__init__.py'] = '';
   files['.github/workflows/ci.yml'] = ciWorkflow(stack, {}, true);
   return files;
 }
