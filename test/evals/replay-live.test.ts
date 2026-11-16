@@ -327,3 +327,56 @@ test('--screen grades the session change without the ignored leftovers of its ow
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a screened session reaches only the unit base: no reference fix, no later refs', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units } = fixture(root);
+    const seen = join(root, 'seen');
+    // Records every commit the session can reach by any ref and whether the reference object exists at all.
+    const probe = join(root, 'probe');
+    writeFileSync(
+      probe,
+      `#!/bin/sh\ncat >/dev/null\ngit log --all --format=%H >> ${seen}\nfor r in $(cat ${join(root, 'refs')}); do git cat-file -e "$r^{commit}" 2>/dev/null && echo "reach $r" >> ${seen}; done\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+    );
+    chmodSync(probe, 0o755);
+    const unit = JSON.parse(
+      readFileSync(join(units, 't-aaaaaaa', 'unit.json'), 'utf8'),
+    ) as { base: string; reference: string };
+    writeFileSync(join(root, 'refs'), unit.reference);
+    const r = spawnSync(
+      'node',
+      [
+        'evals/replay/run.ts',
+        '--screen',
+        '--units-dir',
+        units,
+        '--sources',
+        join(root, 'sources'),
+        '--scratch',
+        join(root, 'scratch'),
+        '--rows',
+        join(root, 'rows.jsonl'),
+      ],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          KRN_EVAL_CLAUDE: probe,
+          KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+        },
+      },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    const lines = readFileSync(seen, 'utf8').split('\n').filter(Boolean);
+    assert.ok(lines.includes(unit.base), 'the session sees its base');
+    assert.ok(!lines.includes(unit.reference), 'no ref reaches the fix');
+    assert.ok(
+      !lines.includes(`reach ${unit.reference}`),
+      'the fix object is absent',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
