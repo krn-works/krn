@@ -1,0 +1,14 @@
+{
+  "id": "t-txxnmrb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Ship runs the checks of touched paths before it pushes",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16: \"agenci nie znają reguł z repozytorium\" — tonight most PRs needed 2-4 CI rounds on rules the repo already enforces (biome on JSON, task-quality, spec/receivers.json, shard weights, standards-proposals test, Proof `cmd: verdict`, weak-tests line).\nOutcome: `krn pr ship` runs the lint and test checks whose scope matches the changed paths before the push and exits 65 without pushing when one fails.\nProof: a ship test with a failing scoped check records no push call and exit 65.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "feature",
+  "area": "ci"
+}

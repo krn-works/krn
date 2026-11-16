@@ -1,0 +1,14 @@
+{
+  "id": "t-2y3gh63",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Research reaches code: every adopted finding names the existing implementation it reuses",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16: papers and Fable 5.2 research must become code fast; reuse what already exists instead of writing from scratch; accuracy over cost.\nOutcome: each research candidate (S30 file contract) carries `reuse:` (an existing OSS tool, library or skill to adopt, with URL) or `build-because:`; a candidate older than 7 days without a merged PR or a retire verdict is listed by `krn standards query --stale-research`; the next Fable plan is ranked by expected first-push-green and hidden-test gain, not cost.\nProof: a test rejects a candidate file without reuse or build-because; the stale listing prints 0 rows after the backlog is triaged.\nFiles: docs/program/fable-plan-brief.md, src/brain/proposals.ts"
+  ],
+  "kind": "feature",
+  "area": "research"
+}
