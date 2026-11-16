@@ -24,6 +24,7 @@ import {
   stripMarkup,
 } from './capsule.ts';
 import { git } from './git.ts';
+import { layoutFindings } from './layout.ts';
 import { stateLoss } from './loss.ts';
 import {
   capsuleStoreReport,
@@ -649,6 +650,9 @@ export function inspectState(repo: string): CheckReport {
       rule: 'state-loss',
       detail: `${path} is an open claim without a capsule or handoff`,
     });
+
+  for (const finding of layoutFindings(join(root, '.krn')))
+    errors.push({ id: 'layout', ...finding });
 
   const inventory = runDirectoriesDetailed(root);
   for (const detail of inventory.errors)

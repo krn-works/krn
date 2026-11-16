@@ -1,9 +1,12 @@
+import { join } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { collectWindow, renderWindow } from '../outcome/window.ts';
 import { inspectState } from '../state/check.ts';
+import { applyTidy, planTidy } from '../state/layout.ts';
 import { resumeBrief } from '../state/resume.ts';
 import { renderRetro } from '../state/retro.ts';
+import { resolveRepositoryRoot } from '../state/runs.ts';
 import {
   acceptCriterion,
   addCleanup,
@@ -20,6 +23,7 @@ const usage =
   'krn state index [--capsule ID] [--root DIR]  write the run index file listing every run and point the capsule at it\n' +
   'krn state accept <criterion> todo|pass|drop:<why> [--capsule ID] [--root DIR]  upsert an acceptance ledger entry\n' +
   'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--roadmap TEXT] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md (Resume, Merged since the previous SHA)\n' +
+  'krn state tidy [--dry-run] [--root DIR]  move entries outside the .krn/ layout to .krn/tmp/stray, delete data past retention, regenerate .krn/INDEX.md; --dry-run only prints\n' +
   'krn state retro --task ID [--root DIR]  print the retro skeleton: commits, wall time and PRs naming the task, one line per candidate category';
 
 const VALUE_FLAGS = [
@@ -118,6 +122,39 @@ function checkVerdict(report: ReturnType<typeof inspectState>): string {
 
 export async function stateCommand(args: string[]): Promise<void> {
   const verb = args[0];
+  if (verb === 'tidy') {
+    let dryRun = false;
+    let root: string | undefined;
+    const rest = args.slice(1);
+    for (let index = 0; index < rest.length; index += 1) {
+      const arg = rest[index] as string;
+      if (arg === '--dry-run') dryRun = true;
+      else if (arg === '--root') {
+        root = flagValue(
+          rest,
+          index,
+          () => new CliUsageError('--root requires a value'),
+        );
+        index += 1;
+      } else throw new CliUsageError(usage);
+    }
+    const directory = join(
+      resolveRepositoryRoot(root ?? process.cwd()).root,
+      '.krn',
+    );
+    const plan = dryRun ? planTidy(directory) : applyTidy(directory);
+    const past = dryRun ? 'would move' : 'moved';
+    for (const move of plan.moves)
+      process.stdout.write(`${past} .krn/${move.from} -> .krn/${move.to}\n`);
+    for (const item of plan.deletes)
+      process.stdout.write(
+        `${dryRun ? 'would delete' : 'deleted'} .krn/${item.path} (${item.reason})\n`,
+      );
+    process.stdout.write(
+      `tidy${dryRun ? ' --dry-run' : ''}: ${plan.moves.length} stray(s), ${plan.deletes.length} expired, ${plan.bytes} bytes\n`,
+    );
+    return;
+  }
   if (verb === 'retro') {
     let task: string | undefined;
     let root: string | undefined;

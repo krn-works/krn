@@ -24,6 +24,7 @@ import {
   parseCleanup,
 } from './capsule.ts';
 import { git } from './git.ts';
+import { writeLayoutIndex } from './layout.ts';
 import {
   posixRelative,
   RUN_INDEX_FILE,
@@ -420,5 +421,6 @@ export function writeHandoff(
   // refresh it in this write so the next session start reports no orphaned run.
   const index = join(directory, RUN_INDEX_FILE);
   if (existsSync(index)) refreshRunIndexFile(root, index);
+  writeLayoutIndex(join(root, '.krn'));
   return file;
 }
