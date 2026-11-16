@@ -284,3 +284,13 @@ test('krn pr body --assumptions reaches the printed body', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('proofCommands skips a span whose arguments are a bare ellipsis', () => {
+  const record = {
+    ...task,
+    body: [
+      'Proof: a test asserts the marker is printed for a `krn ...` Proof; `node --test a.test.ts`.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), ['node --test a.test.ts']);
+});
