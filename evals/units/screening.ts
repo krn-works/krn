@@ -322,11 +322,15 @@ function cleanEnv(): NodeJS.ProcessEnv {
     COMPOSER_HOME: c('composer'),
     PIP_CACHE_DIR: c('pip'),
     XDG_CACHE_HOME: c('xdg'),
+    // Builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs that parallel Go builds exhaust.
+    TMPDIR: c('tmp'),
+    GOTMPDIR: c('tmp'),
   };
 }
 
 const run = (cmd: string, cwd: string, log: string): Promise<number> =>
   new Promise((resolve) => {
+    mkdirSync(join(cacheRoot, 'tmp'), { recursive: true });
     appendFileSync(log, `\n$ ${cmd}\n`);
     const p = spawn('sh', ['-c', `${cmd} >> ${JSON.stringify(log)} 2>&1`], {
       cwd,

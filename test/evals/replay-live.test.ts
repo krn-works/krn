@@ -416,3 +416,46 @@ test('--screen takes a sources path relative to where it runs', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a screened session writes its temporaries under scratch', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units } = fixture(root);
+    const seen = join(root, 'seen');
+    const probe = join(root, 'probe');
+    writeFileSync(
+      probe,
+      `#!/bin/sh\ncat >/dev/null\necho "$TMPDIR" >> ${seen}\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+    );
+    chmodSync(probe, 0o755);
+    const r = spawnSync(
+      'node',
+      [
+        'evals/replay/run.ts',
+        '--screen',
+        '--units-dir',
+        units,
+        '--sources',
+        join(root, 'sources'),
+        '--scratch',
+        join(root, 'scratch'),
+        '--rows',
+        join(root, 'rows.jsonl'),
+      ],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          KRN_EVAL_CLAUDE: probe,
+          KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+        },
+      },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    for (const l of readFileSync(seen, 'utf8').split('\n').filter(Boolean))
+      assert.equal(l, join(root, 'scratch', 'tmp'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

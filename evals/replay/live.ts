@@ -70,6 +70,9 @@ export function armEnv(
   const link = join(dir, '.credentials.json');
   if (existsSync(login) && !existsSync(link)) symlinkSync(login, link);
   env.CLAUDE_CONFIG_DIR = dir;
+  // The session's own builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs.
+  env.TMPDIR = join(scratch, 'tmp');
+  mkdirSync(env.TMPDIR, { recursive: true });
   return env;
 }
 

@@ -215,3 +215,35 @@ test('a screened session is graded with the install time verification had', asyn
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('grading temporaries live under scratch, not the size-capped host /tmp', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'grade-tmpdir-'));
+  try {
+    const wt = join(root, 'wt');
+    const unitDir = join(root, 'unit');
+    const scratch = join(root, 'scratch');
+    mkdirSync(wt);
+    mkdirSync(unitDir);
+    writeFileSync(join(unitDir, 'hidden.txt'), 'x');
+    const unit = {
+      install: 'true',
+      test: 'echo "$TMPDIR|$GOTMPDIR" > seen && test -d "$TMPDIR"',
+      hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+    } as unknown as Parameters<typeof gradeWorktree>[1];
+    const g = await gradeWorktree(
+      wt,
+      unit,
+      unitDir,
+      join(root, 'log'),
+      scratch,
+    );
+    assert.equal(g.test, 0);
+    const [tmp, gotmp] = readFileSync(join(wt, 'seen'), 'utf8')
+      .trim()
+      .split('|');
+    assert.equal(tmp, join(scratch, 'cache', 'tmp'));
+    assert.equal(gotmp, tmp);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
