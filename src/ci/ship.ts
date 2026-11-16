@@ -3,7 +3,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { completeCloseExposure } from '../brain/close-exposure.ts';
 import {
   CommandFailure,
   checked,
@@ -99,6 +98,11 @@ export async function shipCommand(
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
+    /** Completes the close evidence row of a task whose PR merged; the cli supplies the brain's writer. */
+    completeClose?: (
+      main: string,
+      done: { task: string; pr: number; ci: string | null },
+    ) => void;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -179,12 +183,17 @@ main checkout: ${main}`;
     ]).then((text) => prView.parse(JSON.parse(text)));
   // The lane closed its task before this PR existed: the merge completes the close row with the PR and its Check.
   const recordClose = (pr: number, rollup: PrView['statusCheckRollup']) => {
-    if (task === undefined || !Number.isInteger(pr)) return;
+    if (
+      task === undefined ||
+      runtime.completeClose === undefined ||
+      !Number.isInteger(pr)
+    )
+      return;
     const conclusion = rollup.find(
       (c) => c.name !== undefined && aggregateCheck.test(c.name),
     )?.conclusion;
     try {
-      completeCloseExposure(main, {
+      runtime.completeClose(main, {
         task,
         pr,
         ci: conclusion ? conclusion.toLowerCase() : null,

@@ -4,6 +4,7 @@ import { chmodSync, readFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
+import { completeCloseExposure } from '../../src/brain/close-exposure.ts';
 import { shipCommand } from '../../src/ci/ship.ts';
 import { capture } from '../receivers/capture.ts';
 import {
@@ -203,8 +204,18 @@ test('a lane that closed before its PR existed gets the PR and Check written ont
     const previous = process.env.KRN_TASK;
     process.env.KRN_TASK = 'T-1';
     try {
-      await shipCommand(args, { cwd: repo, run, gh });
-      await shipCommand(args, { cwd: repo, run, gh });
+      await shipCommand(args, {
+        cwd: repo,
+        run,
+        gh,
+        completeClose: completeCloseExposure,
+      });
+      await shipCommand(args, {
+        cwd: repo,
+        run,
+        gh,
+        completeClose: completeCloseExposure,
+      });
     } finally {
       if (previous === undefined) delete process.env.KRN_TASK;
       else process.env.KRN_TASK = previous;
