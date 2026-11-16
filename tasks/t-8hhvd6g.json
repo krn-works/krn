@@ -1,7 +1,11 @@
 {
   "id": "t-8hhvd6g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pending edit rewrites the pending ref; archived still exit 65 (test/task/pending-records.test.ts)"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "krn task edit rewrites a pending record instead of calling it archived",

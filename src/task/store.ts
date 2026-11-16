@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import { ARCHIVE_DIR, findArchived, readArchive } from './archive.ts';
-import { isPendingId, pendingTaskFiles } from './pending.ts';
+import { addPendingTask, isPendingId, pendingTaskFiles } from './pending.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -501,7 +501,8 @@ export function editTask(
   options: Pick<TaskStoreOptions, 'refuse'> = {},
 ): TaskRecord {
   const record = getTask(root, id);
-  if (!existsSync(join(root, 'tasks', `${id}.json`)))
+  const pending = pendingTaskFiles(root).has(id);
+  if (!pending && !existsSync(join(root, 'tasks', `${id}.json`)))
     throw new TaskDataError([
       `tasks/${id}.json: task is archived and read-only; create a new task instead`,
     ]);
@@ -552,12 +553,15 @@ export function editTask(
       ? (options.refuse?.(updated, loadTaskIndex(root)) ?? [])
       : [];
   if (refusal.length > 0) throw new TaskDataError(refusal);
-  atomicWrite(
-    root,
-    join(root, 'tasks', `${id}.json`),
-    serializeTask(updated),
-    true,
-  );
+  // A record waiting on the pending ref is rewritten there, so publish ships the edit.
+  if (pending) addPendingTask(root, id, serializeTask(updated));
+  else
+    atomicWrite(
+      root,
+      join(root, 'tasks', `${id}.json`),
+      serializeTask(updated),
+      true,
+    );
   return updated;
 }
 
