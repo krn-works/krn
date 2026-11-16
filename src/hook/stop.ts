@@ -446,6 +446,8 @@ const runTests: Runner = (root, tests) => {
     },
   );
   const failed: string[] = [];
+  // A spawn that cannot start (a removed cwd) has no stdout: it fails as one run, never a crash.
+  if (run.error) return [`<run>::error ${run.error.message}`];
   for (const line of run.stdout.split('\n')) {
     if (!line.startsWith('{')) continue;
     try {
@@ -1176,6 +1178,16 @@ export function laneWorktree(cwd: string, payload: unknown): string {
   return cwd;
 }
 
+/**
+ * `krn pr ship` removes a merged lane's worktree, so a lane may stop with its cwd gone (t-vs35jd7, #1137:
+ * Stop crashed spawning tests there). A missing `<main>/.krn/worktrees/<name>` is judged at `<main>`.
+ */
+export function ownerCheckout(root: string): string {
+  if (existsSync(root)) return root;
+  const owner = root.split(`${sep}.krn${sep}worktrees${sep}`)[0] as string;
+  return owner !== root && existsSync(owner) ? owner : root;
+}
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -1193,11 +1205,13 @@ export function judgeStop(
   } | null;
   // A krn-lane subagent shares the lead's CLAUDE_PROJECT_DIR; its own checkout is the payload cwd.
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
-  const root = resolve(
-    subagent
-      ? laneWorktree(fields?.cwd as string, payload)
-      : (env.CLAUDE_PROJECT_DIR ??
-          (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
+  const root = ownerCheckout(
+    resolve(
+      subagent
+        ? laneWorktree(fields?.cwd as string, payload)
+        : (env.CLAUDE_PROJECT_DIR ??
+            (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
+    ),
   );
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
