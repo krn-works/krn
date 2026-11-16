@@ -238,13 +238,9 @@
       "receivers": ["git"],
       "real": "test/claude/intent-to-task.test.ts"
     },
-    "src/adopt/census.ts": {
+    "evals/adoption/census.ts": {
       "receivers": ["git"],
-      "real": "test/adoption-census.test.ts"
-    },
-    "src/cli/lane-canary.ts": {
-      "receivers": ["git"],
-      "real": "test/scripts/lane-canary.test.ts"
+      "real": "test/evals/adoption-census.test.ts"
     },
     "src/hook/unpushed-delete.ts": {
       "receivers": ["git"],

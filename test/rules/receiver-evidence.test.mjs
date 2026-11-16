@@ -95,7 +95,7 @@ export function receiverProblems(base) {
 
 function copy() {
   const base = mkdtempSync(join(tmpdir(), 'krn-receivers-'));
-  for (const directory of ['src', 'spec', 'test', 'tasks'])
+  for (const directory of ['src', 'spec', 'test', 'tasks', 'evals'])
     cpSync(join(root, directory), join(base, directory), { recursive: true });
   return base;
 }

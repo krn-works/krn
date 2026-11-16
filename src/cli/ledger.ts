@@ -1,8 +1,6 @@
-import { renderUnused, unusedTools } from '../adopt/unused.ts';
 import { planScoredShare, predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
-import { transcriptDirs } from '../harness/transcripts.ts';
 import {
   collectLedger,
   type LedgerOptions,
@@ -22,17 +20,12 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let json = false;
   let windowMode = false;
   let checkCeiling = false;
-  let unused = false;
   let predictions = false;
   let share = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
       json = true;
-      continue;
-    }
-    if (flag === '--unused') {
-      unused = true;
       continue;
     }
     if (flag === '--predictions') {
@@ -115,21 +108,6 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   }
   if (predictions) {
     process.stdout.write(predictionScorecard(options.root ?? process.cwd()));
-    return;
-  }
-  if (unused) {
-    const root = options.root ?? process.cwd();
-    const report = await unusedTools(
-      root,
-      options.transcripts === undefined
-        ? await transcriptDirs(root)
-        : [options.transcripts],
-    );
-    process.stdout.write(
-      json
-        ? `${JSON.stringify(report)}\n`
-        : `${renderUnused(report).join('\n')}\n`,
-    );
     return;
   }
   if (checkCeiling && !windowMode) {

@@ -16,7 +16,7 @@ import {
   POPULATION,
   type Row,
   renderTable,
-} from '../src/adopt/census.ts';
+} from '../../evals/adoption/census.ts';
 
 test('stack detection names workspaces, wordpress, python and static repositories', () => {
   assert.equal(detectStack(['package.json', 'tsconfig.json']), 'ts');

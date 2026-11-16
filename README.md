@@ -28,4 +28,3 @@ The in-repository `krn task` tracker owns task status through committed `tasks/<
 - [Plan](docs/program/plan.md)
 - [Lead rules](docs/program/lead-rules.md)
 - [ADR index](docs/adr/README.md)
-- First day in a real repository: `node scripts/first-day-walkthrough.ts` inits an empty directory, adopts a public clone, runs every printed next step, `krn doctor`, `krn task create` and `krn lane brief` (no worker), and checks that common failures name their remedy; it exits 0 only when all hold and deletes its clones

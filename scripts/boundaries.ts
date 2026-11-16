@@ -198,7 +198,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   bw: [],
   git: [
     'src/adopt/canary.ts',
-    'src/adopt/census.ts',
+    'evals/adoption/census.ts',
     'src/adopt/host-remediation.ts',
     'src/adopt/init.ts',
     'src/adopt/verify.ts',
@@ -210,7 +210,6 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/ci/conflict-check.ts',
     'src/ci/ship.ts',
     'src/cli/entry-pin.ts',
-    'src/cli/lane-canary.ts',
     'src/cli/lane-run/git.ts',
     'src/cli/lane-run/preflight.ts',
     'src/cli/lane-run/worktree.ts',
