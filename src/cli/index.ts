@@ -17,6 +17,8 @@ async function doctor(options: string[]): Promise<void> {
   if (options.includes('--unattended')) {
     const { unattendedReport } = await import('./doctor-unattended.ts');
     report = unattendedReport(options);
+  } else if (options.includes('--hooks')) {
+    report = (await import('./doctor-hooks.ts')).measureHooks(productRoot());
   } else {
     const pin = await import('./entry-pin.ts');
     report = pin.doctorReport(pin.configuredEntryRoot());
@@ -65,8 +67,7 @@ const commands: Record<CommandName, Handler> = {
     (await import('./findings.ts')).findingsCommand(options),
   plan: async (options) => (await import('./plan.ts')).planCommand(options),
   repo: async (options) => (await import('./repo.ts')).repoCommand(options),
-  hook: async (options) =>
-    (await import('./hook.ts')).hookCommand(options, productRoot()),
+  hook: async (options) => (await import('./hook.ts')).hookCommand(options),
   adopt: async (options) => (await import('./adopt.ts')).adoptCommand(options),
   doctor,
   standards: async (options) =>

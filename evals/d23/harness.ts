@@ -34,6 +34,7 @@ export const HARNESS_ROOTS = [
   'AGENTS.md',
   'CLAUDE.md',
   'scripts/claude',
+  'src/dispatch',
   'src/hook',
 ];
 

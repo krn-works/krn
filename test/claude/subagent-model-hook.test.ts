@@ -8,6 +8,7 @@ import {
   frontmatterModel,
   updatedInput,
 } from '../../scripts/claude/subagent-model.ts';
+import { events } from '../../src/dispatch/table.ts';
 
 // Receiver evidence (live, Claude Code 2.1.316, 2026-11-09): `claude -p --model opus`
 // spawning Explore with no model ran claude-opus-5-5 without this hook and
@@ -16,9 +17,6 @@ import {
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/subagent-model.ts', import.meta.url),
-);
-const settings = fileURLToPath(
-  new URL('../../.claude/settings.json', import.meta.url),
 );
 const call = (input: Record<string, unknown>) => ({
   hook_event_name: 'PreToolUse',
@@ -74,17 +72,11 @@ test('the hook prints updatedInput and stays silent otherwise', () => {
   assert.equal(silent.stdout, '');
 });
 
-test('project settings run the hook before every Agent call', () => {
-  const hooks = JSON.parse(readFileSync(settings, 'utf8')).hooks
-    .PreToolUse as Array<{
-    matcher: string;
-    hooks: Array<{ command: string }>;
-  }>;
-  const entry = hooks.find((hook) =>
-    hook.hooks.some((h) => h.command.includes('subagent-model.ts')),
+test('the hook table runs the hook before every Agent call', () => {
+  const route = events['pre-tool'].routes.find(
+    (candidate) => candidate.name === 'subagent-model',
   );
-  assert.ok(entry, 'subagent-model hook missing from .claude/settings.json');
-  assert.ok(entry.matcher.split('|').includes('Agent'));
+  assert.ok(route?.tools?.split('|').includes('Agent'));
 });
 
 test('general-purpose lanes are routed to krn-lane, which carries a turn ceiling', () => {

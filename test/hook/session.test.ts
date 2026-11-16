@@ -11,7 +11,7 @@ test('informational hooks are silent in a worker session and speak for the lead'
     hook_event_name: 'PostToolUse',
     cwd: '/nonexistent',
   });
-  for (const hook of ['context-gauge', 'subagent-hook-errors'])
+  for (const hook of ['context-gauge'])
     assert.equal(
       execFileSync(
         'node',

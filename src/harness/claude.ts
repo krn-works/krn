@@ -114,10 +114,22 @@ export function hookProjectDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.CLAUDE_PROJECT_DIR ?? process.cwd();
 }
 
+let providedStdin: string | undefined;
+
+/** Hands the hook payload the dispatcher already read to the route modules that follow, which would find a drained stdin. */
+export function provideHookStdin(raw: string | undefined): void {
+  providedStdin = raw;
+}
+
+/** The hook payload: the dispatcher's, else this process's stdin. */
+export function hookStdin(): string {
+  return providedStdin ?? readFileSync(0, 'utf8');
+}
+
 /** Decodes a hook payload; throws when it is not one of `eventNames` or lacks the project. */
 export function hookInput(
   eventNames: string[],
-  raw: string = readFileSync(0, 'utf8'),
+  raw: string = hookStdin(),
   env: NodeJS.ProcessEnv = process.env,
 ) {
   const input = record(JSON.parse(raw));

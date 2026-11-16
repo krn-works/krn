@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+import {
+  claudeCommand,
+  type EventName,
+  events,
+} from '../../src/dispatch/table.ts';
 
 const root = new URL('../../', import.meta.url);
 test('Claude context budget settings wire documented hooks and read-only reader', () => {
@@ -14,62 +19,40 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   assert.deepEqual(settings.deniedMcpServers, [{ serverName: 'rss_news' }]);
   assert.equal(settings.env.BASH_MAX_OUTPUT_LENGTH, '12000');
   assert.equal(settings.env.MAX_MCP_OUTPUT_TOKENS, '8000');
-  for (const [event, file] of Object.entries({
-    UserPromptSubmit: 'context-gauge',
-    PostToolUse: 'context-gauge',
-    SessionStart: 'context-restart',
-  })) {
-    const group = settings.hooks[event];
-    assert.equal(group.length, 1);
-    assert.equal(group[0].hooks[0].type, 'command');
-    assert.equal(
-      group[0].hooks[0].command,
-      `NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/${file}.ts"`,
-    );
-    assert.ok(existsSync(new URL(`scripts/claude/${file}.ts`, root)));
-  }
-  assert.equal(settings.hooks.PostToolUse[0].matcher, '*');
-  assert.equal(
-    settings.hooks.SessionStart[0].matcher,
-    'startup|resume|clear|compact',
-  );
-  const guard = settings.hooks.PreToolUse;
+  // One dispatcher entry per event; the table decides which routes run for a tool.
+  const claudeEvents = Object.values(events).map((event) => event.claude);
   assert.deepEqual(
-    guard.map((entry: { matcher: string }) => entry.matcher),
+    Object.keys(settings.hooks).sort(),
+    [...claudeEvents].sort(),
+  );
+  for (const [name, event] of Object.entries(events)) {
+    const group = settings.hooks[event.claude];
+    assert.equal(group.length, 1, event.claude);
+    assert.equal(group[0].hooks.length, 1, event.claude);
+    assert.equal(group[0].hooks[0].type, 'command');
+    assert.equal(group[0].hooks[0].command, claudeCommand(name as EventName));
+    assert.equal(
+      group[0].matcher,
+      'matcher' in event ? event.matcher : undefined,
+    );
+  }
+  assert.ok(existsSync(new URL('src/dispatch/main.ts', root)));
+  // The context ceiling refuses tools that start new work past 90%; the lead reads whole files freely.
+  const pre = events['pre-tool'].routes.map((route) => [
+    route.name,
+    route.tools,
+  ]);
+  assert.deepEqual(pre, [
+    ['memory-budget', 'Write|Edit'],
+    ['bash-guards', 'Bash'],
     [
-      'Write|Edit',
-      'Bash',
+      'gauge',
       'Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
-      // Built-in Explore and Plan get the configured subagent model.
-      'Agent|Task',
-      // The lead gets no whole-file dump; subagents read freely.
-      'Read',
-      // A worker may not write tracker, roadmap or harness files outside its Scope.
-      'Write|Edit|NotebookEdit|Bash',
-      // The first edit of a file kind brings the records scoped to it.
-      'Edit|Write|MultiEdit|Bash',
     ],
-  );
-  const reader =
-    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/lead-file-read.ts"';
-  assert.equal(guard[1].hooks.length, 1);
-  assert.equal(guard[4].hooks[0].command, reader);
-  assert.ok(existsSync(new URL('scripts/claude/lead-file-read.ts', root)));
-  // The context ceiling refuses tools that start new work past 90%.
-  assert.equal(
-    guard[2].hooks[0].command,
-    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts"',
-  );
-  assert.equal(
-    guard[0].hooks[0].command,
-    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/memory-budget.ts"',
-  );
-  assert.ok(existsSync(new URL('scripts/claude/memory-budget.ts', root)));
-  assert.equal(
-    guard[1].hooks[0].command,
-    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/bash-guards.ts"',
-  );
-  assert.ok(existsSync(new URL('scripts/claude/bash-guards.ts', root)));
+    ['subagent-model', 'Agent|Task'],
+    ['scope', 'Write|Edit|NotebookEdit|Bash'],
+    ['edit-standards', 'Edit|Write|MultiEdit|Bash'],
+  ]);
   assert.equal(settings.hooks.PreCompact, undefined);
   // Pattern kills hit other lanes' processes; agents stop processes by PID.
   // A bare tool deny drops that schema from every request: these five harness
@@ -98,14 +81,10 @@ test('Claude project gauge matcher covers every built-in tool the ceiling refuse
   const { refusesAtCeiling } = await import(
     new URL('src/context/gauge.ts', root).href
   );
-  const settings = JSON.parse(
-    readFileSync(new URL('.claude/settings.json', root), 'utf8'),
+  const gauge = events['pre-tool'].routes.find(
+    (route) => route.name === 'gauge',
   );
-  const gauge = settings.hooks.PreToolUse.find(
-    (entry: { hooks: { command: string }[] }) =>
-      entry.hooks.some((hook) => hook.command.includes('context-gauge.ts')),
-  );
-  const matched = new Set(gauge.matcher.split('|'));
+  const matched = new Set(gauge?.tools?.split('|'));
   const builtIn = [
     'Agent',
     'Task',

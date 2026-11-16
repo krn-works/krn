@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { hookStdin } from '../../src/harness/claude.ts';
 
 // PreToolUse hook for Agent: the built-in Explore and Plan agents ignore
 // CLAUDE_CODE_SUBAGENT_MODEL and inherit the parent's model, so an Opus lead ran them on
@@ -63,10 +64,10 @@ export function updatedInput(
   };
 }
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

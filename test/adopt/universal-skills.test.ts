@@ -180,7 +180,6 @@ test('every skill a hook or successor prompt names is an installable universal s
   for (const file of [
     'src/context/gauge.ts',
     'scripts/codex/context-hook.ts',
-    'src/successor/watchdog.ts',
   ]) {
     const text = readFileSync(join(repo, file), 'utf8');
     assert.equal(

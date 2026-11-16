@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { hookStdin } from '../../src/harness/claude.ts';
 
 // PreToolUse hook for Bash: refuses polling CI from the shell (`gh run watch`,
 // `gh pr checks --watch`, or a loop that sleeps between `gh pr`/`gh run`/`gh api`
@@ -36,10 +36,10 @@ export function decide(payload: unknown): string | undefined {
   return 'Refused: this Bash call polls CI from the shell (gh watch, or a sleep loop around gh pr/run/api); every poll re-reads the whole context. Nothing in this Bash call ran. Block once instead: `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>` with full 40-char SHAs (scripts/claude/ci-poll.ts).';
 }
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

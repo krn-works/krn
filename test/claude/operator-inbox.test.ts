@@ -28,7 +28,9 @@ const captureHook = JSON.parse(readFileSync(settings, 'utf8'))
   .hooks.UserPromptSubmit.flatMap(
     (entry: { hooks: { command: string; timeout?: number }[] }) => entry.hooks,
   )
-  .find((hook: { command: string }) => /context-gauge\.ts/u.test(hook.command));
+  .find((hook: { command: string }) =>
+    /dispatch\/main\.ts" user-prompt/u.test(hook.command),
+  );
 const captureTimeoutMs = Number(captureHook?.timeout) * 1000;
 
 // The test runs inside a KRN session whose own KRN_* variables (for example

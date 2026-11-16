@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { hookStdin } from '../harness/claude.ts';
 
 // PreToolUse hook for Bash: refuses `git stash` forms that change the stash
 // stack. Every worktree of a repository shares one stack, so a lane's bare
@@ -36,10 +36,10 @@ export function decide(payload: unknown): string | undefined {
   return undefined;
 }
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

@@ -25,6 +25,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   task: ['cli-kit', 'fs', 'repo'],
   evals: [],
   hook: ['brain', 'harness', 'repo', 'state', 'task'],
+  dispatch: ['context', 'harness', 'hook', 'root:scripts'],
   brain: ['cli-kit', 'harness', 'repo'],
   cli: [
     'cli-kit',
@@ -33,6 +34,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     'brain',
     'ci',
     'core',
+    'dispatch',
     'outcome',
     'repo',
     'state',
