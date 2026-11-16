@@ -1,4 +1,5 @@
 // One-command changed-files verify: biome --write, tsc and the related tests, one verdict line.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -10,6 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkedTree, writeFastPass } from '../src/ci/fast-pass.ts';
@@ -448,17 +450,31 @@ function sharedRoot(root: string): string {
   return common ? dirname(resolve(root, common)) : root;
 }
 
+/** Default holders: one per eight cores, so a 16-core host runs two fast checks at once instead of serialising every lane. */
+export function defaultTestSlots(
+  cores: number = availableParallelism(),
+): number {
+  return Math.max(1, Math.floor(cores / 8));
+}
+
 /** Slot lock options: one lock under the shared checkout's .krn/tmp, KRN_FAST_SLOTS holders at once. */
 export function testSlotOptions(
   root: string,
   env: NodeJS.ProcessEnv = process.env,
+  cores: number = availableParallelism(),
 ): { dir: string; slots: number } {
   const slots = Number(env.KRN_FAST_SLOTS);
   return {
     dir: env.KRN_FAST_SLOT_DIR ?? join(sharedRoot(root), '.krn/tmp/fast-slots'),
-    slots: Number.isInteger(slots) && slots > 0 ? slots : 1,
+    slots:
+      Number.isInteger(slots) && slots > 0 ? slots : defaultTestSlots(cores),
   };
 }
+
+/** Marks work that already holds a slot: a nested inTestSlot call runs inside it instead of queueing again. */
+const slotHeld = new AsyncLocalStorage<true>();
+/** Seconds this process waited for its slot; reported as its own timing, never inside a step's. */
+export let slotWaitSeconds = 0;
 
 /** Runs the heavy work under the host-wide slot lock and prints the wait when another fast run holds every slot. */
 export function inTestSlot<T>(
@@ -467,6 +483,7 @@ export function inTestSlot<T>(
   env: NodeJS.ProcessEnv = process.env,
   write: (text: string) => void = (text) => process.stderr.write(text),
 ): Promise<T> {
+  if (slotHeld.getStore()) return work();
   const waitStarted = performance.now();
   return withSlot(
     {
@@ -478,9 +495,10 @@ export function inTestSlot<T>(
     },
     () => {
       const waited = (performance.now() - waitStarted) / 1000;
+      slotWaitSeconds += waited;
       if (waited >= 1)
         write(`fast: got a test slot after ${waited.toFixed(1)}s\n`);
-      return work();
+      return slotHeld.run(true, work);
     },
   );
 }
@@ -721,107 +739,115 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   const guard = new Set(preflightTests(changed, removed, tests));
   for (let i = related.length - 1; i >= 0; i--)
     if (guard.has(related[i] ?? '')) related.splice(i, 1);
-  const pre = await preflight(
-    root,
-    parsed.base,
-    [...guard],
-    tests.has(DRIFT_TEST),
-  );
-  if (pre.failed) {
-    process.stdout.write(
-      `--- ${pre.failed.name} ---\n${ruleNamed(pre.failed.output).trim().split('\n').slice(-60).join('\n')}\n`,
+  // One slot for the whole check: the guard, tsc and tests (and a Biome redo) never queue twice.
+  return inTestSlot(root, async () => {
+    const pre = await preflight(
+      root,
+      parsed.base,
+      [...guard],
+      tests.has(DRIFT_TEST),
     );
-    const total = ((performance.now() - started) / 1000).toFixed(1);
-    rmSync(passMarker, { force: true });
-    recordPass(root, false);
-    process.stdout.write(
-      `fast FAIL (${pre.failed.name}): preflight stopped before lint, tsc and the related tests; ${pre.steps.map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`).join(', ')}; total ${total}s\n`,
-    );
-    return 1;
-  }
-  const snapshot = (): string =>
-    changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
-  // tsc and the related tests hold one host-wide slot together: concurrent lanes queue instead of thrashing.
-  const verify = (): Promise<Step[]> =>
-    inTestSlot(root, () =>
-      Promise.all([
-        run(root, 'tsc', bin('tsc'), [
-          '--noEmit',
-          '--incremental',
-          '--tsBuildInfoFile',
-          join(cache, 'fast.tsbuildinfo'),
-        ]),
-        ...(related.length > 0
-          ? [
-              run(
-                root,
-                'test',
-                process.execPath,
-                testRunnerArgs(related),
-                // Tests start Node children (CLIs under test); like the suite
-                // runner, they share its compile cache instead of recompiling
-                // unchanged sources in every child.
-                {
-                  ...process.env,
-                  NODE_COMPILE_CACHE:
-                    process.env.NODE_COMPILE_CACHE ??
-                    join(root, '.krn/tmp/node-compile-cache'),
-                },
-              ),
-            ]
-          : []),
-      ]),
-    );
-  // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
-  const before = snapshot();
-  const staged = fullyStaged(root).filter((file) => files.includes(file));
-  const lint =
-    files.length > 0
-      ? run(root, 'biome', bin('biome'), [
-          'check',
-          '--write',
-          '--error-on-warnings',
-          '--no-errors-on-unmatched',
-          ...files,
-        ])
-      : undefined;
-  let verified = verify();
-  const steps: Step[] = [...pre.steps];
-  if (lint) {
-    steps.push(await lint);
-    if (snapshot() !== before) {
-      const fixed = restage(root, staged);
-      if (fixed.length > 0)
-        process.stdout.write(
-          `fast: re-staged Biome fixes to ${fixed.join(', ')}\n`,
-        );
-      await verified;
-      verified = verify();
+    if (pre.failed) {
+      process.stdout.write(
+        `--- ${pre.failed.name} ---\n${ruleNamed(pre.failed.output).trim().split('\n').slice(-60).join('\n')}\n`,
+      );
+      const total = ((performance.now() - started) / 1000).toFixed(1);
+      rmSync(passMarker, { force: true });
+      recordPass(root, false);
+      process.stdout.write(
+        `fast FAIL (${pre.failed.name}): preflight stopped before lint, tsc and the related tests; ${pre.steps.map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`).join(', ')}; total ${total}s\n`,
+      );
+      return 1;
     }
-  }
-  steps.push(...(await verified));
-  const failed = steps.filter((step) => !step.ok);
-  for (const step of failed)
+    const snapshot = (): string =>
+      changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
+    // tsc and the related tests hold one host-wide slot together: concurrent lanes queue instead of thrashing.
+    const verify = (): Promise<Step[]> =>
+      inTestSlot(root, () =>
+        Promise.all([
+          run(root, 'tsc', bin('tsc'), [
+            '--noEmit',
+            '--incremental',
+            '--tsBuildInfoFile',
+            join(cache, 'fast.tsbuildinfo'),
+          ]),
+          ...(related.length > 0
+            ? [
+                run(
+                  root,
+                  'test',
+                  process.execPath,
+                  testRunnerArgs(related),
+                  // Tests start Node children (CLIs under test); like the suite
+                  // runner, they share its compile cache instead of recompiling
+                  // unchanged sources in every child.
+                  {
+                    ...process.env,
+                    NODE_COMPILE_CACHE:
+                      process.env.NODE_COMPILE_CACHE ??
+                      join(root, '.krn/tmp/node-compile-cache'),
+                  },
+                ),
+              ]
+            : []),
+        ]),
+      );
+    // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
+    const before = snapshot();
+    const staged = fullyStaged(root).filter((file) => files.includes(file));
+    const lint =
+      files.length > 0
+        ? run(root, 'biome', bin('biome'), [
+            'check',
+            '--write',
+            '--error-on-warnings',
+            '--no-errors-on-unmatched',
+            ...files,
+          ])
+        : undefined;
+    let verified = verify();
+    const steps: Step[] = [...pre.steps];
+    if (lint) {
+      steps.push(await lint);
+      if (snapshot() !== before) {
+        const fixed = restage(root, staged);
+        if (fixed.length > 0)
+          process.stdout.write(
+            `fast: re-staged Biome fixes to ${fixed.join(', ')}\n`,
+          );
+        await verified;
+        verified = verify();
+      }
+    }
+    steps.push(...(await verified));
+    const failed = steps.filter((step) => !step.ok);
+    for (const step of failed)
+      process.stdout.write(
+        `--- ${step.name} ---\n${step.output.trim().split('\n').slice(-60).join('\n')}\n`,
+      );
+    const timing = [
+      ...(slotWaitSeconds >= 1
+        ? [`slot-wait ${Math.round(slotWaitSeconds * 1000)}ms`]
+        : []),
+      ...steps.map(
+        (step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`,
+      ),
+    ].join(', ');
+    const total = ((performance.now() - started) / 1000).toFixed(1);
+    const verdict =
+      failed.length === 0
+        ? 'PASS'
+        : `FAIL (${failed.map((step) => step.name).join(', ')})`;
+    // Biome may have rewritten files, so the key is taken after the run; a FAIL clears the marker.
+    rmSync(passMarker, { force: true });
+    if (failed.length === 0)
+      writeFileSync(passMarker, treeKey(root, parsed.base));
+    recordPass(root, failed.length === 0);
     process.stdout.write(
-      `--- ${step.name} ---\n${step.output.trim().split('\n').slice(-60).join('\n')}\n`,
+      `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
     );
-  const timing = steps
-    .map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`)
-    .join(', ');
-  const total = ((performance.now() - started) / 1000).toFixed(1);
-  const verdict =
-    failed.length === 0
-      ? 'PASS'
-      : `FAIL (${failed.map((step) => step.name).join(', ')})`;
-  // Biome may have rewritten files, so the key is taken after the run; a FAIL clears the marker.
-  rmSync(passMarker, { force: true });
-  if (failed.length === 0)
-    writeFileSync(passMarker, treeKey(root, parsed.base));
-  recordPass(root, failed.length === 0);
-  process.stdout.write(
-    `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
-  );
-  return failed.length === 0 ? 0 : 1;
+    return failed.length === 0 ? 0 : 1;
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))

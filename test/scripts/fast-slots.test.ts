@@ -78,3 +78,29 @@ test('two slots let two fast runs overlap and nobody waits', async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a nested slot request inside a held slot runs at once instead of queueing behind itself', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    // slots=1: before the fix a second acquisition in the same run waited (guard, then tsc+tests).
+    const env = { KRN_FAST_SLOTS: '1', KRN_FAST_SLOT_DIR: dir };
+    const messages: string[] = [];
+    const write = (text: string): void => {
+      messages.push(text);
+    };
+    const inner = await inTestSlot(
+      process.cwd(),
+      () =>
+        inTestSlot(process.cwd(), async () => 'nested', env, write).then(
+          async (first) =>
+            `${first}+${await inTestSlot(process.cwd(), async () => 'again', env, write)}`,
+        ),
+      env,
+      write,
+    );
+    assert.equal(inner, 'nested+again');
+    assert.deepEqual(messages, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
