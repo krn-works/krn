@@ -1,0 +1,25 @@
+{
+  "id": "t-87cyfw2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Session slots never exceed the cap when processes race for a slot",
+  "after": [],
+  "body": [
+    "Source: CI run 43966983067 (PR #1266): session-cap test saw 3 live sessions under cap 2; reproduced locally 1 of 15.\nCause: tryTake created the slot with flag wx and wrote the pid after; a concurrent reader saw an empty file, judged it stale and reclaimed a live slot.\nOutcome: node --test test/evals/session-cap.test.ts exits 0 and the cross-process cap test passes 30 of 30 runs.\nProof: the empty-slot regression test fails on the old code and passes on the fix."
+  ],
+  "acceptance": [
+    {
+      "verify": "node --test test/evals/session-cap.test.ts",
+      "passes": false,
+      "exit": null
+    }
+  ],
+  "kind": "defect",
+  "area": "eval",
+  "from": {
+    "kind": "finding",
+    "ref": "ci-43966983067"
+  }
+}
