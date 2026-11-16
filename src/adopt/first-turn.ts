@@ -1,19 +1,12 @@
 // `krn adopt <path> --verify`: an estimate of what the first agent turn loads from the repository.
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import {
   instructionFile,
   projectPath,
   projectRelative,
 } from '../harness/claude.ts';
-import type { UnusedReport } from './unused.ts';
 
 /** Tokens per MCP server: its tool schemas are loaded on the first turn; a flat estimate, the real count needs the server. */
 export const MCP_SERVER_TOKENS = 1500;
@@ -119,48 +112,4 @@ export function renderFirstTurn(report: FirstTurnReport): string[] {
     `verify context: first turn ~${report.total} tokens from the repository (${parts.join(', ')}; the host's own prompt, user files and plugins come on top)`,
     ...report.settings.map((setting) => `verify context setting: ${setting}`),
   ];
-}
-
-const objectSchema = z.record(z.string(), z.unknown());
-const stringList = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : [];
-
-/**
- * Disables the unused MCP servers (`disabledMcpjsonServers`) and skills (`permissions.deny` `Skill(name)`) of
- * the report in the project settings; only entries not yet present are added, and the file is untouched
- * when none is. Returns the entries added.
- */
-export function disableUnused(root: string, report: UnusedReport): string[] {
-  const path = join(root, SETTINGS);
-  const text = readIfFile(path);
-  let settings: Record<string, unknown> = {};
-  if (text !== undefined) {
-    const parsed = objectSchema.safeParse(JSON.parse(text));
-    if (!parsed.success) throw new Error(`${SETTINGS}: expected an object`);
-    settings = parsed.data;
-  }
-  const permissions = objectSchema.safeParse(settings.permissions).data ?? {};
-  const servers = stringList(settings.disabledMcpjsonServers);
-  const deny = stringList(permissions.deny);
-  const added: string[] = [];
-  for (const { name } of report.servers)
-    if (!servers.includes(name)) {
-      servers.push(name);
-      added.push(`disabledMcpjsonServers: ${name}`);
-    }
-  for (const { name } of report.skills) {
-    const entry = `Skill(${name})`;
-    if (!deny.includes(entry)) {
-      deny.push(entry);
-      added.push(`permissions.deny: ${entry}`);
-    }
-  }
-  if (added.length === 0) return added;
-  if (report.servers.length > 0) settings.disabledMcpjsonServers = servers;
-  if (report.skills.length > 0) settings.permissions = { ...permissions, deny };
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(settings, null, 2)}\n`);
-  return added;
 }

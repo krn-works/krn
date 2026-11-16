@@ -1,12 +1,12 @@
-// Adoption census (logic: src/adopt/census.ts). Usage: KRN_CENSUS_CODING=<dir> TMPDIR=<disk dir> node scripts/adoption-census.ts [--write]
+// Adoption census (logic: evals/adoption/census.ts). Usage: KRN_CENSUS_CODING=<dir> TMPDIR=<disk dir> node evals/adoption/run.ts [--write]
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCensus } from '../src/adopt/census.ts';
+import { runCensus } from './census.ts';
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
   const coding = process.env.KRN_CENSUS_CODING ?? '';
   if (coding === '') {
     process.stderr.write(
@@ -20,6 +20,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     repoRoot,
   });
   if (process.argv.includes('--write'))
-    writeFileSync(join(repoRoot, 'evals/adoption-census.md'), table);
+    writeFileSync(join(repoRoot, 'evals/adoption/census.md'), table);
   else process.stdout.write(table);
 }
