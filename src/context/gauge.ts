@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import {
+  configHome,
   emitContext,
   hookInput,
   hookStdin,
@@ -79,25 +80,50 @@ export function contextTotal(transcript: string): number | undefined {
   return gaugeReading(transcript).total;
 }
 
-// The budget is the auto-compact window the project configures, so the gauge
-// and compaction share one number; advisoriesOf places the handoff advisories.
-// A first lead turn measured 46-48k on 2026-11-01, well below the first one.
-// Host mode defaults to the 400k window KRN measured its advisories against.
-function budget(project: string, fallback: number): number {
-  const path = projectPath(project, 'settings.json');
-  if (!existsSync(path)) return fallback;
+// The budget is the auto-compact window, so the gauge and compaction share one
+// number; advisoriesOf places the handoff advisories. Claude Code resolves the
+// window as CLAUDE_CODE_AUTO_COMPACT_WINDOW, then the project settings, then the
+// user settings (code.claude.com model-config and settings docs): the user file
+// ~/.claude/settings.json holds the one global window and a project sets its
+// own only to override it. "auto" is the model's tuned window, which for the
+// native 1M models compacts "at about 967K tokens by default".
+const autoWindow = 967000;
+// KRN's default window when nothing is set: the gauge advises against it even
+// though Claude Code itself would compact near 967K.
+export const defaultWindow = 400000;
+
+function windowValue(window: unknown): number | undefined {
+  if (window === undefined || window === '') return undefined;
+  if (window === 'auto') return autoWindow;
+  const value = typeof window === 'string' ? Number(window) : window;
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value < 100000 ||
+    value > 1000000
+  )
+    throw new Error('Invalid autoCompactWindow');
+  return value;
+}
+
+function windowSetting(path: string): number | undefined {
+  if (!existsSync(path)) return undefined;
   const window = object(
     JSON.parse(readFileSync(path, 'utf8')),
   ).autoCompactWindow;
-  if (window === undefined) return fallback;
-  if (
-    typeof window !== 'number' ||
-    !Number.isSafeInteger(window) ||
-    window < 100000 ||
-    window > 1000000
-  )
+  // A string in settings is invalid; only the environment variable is text.
+  if (typeof window === 'string' && window !== 'auto')
     throw new Error('Invalid autoCompactWindow');
-  return window;
+  return windowValue(window);
+}
+
+function budget(project: string): number {
+  return (
+    windowValue(process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW) ??
+    windowSetting(projectPath(project, 'settings.json')) ??
+    windowSetting(join(configHome(), 'settings.json')) ??
+    defaultWindow
+  );
 }
 
 function tail(path: string): string {
@@ -128,10 +154,10 @@ const handoffTools = new Set(['Skill', 'ToolSearch']);
 const handoffCommand =
   /^(?:cd|echo|true|(?:bin\/)?krn|git|node scripts\/claude\/(?:handoff-requests|operator-inbox|successor-launch)\.ts)(?:\s|$)/;
 // Host mode (the gauge installed in ~/.claude/settings.json for every
-// project) also admits the context-relay handoff: its usage and relay
-// scripts, herdr or hc to verify the successor, and bd for Beads trackers.
+// project) also admits the context-relay handoff: its relay script, herdr
+// or hc to verify the successor, and bd for Beads trackers.
 const relayCommand =
-  /^(?:herdr|hc|bd|(?:python3\s+)?(?:~|\$HOME|\$\{HOME\}|\/home\/[^/\s]+)\/\.claude\/skills\/context-relay\/scripts\/(?:relay\.sh|context-usage\.py))(?:\s|$)/;
+  /^(?:herdr|hc|bd|(?:~|\$HOME|\$\{HOME\}|\/home\/[^/\s]+)\/\.claude\/skills\/context-relay\/scripts\/relay\.sh)(?:\s|$)/;
 // The continuation prompt and handoff documents a relay writes.
 const relayDocument = /(?:PROMPT|handoff)[^/]*\.md$/i;
 // A bounded Read elsewhere still fits a handoff that checks one fact.
@@ -143,23 +169,27 @@ function field(toolInput: unknown, name: string): unknown {
     : undefined;
 }
 
-// The context past which only the handoff runs.
-// Advisories fire at 60% and 80% of the window, capped at 150k and 200k:
-// lead turns past 150k read 35% of all lead cache since 2026-11-01 while a
-// 240k advisory reached 21 of 216 sessions
-// (.krn/runs/roadmap-refill/token-per-slice.md, sections 6-7).
+// The thresholds are fractions of the window, so one global window setting
+// moves all three: advisories at 1/2 and 5/8, the ceiling at 3/4. The 400k
+// window gives 200k/250k/300k. The quarter above the ceiling serves only the
+// handoff before compaction; a step that overshoots the second advisory by
+// more than 50k meets the ceiling's refusal. 200k is a bounded step past the
+// measured band on the operator's order, not a measured safe point: the
+// evidence (.krn/runs/lead/context-budget/evidence.md) shows cost rising with
+// context and no quality data past 200k. The window moves again only on its
+// band's own evidence.
 export function advisoriesOf(window: number): {
   first: number;
   second: number;
 } {
   return {
-    first: Math.min(150000, Math.floor((window * 3) / 5)),
-    second: Math.min(200000, Math.floor((window * 4) / 5)),
+    first: Math.floor(window / 2),
+    second: Math.floor((window * 5) / 8),
   };
 }
 
 export function ceilingOf(window: number): number {
-  return Math.floor((window * 9) / 10);
+  return Math.floor((window * 3) / 4);
 }
 
 export function handoffBash(command: string, host = false): boolean {
@@ -256,8 +286,7 @@ export async function main(): Promise<void> {
       : 'run delivery-handoff';
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
-    const fallbackWindow = host ? 400000 : 200000;
-    let window = fallbackWindow;
+    let window = defaultWindow;
     let notice: string | undefined;
     // One hook output per run: the notice rides with an advisory when one fires.
     const say = (text: string) => {
@@ -265,7 +294,7 @@ export async function main(): Promise<void> {
       notice = undefined;
     };
     try {
-      window = budget(input.project, fallbackWindow);
+      window = budget(input.project);
     } catch {
       // A broken window setting must not drop the ceiling: gauge against the
       // default window and say so once per session, outside the tool hot path.
@@ -277,7 +306,7 @@ export async function main(): Promise<void> {
       if (input.event !== 'PreToolUse' && !existsSync(note)) {
         mkdirSync(dirname(note), { recursive: true });
         writeFileSync(note, '', { mode: 0o600 });
-        notice = `Context gauge: autoCompactWindow in .claude/settings.json is invalid; gauging against the default ${Math.floor(fallbackWindow / 1000)}k window.`;
+        notice = `Context gauge: the autoCompactWindow setting is invalid; gauging against the default ${Math.floor(defaultWindow / 1000)}k window.`;
       }
     }
     const { first, second } = advisoriesOf(window);

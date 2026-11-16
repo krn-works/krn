@@ -1,7 +1,11 @@
 {
   "id": "t-v9zxepq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "One global window (~/.claude/settings.json; env, then project override, as Claude Code resolves it); thresholds at 1/2, 5/8, 3/4 of the window: 200k/250k/300k at 400k; repo duplicate and dead context-usage.py entry removed; step 2 (500k) gated in t-1nkf30z"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "One global context budget sized for the 1M window",

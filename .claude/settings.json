@@ -13,7 +13,6 @@
       "ListAgents"
     ]
   },
-  "autoCompactWindow": 400000,
   "effortLevel": "medium",
   "disableClaudeAiConnectors": true,
   "deniedMcpServers": [

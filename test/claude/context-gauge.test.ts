@@ -17,6 +17,18 @@ import { fileURLToPath } from 'node:url';
 // message content arrays are elided and cwd is redacted to '.', every other
 // field, including message.usage, is verbatim.
 
+// Every spawned gauge reads a test user configuration, never the host's
+// ~/.claude/settings.json; their global window is 240k, whose thresholds
+// (120k, 150k, ceiling 180k) the captured readings were taken against.
+process.env.CLAUDE_CONFIG_DIR = mkdtempSync(
+  join(tmpdir(), 'context-gauge-user-'),
+);
+writeFileSync(
+  join(process.env.CLAUDE_CONFIG_DIR, 'settings.json'),
+  JSON.stringify({ autoCompactWindow: 240000 }),
+);
+delete process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+
 const gaugeModule = fileURLToPath(
   new URL('../../src/context/gauge.ts', import.meta.url),
 );
@@ -69,34 +81,53 @@ test('gauge reads an advisor turn as its last executor prompt, not the summed us
   assert.equal(module.contextTotal(fixture('advisor-turn')), 2 + 64967 + 1482);
 });
 
-test('gauge caps its advisories at 150k and 200k of a 400k window', async () => {
-  const { advisoriesOf } = await import(gaugeModule);
-  assert.deepEqual(advisoriesOf(400000), { first: 150000, second: 200000 });
-  assert.deepEqual(advisoriesOf(200000), { first: 120000, second: 160000 });
-  // The project window stays 400k; a 163k captured reading already advises.
+test('gauge places its advisories and ceiling at fractions of the global window', async () => {
+  const { advisoriesOf, ceilingOf } = await import(gaugeModule);
+  assert.deepEqual(advisoriesOf(400000), { first: 200000, second: 250000 });
+  assert.equal(ceilingOf(400000), 300000);
+  assert.deepEqual(advisoriesOf(600000), { first: 300000, second: 375000 });
+  assert.equal(ceilingOf(600000), 450000);
+  // A 600k global window and no project window: the gauge advises at 300k.
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
-  try {
-    mkdirSync(join(root, '.claude'));
-    writeFileSync(
-      join(root, '.claude/settings.json'),
-      JSON.stringify({ autoCompactWindow: 400000 }),
-    );
+  const run = (total: number) => {
+    const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
+    entry.message.usage = withTotal(entry.message.usage, total);
     const transcript = join(root, 'transcript.jsonl');
-    writeFileSync(transcript, fixture('second'));
+    writeFileSync(transcript, `${JSON.stringify(entry)}\n`);
     const result = spawnSync(process.execPath, gaugeArgs(), {
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        CLAUDE_CONFIG_DIR: join(root, 'user'),
+      },
       encoding: 'utf8',
       input: JSON.stringify({
-        session_id: 'session',
+        session_id: `session-${total}`,
         transcript_path: transcript,
         hook_event_name: 'PostToolUse',
       }),
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /Context at 163k of 400k\. Finish the current step, then run delivery-handoff\./u,
+    return result.stdout;
+  };
+  try {
+    mkdirSync(join(root, 'user'));
+    writeFileSync(
+      join(root, 'user/settings.json'),
+      JSON.stringify({ autoCompactWindow: 600000 }),
     );
+    assert.equal(run(299000), '');
+    assert.match(
+      run(301000),
+      /Context at 301k of 600k\. Finish the current step, then run delivery-handoff\./u,
+    );
+    // The environment variable outranks every settings file, as in Claude Code.
+    process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = '300000';
+    try {
+      assert.match(run(151000), /Context at 151k of 300k\./u);
+    } finally {
+      delete process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -129,10 +160,10 @@ test('gauge hook advises once per threshold and re-arms after compaction', () =>
     assert.equal(run(fixture('below')), '');
     assert.match(
       run(fixture('warn'), 'UserPromptSubmit'),
-      /Context at 121k of 200k\. Finish the current step, then run delivery-handoff\./u,
+      /Context at 121k of 240k\. Finish the current step, then run delivery-handoff\./u,
     );
     assert.equal(run(fixture('warn')), '');
-    assert.match(run(fixture('second')), /163k.*200k.*delivery-handoff/u);
+    assert.match(run(fixture('second')), /163k.*240k.*delivery-handoff/u);
     assert.equal(run(fixture('second')), '');
     assert.equal(run(fixture('compact-boundary')), '');
     assert.match(run(fixture('warn')), /121k/u);
@@ -177,7 +208,7 @@ test('gauge hook gives both advisories when one reading passes both thresholds',
     const text = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
     assert.match(
       text,
-      /163k of 200k\. Finish the current step, then run delivery-handoff\./u,
+      /163k of 240k\. Finish the current step, then run delivery-handoff\./u,
     );
     assert.match(text, /nearly exhausted/u);
   } finally {
@@ -239,13 +270,13 @@ test('gauge reads only the final 256 KiB and skips the partial first line', () =
       }),
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /121k of 200k/u);
+    assert.match(result.stdout, /121k of 240k/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('gauge budget follows the project auto-compact window and ignores the measured baseline', () => {
+test('gauge budget follows the global auto-compact window, a project override first, and ignores the measured baseline', () => {
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   const settings = join(root, '.claude/settings.json');
@@ -260,7 +291,11 @@ test('gauge budget follows the project auto-compact window and ignores the measu
   const run = (text: string, session = 'session') => {
     writeFileSync(transcript, text);
     const result = spawnSync(process.execPath, gaugeArgs(), {
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        CLAUDE_CONFIG_DIR: join(root, 'user'),
+      },
       encoding: 'utf8',
       input: JSON.stringify({
         session_id: session,
@@ -274,6 +309,13 @@ test('gauge budget follows the project auto-compact window and ignores the measu
   };
   try {
     assert.equal(run(reading(47144), 'default'), '');
+    // The user settings hold the one global window; a project setting overrides it.
+    mkdirSync(join(root, 'user'));
+    writeFileSync(
+      join(root, 'user/settings.json'),
+      JSON.stringify({ autoCompactWindow: 300000 }),
+    );
+    assert.equal(run(fixture('warn'), 'global'), '');
     mkdirSync(join(root, '.claude'));
     writeFileSync(settings, JSON.stringify({ autoCompactWindow: 200000 }));
     assert.equal(run(reading(47144), 'configured'), '');
@@ -281,7 +323,7 @@ test('gauge budget follows the project auto-compact window and ignores the measu
     writeFileSync(settings, JSON.stringify({ autoCompactWindow: 300000 }));
     assert.equal(run(reading(47144), 'wide'), '');
     assert.equal(run(fixture('warn'), 'wide'), '');
-    // 60% of 300k is 180k, so the 150k cap moves the first advisory down.
+    // Half of 300k is 150k, the first advisory.
     assert.match(
       run(fixture('second'), 'wide'),
       /^\{.*Context at 163k of 300k\. Finish the current step, then run delivery-handoff\."/u,
@@ -298,9 +340,9 @@ test('gauge budget follows the project auto-compact window and ignores the measu
     assert.equal(notice.match(/autoCompactWindow/gu)?.length, 1);
     assert.equal(run(reading(47144), 'invalid'), '');
     // The notice rides with an advisory in one hook output.
-    const joined = run(fixture('second'), 'invalid-advised');
+    const joined = run(reading(201000), 'invalid-advised');
     assert.equal(joined.match(/^\{.*\}$/u)?.length, 1);
-    assert.match(joined, /autoCompactWindow.*163k of 200k/u);
+    assert.match(joined, /autoCompactWindow.*201k of 400k/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -366,7 +408,7 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     assert.equal(run(165000, 'PostToolUse'), '');
     assert.match(
       run(171000, 'PostToolUse'),
-      /171k of 200k, still past the handoff advisory.*180k new work is refused/u,
+      /171k of 240k, still past the handoff advisory.*180k new work is refused/u,
     );
     assert.equal(run(175000, 'PostToolUse'), '');
     assert.match(run(181000, 'PostToolUse'), /181k/u);
@@ -448,6 +490,7 @@ test('host gauge serves every project except one that wires its own gauge', asyn
         ...process.env,
         CLAUDE_PROJECT_DIR: project,
         HOME: root,
+        CLAUDE_CONFIG_DIR: join(root, '.claude'),
         XDG_STATE_HOME: join(root, 'state'),
       },
       encoding: 'utf8',
@@ -479,7 +522,7 @@ test('host gauge serves every project except one that wires its own gauge', asyn
     });
     assert.match(
       JSON.parse(out).hookSpecificOutput.permissionDecisionReason,
-      /360k ceiling of the 400k budget.*context-relay skill/u,
+      /300k ceiling of the 400k budget.*context-relay skill/u,
     );
     // A project that wires its own gauge is left to it.
     writeFileSync(
@@ -499,7 +542,6 @@ test('host gauge serves every project except one that wires its own gauge', asyn
   }
   // The relay handoff stays open in host mode only.
   for (const command of [
-    'python3 ~/.claude/skills/context-relay/scripts/context-usage.py',
     '~/.claude/skills/context-relay/scripts/relay.sh docs/X-PROMPT.md lead-2',
     'herdr agent get lead-2 && bd update x-1 --status done',
   ]) {

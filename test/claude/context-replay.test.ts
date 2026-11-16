@@ -34,8 +34,9 @@ test('the real gauge hook advises inside the step that crosses the threshold', (
       stepPeak: 273175,
     },
   ]);
-  // Every reading passes the 150k cap, so a wider window advises no later.
-  assert.equal(replay(transcript, 1000000).advisories[0]?.line, 2);
+  // The thresholds scale with the window: a 1M window first advises at 500k,
+  // past this transcript's 273k peak.
+  assert.deepEqual(replay(transcript, 1000000).advisories, []);
 });
 
 test('replay CLI prints one verdict per transcript and rejects no input', () => {
