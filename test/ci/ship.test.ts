@@ -429,6 +429,32 @@ test('exit 0 means merged: each unmerged verdict exits with its own code and kee
   );
 });
 
+test('a merged ship asks the tracker to release the claim of its task, and a failing release never fails the ship', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const asked: string[] = [];
+  const out = await shipCommand(args, {
+    ...r,
+    releaseClaim: (main, worktree, task) => {
+      asked.push(`${main} ${worktree} ${task}`);
+      throw new Error('claim store unreadable');
+    },
+  });
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.deepEqual(asked, ['/r /r/.krn/worktrees/feat-x t-3ag9eqn']);
+});
+
+test('a ship that stops unmerged releases no claim', async () => {
+  const r = receiver({ pulls: [auto], check: 'failure' });
+  const asked: string[] = [];
+  await assert.rejects(
+    shipCommand(args, {
+      ...r,
+      releaseClaim: (_m, _w, task) => asked.push(task),
+    }),
+  );
+  assert.deepEqual(asked, []);
+});
+
 test('a rerun after the PR merged only records it and pushes nothing', async () => {
   const r = receiver({ pulls: [auto], mergedBefore: `7 ${merge}\n` });
   const out = await shipCommand(args, {

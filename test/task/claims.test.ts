@@ -3,6 +3,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { inspectState } from '../../src/state/check.ts';
+import { releaseClosedClaims } from '../../src/task/claims.ts';
 import {
   addWorktree,
   fixtureRepo,
@@ -224,6 +226,76 @@ test('ready removes claims of tasks closed in the main checkout', async () => {
     assert.ok(existsSync(join(claims, 'T-1.json')));
     git(repo, 'merge', '-q', 'ready-closed-branch');
     assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), []);
+    assert.equal(existsSync(join(claims, 'T-1.json')), false);
+    assert.ok(existsSync(join(claims, 'T-2.json')));
+  } finally {
+    removeWorktree(repo, linked);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('state check releases the claim of a closed task instead of reporting state loss', async () => {
+  const repo = await fixtureRepo('state-closed-', [task('T-1'), task('T-2')]);
+  const linked = join(dirname(repo), 'state-closed-linked');
+  try {
+    addWorktree(repo, linked, 'state-closed-branch');
+    for (const [at, id] of [
+      [linked, 'T-1'],
+      [repo, 'T-2'],
+    ] as const)
+      assert.equal(
+        (await runCli(at, ['claim', id, '--actor', 'lead'])).status,
+        0,
+      );
+    const closed = await runCli(linked, ['close', 'T-1', '--as', 'done']);
+    assert.equal(closed.status, 0, closed.stderr);
+    git(linked, 'commit', '-qam', 'close T-1');
+    git(repo, 'merge', '-q', 'state-closed-branch');
+    const claims = join(repo, '.krn', 'task-claims');
+    const report = inspectState(repo, releaseClosedClaims);
+    const named = (list: { rule: string; detail: string }[]) =>
+      list.filter((entry) => entry.detail.includes('T-1'));
+    assert.deepEqual(named(report.errors), []);
+    assert.deepEqual(
+      named(report.warnings).map((entry) => entry.rule),
+      ['stale-claim'],
+    );
+    assert.equal(existsSync(join(claims, 'T-1.json')), false);
+    // The claim of the open task stays, and stays reported.
+    assert.ok(existsSync(join(claims, 'T-2.json')));
+    assert.deepEqual(
+      report.errors.map((entry) => `${entry.rule} ${entry.detail}`),
+      [
+        'state-loss .krn/task-claims/T-2.json is an open claim without a capsule or handoff',
+      ],
+    );
+    assert.deepEqual(
+      named(inspectState(repo, releaseClosedClaims).warnings),
+      [],
+    );
+  } finally {
+    removeWorktree(repo, linked);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('a merged ship releases the claim of the task its worktree closed, before the main checkout pulls', async () => {
+  const repo = await fixtureRepo('ship-closed-', [task('T-1'), task('T-2')]);
+  const linked = join(dirname(repo), 'ship-closed-linked');
+  try {
+    addWorktree(repo, linked, 'ship-closed-branch');
+    for (const id of ['T-1', 'T-2'])
+      assert.equal(
+        (await runCli(linked, ['claim', id, '--actor', 'lead'])).status,
+        0,
+      );
+    const closed = await runCli(linked, ['close', 'T-1', '--as', 'done']);
+    assert.equal(closed.status, 0, closed.stderr);
+    const claims = join(repo, '.krn', 'task-claims');
+    // The main checkout still holds the open record: only the worktree knows the task closed.
+    assert.deepEqual(releaseClosedClaims(repo), []);
+    assert.deepEqual(releaseClosedClaims(repo, linked, 'T-2'), []);
+    assert.deepEqual(releaseClosedClaims(repo, linked, 'T-1'), ['T-1']);
     assert.equal(existsSync(join(claims, 'T-1.json')), false);
     assert.ok(existsSync(join(claims, 'T-2.json')));
   } finally {
