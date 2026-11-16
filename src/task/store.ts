@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import { ARCHIVE_DIR, findArchived, readArchive } from './archive.ts';
+import { isPendingId, pendingTaskFiles } from './pending.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -62,6 +63,8 @@ interface TaskStoreOptions {
   uniquenessRoots?: string[];
   /** Findings for a record about to be written; any finding refuses the write. */
   refuse?: (record: TaskRecord, index: Map<string, TaskRecord>) => string[];
+  /** Writes the new record instead of `tasks/<id>.json` under the root (the pending ref). */
+  write?: (id: TaskId, contents: string) => void;
 }
 
 export function repositoryRoot(cwd = process.cwd()): string {
@@ -215,6 +218,21 @@ function scanTaskDirectory(root: string): {
     records.set(parsed.record.id, parsed.record);
   }
 
+  for (const [id, contents] of pendingTaskFiles(root)) {
+    const path = `pending tasks/${id}.json`;
+    const parsed = parseTaskDocument(contents);
+    for (const finding of parsed.findings) findings.push(`${path}: ${finding}`);
+    if (parsed.record === undefined || parsed.id !== id) continue;
+    ids.add(parsed.record.id);
+    references.push({
+      path,
+      id: parsed.id,
+      after: parsed.afterReferences,
+      resolutionRef: parsed.resolutionReference,
+    });
+    records.set(parsed.record.id, parsed.record);
+  }
+
   for (const line of readArchive(root)) {
     findings.push(...line.findings);
     if (line.id !== undefined && isTaskId(line.id)) {
@@ -293,6 +311,11 @@ export function readTask(root: string, id: TaskId): TaskRecord | undefined {
       );
     return parsed.record;
   }
+  const pending = pendingTaskFiles(root).get(id);
+  if (pending !== undefined) {
+    const parsed = parseTaskDocument(pending);
+    if (parsed.record !== undefined && parsed.id === id) return parsed.record;
+  }
   return findArchived(root, id);
 }
 
@@ -352,7 +375,8 @@ export function createTask(
       (options.uniquenessRoots ?? []).some((candidate) =>
         existsSync(join(candidate, 'tasks', `${id}.json`)),
       ) ||
-      existsInOriginMain(root, id)
+      existsInOriginMain(root, id) ||
+      isPendingId(root, id)
     )
       continue;
     const record: TaskRecord = {
@@ -374,6 +398,10 @@ export function createTask(
     };
     const refusal = options.refuse?.(record, index) ?? [];
     if (refusal.length > 0) throw new TaskDataError(refusal);
+    if (options.write !== undefined) {
+      options.write(id, serializeTask(record));
+      return record;
+    }
     try {
       atomicWrite(root, path, serializeTask(record));
       return record;

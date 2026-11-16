@@ -47,6 +47,11 @@ async function task(options: string[]): Promise<void> {
       return;
     }
   }
+  if (options[0] === 'publish') {
+    const { publishCommand } = await import('./task-publish.ts');
+    process.stdout.write(await publishCommand(options.slice(1)));
+    return;
+  }
   const { taskCommand } = await import('../task/cli.ts');
   const { claimPacket } = await import('../brain/claim-packet.ts');
   const { closeExposure } = await import('../brain/close-exposure.ts');
