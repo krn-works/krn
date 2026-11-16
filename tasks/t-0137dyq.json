@@ -1,0 +1,14 @@
+{
+  "id": "t-0137dyq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn adopt keeps a repository's AGENTS.md within its own size budget instead of inlining every standard",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16, krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac (logs .krn/tmp/s29/adopt2.log, t1.log post-adopt suite, t26.log pristine suite under the pinned Node 26: 62 pass, 2 fail only from an untrusted mise config in a temp dir).\nDefect: adopt appends a 59-line rules block that inlines every applicable standards record (26.7 KB); boilerplate's own test caps AGENTS.md at 3 KB (tests/agents.test.mjs 'the contract stays under 3 KB'). North star item 2 says the brain serves records at the moment of need (S11 standards skill routes to krn standards query).\nOutcome: the adopt block names the standards skill and query command, not the record list; the repository's own AGENTS.md test stays green.\nProof: node --test test/adopt/adopt.test.ts: pass (the adopt block of a repository with 30+ applicable records is under 2 KB)."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

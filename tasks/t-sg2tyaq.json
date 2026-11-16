@@ -1,0 +1,14 @@
+{
+  "id": "t-sg2tyaq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn adopt --refresh restores the pinned site skills over the source repository's own newer copies",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16, krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac (logs .krn/tmp/s29/adopt2.log, t1.log post-adopt suite, t26.log pristine suite under the pinned Node 26: 62 pass, 2 fail only from an untrusted mise config in a temp dir).\nFollow-up of t-1ap8rdz: plain adopt now keeps existing site skills, but --refresh/--refresh-all (suggested by krn doctor pack-remedy) still writes the pin from boilerplate commit 30778b5 over boilerplate-2026's newer skills.\nOutcome: refresh never writes a site skill into the repository named in src/adopt/site-skills/source.json, and reports an edited copy elsewhere as drift without overwriting unless --force.\nProof: node --test test/adopt/skill-set.test.ts: pass."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

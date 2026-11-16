@@ -1,0 +1,14 @@
+{
+  "id": "t-xwfwd2t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The adopt canary runs the repository's own suite before and after the adoption files land and refuses a newly red test",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16, krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac (logs .krn/tmp/s29/adopt2.log, t1.log post-adopt suite, t26.log pristine suite under the pinned Node 26: 62 pass, 2 fail only from an untrusted mise config in a temp dir).\nThe canary only checks the base suite; it did not notice that adopt itself turned 4 boilerplate tests red (contract size, CLAUDE.md, skills mirror, action pins). Also the canary runs the PATH node (24) while the repository pins node 26 in mise.toml, so the base looked red (MODULE_NOT_FOUND on 'node --test tests/'); a mise-pinned repo should run its tests through its mise toolchain.\nOutcome: adopt fails (rolls back) when a test green on the clean base is red with the adoption files, naming the test; the canary uses the repo's mise toolchain when mise.toml pins it.\nProof: node --test test/adopt/canary.test.ts: pass (a fixture whose own test asserts no CLAUDE.md makes adopt refuse)."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}
