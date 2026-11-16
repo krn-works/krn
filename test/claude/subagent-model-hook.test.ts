@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
@@ -230,4 +237,51 @@ test('a live krn-lane call naming opus recorded the pinned model in its transcri
   assert.ok(turns.length >= 2);
   for (const turn of turns)
     assert.equal(turn.message.model, 'claude-sonnet-5-5');
+});
+
+test('a lane brief with lane-model: opus, inline or behind a pointer file, runs the lane on opus', () => {
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  mkdirSync(join(root, '.krn', 'tmp'), { recursive: true });
+  const dir = mkdtempSync(join(root, '.krn', 'tmp', 'lane-model-'));
+  try {
+    const file = join(dir, 'brief.prompt');
+    writeFileSync(file, 'Repository conventions\nlane-model: opus\nTask\n');
+    const plain = join(dir, 'plain.prompt');
+    writeFileSync(plain, 'Task without an opt-in line\n');
+    const pointer = (path: string) =>
+      `Your complete brief is the file ${path}. Read it in full first.`;
+    const run = (input: Record<string, unknown>) => {
+      const out = spawnSync(process.execPath, [script], {
+        input: JSON.stringify(call(input)),
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      });
+      assert.equal(out.status, 0);
+      return out.stdout
+        ? JSON.parse(out.stdout).hookSpecificOutput.updatedInput.model
+        : undefined;
+    };
+    for (const subagent_type of ['krn-lane', 'general-purpose'])
+      for (const prompt of [pointer(file), 'Brief\nlane-model: opus\nrest']) {
+        assert.equal(run({ subagent_type, prompt }), 'opus');
+        assert.notEqual(
+          run({ subagent_type, prompt, model: 'opus' }),
+          'sonnet',
+        );
+      }
+    assert.equal(
+      run({ subagent_type: 'krn-lane', model: 'opus', prompt: pointer(plain) }),
+      'sonnet',
+    );
+    assert.equal(
+      run({
+        subagent_type: 'krn-lane',
+        model: 'opus',
+        prompt: pointer('/etc/hostname'),
+      }),
+      'sonnet',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
