@@ -19,6 +19,7 @@ import { packetBrief } from '../../src/brain/worker-packet.ts';
 import { fr40Manifest, loadManifest } from '../../src/evals/manifest.ts';
 import { planExperiment } from '../../src/evals/plan.ts';
 import { bonettPrice, mcnemarOneSided } from '../../src/evals/stats.ts';
+import { withSessionSlot } from '../session-slot.ts';
 import { fr40Packet } from './packets.ts';
 import {
   campaignOrder,
@@ -274,11 +275,25 @@ function spend(root: string): number {
     );
 }
 
+type Executed = {
+  stdout: string;
+  exitCode: number | null;
+  timedOut: boolean;
+};
+
 function execute(
   cwd: string,
   prompt: string,
   env: NodeJS.ProcessEnv,
-): Promise<{ stdout: string; exitCode: number | null; timedOut: boolean }> {
+): Promise<Executed> {
+  return withSessionSlot(() => executeSession(cwd, prompt, env));
+}
+
+function executeSession(
+  cwd: string,
+  prompt: string,
+  env: NodeJS.ProcessEnv,
+): Promise<Executed> {
   return new Promise((done) => {
     const child = spawn('claude', [...LANE_ARGS], {
       cwd,
