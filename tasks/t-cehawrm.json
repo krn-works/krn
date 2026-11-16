@@ -1,0 +1,14 @@
+{
+  "id": "t-cehawrm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship retries gh reads on network failures",
+  "after": [],
+  "body": [
+    "Source: lane reports 2026-11-16: after b14a822 (token mint retry) ship still exited 70 on a TLS handshake timeout to api.github.com (t-qgjzbrd lane) and a lane's ship lost auto-merge on a graphql TLS timeout in `gh pr view` (t-ws0gx62 lane); each cost a manual re-ship.\nOutcome: every gh call in src/ci/ship.ts that only reads or is idempotent retries up to 3 times when gh's stderr shows a network-level failure (TLS handshake timeout, connection reset, i/o timeout, EOF), and ship reaches its verdict without a manual rerun; an HTTP 4xx answer is not retried.\nWhy: transient network blips under host load turned finished, green PRs into manual work.\nProof: a ship test whose fake gh fails `pr view` twice with a captured \"net/http: TLS handshake timeout\" stderr then answers merges with exit 0; a 404 answer fails at once.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

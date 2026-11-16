@@ -1,0 +1,14 @@
+{
+  "id": "t-95g80vd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Trial Fable advisor on Opus lanes against first-push-green",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/advisor-and-model-features-2026-11-16.md (operator request 2026-11-16: \"sprawdz czym jest advisor mode w fable\"). Claude Code's advisor (`advisorModel` setting, `claude --advisor fable`, CC 2.1.321+) lets an Opus 5.5 lane consult Fable 5.2 mid-task; subagents inherit it.\nOutcome: a trial of 10 lane tasks with `advisorModel: fable` against 10 without prints first-push-green share, CI rounds per PR and Fable cost per PR for both arms (`krn ledger --first-push-green` over the trial PRs), and the lead records keep/drop with that evidence.\nWhy: the advisor targets exactly the friction metric (rules missed before push) at a known price (~$0.80 per call at 100k context).\nProof: the trial report file under .krn/runs/research/ lists both arms with the three numbers.\nFiles: .claude/settings.json, src/cli/lane-run.ts, .krn/runs/research/"
+  ],
+  "kind": "research",
+  "area": "lane"
+}

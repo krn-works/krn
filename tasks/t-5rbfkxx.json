@@ -1,0 +1,14 @@
+{
+  "id": "t-5rbfkxx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Headless lanes guard Fable billing and log model fallbacks",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/advisor-and-model-features-2026-11-16.md: in `-p` and Agent SDK sessions Claude Code never asks consent for Fable usage-credit billing; safety-classifier fallbacks move a session to Opus 5 / Opus 4.8 and it stays there (PostModelSwitch hook event).\nOutcome: headless lane sessions (`krn lane run`) set `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1` unless the lane brief opts in, and a PostModelSwitch hook appends the from/to model to the lane's run log; `krn doctor --hooks` lists the hook as wired (exit 0).\nWhy: unattended lanes must not spend Fable credits silently or finish on a weaker model unnoticed.\nProof: a lane-run test asserts the env var in the spawned session; a hook test with a captured PostModelSwitch payload writes one log line.\nFiles: src/cli/lane-run.ts, src/hook/, test/hook/"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
