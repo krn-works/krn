@@ -370,6 +370,15 @@ export const callRun =
     }
   };
 const defaultRun = callRun(CALL_TIMEOUT_MS);
+/**
+ * The merged-PR list is one call whose latency grows with its row count:
+ * 420 rows took 3.3 s on 2026-11-16, so the per-call 5 s budget failed every
+ * list past about 600 rows. The list gets the call budget plus 20 ms per row,
+ * about 2.5 times the measured 7.9 ms per row.
+ */
+export function listTimeoutMs(rows: number): number {
+  return CALL_TIMEOUT_MS + 20 * rows;
+}
 /** PR rows fetched at once: each row waits on GitHub calls, not on CPU. */
 const ROW_CONCURRENCY = 12;
 /** Transcript files read at once. */
@@ -565,13 +574,16 @@ export function internalError(message: string) {
 export async function collectLedger(options: LedgerOptions = {}) {
   const root = resolve(options.root ?? process.cwd());
   const run = options.run ?? defaultRun;
+  // Older PRs bound the slices of the reported ones in shared sessions.
+  const listRows = (options.limit ?? 15) + 20;
+  const listRun = options.run ?? callRun(listTimeoutMs(listRows));
   let repo = options.repo;
   let list: unknown;
   try {
     repo ??= string(object(parse(await ghRepoView(run))).nameWithOwner);
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('repository');
     list = parse(
-      await gh(run, [
+      await gh(listRun, [
         'pr',
         'list',
         '--repo',
@@ -579,15 +591,18 @@ export async function collectLedger(options: LedgerOptions = {}) {
         '--state',
         'merged',
         '--limit',
-        // Older PRs bound the slices of the reported ones in shared sessions.
-        String((options.limit ?? 15) + 20),
+        String(listRows),
         '--json',
         'number,title,createdAt,mergedAt,headRefOid,baseRefOid,mergeCommit',
       ]),
     );
     if (!Array.isArray(list)) throw new Error('PR list');
-  } catch {
-    throw internalError('Unable to read merged PR list with gh');
+  } catch (error) {
+    const cause =
+      error instanceof Error && 'killed' in error && error.killed
+        ? `: timed out after ${listTimeoutMs(listRows)} ms`
+        : '';
+    throw internalError(`Unable to read merged PR list with gh${cause}`);
   }
   const prs = array(list)
     .map(object)

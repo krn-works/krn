@@ -1,0 +1,18 @@
+{
+  "id": "t-mm9xe3z",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "list call timeout = 5 s + 20 ms/row; krn ledger --since 2026-11-09 --limit 700 exits 0; test/outcome/ledger.test.ts covers the sizing and the timeout cause"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn ledger reads a large merged-PR list instead of timing out at 5 s",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: `krn ledger --since 2026-11-09 --limit 400` and `--limit 1000` exit 70 \"Unable to read merged PR list with gh\" (src/outcome/ledger.ts collectLedger), while the same `gh pr list --state merged --limit 420 --json ...` succeeds in 3.3 s by hand. Cause: defaultRun = callRun(CALL_TIMEOUT_MS = 5000) applies the per-row 5 s timeout to the one list call whose latency grows with --limit; the catch hides the timeout.\nOutcome: the merged-PR list call gets a timeout sized for its limit (or a separate list timeout), and the internal error names the cause (timeout vs parse); `krn ledger --limit 1000` succeeds on this repository.\nProof: test/outcome/ledger.test.ts sizes the list timeout for 1,020 rows above twice the measured latency and sees execFile kill a call past its budget, and `bin/krn ledger --since 2026-11-09 --limit 700` exits 0.\nFiles: src/outcome/ledger.ts"
+  ],
+  "kind": "defect",
+  "area": "outcome"
+}
