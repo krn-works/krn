@@ -1,0 +1,22 @@
+{
+  "id": "t-jvgdbdp",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane usage header names finish; command-table test pins every dispatched verb in the header"
+  },
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "krn lane prints every verb including finish in its usage header",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: `krn lane --help` first line reads 'Usage: krn lane start|run|drop|brief' while src/cli/lane.ts:331 dispatches finish (#1200).\nOutcome: the usage header names finish beside start, run, drop and brief.\nWhy: a lead reading the header misses the recovery verb for a dead lane.\nProof: node --test test/cli/lane.test.ts asserts the header lists finish.\nFiles: src/cli/lane.ts"
+  ],
+  "kind": "defect",
+  "area": "cli",
+  "from": {
+    "kind": "finding",
+    "ref": "lead-2026-11-16"
+  }
+}
