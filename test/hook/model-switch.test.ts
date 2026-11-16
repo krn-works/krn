@@ -11,16 +11,12 @@ import { recordModelSwitch } from '../../src/hook/model-switch.ts';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const entry = join(root, 'src', 'dispatch', 'main.ts');
 
-// No live capture of a PostModelSwitch payload exists yet: this one is built from the documented event
-// fields (common hook fields plus the model before and after the switch).
-const payload = {
-  session_id: 'abc123',
-  transcript_path: '/tmp/transcript.jsonl',
-  cwd: '/tmp',
-  hook_event_name: 'PostModelSwitch',
-  from_model: 'claude-fable-5-2',
-  to_model: 'claude-opus-4-8',
-};
+// Verbatim PostModelSwitch payload captured from Claude Code (version in the .version file next to it) by a
+// stream-json session that sent a set_model control request; host paths carry the fixtures README placeholder.
+const fixtures = join(root, 'test', 'fixtures', 'claude');
+const payload = JSON.parse(
+  readFileSync(join(fixtures, 'post-model-switch-payload.json'), 'utf8'),
+) as Record<string, unknown>;
 
 test('the real hook entry writes one from -> to line to the lane run log', () => {
   const project = mkdtempSync(join(tmpdir(), 'model-switch-'));
@@ -43,7 +39,7 @@ test('the real hook entry writes one from -> to line to the lane run log', () =>
       .trim()
       .split('\n');
     assert.equal(lines.length, 1);
-    assert.match(lines[0] ?? '', /Z claude-fable-5-2 -> claude-opus-4-8$/u);
+    assert.match(lines[0] ?? '', /Z claude-haiku-5-5 -> claude-sonnet-5-5$/u);
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
