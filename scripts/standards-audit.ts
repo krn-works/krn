@@ -139,6 +139,7 @@ export type Bite = {
   status:
     | 'bites'
     | 'tool-absent'
+    | 'timed-out'
     | 'no-plant'
     | 'red-at-baseline'
     | 'stays-green'
@@ -251,15 +252,27 @@ export function plantedMatrix(
       done('tool-absent', `${probe} does not run`);
       continue;
     }
-    if (judge(dir, record, asOf).failures.length > 0) {
+    const baseline = judge(dir, record, asOf);
+    if (baseline.timedOut.length > 0) {
+      done('timed-out', baseline.timedOut[0]?.message ?? '');
+      continue;
+    }
+    if (baseline.failures.length > 0) {
       done('red-at-baseline');
       continue;
     }
     plantInto(dir, stack, plant);
-    const red = judge(dir, record, asOf).failures;
+    const planted = judge(dir, record, asOf);
     revert();
-    const green = judge(dir, record, asOf).failures;
-    if (red.length === 0) done('stays-green');
+    const restored = judge(dir, record, asOf);
+    const red = planted.failures;
+    const green = restored.failures;
+    if (planted.timedOut.length > 0 || restored.timedOut.length > 0)
+      done(
+        'timed-out',
+        (planted.timedOut[0] ?? restored.timedOut[0])?.message ?? '',
+      );
+    else if (red.length === 0) done('stays-green');
     else if (
       red[0]?.id !== id ||
       red[0].remedy !== record.text ||
@@ -274,8 +287,12 @@ export function plantedMatrix(
 
 /** The report line `N/N records bite` over every stack's results, then one line per failure. */
 export function biteReport(results: readonly Bite[]): string {
-  const skipped = results.filter((r) => r.status === 'tool-absent');
-  const counted = results.filter((r) => r.status !== 'tool-absent');
+  const skipped = results.filter(
+    (r) => r.status === 'tool-absent' || r.status === 'timed-out',
+  );
+  const counted = results.filter(
+    (r) => r.status !== 'tool-absent' && r.status !== 'timed-out',
+  );
   const bites = counted.filter((r) => r.status === 'bites').length;
   const lines = counted
     .filter((r) => r.status !== 'bites')
@@ -283,7 +300,7 @@ export function biteReport(results: readonly Bite[]): string {
   const note =
     skipped.length === 0
       ? ''
-      : ` (${skipped.length} skipped, tool absent: ${skipped.map((r) => `${r.stack} ${r.id}`).join(', ')})`;
+      : ` (${skipped.length} skipped, tool absent or timed-out: ${skipped.map((r) => `${r.stack} ${r.id}`).join(', ')})`;
   return [...lines, `${bites}/${counted.length} records bite${note}`].join(
     '\n',
   );
