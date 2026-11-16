@@ -1,0 +1,18 @@
+{
+  "id": "t-4k4yjzj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The record store finishes S13: decisions.md migrated, one standards router, packets carry no decision ids",
+  "after": [],
+  "body": [
+    "Source: S13 lane report 2026-11-16 after #1119 (2a7ae79) merged with t-bp8c2f9 closed while part of its plan Outcome remained.\nOutcome: decisions.md is migrated into the record store; standards CLI verbs go through one router; scripts/claude/memory-refs.ts is shortened to the store query; session and lane packets are checked to carry no decision ids.\nProof: `bin/krn decide list --json` returns the decisions formerly in decisions.md; a test fails when a packet carries a decision id.\nFiles: .agents/decisions.json, src/brain, src/cli/standards, scripts/claude/memory-refs.ts"
+  ],
+  "kind": "debt",
+  "area": "brain",
+  "from": {
+    "kind": "task",
+    "ref": "t-bp8c2f9"
+  }
+}
