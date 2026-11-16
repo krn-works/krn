@@ -1,7 +1,11 @@
 {
   "id": "t-y0n0115",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Probed agent-browser and Playwright+axe on a fixture; 2 adopt records in standards/records.json; query --stack frontend returns both; tasks t-egv6s4j t-c2r73yv for boilerplate"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Frontend verification stack: research the best browser tooling for agents and serve the winners as standards",

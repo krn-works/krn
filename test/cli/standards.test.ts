@@ -458,7 +458,14 @@ test('every enforced pack record applies to and holds on at least one generated 
       const enforce = enforcer(root, ENFORCEMENT_TIMEOUT_MS);
       for (const record of pack) {
         if (record.enforcement.kind === 'advisory') continue;
-        if (!appliesTo(record, facts)) continue;
+        // `frontend` is a stack a query names, not one a repository detects: such a record holds
+        // on every repository that has a frontend build.
+        const applies =
+          appliesTo(record, facts) ||
+          (record.applies.stacks.includes('frontend') &&
+            facts.needs.has('frontend') &&
+            appliesTo(record, { ...facts, stack: 'frontend' }));
+        if (!applies) continue;
         const outcome = enforce(record.enforcement);
         assert.equal(
           outcome.exit,
