@@ -24,6 +24,8 @@ import { fileURLToPath } from 'node:url';
 import type { Unit } from './unit.ts';
 
 export const MIN_VERIFIED = 70;
+/** Seconds one unit install may take: the same for verification and for grading a screened session. */
+export const INSTALL_SECONDS = 900;
 
 export interface Candidate {
   repo: string;
@@ -348,7 +350,7 @@ export async function gradeWorktree(
     readFileSync(join(unitDir, unit.hidden.file)),
   );
   const install = await run(
-    `timeout 300 sh -c ${JSON.stringify(unit.install)}`,
+    `timeout ${INSTALL_SECONDS} sh -c ${JSON.stringify(unit.install)}`,
     wt,
     log,
   );
