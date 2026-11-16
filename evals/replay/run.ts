@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadUnits } from '../units/unit.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
+import { readRows, report, type ScreenUnit, screen } from './screen.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +36,25 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const i = args.indexOf(`--${n}`);
     return i >= 0 ? args[i + 1] : undefined;
   };
+  if (args.includes('--screen')) {
+    const units = loadUnits(join(here, '..', 'units')).map(
+      (u) => u.unit as ScreenUnit,
+    );
+    const s = screen(
+      units,
+      readRows(flag('rows') ?? join(here, 'screen-rows.jsonl')),
+    );
+    if (flag('metric') === 'screen-a-pass-rate') {
+      if (s.passRate === null) process.exit(65);
+      console.log(s.passRate.toFixed(3));
+    } else if (args.includes('--report')) {
+      for (const l of report(s)) console.log(l);
+    } else {
+      console.error('--screen needs --report; live sessions need the driver');
+      process.exit(69);
+    }
+    process.exit(0);
+  }
   const dry = args.includes('--dry');
   const arms = parseArms(flag('arms') ?? 'A,B,C');
   const count = Number(flag('units') ?? 1);
