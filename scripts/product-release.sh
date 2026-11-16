@@ -3,7 +3,7 @@
 # Creates or fast-forwards a detached worktree at <main checkout>/.krn/product-release
 # on origin/main and prints the entry path and commit. Point the host entry at it:
 #   scripts/product-release.sh --entry > ~/.config/krn/product-entry
-# `krn ci wait` runs it once it observes the merge; switching the working
+# `krn pr ship` runs it once it observes the merge; switching the working
 # checkout never changes this one. The candidate must pass `bin/krn doctor`
 # before it stays; a failed smoke restores the previous commit and exits 78.
 # Runs hold an exclusive lock at <main checkout>/.krn/product-release.lock.

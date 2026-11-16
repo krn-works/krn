@@ -11,7 +11,6 @@ import {
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { z } from 'zod';
-import { gitLockError } from '../ci/git-lock.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
@@ -20,6 +19,7 @@ import {
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
+import { gitLockError } from '../repo/shell-text.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import {
   claimTask,

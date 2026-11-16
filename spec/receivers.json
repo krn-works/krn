@@ -57,19 +57,6 @@
       "receivers": ["git"],
       "real": "test/cli/entry-pin.test.ts"
     },
-    "src/ci/wait.ts": {
-      "receivers": ["git", "gh"],
-      "capture": ["test/fixtures/github-check-runs/review-gate-failure.json"],
-      "test": "test/ci/gate-wait-capture.test.ts"
-    },
-    "src/deliver/gate-wait.ts": {
-      "receivers": ["gh"],
-      "capture": [
-        "test/fixtures/github-check-runs/gate-success.json",
-        "test/fixtures/github-check-runs/review-gate-failure.json"
-      ],
-      "test": "test/ci/gate-wait-capture.test.ts"
-    },
     "src/deliver/transport.ts": {
       "receivers": ["gh"],
       "capture": [

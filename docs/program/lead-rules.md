@@ -49,7 +49,7 @@ A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.
 
 ## Lane brief additions
 
-The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship` and waits for a red-check rerun with `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>`; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/plan.md`. The operator grants recorded in the project memory apply to every lane.
+The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship` and waits for a red-check rerun by shipping again with `bin/krn pr ship`, which polls the PR until it merges; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/plan.md`. The operator grants recorded in the project memory apply to every lane.
 
 ## Open traps
 

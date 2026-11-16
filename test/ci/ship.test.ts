@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { shipCommand } from '../../src/ci/ship.ts';
+import { ownsProductRelease, shipCommand } from '../../src/ci/ship.ts';
 import { CommandFailure, run } from '../../src/deliver/transport.ts';
+import { capture } from '../receivers/capture.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
 // output shaped like the real tools (gh pr create prints the PR url).
@@ -65,31 +66,24 @@ function receiver(options: {
         stdout: '',
         stderr: options.autoRefusal,
       });
-    if (a[0] === 'pr') return '';
-    if (a[1] === 'repos/o/r/pulls/7') {
+    if (a[0] === 'pr' && a[1] !== 'view') return '';
+    if (a[0] === 'pr' && a[1] === 'view') {
       const next = pulls.length > 1 ? pulls.shift() : pulls[0];
       return JSON.stringify({
-        head: { sha: head },
-        mergeable_state: 'blocked',
+        headRefOid: head,
+        mergeable: 'MERGEABLE',
+        autoMergeRequest: null,
+        statusCheckRollup: [
+          {
+            name: 'Check',
+            status: 'COMPLETED',
+            conclusion: (options.check ?? 'success').toUpperCase(),
+            detailsUrl: 'https://github.com/o/r/actions/runs/9/job/1',
+          },
+        ],
         ...next,
       });
     }
-    if (a.some((x) => x.includes('/check-runs')))
-      return JSON.stringify([
-        {
-          check_runs: [
-            {
-              id: 1,
-              name: 'gate',
-              head_sha: head,
-              status: 'completed',
-              conclusion: options.check ?? 'success',
-              app: { slug: 'github-actions' },
-              output: { title: 'x' },
-            },
-          ],
-        },
-      ]);
     assert.fail(`unexpected gh call ${a.join(' ')}`);
   };
   const run = (command: string, a: string[], at?: string) => {
@@ -146,8 +140,8 @@ function receiver(options: {
     },
   };
 }
-const auto = { auto_merge: { merge_method: 'squash' }, state: 'open' };
-const merged = { state: 'closed', merged: true, merge_commit_sha: merge };
+const auto = { autoMergeRequest: { mergeMethod: 'SQUASH' }, state: 'OPEN' };
+const merged = { state: 'MERGED', mergeCommit: { oid: merge } };
 
 test('ship pushes, creates, auto-merges, waits through the merge and leaves the lane in place', async () => {
   const r = receiver({ pulls: [auto, merged] });
@@ -226,7 +220,7 @@ test('a red Check exits 74 and keeps the worktree', async () => {
 });
 
 test('a conflicting PR exits 76 and keeps the worktree', async () => {
-  const r = receiver({ pulls: [{ mergeable_state: 'dirty' }] });
+  const r = receiver({ pulls: [{ ...auto, mergeable: 'CONFLICTING' }] });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
     assert.equal(e.exitCode, 76);
     return true;
@@ -236,7 +230,7 @@ test('a conflicting PR exits 76 and keeps the worktree', async () => {
 
 test('a PR that turns conflicting in a source file still exits 76', async () => {
   const r = receiver({
-    pulls: [{ mergeable_state: 'dirty' }],
+    pulls: [{ ...auto, mergeable: 'CONFLICTING' }],
     lateConflict: 'src/a.ts',
   });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
@@ -336,12 +330,8 @@ test('a fetch that hits a ref lock is retried, a real fetch failure is not', asy
 
 test('exit 0 means merged: each unmerged verdict exits with its own code and keeps the worktree', async () => {
   const cases: Array<[Record<string, unknown>[], number, RegExp]> = [
-    [[{ auto_merge: null }], 78, /^verdict: not merging/mu],
-    [
-      [auto, { state: 'closed', merged: false, auto_merge: null }],
-      79,
-      /^verdict: closed unmerged PR #7$/mu,
-    ],
+    [[{ state: 'OPEN' }], 78, /^verdict: not merging/mu],
+    [[auto, { state: 'CLOSED' }], 79, /^verdict: closed unmerged PR #7$/mu],
   ];
   for (const [pulls, code, verdict] of cases) {
     const r = receiver({ pulls });
@@ -549,7 +539,7 @@ function flaky(
     },
   };
 }
-const isPull = (a: string[]) => a[1] === 'repos/o/r/pulls/7';
+const isPull = (a: string[]) => a[0] === 'pr' && a[1] === 'view';
 
 test('ship retries an empty pull reply once and then merges', async () => {
   const r = flaky(receiver({ pulls: [auto, merged] }), isPull, ['']);
@@ -561,7 +551,7 @@ test('ship with an empty gh pull reply twice exits 71 naming the command, never 
   const r = flaky(receiver({ pulls: [auto] }), isPull, ['', '']);
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
     assert.equal(e.exitCode, 71);
-    assert.match(e.message, /empty reply to `gh api repos\/o\/r\/pulls\/7`/u);
+    assert.match(e.message, /empty reply to `gh pr view 7 --repo o\/r/u);
     return true;
   });
 });
@@ -672,4 +662,105 @@ test('any other auto-merge refusal still fails the ship', async () => {
   const r = receiver({ pulls: [merged], autoRefusal: 'GraphQL: not allowed' });
   await assert.rejects(shipCommand(args, r), /not allowed/u);
   assert.ok(!r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+});
+
+// The checkout that owns the release script: the receiver's fake toplevel is this repository.
+const ownCheckout =
+  (inner: ReturnType<typeof receiver>['run']) =>
+  (command: string, a: string[], at?: string) =>
+    command === 'git' && a.join(' ') === 'rev-parse --show-toplevel'
+      ? { code: 0, stdout: `${process.cwd()}\n`, stderr: '' }
+      : inner(command, a, at);
+
+test('a merge in the KRN checkout refreshes the pinned Product entry once and prints its lines', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const out = await shipCommand(args, { ...r, run: ownCheckout(r.run) });
+  assert.match(out, new RegExp(`^release: commit=${merge}$`, 'mu'));
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.equal(r.calls.filter((c) => c.startsWith('bash ')).length, 1);
+});
+
+test('a failed refresh after the merge still ships merged, with a warning', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const inner = ownCheckout(r.run);
+  const out = await shipCommand(args, {
+    ...r,
+    run: (command: string, a: string[], at?: string) =>
+      command === 'bash'
+        ? { code: 78, stdout: '', stderr: 'kept previous\n' }
+        : inner(command, a, at),
+  });
+  assert.match(
+    out,
+    /^warning: release refresh failed \(exit 78\).*kept previous/mu,
+  );
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('an adopted repository merges without running the KRN release script', () => {
+  const pilot = mkdtempSync(join(tmpdir(), 'krn-adopted-'));
+  mkdirSync(join(pilot, '.git'));
+  mkdirSync(join(pilot, 'packages', 'seo'), { recursive: true });
+  assert.equal(ownsProductRelease(join(pilot, 'packages', 'seo')), false);
+  assert.equal(ownsProductRelease(process.cwd()), true);
+});
+
+test('a red Check names its run, the logs command and the rerun, and exits 74', async () => {
+  const r = receiver({ pulls: [auto], check: 'failure' });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 74);
+    assert.match(
+      e.message,
+      /Check concluded failure on a{40} in run 9; logs: bin\/krn ci logs --run 9; rerun: gh run rerun 9 --failed/u,
+    );
+    return true;
+  });
+});
+
+test('a pending Check exits 75 at the bound and a Check that never starts exits 69 at the start bound', async () => {
+  const pending = receiver({
+    pulls: [
+      {
+        ...auto,
+        statusCheckRollup: [{ name: 'Check', status: 'IN_PROGRESS' }],
+      },
+    ],
+  });
+  await assert.rejects(shipCommand(args, pending), (e: Failure) => {
+    assert.equal(e.exitCode, 75);
+    return true;
+  });
+  const absent = receiver({ pulls: [{ ...auto, statusCheckRollup: [] }] });
+  await assert.rejects(shipCommand(args, absent), (e: Failure) => {
+    assert.equal(e.exitCode, 69);
+    return true;
+  });
+  assert.ok(absent.calls.filter((c) => c.startsWith('gh pr view')).length < 40);
+});
+
+test('a head that moved while the PR waited exits 77', async () => {
+  const r = receiver({ pulls: [{ ...auto, headRefOid: 'e'.repeat(40) }] });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 77);
+    return true;
+  });
+});
+
+test('the captured rollup of a plain-gh PR reads as a successful aggregate Check and waits for the merge', async () => {
+  // Verbatim `gh pr view --json headRefOid,statusCheckRollup` of PR 1112; state and autoMergeRequest are the PR's own.
+  const real = JSON.parse(
+    capture('fixtures/gh', 'pr-1112-head-rollup').streams.stdout?.toString(
+      'utf8',
+    ) ?? '',
+  ) as { headRefOid: string };
+  const r = receiver({ pulls: [{ ...real, ...auto }, merged] });
+  const inner = r.run;
+  const out = await shipCommand(args, {
+    ...r,
+    run: (command: string, a: string[], at?: string) =>
+      command === 'git' && a.join(' ') === 'rev-parse HEAD'
+        ? { code: 0, stdout: `${real.headRefOid}\n`, stderr: '' }
+        : inner(command, a, at),
+  });
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
