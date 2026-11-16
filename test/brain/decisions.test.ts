@@ -4,8 +4,14 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { decisionIdsIn, readDecisions } from '../../src/brain/decisions.ts';
 import { parseUnified } from '../../src/brain/record.ts';
-import { queryStandards } from '../../src/brain/worker-packet.ts';
+import {
+  LANE_BUDGET,
+  lanePacket,
+  queryStandards,
+  SESSION_BUDGET,
+} from '../../src/brain/worker-packet.ts';
 
 // KRN-12: the real `krn standards query` entry reads the decisions file of a repository.
 const repo = join(import.meta.dirname, '../..');
@@ -99,4 +105,59 @@ test('this repository answers the task proof: at least one decision row for auto
       !types.some((t) => ['decision', 'preference', 'fact'].includes(t)),
     );
   }
+});
+
+test('every decision of ADR 0014 is a decision row of the store', () => {
+  const rows = readFileSync(
+    join(repo, 'docs/adr/0014-operator-decisions-2026-10-23.md'),
+    'utf8',
+  )
+    .split('\n')
+    .map((row) => /^\| (D\d+) \| (.+?) \|/u.exec(row))
+    .filter((m) => m !== null);
+  assert.ok(rows.length >= 37);
+  const stored = new Map(
+    readDecisions(repo).map((row) => [row.id, row] as const),
+  );
+  for (const m of rows) {
+    const row = stored.get(`dec-${(m[1] ?? '').toLowerCase()}`);
+    assert.equal(row?.type, 'decision', `${m[1]} is missing from the store`);
+    assert.ok((row?.text ?? '').length > 0);
+  }
+  const done = query(repo, '--type', 'decision', 'KRN', '--json');
+  assert.ok((JSON.parse(done.stdout) as unknown[]).length >= 1);
+});
+
+test('decisionIdsIn finds a decision id in a hand-written packet and nothing else', () => {
+  const root = fixture(`[${PLAIN}]`);
+  assert.deepEqual(decisionIdsIn(root, '- [dec-x] Merges go on Check.'), [
+    'dec-x',
+  ]);
+  assert.deepEqual(decisionIdsIn(root, '- [dec-xy] unrelated'), []);
+});
+
+test('no lane or session packet of this repository carries a decision id', () => {
+  const ids = readDecisions(repo).map((row) => row.id);
+  assert.ok(ids.length >= 37);
+  const brief = `${ids.join(' ')} ${readDecisions(repo)
+    .map((row) => row.text)
+    .join(' ')}`;
+  for (const audience of ['worker', 'lead'] as const)
+    for (const budget of [LANE_BUDGET, SESSION_BUDGET]) {
+      const packet = lanePacket(
+        repo,
+        brief,
+        '2026-11-16',
+        'packet-check',
+        budget,
+        false,
+        audience,
+      );
+      assert.ok(packet !== null);
+      assert.deepEqual(
+        decisionIdsIn(repo, `${packet.text}\n${packet.records.join('\n')}`),
+        [],
+        `${audience} packet at ${budget} carries a decision id`,
+      );
+    }
 });
