@@ -90,6 +90,15 @@
         "file": "pr-1112-head-rollup.stdout.json",
         "sha256": "34484175027f6877df88cb88bb4c83abe2a35c4daef5f0e4ac26418beb567b9a"
       }
+    },
+    {
+      "name": "pr-1131-number-rollup",
+      "command": "gh pr view 1131 --repo krn-works/krn --json number,statusCheckRollup",
+      "exitCode": 0,
+      "stdout": {
+        "file": "pr-1131-number-rollup.stdout.json",
+        "sha256": "e0390f1a782904f060545577c439b6c11bef5d686ff4007d0b89d1b48f734a13"
+      }
     }
   ]
 }

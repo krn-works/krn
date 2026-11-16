@@ -37,3 +37,18 @@ export function ghApiSync(root: string, path: string): GhSyncReply {
     ...(reply.error ? { error: reply.error } : {}),
   };
 }
+
+/** One blocking `gh pr view --json <fields>` of the branch checked out in `root`. */
+export function ghPrViewSync(root: string, fields: string): GhSyncReply {
+  const reply = spawnSync('gh', ['pr', 'view', '--json', fields], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 20_000,
+  });
+  return {
+    status: reply.status,
+    stdout: reply.stdout ?? '',
+    stderr: reply.stderr ?? '',
+    ...(reply.error ? { error: reply.error } : {}),
+  };
+}
