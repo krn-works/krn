@@ -1,0 +1,6 @@
+{
+  "text": "A gate that runs a project's own toolchain strips the caller's node_modules/.bin entries from PATH, so npm run or npm exec never lends it a foreign tsc or biome.",
+  "kind": "check",
+  "evidence": ["standards/records.json", "#1151"],
+  "recorded_at": "2026-11-16"
+}

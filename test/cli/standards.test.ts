@@ -842,6 +842,44 @@ test('the typecheck and lint gate records leave a toolchain that cannot start to
   }
 });
 
+// npm run and npm exec put the caller's node_modules/.bin on PATH; an adopted repository with no install must not run that foreign tsc.
+test('the typecheck and lint gate records run only the repository own node_modules tools, never a caller npm PATH entry', () => {
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const failing =
+    '#!/bin/sh\necho "error TS2688: Cannot find type definition file for \'node\'." >&2; exit 2\n';
+  for (const [id, key] of [
+    ['s-gate-typecheck-runs', 'typecheck'],
+    ['s-gate-lint-runs', 'lint'],
+  ] as const) {
+    const run = enforcementOf(pack.find((s) => s.id === id));
+    const caller = mkdtempSync(join(tmpdir(), 'krn-caller-'));
+    const root = repository({ 'krn.json': JSON.stringify({ [key]: 'tsc' }) });
+    try {
+      const foreign = join(caller, 'node_modules', '.bin');
+      mkdirSync(foreign, { recursive: true });
+      writeFileSync(join(foreign, 'tsc'), failing, { mode: 0o755 });
+      const gate = (path: string) =>
+        spawnSync('sh', ['-c', run], {
+          cwd: root,
+          encoding: 'utf8',
+          env: { ...process.env, PATH: path },
+        }).status;
+      assert.equal(
+        gate(`${foreign}:${process.env.PATH}`),
+        0,
+        `${id}: foreign tsc`,
+      );
+      const own = join(root, 'node_modules', '.bin');
+      mkdirSync(own, { recursive: true });
+      writeFileSync(join(own, 'tsc'), failing, { mode: 0o755 });
+      assert.equal(gate(`${own}:${process.env.PATH}`), 1, `${id}: own tsc`);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(caller, { recursive: true, force: true });
+    }
+  }
+});
+
 test('KRN carries worker-stop as a project record that only a Stop hook entry satisfies', () => {
   const own = readProject(fileURLToPath(new URL('../..', import.meta.url)));
   const run = enforcementOf(
