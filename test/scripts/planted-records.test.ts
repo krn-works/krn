@@ -1,3 +1,4 @@
+// fast-only: standards/records.json scripts/lib/record-plants.ts scripts/standards-audit.ts src/adopt/ src/brain/
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
