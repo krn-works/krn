@@ -1,0 +1,18 @@
+{
+  "id": "t-0fkg9te",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast-check records checkedTree (scratch-index write-tree of index + worktree edits + unignored untracked files, after Biome rewrites) instead of a clean-only HEAD^{tree}; committing exactly that content makes ship's HEAD^{tree} equal it, so pre-push fast is reused. Proof: test/ci/fast-pass.test.ts (dirty tree == committed tree, later edit differs, real index untouched)."
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship reuses the fast PASS of the tree fast actually checked",
+  "after": [],
+  "body": [
+    "Source: lead handoff 2026-11-16 after #1177 (t-qgjzbrd, d3334de): the fast PASS record is keyed by HEAD^{tree}, but lanes run npm run fast on uncommitted changes before committing, so ship's reuse never fires and fast runs twice (lane, then ship pre-push; 562 s observed).\nOutcome: fast-check records the tree it actually checked (the write-tree of index plus worktree changes) and ship reuses the PASS when the pushed HEAD^{tree} equals it; a different tree still runs fast.\nWhy: the shared fast slot made fast the delivery bottleneck and lanes hit turn ceilings while queued.\nProof: a test runs fast-check's record step on a dirty worktree, commits exactly that content, and ship skips its pre-push fast; a test with a later edit does not skip.\nFiles: scripts/fast-check.ts, src/ci/fast-pass.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

@@ -405,7 +405,7 @@ test('an explicit --base that moved past the branch point diffs only the branch 
   assert.deepEqual(removedFiles(dir, parsed.base), []);
 });
 
-test('a clean passing tree records its HEAD tree for ship and a dirty one records none', () => {
+test('a passing run records the tree it checked, so committing exactly that content gives ship the same HEAD tree', () => {
   const { dir, git } = repoWithChange();
   git('add', '.');
   git('commit', '-qm', 'change');
@@ -427,9 +427,14 @@ test('a clean passing tree records its HEAD tree for ship and a dirty one record
   const clean = fast();
   assert.match(clean.stdout, /fast PASS/u, clean.stderr + clean.stdout);
   assert.equal(readFileSync(record, 'utf8').trim(), rev('HEAD^{tree}'));
+  // Lanes run fast before committing: the dirty tree it checked is what the commit holds.
   writeFileSync(join(dir, 'a.ts'), 'edited');
   assert.match(fast().stdout, /fast PASS/u);
-  assert.equal(existsSync(record), false);
+  const checked = readFileSync(record, 'utf8').trim();
+  assert.notEqual(checked, rev('HEAD^{tree}'));
+  git('add', '-A');
+  git('commit', '-qm', 'edit');
+  assert.equal(rev('HEAD^{tree}'), checked);
 });
 
 // Regression (t-aevqyv5): the harness sandbox binds /dev/null over protected paths in the
