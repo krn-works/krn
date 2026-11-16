@@ -1225,6 +1225,55 @@ export function ownerCheckout(root: string): string {
   return owner !== root && existsSync(owner) ? owner : root;
 }
 
+/**
+ * The branches of the live task claims this session holds, for a lane whose session cwd is the main
+ * checkout (t-c6d0jks ended on a false BLOCKER: cwd branch `main`, PR head `lane-finish`). A claim is the
+ * session's when its id is KRN_TASK or a task id its own transcript names; its record names the lane branch.
+ */
+export function claimedBranches(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+): string[] {
+  const common = git(root, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (common.status !== 0) return [];
+  const main = dirname(common.stdout);
+  const ids = new Set<string>();
+  if (env.KRN_TASK) ids.add(env.KRN_TASK);
+  const fields = payload as {
+    transcript_path?: unknown;
+    agent_transcript_path?: unknown;
+  } | null;
+  for (const path of [fields?.agent_transcript_path, fields?.transcript_path]) {
+    if (typeof path !== 'string') continue;
+    try {
+      for (const id of readFileSync(path, 'utf8').match(
+        /(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/gu,
+      ) ?? [])
+        ids.add(id);
+    } catch {
+      /* No transcript to read. */
+    }
+  }
+  const branches: string[] = [];
+  for (const id of ids) {
+    try {
+      const claim = JSON.parse(
+        readFileSync(join(main, '.krn', 'task-claims', `${id}.json`), 'utf8'),
+      ) as { branch?: unknown };
+      if (typeof claim.branch === 'string' && claim.branch !== '')
+        branches.push(claim.branch);
+    } catch {
+      /* No claim for this id. */
+    }
+  }
+  return branches;
+}
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -1260,7 +1309,12 @@ export function judgeStop(
     : '';
   const foreign = foreignPr(
     fields?.last_assistant_message,
-    [lane ?? '', current, branch].filter((name) => name !== ''),
+    [
+      lane ?? '',
+      ...claimedBranches(root, env, payload),
+      current,
+      branch,
+    ].filter((name) => name !== ''),
     (pr) => headOf(root, pr),
   );
   if (foreign !== undefined) return foreign;
