@@ -2,7 +2,7 @@ import { hookStdin } from '../../src/harness/claude.ts';
 
 // PreToolUse hook for Bash: refuses polling CI from the shell (`gh run watch`,
 // `gh pr checks --watch`, or a loop that sleeps between `gh pr`/`gh run`/`gh api`
-// calls). Each poll is a turn that re-reads the whole context; `krn ci wait` blocks
+// calls). Each poll is a turn that re-reads the whole context; `krn pr ship` blocks
 // once. It classifies only that shape; anything it cannot classify is allowed.
 const watch = /\bgh\s+(?:run\s+watch|pr\s+checks\b[^\n;&|]*--watch)\b/u;
 const loop = /\b(?:while|until|for)\b/u;
@@ -33,7 +33,7 @@ export function decide(payload: unknown): string | undefined {
     watch.test(command) ||
     (loop.test(command) && sleeps.test(command) && ghCall.test(command));
   if (!polls) return undefined;
-  return 'Refused: this Bash call polls CI from the shell (gh watch, or a sleep loop around gh pr/run/api); every poll re-reads the whole context. Nothing in this Bash call ran. Block once instead: `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>` with full 40-char SHAs (scripts/claude/ci-poll.ts).';
+  return 'Refused: this Bash call polls CI from the shell (gh watch, or a sleep loop around gh pr/run/api); every poll re-reads the whole context. Nothing in this Bash call ran. A shipped PR is waited through by `bin/krn pr ship`; for any other PR read the state once with `gh pr view <n> --json state,statusCheckRollup` (40-char SHAs when a command names one; scripts/claude/ci-poll.ts).';
 }
 
 export function main() {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { gitLockError } from '../../src/ci/git-lock.ts';
+import { gitLockError } from '../../src/repo/shell-text.ts';
 
 const api = await import('../../src/deliver/transport.ts').catch(
   () => undefined,

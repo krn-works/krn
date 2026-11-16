@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { z } from 'zod';
 import {
   CommandFailure,
   checked,
@@ -9,22 +11,65 @@ import {
   run,
   sleep,
 } from '../deliver/transport.ts';
+import { readJson } from '../repo/json-text.ts';
+import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
-import { withReplyCheck } from './gh-reply.ts';
-import { gitLockError } from './git-lock.ts';
-import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
-/** Exit codes for a ship whose wait ended without a merge. */
-const unmergedExitCodes = [
-  [/^verdict: not merging\b/mu, 78],
-  [/^verdict: closed unmerged\b/mu, 79],
-  [/^verdict: open\b/mu, 80],
-] as const;
+const releaseScript = fileURLToPath(
+  new URL('../../scripts/product-release.sh', import.meta.url),
+);
+/**
+ * True when cwd sits in a checkout of the KRN product itself: only that repository has a
+ * pinned Product entry to refresh, so an adopted repository skips the release script.
+ */
+export function ownsProductRelease(cwd: string): boolean {
+  for (let dir = cwd; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'scripts', 'product-release.sh'))) return true;
+    if (existsSync(join(dir, '.git')) || dirname(dir) === dir) return false;
+  }
+}
+
+const transportExit = 71;
+const pollMs = 10_000;
+const gateTimeoutMs = 1_800_000;
+const startTimeoutMs = 300_000;
+const mergeTimeoutMs = 600_000;
+const concluded = z.enum([
+  'SUCCESS',
+  'FAILURE',
+  'CANCELLED',
+  'TIMED_OUT',
+  'NEUTRAL',
+  'SKIPPED',
+  'STARTUP_FAILURE',
+  'ACTION_REQUIRED',
+  'STALE',
+]);
+const prView = z.object({
+  state: z.enum(['OPEN', 'CLOSED', 'MERGED']),
+  headRefOid: z.string(),
+  mergeable: z.string().optional(),
+  autoMergeRequest: z.unknown().optional(),
+  mergeCommit: z.object({ oid: z.string() }).nullish(),
+  statusCheckRollup: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        status: z.string().optional(),
+        conclusion: z.string().nullish(),
+        detailsUrl: z.string().optional(),
+      }),
+    )
+    .default([]),
+});
+type PrView = z.infer<typeof prView>;
+/** The aggregate Check, whether its job is named `Check` or `<caller job> / Check`. */
+const aggregateCheck = /(?:^|\/ )Check$/u;
 
 const gitLockAttempts = 5;
 /** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
@@ -75,9 +120,18 @@ export async function shipCommand(
   const body = resolve(caller, bodyFile);
   const runner = runtime.run ?? run;
   const wait = runtime.sleep ?? sleep;
-  const gh = withReplyCheck(
-    runtime.gh ?? ((a) => github(a, cwd, runner, wait)),
-  );
+  // Every GitHub call that names a repository uses an App token minted for that repository.
+  const scoped: Runner = (command, a, ...rest) => {
+    const named = a.indexOf('--repo');
+    return command === 'gh' && named >= 0 && a[named + 1] !== undefined
+      ? runner(
+          'env',
+          [`KRN_APP_REPOSITORY=${a[named + 1]}`, command, ...a],
+          ...rest,
+        )
+      : runner(command, a, ...rest);
+  };
+  const gh = runtime.gh ?? ((a) => github(a, cwd, scoped, wait));
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
 
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
@@ -90,16 +144,14 @@ export async function shipCommand(
     throw usageError('worktree has uncommitted changes; commit them first');
   const repo =
     values.repo ??
-    (
-      await gh([
-        'repo',
-        'view',
-        '--json',
-        'nameWithOwner',
-        '--jq',
-        '.nameWithOwner',
-      ])
-    ).trim();
+    (await replied(gh, 'text', [
+      'repo',
+      'view',
+      '--json',
+      'nameWithOwner',
+      '--jq',
+      '.nameWithOwner',
+    ]));
 
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
@@ -276,7 +328,7 @@ main checkout: ${main}`;
   if (Number.isNaN(pr)) {
     let created: string;
     try {
-      created = await gh([
+      created = await replied(gh, 'text', [
         'pr',
         'create',
         '--repo',
@@ -291,6 +343,7 @@ main checkout: ${main}`;
         publishedBody,
       ]);
     } catch (error) {
+      if (error instanceof EmptyReply) throw error;
       // A create retried after a timeout finds the PR its first attempt opened;
       // gh names that PR's url in the refusal.
       const opened =
@@ -333,23 +386,174 @@ main checkout: ${main}`;
   }
 
   const head = git(['rev-parse', 'HEAD']);
-  const base = git(['rev-parse', `origin/${target}`]);
-  const waited = await waitCommand(
-    ['--repo', repo, '--pr', String(pr), '--head', head, '--base', base],
-    { ...runtime, cwd: worktree, run: runner, gh, sleep: wait },
-  );
-  const lines = [`pr: #${pr} ${repo} ${head}`, waited];
-  if (/^verdict: merged /mu.test(waited)) {
+  const lines = [`pr: #${pr} ${repo} ${head}`];
+  const view = () =>
+    replied(gh, 'json', [
+      'pr',
+      'view',
+      String(pr),
+      '--repo',
+      repo,
+      '--json',
+      'state,headRefOid,mergeable,autoMergeRequest,mergeCommit,statusCheckRollup',
+    ]).then((text) => prView.parse(JSON.parse(text)));
+  const outcome = await waitForMerge({
+    view,
+    head,
+    pr,
+    sleep: wait,
+    now: runtime.now ?? Date.now,
+  });
+  lines.push(...outcome.lines);
+  if (outcome.merged !== undefined) {
     lines.push(
-      cleanup(
-        /^verdict: merged ([0-9a-f]{7,40})/mu.exec(waited)?.[1] ?? 'unknown',
+      ...refreshAfterMerge(
+        ownsProductRelease(worktree)
+          ? () => runner('bash', [releaseScript], worktree)
+          : undefined,
       ),
+      `verdict: merged ${outcome.merged}`,
+      cleanup(outcome.merged),
     );
     return lines.join('\n');
   }
-  const exitCode =
-    unmergedExitCodes.find(([verdict]) => verdict.test(waited))?.[1] ?? 74;
-  throw Object.assign(new Error(lines.join('\n')), { exitCode });
+  throw Object.assign(new Error(lines.join('\n')), {
+    exitCode: outcome.exitCode,
+  });
+}
+
+class EmptyReply extends Error {
+  readonly exitCode = transportExit;
+}
+
+/** A gh reply that is empty or not JSON is a transport fault, not a verdict on the Check: ask once more. */
+async function replied(
+  gh: (args: string[]) => Promise<string>,
+  kind: 'json' | 'text',
+  args: string[],
+): Promise<string> {
+  const usable = (reply: string) =>
+    reply.trim() !== '' && (kind === 'text' || readJson(reply) !== undefined);
+  const first = await gh(args);
+  if (usable(first)) return kind === 'text' ? first.trim() : first;
+  // A create is not repeated: gh would refuse a second PR for the branch.
+  const second = args[1] === 'create' ? first : await gh(args);
+  if (usable(second)) return kind === 'text' ? second.trim() : second;
+  throw new EmptyReply(
+    `gh returned ${second.trim() === '' ? 'an empty' : 'a truncated'} reply to \`gh ${args.join(' ')}\` (transport fault, not a failed Check); rerun krn pr ship`,
+  );
+}
+
+/**
+ * Polls the PR until it merges or stops: a red or never-started Check (74, 69), a conflict (76),
+ * a moved head (77), no auto-merge (78), a closed PR (79), an open PR no rule releases (80), a
+ * Check still pending at the bound (75).
+ */
+async function waitForMerge(options: {
+  view: () => Promise<PrView>;
+  head: string;
+  pr: number;
+  sleep: (ms: number) => Promise<void>;
+  now: () => number;
+}): Promise<
+  | { merged: string; lines: string[] }
+  | { merged?: undefined; exitCode: number; lines: string[] }
+> {
+  const start = options.now();
+  let mergeBy: number | undefined;
+  for (;;) {
+    const pull = await options.view();
+    const stop = (exitCode: number, ...lines: string[]) => ({
+      exitCode,
+      lines,
+    });
+    if (pull.state === 'MERGED') {
+      const sha = pull.mergeCommit?.oid ?? 'unknown';
+      return { merged: sha, lines: [`merged: ${sha}`] };
+    }
+    if (pull.state === 'CLOSED')
+      return stop(
+        79,
+        'merge: PR closed without merging',
+        `verdict: closed unmerged PR #${options.pr}`,
+      );
+    if (pull.headRefOid !== options.head)
+      return stop(
+        77,
+        `verdict: head moved: PR #${options.pr} is at ${pull.headRefOid}, not ${options.head}`,
+      );
+    if (pull.mergeable === 'CONFLICTING')
+      return stop(
+        76,
+        `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
+      );
+    const check = pull.statusCheckRollup.find((run) =>
+      aggregateCheck.test(run.name ?? ''),
+    );
+    const conclusion = concluded.safeParse(check?.conclusion).data;
+    if (
+      check?.status === 'COMPLETED' &&
+      conclusion !== undefined &&
+      conclusion !== 'SUCCESS' &&
+      conclusion !== 'NEUTRAL' &&
+      conclusion !== 'SKIPPED'
+    ) {
+      const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
+      return stop(
+        74,
+        `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${options.head}${run === undefined ? '' : ` in run ${run}; logs: bin/krn ci logs --run ${run}; rerun: gh run rerun ${run} --failed`}`,
+      );
+    }
+    if (pull.autoMergeRequest === null || pull.autoMergeRequest === undefined)
+      return stop(
+        78,
+        `verdict: not merging: auto-merge is not enabled on PR #${options.pr}; run gh pr merge ${options.pr} --auto --squash`,
+      );
+    const elapsed = options.now() - start;
+    if (check?.status === 'COMPLETED' && conclusion !== undefined) {
+      mergeBy ??= options.now() + mergeTimeoutMs;
+      if (options.now() >= mergeBy)
+        return stop(
+          80,
+          `merge: not observed within ${mergeTimeoutMs / 1000}s; after it merges run scripts/product-release.sh`,
+          `verdict: open: auto-merge enabled but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
+        );
+    } else if (check === undefined && elapsed >= startTimeoutMs)
+      return stop(
+        69,
+        `gate: the Check never started on ${options.head} within ${startTimeoutMs / 1000}s`,
+      );
+    else if (elapsed >= gateTimeoutMs)
+      return stop(
+        75,
+        `gate: the Check had not concluded on ${options.head} after ${gateTimeoutMs / 1000}s`,
+      );
+    await options.sleep(pollMs);
+  }
+}
+
+/**
+ * Refreshes the pinned Product entry once the PR merged, so `krn task` stays fresh without a
+ * manual step. The PR is merged either way: a failed refresh only leaves the entry on its
+ * previous commit, so it is a warning, not a failed ship.
+ */
+function refreshAfterMerge(
+  refresh: (() => { code: number; stdout: string; stderr: string }) | undefined,
+): string[] {
+  if (refresh === undefined) return [];
+  const result = refresh();
+  return [
+    ...(result.code === 0
+      ? []
+      : [
+          `warning: release refresh failed (exit ${result.code}); run scripts/product-release.sh again: ${result.stderr.trim()}`,
+        ]),
+    ...result.stdout
+      .trim()
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => `release: ${line}`),
+  ];
 }
 
 function publishBody(cwd: string, text: string): string {

@@ -190,7 +190,7 @@ test('a lane session may not write the main checkout outside its worktree and .k
   });
   const refused = (payload: unknown) =>
     assert.match(decide(payload, env) ?? '', /main checkout/u);
-  refused(w(`${main}/src/ci/wait.ts`));
+  refused(w(`${main}/src/ci/ship.ts`));
   refused(w(`${main}/.krn/worktrees/lane-other/src/a.ts`));
   refused(w('../../../src/a.ts'));
   refused({

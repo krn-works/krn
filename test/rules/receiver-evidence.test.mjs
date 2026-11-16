@@ -111,9 +111,9 @@ test('receiver evidence fails for an unregistered host module and a deleted capt
     join(base, 'src/cli/new-receiver.ts'),
     "import { spawnSync } from 'node:child_process';\nexport const run = () => spawnSync('herdr');\n",
   );
-  rmSync(join(base, 'test/fixtures/github-check-runs/gate-success.json'));
+  rmSync(join(base, 'test/fixtures/gh/pr-not-found.stderr.log'));
   assert.deepEqual(receiverProblems(base), [
     'src/cli/new-receiver.ts spawns a receiver but is not in spec/receivers.json',
-    'spec/receivers.json src/deliver/gate-wait.ts: capture test/fixtures/github-check-runs/gate-success.json missing under test/fixtures',
+    'spec/receivers.json src/deliver/transport.ts: capture test/fixtures/gh/pr-not-found.stderr.log missing under test/fixtures',
   ]);
 });

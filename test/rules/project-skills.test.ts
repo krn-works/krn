@@ -114,7 +114,7 @@ test('research lanes read untrusted content without a shell, file writes or sub-
     assert.ok(!tools.includes(banned), `krn-research must not get ${banned}`);
   const lanes = readFileSync(join(root, 'docs/program/lead-rules.md'), 'utf8');
   assert.match(lanes, /`krn-research`/u);
-  assert.match(lanes, /bin\/krn ci wait --repo/u);
+  assert.match(lanes, /bin\/krn pr ship`, which polls/u);
   assert.doesNotMatch(lanes, /every 60s/u);
 });
 

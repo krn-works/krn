@@ -127,7 +127,7 @@ echo done`;
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('ci poll hook refuses gh watch and sleep loops around gh and names krn ci wait', () => {
+test('ci poll hook refuses gh watch and sleep loops around gh and names krn pr ship', () => {
   for (const command of [
     'gh run watch 123',
     'gh pr checks 5 --watch',
@@ -142,17 +142,14 @@ while True:
   ]) {
     const result = poll(command);
     assert.equal(result.status, 2, command);
-    assert.match(
-      result.stderr,
-      /bin\/krn ci wait --repo krn-works\/krn --pr <n> --head <sha> --base <sha>/u,
-    );
+    assert.match(result.stderr, /bin\/krn pr ship/u);
     assert.match(result.stderr, /40-char/u);
   }
 });
 
-test('ci poll hook allows krn ci wait, single gh calls and loops not touching gh', () => {
+test('ci poll hook allows krn pr ship, single gh calls and loops not touching gh', () => {
   for (const command of [
-    'bin/krn ci wait --repo krn-works/krn --pr 5 --head a --base b',
+    'bin/krn pr ship --title x --body-file b',
     'gh pr view 5 --json state',
     'gh run list --limit 3',
     'gh pr checks 5',
