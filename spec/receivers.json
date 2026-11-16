@@ -5,6 +5,10 @@
       "receivers": ["node"],
       "real": "test/cli/doctor-hooks.test.ts"
     },
+    "src/ci/fast-pass.ts": {
+      "receivers": ["git"],
+      "real": "test/ci/fast-pass.test.ts"
+    },
     "src/cli/outside-git.ts": {
       "receivers": ["git"],
       "real": "test/cli/outside-git.test.ts"

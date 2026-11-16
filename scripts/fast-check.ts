@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeFastPass } from '../src/ci/fast-pass.ts';
+import { checkedTree, writeFastPass } from '../src/ci/fast-pass.ts';
 import { check as checkBoundaries } from './boundaries.ts';
 import { withSlot } from './lib/slot-lock.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
@@ -383,17 +383,9 @@ export function toolBin(root: string): string | undefined {
   return existsSync(join(main, 'tsc')) ? main : undefined;
 }
 
-/** Records the PASS for HEAD's tree when the worktree is clean; a dirty tree (Biome rewrote files) records none. */
+/** Records the PASS for the tree fast checked, uncommitted edits and Biome rewrites included, so committing exactly that content lets ship reuse it. */
 function recordPass(root: string, passed: boolean): void {
-  const clean =
-    spawnSync('git', ['status', '--porcelain'], {
-      cwd: root,
-      encoding: 'utf8',
-    }).stdout.trim() === '';
-  writeFastPass(
-    root,
-    passed && clean ? probe(root, ['rev-parse', 'HEAD^{tree}']) : undefined,
-  );
+  writeFastPass(root, passed ? checkedTree(root) : undefined);
 }
 
 /** The main checkout shared by every worktree, else the root itself. */
