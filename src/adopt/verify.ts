@@ -2,7 +2,10 @@
 import { spawnSync } from 'node:child_process';
 import {
   appendFileSync,
+  cpSync,
   existsSync,
+  lstatSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -310,6 +313,100 @@ const gitIn = (cwd: string, ...args: string[]) =>
     ...args,
   ]);
 
+/**
+ * The bin directories of the tool versions a repository pins in mise.toml (`[tools]`, bare keys with a plain version),
+ * resolved with `mise where <tool>@<version>` from a neutral directory so no repository config has to be trusted.
+ * Empty when mise is absent, the file pins nothing, or a pinned version is not installed.
+ */
+export function pinnedToolBins(root: string): string[] {
+  const file = ['mise.toml', '.mise.toml']
+    .map((name) => join(root, name))
+    .find((path) => existsSync(path));
+  if (file === undefined) return [];
+  const bins: string[] = [];
+  let inTools = false;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const header = /^\s*\[([^\]]+)\]\s*$/u.exec(line);
+    if (header) inTools = header[1] === 'tools';
+    const pin = inTools
+      ? /^\s*([A-Za-z][\w-]*)\s*=\s*"(\d[\w.-]*)"\s*(?:#.*)?$/u.exec(line)
+      : null;
+    if (!pin) continue;
+    const where = spawnSync('mise', ['where', `${pin[1]}@${pin[2]}`], {
+      cwd: tmpdir(),
+      encoding: 'utf8',
+    });
+    const dir = where.stdout?.trim();
+    if (where.status === 0 && dir && existsSync(join(dir, 'bin')))
+      bins.push(join(dir, 'bin'));
+  }
+  return bins;
+}
+
+/** Runs one of the repository's own commands under its pinned toolchain (the PATH tools when it pins none). */
+function runOwn(root: string, tree: string, command: string) {
+  const bins = pinnedToolBins(root);
+  const path = [...bins, process.env.PATH ?? ''].join(':');
+  // The canary trees, and the temp directories a suite copies the repository into, are throwaway: their mise config
+  // is trusted for these runs only (an environment variable; nothing is written to the host's mise trust list).
+  return run(tree, 'sh', ['-c', command], {
+    PATH: path,
+    MISE_TRUSTED_CONFIG_PATHS: [dirname(tree), tmpdir()].join(':'),
+  });
+}
+
+/** Names of the tests a runner's output reports as failed (node:test spec `✖ name`, tap `not ok N - name`, pytest `FAILED id`). */
+export function failedTestNames(output: string): string[] {
+  const names = new Set<string>();
+  for (const line of output.split('\n')) {
+    const found =
+      /^\s*✖\s+(.+?)(?:\s+\(\d[\d.]*m?s\))?\s*$/u.exec(line) ??
+      /^\s*not ok \d+\s*-?\s*(.+?)\s*$/u.exec(line) ??
+      /^\s*FAILED\s+(\S.*?)(?:\s+-\s.*)?$/u.exec(line);
+    if (found?.[1] && !/^failing tests:?$/u.test(found[1])) names.add(found[1]);
+  }
+  return [...names];
+}
+
+/**
+ * A worktree of the base with the repository's uncommitted adoption files laid over it, so the suite can run
+ * with them. Undefined when the repository has no uncommitted change (the base already carries them).
+ */
+function withAdoptionFiles(
+  root: string,
+  parent: string,
+  baseRef: string,
+  contract: RepoContract,
+): string | undefined {
+  const dirty = (flags: string[]) =>
+    run(root, 'git', ['ls-files', ...flags, '--exclude-standard'])
+      .stdout.split('\n')
+      .filter(Boolean);
+  const changed = [...dirty(['-m']), ...dirty(['-o'])];
+  const deleted = dirty(['-d']);
+  if (changed.length === 0 && deleted.length === 0) return undefined;
+  const tree = join(parent, 'with-adoption');
+  const add = run(root, 'git', [
+    'worktree',
+    'add',
+    '-q',
+    '--detach',
+    tree,
+    baseRef,
+  ]);
+  if (add.status !== 0) return undefined;
+  for (const file of deleted) rmSync(join(tree, file), { force: true });
+  for (const file of changed) {
+    const from = join(root, file);
+    if (lstatSync(from, { throwIfNoEntry: false }) === undefined) continue;
+    mkdirSync(dirname(join(tree, file)), { recursive: true });
+    rmSync(join(tree, file), { recursive: true, force: true });
+    cpSync(from, join(tree, file), { recursive: true, verbatimSymlinks: true });
+  }
+  prepare(root, tree, contract);
+  return tree;
+}
+
 /** The slice of .claude/settings.json the canary reads: Stop hook commands. */
 export const stopSettingsSchema = z.looseObject({
   hooks: z
@@ -430,7 +527,7 @@ function prepare(
   }
   if (!linked && contract.install) {
     enter('install');
-    const install = run(tree, 'sh', ['-c', contract.install]);
+    const install = runOwn(root, tree, contract.install);
     if (install.status !== 0)
       return `the install command failed (${contract.install}): ${install.stderr.slice(-300)}`;
   }
@@ -583,13 +680,35 @@ function canary(root: string): CanaryResult {
     const prepared = prepare(root, tree, contract);
     if (prepared) return fail(prepared);
 
+    const wholeOnly = !contract.related;
+    // The adoption files must not turn a test green on the clean base red: the suite runs once with them laid over
+    // the base. Green there stands in for the clean-base run (one run, not two); red sends the clean base to the
+    // same command, which tells a base that was already red from tests the adoption files broke.
+    const adopted = withAdoptionFiles(root, parent, baseRef, contract);
+    let baseChecked = false;
+    if (adopted !== undefined) {
+      enter('test command with the adoption files');
+      const withFiles = runOwn(root, adopted, contract.test);
+      if (withFiles.status === 0) baseChecked = true;
+      else {
+        enter('test command on the clean base');
+        const own = runOwn(root, tree, contract.test);
+        if (own.status !== 0) return redBase(contract, baseRef, own);
+        const names = failedTestNames(
+          `${withFiles.stdout}\n${withFiles.stderr}`,
+        );
+        return fail(
+          `the adoption files turn the repository's own tests red: \`${contract.test}\` passes on the clean ${baseRef} tree and exits ${withFiles.status} with them; ${names.length > 0 ? `newly red: ${names.slice(0, 10).join('; ')}` : `no failed test name was readable in its output: ${(withFiles.stderr || withFiles.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`}`,
+        );
+      }
+    }
+
     // Without a related command every Stop-gate step runs the whole test command, so a slow build would cost one
     // run per step. One measured baseline run of it on the clean tree replaces the gate's base run and the
     // clean-tree step; the broken-tree step is then the only gate run.
-    const wholeOnly = !contract.related;
-    if (wholeOnly) {
+    if (wholeOnly && !baseChecked) {
       enter('test command on the clean base');
-      const own = run(tree, 'sh', ['-c', contract.test]);
+      const own = runOwn(root, tree, contract.test);
       if (own.status !== 0) return redBase(contract, baseRef, own);
     }
 
@@ -639,7 +758,7 @@ function canary(root: string): CanaryResult {
               withinPackage(contract.related ?? '', [file]),
             )
           : contract.test;
-      const own = run(tree, 'sh', ['-c', command]);
+      const own = runOwn(root, tree, command);
       return own.status === 0 ? undefined : redBase(contract, baseRef, own);
     };
     const red = checkRedBase();
@@ -655,6 +774,13 @@ function canary(root: string): CanaryResult {
   } finally {
     // Cleanup ignores the deadline: a timed-out canary still removes its worktree.
     spawnSync('git', ['worktree', 'remove', '--force', tree], { cwd: root });
+    spawnSync(
+      'git',
+      ['worktree', 'remove', '--force', join(parent, 'with-adoption')],
+      {
+        cwd: root,
+      },
+    );
     spawnSync('git', ['branch', '-D', branch], { cwd: root });
     rmSync(parent, { recursive: true, force: true });
   }
