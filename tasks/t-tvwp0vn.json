@@ -1,0 +1,14 @@
+{
+  "id": "t-tvwp0vn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "A failed krn task publish leaves a worktree that blocks the retry",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: krn task publish failed on a red pre-push check (t-y9gvftp) and left .krn/worktrees/task-records-t-4gezbg6; the retry exited 64 'lane task-records-t-4gezbg6 already exists' until krn lane drop removed it.\nOutcome: a failed krn task publish removes its own worktree and branch (or a retry reuses it), so a second publish after the fix exits 0 without a manual drop; a test covers the retry.\nProof: node --test test/cli/task-publish.test.ts: pass (publish fails on a refusing pre-push, then succeeds on retry without krn lane drop)\nFiles: src/task/, src/cli/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}
