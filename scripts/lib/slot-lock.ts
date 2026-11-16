@@ -9,6 +9,8 @@ export type SlotOptions = {
   slots?: number;
   /** Poll interval while every slot is taken. */
   pollMs?: number;
+  /** Called once, with the pid of a holder, when every slot is taken and the caller starts to wait. */
+  onWait?: (holderPid: number | undefined) => void;
 };
 
 function alive(pid: number): boolean {
@@ -34,6 +36,7 @@ async function acquire(options: SlotOptions): Promise<() => void> {
   const slots = Math.max(1, options.slots ?? 1);
   const pollMs = options.pollMs ?? 250;
   mkdirSync(options.dir, { recursive: true });
+  let waiting = false;
   for (;;) {
     for (let index = 0; index < slots; index += 1) {
       const slot = join(options.dir, `slot-${index}`);
@@ -51,6 +54,10 @@ async function acquire(options: SlotOptions): Promise<() => void> {
       }
       writeFileSync(join(slot, 'pid'), String(process.pid));
       return () => rmSync(slot, { recursive: true, force: true });
+    }
+    if (!waiting) {
+      waiting = true;
+      options.onWait?.(holder(join(options.dir, 'slot-0')));
     }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }

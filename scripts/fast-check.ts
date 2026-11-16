@@ -455,9 +455,34 @@ export function testSlotOptions(
 ): { dir: string; slots: number } {
   const slots = Number(env.KRN_FAST_SLOTS);
   return {
-    dir: join(sharedRoot(root), '.krn/tmp/fast-slots'),
+    dir: env.KRN_FAST_SLOT_DIR ?? join(sharedRoot(root), '.krn/tmp/fast-slots'),
     slots: Number.isInteger(slots) && slots > 0 ? slots : 1,
   };
+}
+
+/** Runs the heavy work under the host-wide slot lock and prints the wait when another fast run holds every slot. */
+export function inTestSlot<T>(
+  root: string,
+  work: () => Promise<T>,
+  env: NodeJS.ProcessEnv = process.env,
+  write: (text: string) => void = (text) => process.stderr.write(text),
+): Promise<T> {
+  const waitStarted = performance.now();
+  return withSlot(
+    {
+      ...testSlotOptions(root, env),
+      onWait: (pid) =>
+        write(
+          `fast: waiting for a host test slot${pid ? ` (held by pid ${pid})` : ''}\n`,
+        ),
+    },
+    () => {
+      const waited = (performance.now() - waitStarted) / 1000;
+      if (waited >= 1)
+        write(`fast: got a test slot after ${waited.toFixed(1)}s\n`);
+      return work();
+    },
+  );
 }
 
 type Step = { name: string; ok: boolean; seconds: number; output: string };
@@ -587,18 +612,20 @@ async function preflight(
                 ...testCeilingArguments(),
                 ...rest,
               ]);
-            const parts = await Promise.all([
-              ...(guard.length > 0 ? [node('guard', ...guard)] : []),
-              ...(drift
-                ? [
-                    node(
-                      'guard',
-                      `--test-name-pattern=${DRIFT_NAME}`,
-                      DRIFT_TEST,
-                    ),
-                  ]
-                : []),
-            ]);
+            const parts = await inTestSlot(root, () =>
+              Promise.all([
+                ...(guard.length > 0 ? [node('guard', ...guard)] : []),
+                ...(drift
+                  ? [
+                      node(
+                        'guard',
+                        `--test-name-pattern=${DRIFT_NAME}`,
+                        DRIFT_TEST,
+                      ),
+                    ]
+                  : []),
+              ]),
+            );
             return {
               name: 'guard',
               ok: parts.every((part) => part.ok),
@@ -714,17 +741,18 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   }
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
+  // tsc and the related tests hold one host-wide slot together: concurrent lanes queue instead of thrashing.
   const verify = (): Promise<Step[]> =>
-    Promise.all([
-      run(root, 'tsc', bin('tsc'), [
-        '--noEmit',
-        '--incremental',
-        '--tsBuildInfoFile',
-        join(cache, 'fast.tsbuildinfo'),
-      ]),
-      ...(related.length > 0
-        ? [
-            withSlot(testSlotOptions(root), () =>
+    inTestSlot(root, () =>
+      Promise.all([
+        run(root, 'tsc', bin('tsc'), [
+          '--noEmit',
+          '--incremental',
+          '--tsBuildInfoFile',
+          join(cache, 'fast.tsbuildinfo'),
+        ]),
+        ...(related.length > 0
+          ? [
               run(
                 root,
                 'test',
@@ -740,10 +768,10 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
                     join(root, '.krn/tmp/node-compile-cache'),
                 },
               ),
-            ),
-          ]
-        : []),
-    ]);
+            ]
+          : []),
+      ]),
+    );
   // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
   const before = snapshot();
   const staged = fullyStaged(root).filter((file) => files.includes(file));
