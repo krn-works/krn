@@ -109,6 +109,8 @@ const TREE_TESTS: ReadonlyArray<readonly [string, RegExp]> = [
     /^(?:src\/|scripts\/|package\.json$|tsconfig.*\.json$|biome\.jsonc?$)/u,
   ],
   ['test/cli/hook.test.ts', /^src\/(?:cli|hook)\//u],
+  // CI maps every test/rules file to a rule record; a new or renamed one must pass that map.
+  ['test/brain/ci-rule-coverage.test.ts', /^test\/rules\/[^/]+\.test\.ts$/u],
 ];
 
 /**

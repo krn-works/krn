@@ -1,7 +1,11 @@
 {
   "id": "t-ckg6j0t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast selects test/brain/ci-rule-coverage.test.ts for an added or renamed test/rules file; test red before the fix, green after"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "npm run fast skips the CI rule coverage check for a new test/rules file",
