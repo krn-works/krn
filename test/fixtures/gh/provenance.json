@@ -99,6 +99,15 @@
         "file": "pr-1131-number-rollup.stdout.json",
         "sha256": "e0390f1a782904f060545577c439b6c11bef5d686ff4007d0b89d1b48f734a13"
       }
+    },
+    {
+      "name": "pr-1131-merged-view",
+      "command": "gh pr view 1131 --repo krn-works/krn --json state,headRefOid,mergeable,autoMergeRequest,mergeCommit,statusCheckRollup",
+      "exitCode": 0,
+      "stdout": {
+        "file": "pr-1131-merged-view.stdout.json",
+        "sha256": "3bd8270640af32b7fe8e7ef6be49ab84ae21d4562d848818ea20e8a3f7e1196e"
+      }
     }
   ]
 }

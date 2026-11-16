@@ -98,6 +98,11 @@ export async function shipCommand(
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
+    /** Completes the close evidence row of a task whose PR merged; the cli supplies the brain's writer. */
+    completeClose?: (
+      main: string,
+      done: { task: string; pr: number; ci: string | null },
+    ) => void;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -166,6 +171,37 @@ export async function shipCommand(
     return `lane: worktree ${worktree} and branch ${branch} kept; the next krn lane start prunes merged lanes
 main checkout: ${main}`;
   };
+  const viewOf = (number: number) =>
+    replied(gh, 'json', [
+      'pr',
+      'view',
+      String(number),
+      '--repo',
+      repo,
+      '--json',
+      'state,headRefOid,mergeable,autoMergeRequest,mergeCommit,statusCheckRollup',
+    ]).then((text) => prView.parse(JSON.parse(text)));
+  // The lane closed its task before this PR existed: the merge completes the close row with the PR and its Check.
+  const recordClose = (pr: number, rollup: PrView['statusCheckRollup']) => {
+    if (
+      task === undefined ||
+      runtime.completeClose === undefined ||
+      !Number.isInteger(pr)
+    )
+      return;
+    const conclusion = rollup.find(
+      (c) => c.name !== undefined && aggregateCheck.test(c.name),
+    )?.conclusion;
+    try {
+      runtime.completeClose(main, {
+        task,
+        pr,
+        ci: conclusion ? conclusion.toLowerCase() : null,
+      });
+    } catch {
+      // The evidence is best effort: a merged PR never fails its ship over the log.
+    }
+  };
   const localHead = git(['rev-parse', 'HEAD']);
   const mergedBefore = (
     await gh([
@@ -186,6 +222,8 @@ main checkout: ${main}`;
   if (mergedBefore !== '') {
     // A rerun after the merge (its cleanup failed or was cut off) only cleans up.
     const [mergedPr, mergedSha] = mergedBefore.split(' ');
+    const merged = await viewOf(Number(mergedPr)).catch(() => undefined);
+    recordClose(Number(mergedPr), merged?.statusCheckRollup ?? []);
     return [
       `pr: #${mergedPr} ${repo} ${localHead}`,
       `verdict: merged ${mergedSha}`,
@@ -387,16 +425,7 @@ main checkout: ${main}`;
 
   const head = git(['rev-parse', 'HEAD']);
   const lines = [`pr: #${pr} ${repo} ${head}`];
-  const view = () =>
-    replied(gh, 'json', [
-      'pr',
-      'view',
-      String(pr),
-      '--repo',
-      repo,
-      '--json',
-      'state,headRefOid,mergeable,autoMergeRequest,mergeCommit,statusCheckRollup',
-    ]).then((text) => prView.parse(JSON.parse(text)));
+  const view = () => viewOf(pr);
   const outcome = await waitForMerge({
     view,
     head,
@@ -406,6 +435,10 @@ main checkout: ${main}`;
   });
   lines.push(...outcome.lines);
   if (outcome.merged !== undefined) {
+    recordClose(
+      pr,
+      (await view().catch(() => undefined))?.statusCheckRollup ?? [],
+    );
     lines.push(
       ...refreshAfterMerge(
         ownsProductRelease(worktree)

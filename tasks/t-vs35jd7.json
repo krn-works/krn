@@ -1,7 +1,11 @@
 {
   "id": "t-vs35jd7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship completes the pending close row (pr, ci) after merge; verified by close-evidence and ship tests with a verbatim gh capture"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Ship completes the close evidence row with the merged PR and Check conclusion",

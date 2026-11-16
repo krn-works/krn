@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import {
+  closeExposure,
+  completeCloseExposure,
+} from '../../src/brain/close-exposure.ts';
+import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
 import { ownsProductRelease, shipCommand } from '../../src/ci/ship.ts';
 import { CommandFailure, run } from '../../src/deliver/transport.ts';
 import { capture } from '../receivers/capture.ts';
@@ -35,6 +40,7 @@ function receiver(options: {
   proofExit?: number;
   lateConflict?: string;
   autoRefusal?: string;
+  common?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -107,7 +113,8 @@ function receiver(options: {
       return out(`${base}\n`);
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
-    if (a.includes('--git-common-dir')) return out('/r/.git\n');
+    if (a.includes('--git-common-dir'))
+      return out(`${options.common ?? '/r'}/.git\n`);
     if (a[0] === 'merge-tree') {
       // The pre-push trial merges clean; the trial after the PR turned dirty conflicts, shaped
       // like git merge-tree --write-tree --name-only: exit 1, tree id, paths, blank line.
@@ -145,7 +152,10 @@ const merged = { state: 'MERGED', mergeCommit: { oid: merge } };
 
 test('ship pushes, creates, auto-merges, waits through the merge and leaves the lane in place', async () => {
   const r = receiver({ pulls: [auto, merged] });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, /^pr: #7 o\/r a{40}$/mu);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.match(
@@ -169,6 +179,33 @@ test('ship pushes, creates, auto-merges, waits through the merge and leaves the 
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
+});
+
+test('a merged ship completes the pending close row of its task with the PR and the Check conclusion, once', async () => {
+  const main = mkdtempSync(join(tmpdir(), 'ship-close-row-'));
+  const log = join(main, EXPOSURES_FILE);
+  mkdirSync(join(main, '.krn', 'brain'), { recursive: true });
+  closeExposure(main, {
+    task: 't-3ag9eqn',
+    clauses: ['r-a'],
+    pr: null,
+    ci: null,
+    hidden: null,
+  });
+  const r = receiver({ pulls: [auto, merged], common: main });
+  await shipCommand(args, { ...r, completeClose: completeCloseExposure });
+  const rows = readFileSync(log, 'utf8').trim().split('\n');
+  assert.equal(rows.length, 1);
+  assert.deepEqual(JSON.parse(rows[0] ?? '').evidence, {
+    pr: 7,
+    ci: 'success',
+    hidden: null,
+  });
+  await shipCommand(args, {
+    ...receiver({ pulls: [auto, merged], common: main }),
+    completeClose: completeCloseExposure,
+  });
+  assert.equal(readFileSync(log, 'utf8').trim().split('\n').length, 1);
 });
 
 test('ship on a repository whose default branch is master opens the PR against master', async () => {
@@ -205,7 +242,10 @@ test('ship adopts the PR a timed-out create already opened', async () => {
     createRefusal:
       'a pull request for branch "feat-x" into branch "main" already exists:\nhttps://github.com/o/r/pull/7\n',
   });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, /^pr: #7 o\/r a{40}$/mu);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
@@ -360,7 +400,10 @@ test('exit 0 means merged: each unmerged verdict exits with its own code and kee
 
 test('a rerun after the PR merged only records it and pushes nothing', async () => {
   const r = receiver({ pulls: [auto], mergedBefore: `7 ${merge}\n` });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.match(out, /^lane: worktree .* kept; /mu);
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
@@ -439,7 +482,7 @@ test('an empty diff with no matching merged PR still refuses', async () => {
 
 test('an adopted repository without the instruction-bytes rule ships without running it', async () => {
   const r = receiver({ pulls: [auto, merged], hasRule: false });
-  await shipCommand(args, r);
+  await shipCommand(args, { ...r, completeClose: completeCloseExposure });
   assert.ok(!r.calls.some((c) => c.startsWith('node --test')));
   assert.ok(r.calls.some((c) => c.includes('push')));
 });
@@ -543,7 +586,10 @@ const isPull = (a: string[]) => a[0] === 'pr' && a[1] === 'view';
 
 test('ship retries an empty pull reply once and then merges', async () => {
   const r = flaky(receiver({ pulls: [auto, merged] }), isPull, ['']);
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
 
@@ -631,7 +677,10 @@ test('a base without a required check merges the clean PR directly when auto-mer
     autoRefusal:
       'GraphQL: Pull request Pull request is in clean status (enablePullRequestAutoMerge)',
   });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
@@ -642,7 +691,10 @@ test('a base with no branch protection rule merges the PR directly when auto-mer
     autoRefusal:
       'GraphQL: Pull request Protected branch rules not configured for this branch (enablePullRequestAutoMerge)',
   });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
@@ -653,7 +705,10 @@ test('clause 5 and clause 8: a repository that disallows auto-merge gets a direc
     autoRefusal:
       'GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)',
   });
-  const out = await shipCommand(args, r);
+  const out = await shipCommand(args, {
+    ...r,
+    completeClose: completeCloseExposure,
+  });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });

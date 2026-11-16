@@ -40,7 +40,12 @@ export function mintFailure(result: {
 export const defaultSteps: Required<LaneRunSteps> = {
   ciLogs: (run, cwd) => logsCommand(['--run', run], { cwd }),
   start: async (args) => (await import('../lane.ts')).startLane(args),
-  ship: (args) => shipCommand(args, { proofOf: proofOfTitle }),
+  ship: async (args) =>
+    shipCommand(args, {
+      proofOf: proofOfTitle,
+      completeClose: (await import('../../brain/close-exposure.ts'))
+        .completeCloseExposure,
+    }),
   mint: async (env) => {
     const result = spawnSync(process.execPath, [tokenHelper, 'token'], {
       encoding: 'utf8',
