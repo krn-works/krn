@@ -54,11 +54,30 @@ const ALIASES: Readonly<Record<string, string>> = {
   lesson: 'pitfall',
 };
 
+/**
+ * A row an older krn wrote has neither `type` nor `provenance`: it is a standard whose top-level `origin` and `evidence`
+ * are the provenance; the old origin `krn` marked a copy of a pack record, which is the inherited origin now. A row with a `type` or a `provenance` is current and is never reshaped.
+ */
+function legacyRow(row: Record<string, unknown>): Record<string, unknown> {
+  if (row.type !== undefined || row.provenance !== undefined) return row;
+  const { origin, evidence, ...rest } = row;
+  if (typeof origin !== 'string') return row;
+  return {
+    ...rest,
+    type: 'standard',
+    provenance: {
+      origin: origin === 'krn' ? INHERITED_ORIGIN : origin,
+      ...(Array.isArray(evidence) ? { evidence } : {}),
+    },
+  };
+}
+
 /** The legacy `source` string is the origin; legacy types `rule` and `lesson` are standard and pitfall. */
 function shorthand(input: unknown): unknown {
   if (typeof input !== 'object' || input === null || Array.isArray(input))
     return input;
-  const { source, ...rest } = input as Record<string, unknown>;
+  const legacy = legacyRow(input as Record<string, unknown>);
+  const { source, ...rest } = legacy;
   const type = typeof rest.type === 'string' ? ALIASES[rest.type] : undefined;
   const provenance =
     source === undefined

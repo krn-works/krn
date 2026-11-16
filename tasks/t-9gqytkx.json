@@ -1,0 +1,22 @@
+{
+  "id": "t-9gqytkx",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "legacy 17-record capture adopts exit 0, second run byte-identical; test/adopt/legacy-records.test.ts"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn adopt upgrades standards records written by an older krn instead of refusing them",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, S29 probe: `krn adopt . --tracker` in a fresh clone of the pilot krn-works/seo-audit-harness (adopted by an earlier krn, #83/#88 there) exits 65: '.agents/standards.json: records[0].type: Invalid option'. Capture: .krn/runs/lead/s29/pilot-standards.json (17 records, no type, top-level why/evidence, no provenance).\nOutcome: `krn adopt` on a repository whose .agents/standards.json was written by an older krn (records without type/provenance, top-level evidence) exits 0 and rewrites the file in the current schema with every record id kept; a rerun changes nothing.\nWhy: every schema change otherwise breaks each adopted repository until someone hand-edits it (the pilot needed #88 for tier); S29 cannot adopt the pilot.\nProof: node --test test/brain/record.test.ts (legacy pilot capture parses) and an adopt test on a fixture repo carrying the capture: exit 0, ids preserved, second run byte-identical.\nFiles: src/brain/record.ts, src/adopt/"
+  ],
+  "kind": "defect",
+  "area": "adopt",
+  "from": {
+    "kind": "finding",
+    "ref": "s29-pilot-probe"
+  }
+}
