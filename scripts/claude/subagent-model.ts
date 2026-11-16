@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { hookStdin } from '../../src/harness/claude.ts';
 
 // PreToolUse hook for Agent: the built-in Explore and Plan agents ignore
@@ -47,20 +47,46 @@ export function frontmatterModel(
   return /^model:\s*(\S+)\s*$/m.exec(head)?.[1];
 }
 
+// A lane prompt may only point at its brief ("Your complete brief is the file <path>"); the
+// opt-in line then lives in that file, so the hook reads files named under .krn/.
+export function briefFiles(projectDir: string, prompt: string): string {
+  const root = join(projectDir, '.krn');
+  const paths = prompt.match(/\/[\w./@+-]+/g) ?? [];
+  let text = '';
+  for (const path of paths) {
+    const full = resolve(path.replace(/[.,]+$/, ''));
+    if (!full.startsWith(`${root}${sep}`)) continue;
+    try {
+      text += `\n${readFileSync(full, 'utf8')}`;
+    } catch {
+      // an unreadable path is not a brief
+    }
+  }
+  return text;
+}
+
+function optedIn(prompt: string, brief: string): string | undefined {
+  const line = /^lane-model:\s*(opus|fable)\b/im.exec(`${prompt}\n${brief}`);
+  return line?.[1]?.toLowerCase();
+}
+
 export function updatedInput(
   payload: unknown,
   configured: string | undefined,
   pinned: (type: string) => string | undefined = () => undefined,
+  brief: (prompt: string) => string = () => '',
 ): Record<string, unknown> | undefined {
   const input = (payload as { tool_input?: unknown } | null)?.tool_input;
   if (typeof input !== 'object' || input === null) return undefined;
   const fields = input as Record<string, unknown>;
   const type = fields.subagent_type;
   if (fields.model !== undefined)
-    return laneModel(fields, type, configured, pinned);
+    return laneModel(fields, type, configured, pinned, brief);
   if (typeof type !== 'string') return undefined;
   const target = type === 'general-purpose' ? laneAgent : type;
+  const prompt = typeof fields.prompt === 'string' ? fields.prompt : '';
   const model =
+    (target === laneAgent ? optedIn(prompt, brief(prompt)) : undefined) ??
     pinned(target) ??
     (ignoresDefault.has(type) ? alias(configured) : undefined);
   if (target === type && !model) return undefined;
@@ -78,13 +104,13 @@ function laneModel(
   type: unknown,
   configured: string | undefined,
   pinned: (type: string) => string | undefined,
+  brief: (prompt: string) => string,
 ): Record<string, unknown> | undefined {
   if (type !== laneAgent && type !== 'general-purpose') return undefined;
   const asked = alias(String(fields.model));
   if (!asked || !costly.has(asked)) return undefined;
   const prompt = typeof fields.prompt === 'string' ? fields.prompt : '';
-  if (new RegExp(`^lane-model:\\s*${asked}\\b`, 'mi').test(prompt))
-    return undefined;
+  if (optedIn(prompt, brief(prompt)) === asked) return undefined;
   const model = pinned(laneAgent) ?? alias(configured) ?? 'sonnet';
   return { ...fields, subagent_type: laneAgent, model };
 }
@@ -110,15 +136,13 @@ export function main() {
   } catch {
     return;
   }
-  const agentsDir = join(
-    process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-    '.claude',
-    'agents',
-  );
+  const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const agentsDir = join(projectDir, '.claude', 'agents');
   const input = updatedInput(
     payload,
     process.env.CLAUDE_CODE_SUBAGENT_MODEL,
     (type) => frontmatterModel(agentsDir, type),
+    (prompt) => briefFiles(projectDir, prompt),
   );
   if (!input) return;
   const notice = rewriteNotice(payload, input);

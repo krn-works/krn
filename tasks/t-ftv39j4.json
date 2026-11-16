@@ -1,7 +1,11 @@
 {
   "id": "t-ftv39j4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hook test: lane-model: opus inline or behind a brief pointer file routes krn-lane to opus"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A lane brief line lane-model: opus does not run the lane on Opus",
