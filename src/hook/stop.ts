@@ -1097,6 +1097,7 @@ export function recordedShip(
   root: string,
   env: NodeJS.ProcessEnv,
   branch = '',
+  payload: unknown = undefined,
 ): boolean {
   const named = loadContract(root).contract?.base ?? 'main';
   if (branch !== '' && branch !== named) return false;
@@ -1121,6 +1122,7 @@ export function recordedShip(
   } catch {
     return false;
   }
+  const claimed = claimedBranches(main, env, payload);
   for (const name of names) {
     try {
       const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
@@ -1130,6 +1132,8 @@ export function recordedShip(
       };
       const ours =
         (lane !== '' && record.branch === lane) ||
+        (typeof record.branch === 'string' &&
+          claimed.includes(record.branch)) ||
         (env.KRN_TASK !== undefined && record.task === env.KRN_TASK);
       if (ours && typeof record.sha === 'string' && onBase(main, record.sha))
         return true;
@@ -1227,30 +1231,19 @@ export function ownerCheckout(root: string): string {
   return owner !== root && existsSync(owner) ? owner : root;
 }
 
-/**
- * The branches of the live task claims this session holds, for a lane whose session cwd is the main
- * checkout (t-c6d0jks ended on a false BLOCKER: cwd branch `main`, PR head `lane-finish`). A claim is the
- * session's when its id is KRN_TASK or a task id its own transcript names; its record names the lane branch.
- */
-export function claimedBranches(
-  root: string,
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-): string[] {
-  const common = git(root, [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-common-dir',
-  ]);
-  if (common.status !== 0) return [];
-  const main = dirname(common.stdout);
+/** The task ids a session names: KRN_TASK and the ids in its transcript (a lane subagent's own transcript first). */
+function sessionTaskIds(env: NodeJS.ProcessEnv, payload: unknown): string[] {
   const ids = new Set<string>();
   if (env.KRN_TASK) ids.add(env.KRN_TASK);
   const fields = payload as {
     transcript_path?: unknown;
     agent_transcript_path?: unknown;
   } | null;
-  for (const path of [fields?.agent_transcript_path, fields?.transcript_path]) {
+  // A lane subagent's own transcript names its tasks; the lead's transcript names every lane's.
+  const own = fields?.agent_transcript_path;
+  for (const path of typeof own === 'string'
+    ? [own]
+    : [fields?.transcript_path]) {
     if (typeof path !== 'string') continue;
     try {
       for (const id of readFileSync(path, 'utf8').match(
@@ -1261,19 +1254,157 @@ export function claimedBranches(
       /* No transcript to read. */
     }
   }
-  const branches: string[] = [];
+  return [...ids];
+}
+
+/** What the repository recorded about a lane a session started: a live claim, or the ship record of a released one. */
+export type LaneRecord = { branch: string; worktree?: string; sha?: string };
+
+/**
+ * The one resolution of "which branch and worktree is this session's lane": the live task claims and the
+ * ship records (once the claim is released) of the task ids the session names, found from the main checkout.
+ */
+export function laneRecords(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+): LaneRecord[] {
+  const common = git(root, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (common.status !== 0) return [];
+  const main = dirname(common.stdout);
+  const ids = sessionTaskIds(env, payload);
+  const records: LaneRecord[] = [];
   for (const id of ids) {
     try {
       const claim = JSON.parse(
         readFileSync(join(main, '.krn', 'task-claims', `${id}.json`), 'utf8'),
-      ) as { branch?: unknown };
+      ) as { branch?: unknown; worktree?: unknown };
       if (typeof claim.branch === 'string' && claim.branch !== '')
-        branches.push(claim.branch);
+        records.push({
+          branch: claim.branch,
+          ...(typeof claim.worktree === 'string' && claim.worktree !== ''
+            ? { worktree: claim.worktree }
+            : {}),
+        });
     } catch {
       /* No claim for this id. */
     }
   }
-  return branches;
+  const dir = join(main, shipRecordDir);
+  let names: string[] = [];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    /* No ship records. */
+  }
+  for (const name of names) {
+    try {
+      const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
+        branch?: unknown;
+        task?: unknown;
+        sha?: unknown;
+      };
+      if (
+        typeof record.branch === 'string' &&
+        record.branch !== '' &&
+        typeof record.task === 'string' &&
+        ids.includes(record.task)
+      )
+        records.push({
+          branch: record.branch,
+          ...(typeof record.sha === 'string' ? { sha: record.sha } : {}),
+        });
+    } catch {
+      /* An unreadable record proves nothing. */
+    }
+  }
+  return records;
+}
+
+/** The branches of the lanes a session started, claimed or shipped. */
+export function claimedBranches(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+): string[] {
+  return [...new Set(laneRecords(root, env, payload).map((r) => r.branch))];
+}
+
+/** The worktrees under `<main>/.krn/worktrees` that a lane subagent's transcript edited a file in. */
+function editedWorktrees(cwd: string, payload: unknown): string[] {
+  const path = (payload as { agent_transcript_path?: unknown } | null)
+    ?.agent_transcript_path;
+  if (typeof path !== 'string') return [];
+  const common = git(cwd, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (common.status !== 0) return [];
+  const marker = join(dirname(common.stdout), '.krn', 'worktrees') + sep;
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  try {
+    const names = [
+      ...readFileSync(path, 'utf8').matchAll(
+        new RegExp(
+          `"(?:file_path|notebook_path)"\\s*:\\s*"${escaped}([^/"]+)`,
+          'gu',
+        ),
+      ),
+    ].map((match) => match[1] as string);
+    return [...new Set(names)]
+      .filter((name) => existsSync(join(marker, name)))
+      .map((name) => join(marker, name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Every branch a session's report may name as its own. A lane subagent shares the lead's cwd, so its
+ * evidence is its claims, ship records and the worktrees its transcript edited; the cwd names count only
+ * when that evidence is empty, so a report is never judged against the lead's or another lane's branch.
+ */
+export function ownBranches(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+  cwdNames: readonly string[],
+  subagent: boolean,
+): string[] {
+  const evidence = [
+    ...claimedBranches(root, env, payload),
+    ...(subagent
+      ? editedWorktrees(root, payload).map((tree) => {
+          const at = git(tree, ['branch', '--show-current']).stdout.trim();
+          return at !== '' ? at : (tree.split(sep).at(-1) as string);
+        })
+      : []),
+  ];
+  const names =
+    subagent && evidence.length > 0 ? evidence : [...evidence, ...cwdNames];
+  return [...new Set(names.filter((name) => name !== ''))];
+}
+
+/**
+ * A shell that returned to the main checkout (the cwd resets after each Bash call) is judged at the worktree
+ * of the lane claim the session holds; a session already inside a lane worktree keeps its own.
+ */
+export function claimedWorktree(
+  start: string,
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+): string {
+  if (start.includes(`${sep}.krn${sep}worktrees${sep}`) || !existsSync(start))
+    return start;
+  const tree = laneRecords(start, env, payload).find(
+    (record) => record.worktree !== undefined && existsSync(record.worktree),
+  )?.worktree;
+  return tree ?? start;
 }
 
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
@@ -1294,12 +1425,13 @@ export function judgeStop(
   } | null;
   // A krn-lane subagent shares the lead's CLAUDE_PROJECT_DIR; its own checkout is the payload cwd.
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
-  const start = resolve(
+  const sessionDir = resolve(
     subagent
       ? laneWorktree(fields?.cwd as string, payload)
       : (env.CLAUDE_PROJECT_DIR ??
           (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
   );
+  const start = claimedWorktree(sessionDir, env, payload);
   const root = ownerCheckout(start);
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
@@ -1311,18 +1443,13 @@ export function judgeStop(
     : '';
   const foreign = foreignPr(
     fields?.last_assistant_message,
-    [
-      lane ?? '',
-      ...claimedBranches(root, env, payload),
-      current,
-      branch,
-    ].filter((name) => name !== ''),
+    ownBranches(root, env, payload, [lane ?? '', current, branch], subagent),
     (pr) => headOf(root, pr),
   );
   if (foreign !== undefined) return foreign;
   if (subagent && shippedMerge(root, fields?.last_assistant_message))
     return undefined;
-  if (recordedShip(root, env, branch)) return undefined;
+  if (recordedShip(root, env, branch, payload)) return undefined;
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
