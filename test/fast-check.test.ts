@@ -19,6 +19,7 @@ import {
   evidenceTests,
   fullyStaged,
   lintable,
+  parseArgs,
   removedFiles,
   restage,
   selectTests,
@@ -384,6 +385,51 @@ test('fast check does not cache a FAIL and a changed base misses', () => {
   assert.match(runFast(dir).stdout, /cached/u);
   git('commit', '--allow-empty', '-qm', 'moves the base');
   assert.doesNotMatch(runFast(dir).stdout, /cached/u);
+});
+
+test('an explicit --base that moved past the branch point diffs only the branch own changes', () => {
+  const { dir, git } = repoWithChange();
+  git('checkout', '-q', '--', 'a.ts');
+  git('checkout', '-q', '-b', 'topic');
+  writeFileSync(join(dir, 'mine.ts'), 'mine');
+  git('add', '.');
+  git('commit', '-qm', 'branch change');
+  git('checkout', '-q', 'main');
+  writeFileSync(join(dir, 'other.ts'), 'other');
+  git('add', '.');
+  git('commit', '-qm', 'main moved');
+  git('checkout', '-q', 'topic');
+  const parsed = parseArgs(dir, ['--base', 'main']);
+  assert.ok('base' in parsed && parsed.base !== undefined);
+  assert.deepEqual(changedFiles(dir, parsed.base), ['mine.ts']);
+  assert.deepEqual(removedFiles(dir, parsed.base), []);
+});
+
+test('a clean passing tree records its HEAD tree for ship and a dirty one records none', () => {
+  const { dir, git } = repoWithChange();
+  git('add', '.');
+  git('commit', '-qm', 'change');
+  stubTools(dir, 'exit 0');
+  // As in a real clone, tool and state directories are ignored.
+  writeFileSync(join(dir, '.git/info/exclude'), 'node_modules\n.krn\n');
+  const record = join(dir, '.krn/tmp/fast-pass-tree');
+  const rev = (what: string) =>
+    spawnSync('git', ['rev-parse', what], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).stdout.trim();
+  const fast = () =>
+    spawnSync(process.execPath, [script, '--base', rev('HEAD~1')], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: fastEnv,
+    });
+  const clean = fast();
+  assert.match(clean.stdout, /fast PASS/u, clean.stderr + clean.stdout);
+  assert.equal(readFileSync(record, 'utf8').trim(), rev('HEAD^{tree}'));
+  writeFileSync(join(dir, 'a.ts'), 'edited');
+  assert.match(fast().stdout, /fast PASS/u);
+  assert.equal(existsSync(record), false);
 });
 
 // Regression (t-aevqyv5): the harness sandbox binds /dev/null over protected paths in the

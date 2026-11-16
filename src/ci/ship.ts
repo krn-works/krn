@@ -8,6 +8,7 @@ import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
 import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
+import { readFastPass } from './fast-pass.ts';
 
 export const shipUsage =
   'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
@@ -108,6 +109,8 @@ export async function shipCommand(
     baseOf?: (cwd: string) => string;
     /** Whether `path` exists under `cwd`; the default reads the file system. */
     hasFile?: (cwd: string, path: string) => boolean;
+    /** The tree hash of the recorded clean fast PASS for `cwd`; the default reads the worktree's record. */
+    fastPass?: (cwd: string) => string | undefined;
     /** The remedy text when the worktree deploys on a push to `base` and krn.json does not acknowledge it, else undefined; the cli supplies it. */
     deployRefusal?: (cwd: string, base: string) => string | undefined;
     /** The runnable Proof commands of the task the title names, read from the worktree; the cli supplies it. */
@@ -321,7 +324,13 @@ main checkout: ${main}`;
   // The checks `npm run fast` scopes to the changed paths run before the push, so a rule the
   // repository already enforces fails here and not in a CI round. Biome rewrites files in
   // place; a rewrite that is not committed would never reach the push, so it refuses too.
-  if (hasFile(cwd, scopedCheck)) {
+  const tree = hasFile(cwd, scopedCheck)
+    ? runner('git', ['rev-parse', 'HEAD^{tree}'], cwd).stdout.trim()
+    : '';
+  const recorded = (runtime.fastPass ?? readFastPass)(cwd);
+  if (tree !== '' && recorded === tree && git(['status', '--porcelain']) === '')
+    process.stdout.write(`pre-push: fast PASS reused for tree ${tree}\n`);
+  else if (hasFile(cwd, scopedCheck)) {
     const scoped = runner(
       'node',
       [scopedCheck, '--base', `origin/${target}`],

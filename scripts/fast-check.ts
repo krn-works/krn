@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeFastPass } from '../src/ci/fast-pass.ts';
 import { check as checkBoundaries } from './boundaries.ts';
 import { withSlot } from './lib/slot-lock.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
@@ -381,6 +382,19 @@ export function toolBin(root: string): string | undefined {
   return existsSync(join(main, 'tsc')) ? main : undefined;
 }
 
+/** Records the PASS for HEAD's tree when the worktree is clean; a dirty tree (Biome rewrote files) records none. */
+function recordPass(root: string, passed: boolean): void {
+  const clean =
+    spawnSync('git', ['status', '--porcelain'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).stdout.trim() === '';
+  writeFastPass(
+    root,
+    passed && clean ? probe(root, ['rev-parse', 'HEAD^{tree}']) : undefined,
+  );
+}
+
 /** The main checkout shared by every worktree, else the root itself. */
 function sharedRoot(root: string): string {
   const common = probe(root, ['rev-parse', '--git-common-dir']);
@@ -458,7 +472,11 @@ export function parseArgs(
     ]);
     if (!resolved)
       return { error: `--base ${base} is not a commit in this repository` };
-    return { base: resolved };
+    // A base that moved past the branch point would diff other PRs' changes reversed: the
+    // diff starts at the merge base, as the default path does. Unrelated histories keep the commit.
+    return {
+      base: probe(root, ['merge-base', 'HEAD', resolved]) || resolved,
+    };
   }
   return {};
 }
@@ -518,6 +536,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     return 2;
   }
   if (existsSync(passMarker) && readFileSync(passMarker, 'utf8') === key) {
+    recordPass(root, true);
     process.stdout.write(
       `fast PASS (cached): ${changed.length} changed, ${removed.length} removed; tree unchanged since the last pass\n`,
     );
@@ -648,6 +667,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   rmSync(passMarker, { force: true });
   if (failed.length === 0)
     writeFileSync(passMarker, treeKey(root, parsed.base));
+  recordPass(root, failed.length === 0);
   process.stdout.write(
     `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
   );
