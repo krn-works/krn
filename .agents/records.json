@@ -8,8 +8,21 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["src/core/**", "scripts/boundaries.ts"],
+      "terms": [
+        "boundary",
+        "boundaries",
+        "layer",
+        "layers",
+        "import",
+        "imports",
+        "adapter",
+        "adapters",
+        "dependency",
+        "core",
+        "module",
+        "scripts"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -34,8 +47,19 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["src/cli/**", "bin/**"],
+      "terms": [
+        "cli",
+        "command",
+        "subcommand",
+        "usage",
+        "exit",
+        "64",
+        "retire",
+        "retired",
+        "dispatch",
+        "help"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -60,8 +84,24 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [".github/**", "src/ci/**", "src/deliver/**"],
+      "terms": [
+        "ci",
+        "integrate",
+        "integration",
+        "merge",
+        "pull",
+        "request",
+        "pr",
+        "ship",
+        "github",
+        "actions",
+        "aggregate",
+        "auto-merge",
+        "workflow",
+        "green",
+        "red"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -86,8 +126,21 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [".krn/**", ".gitignore"],
+      "terms": [
+        "scratch",
+        "notes",
+        "plans",
+        "logs",
+        "ignored",
+        "state",
+        "gitignore",
+        "root",
+        "untracked",
+        "temporary",
+        "tmp",
+        "runs"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -112,8 +165,26 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**", "src/task/**"],
+      "terms": [
+        "task",
+        "tasks",
+        "tracker",
+        "record",
+        "records",
+        "close",
+        "closed",
+        "claim",
+        "status",
+        "lane",
+        "worktree",
+        "ticket",
+        "krn",
+        "lead",
+        "edit",
+        "delete",
+        "json"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -139,7 +210,18 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "commit",
+        "commits",
+        "title",
+        "id",
+        "ticket",
+        "task",
+        "brief",
+        "worker",
+        "lane",
+        "message"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -165,7 +247,21 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "trailer",
+        "trailers",
+        "ticket",
+        "refs",
+        "commit",
+        "message",
+        "complete",
+        "completes",
+        "task",
+        "close",
+        "open",
+        "lane",
+        "footer"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -190,8 +286,27 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["test/**", "src/**/*.ts"],
+      "terms": [
+        "integration",
+        "forward",
+        "receiver",
+        "capture",
+        "fixture",
+        "verbatim",
+        "real",
+        "output",
+        "test",
+        "mock",
+        "stub",
+        "downstream",
+        "api",
+        "github",
+        "cli",
+        "consumer",
+        "eval",
+        "fault"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -218,7 +333,20 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "context",
+        "lead",
+        "subagent",
+        "delegate",
+        "reading",
+        "pointer",
+        "handoff",
+        "window",
+        "budget",
+        "gauge",
+        "parallel",
+        "background"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -243,8 +371,22 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["test/**"],
+      "terms": [
+        "regression",
+        "defect",
+        "bug",
+        "fix",
+        "fixed",
+        "fixes",
+        "reproduce",
+        "reproduces",
+        "lowest",
+        "layer",
+        "unit",
+        "test",
+        "failing"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -270,8 +412,25 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["src/**/*.ts", "test/**"],
+      "terms": [
+        "name",
+        "names",
+        "naming",
+        "file",
+        "function",
+        "test",
+        "role",
+        "purpose",
+        "phase",
+        "slice",
+        "ticket",
+        "round",
+        "date",
+        "version",
+        "identifier",
+        "rename"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -297,7 +456,24 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "conventional",
+        "commit",
+        "commits",
+        "title",
+        "titles",
+        "semantic",
+        "squash",
+        "subject",
+        "scope",
+        "type",
+        "feat",
+        "fix",
+        "chore",
+        "refactor",
+        "pull",
+        "request"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -322,8 +498,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.json", "**/*.mjs"],
+      "terms": [
+        "biome",
+        "lint",
+        "linter",
+        "format",
+        "formatter",
+        "formatting",
+        "style",
+        "fast",
+        "typecheck",
+        "tsc",
+        "json",
+        "generated",
+        "warnings",
+        "write"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -348,8 +539,22 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [".krn/**"],
+      "terms": [
+        "worktree",
+        "worktrees",
+        "runs",
+        "tmp",
+        "state",
+        "directory",
+        "ignored",
+        "branch",
+        "lane",
+        "owner",
+        "path",
+        "paths",
+        "scratch"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -374,8 +579,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["src/**/*.ts"],
+      "terms": [
+        "module",
+        "modules",
+        "interface",
+        "interfaces",
+        "deep",
+        "shallow",
+        "seam",
+        "seams",
+        "refactor",
+        "split",
+        "extract",
+        "abstraction",
+        "design",
+        "architecture"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -401,7 +621,21 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "parallel",
+        "lane",
+        "lanes",
+        "worktree",
+        "worktrees",
+        "writer",
+        "writers",
+        "concurrent",
+        "isolate",
+        "isolated",
+        "integration",
+        "conflict",
+        "merge"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -428,7 +662,27 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "pipe",
+        "piped",
+        "pipes",
+        "filter",
+        "grep",
+        "tail",
+        "head",
+        "test",
+        "tests",
+        "typecheck",
+        "lint",
+        "check",
+        "checks",
+        "run",
+        "exit",
+        "code",
+        "log",
+        "redirect",
+        "output"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -454,8 +708,20 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["scripts/lib/shard-weights.mjs", "test/**"],
+      "terms": [
+        "shard",
+        "shards",
+        "weight",
+        "weights",
+        "test",
+        "tests",
+        "ci",
+        "balance",
+        "planner",
+        "new",
+        "file"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -480,8 +746,21 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["test/**"],
+      "terms": [
+        "node",
+        "test",
+        "tests",
+        "assert",
+        "runner",
+        "mirror",
+        "mirroring",
+        "layout",
+        "src",
+        "jest",
+        "vitest",
+        "mocha"
+      ]
     },
     "enforcement": {
       "kind": "advisory"

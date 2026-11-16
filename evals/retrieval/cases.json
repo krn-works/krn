@@ -1,0 +1,348 @@
+{
+  "asOf": "2026-11-16",
+  "cases": [
+    {
+      "id": "00d2cc5",
+      "source": "00d2cc5094c0",
+      "audience": "lead",
+      "task": "task records pass every task-quality rule in the Lint job",
+      "files": [
+        "package.json",
+        "scripts/task-quality.ts",
+        "src/brain/task-quality.ts",
+        "test/cli/task-quality.test.ts"
+      ],
+      "violated": [
+        "s-task-states-proof",
+        "s-task-measurable-outcome",
+        "s-task-named-proof",
+        "s-task-named-files"
+      ]
+    },
+    {
+      "id": "40436b3",
+      "source": "40436b39cd89",
+      "audience": "lead",
+      "task": "t-zdcrewe states a measurable outcome",
+      "files": [],
+      "violated": ["s-task-measurable-outcome"]
+    },
+    {
+      "id": "db68510",
+      "source": "db68510b137e",
+      "audience": "worker",
+      "task": "lane run ships a Refs-trailer commit for a task that stays open",
+      "files": ["src/cli/lane-run.ts", "test/cli/lane-run.test.ts"],
+      "violated": ["r-trailer", "s-ticket-trailer"]
+    },
+    {
+      "id": "062a4a9",
+      "source": "062a4a95a889",
+      "audience": "worker",
+      "task": "lane run finds a Ticket line outside the git trailer block",
+      "files": ["src/cli/lane-run.ts", "test/cli/lane-run.test.ts"],
+      "violated": ["r-trailer", "s-ticket-trailer"]
+    },
+    {
+      "id": "7d68d09",
+      "source": "7d68d09174b4",
+      "audience": "worker",
+      "task": "refuse a PR commit whose Ticket trailer differs from the PR task",
+      "files": [],
+      "violated": ["r-trailer"]
+    },
+    {
+      "id": "b4e4546",
+      "source": "b4e45461a96e",
+      "audience": "worker",
+      "task": "a lane closes its own task in its own PR and the brief says so",
+      "files": [
+        "AGENTS.md",
+        "spec/context-budget.json",
+        "spec/rules.json",
+        "src/cli/lane-brief.ts",
+        "src/cli/lane.ts",
+        "test/rules/lane-close-rule.test.ts"
+      ],
+      "violated": ["r-tracker-owner"]
+    },
+    {
+      "id": "8ae9e50",
+      "source": "8ae9e50fda00",
+      "audience": "worker",
+      "task": "write task records only in the lane worktree",
+      "files": [
+        "src/task/claims.ts",
+        "src/task/cli.ts",
+        "src/task/store.ts",
+        "test/task/claims.test.ts",
+        "test/task/lane-records.test.ts"
+      ],
+      "violated": ["r-tracker-owner"]
+    },
+    {
+      "id": "ac3bf2b",
+      "source": "ac3bf2b72913",
+      "audience": "worker",
+      "task": "Refuse piped test, typecheck and lint runs with a Bash hook",
+      "files": [
+        ".claude/settings.json",
+        "scripts/claude/piped-check.ts",
+        "scripts/lib/shard-weights.mjs",
+        "test/claude/piped-check-hook.test.ts",
+        "test/rules/context-budget.test.ts"
+      ],
+      "violated": ["r-piped-checks"]
+    },
+    {
+      "id": "e3d0ddd",
+      "source": "e3d0ddd50214",
+      "audience": "worker",
+      "task": "weigh unmeasured test files by size instead of demanding a weight",
+      "files": [
+        "scripts/lib/test-shards.mjs",
+        "test/rules/shard-weight-coverage.test.mjs"
+      ],
+      "violated": ["r-shard-weights"]
+    },
+    {
+      "id": "a943690",
+      "source": "a943690e73b2",
+      "audience": "worker",
+      "task": "re-stage Biome fixes so commits keep them",
+      "files": ["scripts/fast-check.ts", "test/fast-check.test.ts"],
+      "violated": ["r-biome-clean"]
+    },
+    {
+      "id": "d8d5e9e",
+      "source": "d8d5e9e7b3c2",
+      "audience": "worker",
+      "task": "Fail the Biome check on warnings after clearing the existing ones",
+      "files": [
+        "biome.json",
+        "package.json",
+        "scripts/fast-check.ts",
+        "scripts/lib/shard-weights.mjs",
+        "test/claude/memory-index-budget.test.ts",
+        "test/cli.test.ts"
+      ],
+      "violated": ["r-biome-clean"]
+    },
+    {
+      "id": "f61c459",
+      "source": "f61c4592b75e",
+      "audience": "worker",
+      "task": "no empty blocks in src and scripts, guarded by Biome",
+      "files": [
+        "biome.json",
+        "scripts/weak-tests.mjs",
+        "src/cli/lane-run/drain.ts",
+        "src/hook/unpushed-delete.ts",
+        "src/successor/probe.ts",
+        "src/successor/retire.ts"
+      ],
+      "violated": ["s-node-no-empty-catch"]
+    },
+    {
+      "id": "c9f5c30",
+      "source": "c9f5c3025f0b",
+      "audience": "worker",
+      "task": "external JSON parses through zod and no empty catch remains",
+      "files": [
+        "src/cli/doctor-host.ts",
+        "src/deliver/transport.ts",
+        "src/hook/stop.ts",
+        "src/repo/contract.ts",
+        "test/json-boundaries.test.ts"
+      ],
+      "violated": ["s-node-no-empty-catch", "s-ts-parse-at-edge"]
+    },
+    {
+      "id": "2883298",
+      "source": "2883298e26cf",
+      "audience": "worker",
+      "task": "restore conventional commit titles and check them in CI",
+      "files": [
+        ".github/workflows/ci.yml",
+        "scripts/commit-title.ts",
+        "scripts/lib/shard-weights.mjs",
+        "spec/context-budget.json",
+        "test/rules/commit-title.test.ts"
+      ],
+      "violated": ["r-conventional-commits", "s-semantic-commits"]
+    },
+    {
+      "id": "ae78aca",
+      "source": "ae78aca31439",
+      "audience": "worker",
+      "task": "a title scope may hold underscores and dots and an npm install writes no lockfile",
+      "files": [
+        "src/ci/commit-title.ts",
+        "src/repo/contract.ts",
+        "test/repo/contract.test.ts",
+        "test/rules/commit-title.test.ts"
+      ],
+      "violated": ["r-conventional-commits"]
+    },
+    {
+      "id": "2e76314",
+      "source": "2e7631455379",
+      "audience": "worker",
+      "task": "layer map matches the code and gh is called only from its owners",
+      "files": [
+        "scripts/boundaries.ts",
+        "spec/receivers.json",
+        "src/adopt/verify.ts",
+        "src/outcome/ledger.ts",
+        "src/outcome/window.ts",
+        "src/repo/gh.ts"
+      ],
+      "violated": ["r-core-imports"]
+    },
+    {
+      "id": "ae7e8ab",
+      "source": "ae7e8ab21ab7",
+      "audience": "worker",
+      "task": "drop the duplicate memory-budget hook and 43 unimported exports",
+      "files": [
+        ".claude/settings.json",
+        "scripts/architecture/depth.ts",
+        "src/brain/packet.ts",
+        "src/brain/worker-packet.ts",
+        "src/core/index.ts",
+        "src/deliver/gate-wait.ts"
+      ],
+      "violated": ["s-ts-narrow-exports"]
+    },
+    {
+      "id": "1680327",
+      "source": "168032797f0c",
+      "audience": "worker",
+      "task": "the audit measures fully adopted rows, so agent-state and finish-gate pass",
+      "files": [
+        "evals/standards-audit.md",
+        "scripts/standards-audit.ts",
+        "test/scripts/standards-audit.test.ts"
+      ],
+      "violated": ["s-agent-state", "s-finish-gate"]
+    },
+    {
+      "id": "e2bbd70",
+      "source": "e2bbd704722d",
+      "audience": "worker",
+      "task": "skip git-ignored .krn/tmp scratch in the scope check",
+      "files": [],
+      "violated": ["r-agent-state"]
+    },
+    {
+      "id": "c9514e1",
+      "source": "c9514e1f5a80",
+      "audience": "worker",
+      "task": "remove krn review and src/flow, retire the command with exit 64",
+      "files": [
+        "README.md",
+        "docs/adr/0014-operator-decisions-2026-10-23.md",
+        "docs/program/hardening-checklist.md",
+        "docs/program/lead-rules.md",
+        "docs/program/repository-workflow.md",
+        "scripts/lib/shard-weights.json"
+      ],
+      "violated": ["r-unknown-command"]
+    },
+    {
+      "id": "bd34182",
+      "source": "bd34182c1dbe",
+      "audience": "worker",
+      "task": "invalid option values exit 64; bound task id length",
+      "files": [
+        "src/task/cli.ts",
+        "src/task/record.ts",
+        "test/task/ergonomics.test.ts"
+      ],
+      "violated": ["s-exit-codes"]
+    },
+    {
+      "id": "d5fe43d",
+      "source": "d5fe43d0ef7a",
+      "audience": "worker",
+      "task": "resolve tools from the main checkout or exit 64 with the fix",
+      "files": ["scripts/fast-check.ts", "test/fast-check.test.ts"],
+      "violated": ["s-exit-codes"]
+    },
+    {
+      "id": "cd96ea2",
+      "source": "cd96ea25f8be",
+      "audience": "worker",
+      "task": "fault-inject interrupted writes, fix stale worker temp blocking atomic",
+      "files": ["test/support/kill-at.ts", "test/task/receiver-faults.test.ts"],
+      "violated": ["r-receiver-tests"]
+    },
+    {
+      "id": "fb20547",
+      "source": "fb2054751055",
+      "audience": "worker",
+      "task": "match eval session accounting to verbatim Codex 0.167.0 captures",
+      "files": ["scripts/lib/shard-weights.mjs", "test/fixtures/README.md"],
+      "violated": ["r-receiver-tests"]
+    },
+    {
+      "id": "4642b72",
+      "source": "4642b72a4d83",
+      "audience": "worker",
+      "task": "py rows drain again on the real receiver",
+      "files": [
+        "scripts/outside-acceptance.ts",
+        "test/scripts/outside-acceptance.test.ts"
+      ],
+      "violated": ["r-receiver-tests"]
+    },
+    {
+      "id": "0aa05b8",
+      "source": "0aa05b869850",
+      "audience": "worker",
+      "task": "adopt ignores what the contract install writes into a worktree",
+      "files": ["src/adopt/adopt.ts", "test/adopt/adopt.test.ts"],
+      "violated": ["s-no-dependency-dirs-tracked"]
+    },
+    {
+      "id": "f4dd015",
+      "source": "f4dd0159334c",
+      "audience": "worker",
+      "task": "the base run reuses a node_modules the base already tracks",
+      "files": [
+        "test/claude/worker-stop.test.ts",
+        "test/test-suite-runner.test.mjs"
+      ],
+      "violated": ["s-no-dependency-dirs-tracked"]
+    },
+    {
+      "id": "d8399da",
+      "source": "d8399dadb8db",
+      "audience": "worker",
+      "task": "the suite is green in a linked worktree: git and plan state stop at the test temp dir",
+      "files": [
+        "scripts/claude/plan-sample.ts",
+        "scripts/test-suite.mjs",
+        "test/claude/plan-sample.test.ts",
+        "test/test-suite-runner.test.mjs"
+      ],
+      "violated": ["s-clean-checkout-tests"]
+    },
+    {
+      "id": "7e9922e",
+      "source": "7e9922e7ebab",
+      "audience": "worker",
+      "task": "stop tests own their package.json so a host tmp parent cannot break them",
+      "files": ["test/hook/stop.test.ts"],
+      "violated": ["s-clean-checkout-tests"]
+    },
+    {
+      "id": "6cd22c4",
+      "source": "6cd22c452154",
+      "audience": "worker",
+      "task": "agents-render links the node_modules Node resolves, so it passes in a lane worktree",
+      "files": ["test/agents-render.test.ts"],
+      "violated": ["s-clean-checkout-tests"]
+    }
+  ]
+}

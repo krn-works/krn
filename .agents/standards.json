@@ -12,7 +12,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "finish",
+        "gate",
+        "worker",
+        "stop",
+        "lets",
+        "unrun",
+        "test",
+        "turns",
+        "broken",
+        "tree",
+        "delivered",
+        "adopted",
+        "repositories",
+        "refuses"
+      ]
     },
     "enforcement": {
       "kind": "command",

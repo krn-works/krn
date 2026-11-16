@@ -12,7 +12,20 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "tests",
+        "tracked",
+        "untested",
+        "executable",
+        "statement",
+        "what",
+        "change",
+        "guess",
+        "repository",
+        "tracks",
+        "automated",
+        "cover"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -42,8 +55,21 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["krn.json", ".github/workflows/**"],
+      "terms": [
+        "test",
+        "command",
+        "agents",
+        "run",
+        "what",
+        "missing",
+        "makes",
+        "silent",
+        "repository",
+        "declares",
+        "tests",
+        "placeholder"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -74,7 +100,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "test",
+        "exit",
+        "code",
+        "run",
+        "whose",
+        "failure",
+        "turns",
+        "red",
+        "tree",
+        "delivered",
+        "command",
+        "exits",
+        "fails",
+        "leading"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -142,8 +183,29 @@
     "applies": {
       "stacks": ["node", "go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "lockfile",
+        "committed",
+        "without",
+        "green",
+        "run",
+        "machine",
+        "says",
+        "nothing",
+        "next",
+        "dependency",
+        "stack",
+        "tracked",
+        "checkout",
+        "installs"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -173,7 +235,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "no",
+        "secrets",
+        "tracked",
+        "secret",
+        "git",
+        "history",
+        "leaks",
+        "clone",
+        "stays",
+        "there",
+        "deleted",
+        "credential",
+        "holds",
+        "private"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -203,8 +280,29 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "no",
+        "dependency",
+        "dirs",
+        "tracked",
+        "install",
+        "output",
+        "bloats",
+        "clone",
+        "drifts",
+        "lockfile",
+        "should",
+        "come",
+        "installed",
+        "dependencies"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -234,8 +332,29 @@
     "applies": {
       "stacks": ["node", "python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "gitignore",
+        "deps",
+        "unignored",
+        "install",
+        "directory",
+        "git",
+        "add",
+        "away",
+        "committed",
+        "ignore",
+        "rules",
+        "cover",
+        "dependency",
+        "build"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -330,7 +449,20 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "readme",
+        "test",
+        "command",
+        "newcomer",
+        "agent",
+        "cannot",
+        "find",
+        "ships",
+        "untested",
+        "changes",
+        "states",
+        "tests"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -365,7 +497,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "no",
+        "conflict",
+        "markers",
+        "committed",
+        "breaks",
+        "build",
+        "prose",
+        "data",
+        "silently",
+        "ships",
+        "both",
+        "sides",
+        "tracked",
+        "holds"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -398,7 +545,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "one",
+        "instruction",
+        "file",
+        "two",
+        "files",
+        "drift",
+        "apart",
+        "follow",
+        "whichever",
+        "read",
+        "first",
+        "repository",
+        "keeps",
+        "agents"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -429,7 +591,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "clean",
+        "checkout",
+        "tests",
+        "reads",
+        "surrounding",
+        "green",
+        "machine",
+        "red",
+        "fresh",
+        "worktree",
+        "proves",
+        "nothing",
+        "change",
+        "suite"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -471,7 +648,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "regression",
+        "lowest",
+        "layer",
+        "without",
+        "lets",
+        "return",
+        "unseen",
+        "cheapest",
+        "reproduces",
+        "fixed",
+        "defect",
+        "commit",
+        "commits",
+        "touches"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -562,7 +754,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "role",
+        "names",
+        "lose",
+        "meaning",
+        "soon",
+        "ends",
+        "files",
+        "functions",
+        "tests",
+        "named",
+        "purpose",
+        "phase",
+        "ticket",
+        "round"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -593,7 +800,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "exit",
+        "codes",
+        "callers",
+        "agents",
+        "branch",
+        "unstated",
+        "makes",
+        "failure",
+        "look",
+        "like",
+        "success",
+        "wrong",
+        "error",
+        "stated"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -624,7 +846,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "secrets",
+        "redacted",
+        "secret",
+        "written",
+        "log",
+        "record",
+        "leaks",
+        "everyone",
+        "who",
+        "can",
+        "read",
+        "later",
+        "values",
+        "credentials"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -655,7 +892,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "no",
+        "shared",
+        "stash",
+        "worktree",
+        "repository",
+        "shares",
+        "can",
+        "take",
+        "another",
+        "lane",
+        "edits",
+        "change",
+        "stack",
+        "aside"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -685,8 +937,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "records",
+        "work",
+        "travels",
+        "repository",
+        "delivery",
+        "stays",
+        "traceable",
+        "defined",
+        "status",
+        "lives",
+        "valid",
+        "tasks",
+        "changes"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -715,8 +982,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["krn.json", ".github/workflows/**"],
+      "terms": [
+        "repo",
+        "contract",
+        "lane",
+        "without",
+        "cannot",
+        "prove",
+        "change",
+        "refuse",
+        "red",
+        "tree",
+        "repository",
+        "names",
+        "command",
+        "lanes"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -746,7 +1028,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "agent",
+        "state",
+        "local",
+        "stay",
+        "out",
+        "project",
+        "inputs",
+        "notes",
+        "plans",
+        "scratch",
+        "files",
+        "ignored",
+        "directory",
+        "tracked"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -779,7 +1076,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "finish",
+        "gate",
+        "lets",
+        "unrun",
+        "test",
+        "turns",
+        "broken",
+        "tree",
+        "delivered",
+        "session",
+        "cannot",
+        "tests",
+        "related",
+        "change"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -809,7 +1121,22 @@
       "stacks": [],
       "needs": ["tracker"],
       "paths": [],
-      "terms": []
+      "terms": [
+        "ticket",
+        "trailer",
+        "delivery",
+        "stays",
+        "traceable",
+        "branch",
+        "names",
+        "close",
+        "merges",
+        "commit",
+        "completes",
+        "managed",
+        "leaves",
+        "carries"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -841,8 +1168,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "composer",
+        "lock",
+        "without",
+        "checkout",
+        "resolves",
+        "wordpress",
+        "plugins",
+        "libraries",
+        "afresh",
+        "green",
+        "run",
+        "says",
+        "nothing"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -882,8 +1224,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "composer",
+        "scripts",
+        "commands",
+        "repository",
+        "names",
+        "without",
+        "checked",
+        "guesswork",
+        "project",
+        "declares",
+        "agents",
+        "named",
+        "checks"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -923,8 +1280,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "no",
+        "raw",
+        "request",
+        "output",
+        "unescaped",
+        "data",
+        "template",
+        "cross",
+        "site",
+        "scripting",
+        "hole",
+        "page",
+        "renders"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -964,8 +1336,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "no",
+        "tracked",
+        "salts",
+        "git",
+        "history",
+        "lets",
+        "anyone",
+        "clone",
+        "forge",
+        "login",
+        "cookies",
+        "site",
+        "defines"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1005,8 +1392,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "no",
+        "error",
+        "suppression",
+        "suppressed",
+        "warning",
+        "hides",
+        "failure",
+        "tells",
+        "next",
+        "reader",
+        "what",
+        "broke",
+        "goes"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1035,8 +1437,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "no",
+        "empty",
+        "catch",
+        "swallows",
+        "failure",
+        "without",
+        "trace",
+        "defect",
+        "shows",
+        "later",
+        "far",
+        "cause",
+        "block"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1065,8 +1482,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "no",
+        "eval",
+        "evaluating",
+        "string",
+        "runs",
+        "whatever",
+        "reaches",
+        "tool",
+        "can",
+        "read",
+        "type",
+        "check",
+        "test"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1095,8 +1527,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "autoload",
+        "declared",
+        "without",
+        "map",
+        "class",
+        "needs",
+        "manual",
+        "drifts",
+        "file",
+        "layout",
+        "breaks",
+        "first",
+        "time"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1125,8 +1572,23 @@
     "applies": {
       "stacks": ["php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "php",
+        "composer",
+        "no",
+        "wildcard",
+        "branch",
+        "requirement",
+        "resolves",
+        "different",
+        "install",
+        "cannot",
+        "reproduced",
+        "requires",
+        "package",
+        "carries"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1155,8 +1617,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "escape",
+        "translations",
+        "translation",
+        "file",
+        "data",
+        "anyone",
+        "can",
+        "supply",
+        "injection",
+        "point",
+        "output",
+        "boundary",
+        "wordpress"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1185,8 +1662,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "nonce",
+        "on",
+        "request",
+        "state",
+        "changing",
+        "without",
+        "can",
+        "forged",
+        "page",
+        "logged",
+        "user",
+        "visits",
+        "wordpress"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1215,8 +1707,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "prepared",
+        "queries",
+        "assembled",
+        "variables",
+        "injectable",
+        "binds",
+        "values",
+        "input",
+        "cannot",
+        "change",
+        "wordpress",
+        "database",
+        "query"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1245,8 +1752,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "rest",
+        "permission",
+        "callback",
+        "without",
+        "open",
+        "visitor",
+        "warns",
+        "debug",
+        "logs",
+        "wordpress",
+        "register",
+        "route",
+        "declares"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1275,8 +1797,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "capability",
+        "with",
+        "nonce",
+        "proves",
+        "request",
+        "came",
+        "form",
+        "may",
+        "perform",
+        "action",
+        "without",
+        "subscriber",
+        "call"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1305,8 +1842,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "sanitize",
+        "before",
+        "store",
+        "stored",
+        "input",
+        "becomes",
+        "xss",
+        "corrupt",
+        "settings",
+        "moment",
+        "another",
+        "screen",
+        "prints"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1335,8 +1887,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.php"],
+      "terms": [
+        "wp",
+        "text",
+        "domain",
+        "literal",
+        "tools",
+        "read",
+        "source",
+        "variable",
+        "second",
+        "spelling",
+        "leaves",
+        "strings",
+        "untranslatable",
+        "wrong"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1365,8 +1932,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [],
-      "terms": []
+      "paths": ["readme.txt", "**/*.php"],
+      "terms": [
+        "wp",
+        "release",
+        "version",
+        "matches",
+        "readme",
+        "org",
+        "serves",
+        "trails",
+        "site",
+        "updates",
+        "described",
+        "wordpress",
+        "plugin",
+        "ships"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1396,7 +1978,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "semantic",
+        "commits",
+        "typed",
+        "subject",
+        "lets",
+        "history",
+        "changelogs",
+        "review",
+        "tooling",
+        "classify",
+        "change",
+        "without",
+        "reading",
+        "diff"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1437,8 +2034,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [".github/workflows/**", "**/*.sh"],
+      "terms": [
+        "noninteractive",
+        "remote",
+        "commands",
+        "agent",
+        "job",
+        "answer",
+        "password",
+        "host",
+        "confirmation",
+        "prompting",
+        "command",
+        "hangs",
+        "tracked",
+        "shell"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1479,7 +2091,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "no",
+        "whitespace",
+        "errors",
+        "noise",
+        "hides",
+        "real",
+        "change",
+        "review",
+        "produces",
+        "diffs",
+        "fail",
+        "next",
+        "editor",
+        "uncommitted"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1513,8 +2140,28 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "web/app/themes/**"],
-      "terms": []
+      "paths": [
+        "**/*.php",
+        "**/acf-json/*.json",
+        "web/app/themes/**",
+        "acf-json/**"
+      ],
+      "terms": [
+        "skill",
+        "acf",
+        "component",
+        "keys",
+        "identity",
+        "database",
+        "parse",
+        "dropped",
+        "duplicated",
+        "next",
+        "sync",
+        "field",
+        "group",
+        "parses"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1543,8 +2190,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress", "frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "skill",
+        "cube",
+        "css",
+        "boosts",
+        "specificity",
+        "block",
+        "class",
+        "uncommented",
+        "escape",
+        "hatch",
+        "breaks",
+        "cascade",
+        "other",
+        "layers"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1631,8 +2293,29 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [".github/workflows/*.yml", "deploy/**", "composer.json"],
-      "terms": []
+      "paths": [
+        ".github/workflows/*.yml",
+        "deploy/**",
+        "composer.json",
+        ".github/workflows/**",
+        "**/*.sh"
+      ],
+      "terms": [
+        "skill",
+        "plesk",
+        "deploy",
+        "checked",
+        "out",
+        "forced",
+        "command",
+        "receiver",
+        "reached",
+        "verified",
+        "unpinned",
+        "unverified",
+        "ships",
+        "whatever"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1662,7 +2345,22 @@
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["mise.toml", ".ddev/**", "**/*.php", "vite.config.*"],
-      "terms": []
+      "terms": [
+        "skill",
+        "wp",
+        "runtime",
+        "local",
+        "keeps",
+        "secrets",
+        "installs",
+        "outside",
+        "git",
+        "puts",
+        "site",
+        "credentials",
+        "clone",
+        "modules"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1694,7 +2392,22 @@
       "stacks": [],
       "needs": [],
       "paths": [],
-      "terms": []
+      "terms": [
+        "no",
+        "private",
+        "key",
+        "tracked",
+        "committed",
+        "once",
+        "readable",
+        "clone",
+        "history",
+        "ever",
+        "held",
+        "holds",
+        "block",
+        "starts"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1723,8 +2436,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "ts",
+        "no",
+        "any",
+        "switches",
+        "compiler",
+        "off",
+        "touches",
+        "boundary",
+        "proven",
+        "longer",
+        "typescript",
+        "source",
+        "types",
+        "value"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1755,8 +2483,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "ts",
+        "no",
+        "suppressions",
+        "keeps",
+        "hiding",
+        "code",
+        "fixed",
+        "changed",
+        "fails",
+        "once",
+        "stops",
+        "needed",
+        "typescript",
+        "source"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1785,8 +2528,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "ts",
+        "no",
+        "star",
+        "reexport",
+        "widens",
+        "interface",
+        "everything",
+        "target",
+        "ever",
+        "exports",
+        "hides",
+        "owns",
+        "decision",
+        "typescript"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1815,8 +2573,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "no",
+        "deep",
+        "relative",
+        "imports",
+        "long",
+        "ties",
+        "module",
+        "layout",
+        "whole",
+        "tree",
+        "moving",
+        "folder",
+        "breaks",
+        "unrelated"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1847,8 +2620,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "node",
+        "no",
+        "empty",
+        "catch",
+        "swallowed",
+        "turns",
+        "failure",
+        "silent",
+        "wrong",
+        "result",
+        "surfaces",
+        "far",
+        "cause",
+        "javascript"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1877,8 +2665,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "ts",
+        "no",
+        "floating",
+        "promises",
+        "promise",
+        "nobody",
+        "awaits",
+        "loses",
+        "rejection",
+        "ordering",
+        "failure",
+        "surfaces",
+        "later",
+        "unhandled"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1910,8 +2713,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "no",
+        "bare",
+        "except",
+        "catches",
+        "keyboardinterrupt",
+        "systemexit",
+        "hides",
+        "programming",
+        "errors",
+        "behind",
+        "handler",
+        "python",
+        "exception"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1940,8 +2758,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "no",
+        "mutable",
+        "default",
+        "built",
+        "once",
+        "shared",
+        "call",
+        "state",
+        "leaks",
+        "callers",
+        "python",
+        "function",
+        "signatures"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -1970,8 +2803,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "no",
+        "unsafe",
+        "execution",
+        "input",
+        "reaches",
+        "these",
+        "calls",
+        "becomes",
+        "argument",
+        "list",
+        "forms",
+        "subprocess",
+        "data"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2000,8 +2848,23 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
+      "terms": [
+        "node",
+        "no",
+        "dynamic",
+        "code",
+        "input",
+        "reaches",
+        "constructor",
+        "becomes",
+        "execution",
+        "process",
+        "credentials",
+        "javascript",
+        "typescript",
+        "outside"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2030,8 +2893,29 @@
     "applies": {
       "stacks": ["node", "php"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "no",
+        "wildcard",
+        "dependencies",
+        "unbounded",
+        "installs",
+        "whatever",
+        "newest",
+        "build",
+        "passed",
+        "yesterday",
+        "can",
+        "break",
+        "release",
+        "nobody"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2060,8 +2944,23 @@
     "applies": {
       "stacks": ["node", "python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs", "**/*.py"],
+      "terms": [
+        "release",
+        "notes",
+        "consumers",
+        "decide",
+        "whether",
+        "upgrade",
+        "what",
+        "changed",
+        "version",
+        "number",
+        "alone",
+        "say",
+        "versioned",
+        "package"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2090,8 +2989,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "states",
+        "proof",
+        "without",
+        "stated",
+        "cannot",
+        "closed",
+        "evidence",
+        "closes",
+        "opinion",
+        "record",
+        "means",
+        "names",
+        "outcome"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2120,8 +3034,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "measurable",
+        "outcome",
+        "nobody",
+        "can",
+        "measure",
+        "cannot",
+        "shown",
+        "closes",
+        "opinion",
+        "states",
+        "names",
+        "count",
+        "named"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2150,8 +3079,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "named",
+        "proof",
+        "without",
+        "closer",
+        "chooses",
+        "fact",
+        "names",
+        "remedy",
+        "evidence",
+        "shows",
+        "carries",
+        "verify",
+        "command"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2180,8 +3124,22 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "named",
+        "files",
+        "cannot",
+        "sliced",
+        "scoped",
+        "checked",
+        "overlap",
+        "parallel",
+        "lanes",
+        "names",
+        "touches",
+        "scope"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2210,8 +3168,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "one",
+        "pr",
+        "per",
+        "keeps",
+        "delivery",
+        "reviewable",
+        "revertable",
+        "traceable",
+        "single",
+        "declares",
+        "request",
+        "outcome",
+        "lines"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2240,8 +3213,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "declared",
+        "dependencies",
+        "undeclared",
+        "lets",
+        "run",
+        "prerequisite",
+        "dangling",
+        "blocks",
+        "forever",
+        "dependency",
+        "names",
+        "blocked",
+        "depends"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2270,8 +3258,23 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
-      "terms": []
+      "paths": ["tasks/**"],
+      "terms": [
+        "task",
+        "close",
+        "evidence",
+        "without",
+        "cannot",
+        "audited",
+        "means",
+        "whatever",
+        "closer",
+        "says",
+        "closed",
+        "carries",
+        "characters",
+        "naming"
+      ]
     },
     "enforcement": {
       "kind": "krn",
@@ -2300,8 +3303,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "gofmt",
+        "unformatted",
+        "file",
+        "turns",
+        "next",
+        "author",
+        "diff",
+        "noise",
+        "hides",
+        "real",
+        "change",
+        "tracked",
+        "files"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2333,8 +3351,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "vet",
+        "run",
+        "finds",
+        "misuse",
+        "compiler",
+        "accepts",
+        "printf",
+        "verbs",
+        "copied",
+        "locks",
+        "lost",
+        "cancel",
+        "funcs"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2366,8 +3399,29 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "go",
+        "sum",
+        "committed",
+        "without",
+        "nothing",
+        "verifies",
+        "downloaded",
+        "contents",
+        "fresh",
+        "checkout",
+        "cannot",
+        "build",
+        "reproducibly",
+        "module"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2399,8 +3453,22 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "wrapped",
+        "errors",
+        "formatting",
+        "error",
+        "text",
+        "drops",
+        "identity",
+        "callers",
+        "cannot",
+        "use",
+        "passed",
+        "formatted"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2432,8 +3500,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "no",
+        "library",
+        "panic",
+        "crashes",
+        "caller",
+        "process",
+        "error",
+        "lets",
+        "decide",
+        "returns",
+        "errors",
+        "instead",
+        "calling"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2465,8 +3548,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "tests",
+        "beside",
+        "code",
+        "without",
+        "executable",
+        "statement",
+        "behavior",
+        "skips",
+        "silently",
+        "package",
+        "directory",
+        "declares",
+        "functions"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2498,8 +3596,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "context",
+        "first",
+        "convention",
+        "lets",
+        "reader",
+        "linter",
+        "find",
+        "cancellation",
+        "once",
+        "middle",
+        "easily",
+        "passed",
+        "wrongly"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2531,8 +3644,23 @@
     "applies": {
       "stacks": ["go"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.go", "go.mod"],
+      "terms": [
+        "go",
+        "pinned",
+        "toolchain",
+        "makes",
+        "commit",
+        "build",
+        "monday",
+        "fail",
+        "tuesday",
+        "language",
+        "version",
+        "workflow",
+        "floating",
+        "stable"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2564,8 +3692,29 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "py",
+        "pinned",
+        "dependencies",
+        "unpinned",
+        "installs",
+        "whatever",
+        "newest",
+        "today",
+        "green",
+        "run",
+        "says",
+        "nothing",
+        "tomorrow",
+        "install"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2597,8 +3746,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "typecheck",
+        "configured",
+        "annotations",
+        "nothing",
+        "checks",
+        "drift",
+        "code",
+        "mislead",
+        "reader",
+        "static",
+        "checker",
+        "pyright",
+        "pytype"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2630,8 +3794,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "linter",
+        "configured",
+        "fixes",
+        "layout",
+        "but",
+        "cannot",
+        "find",
+        "unused",
+        "names",
+        "shadowed",
+        "builtins",
+        "unreachable",
+        "code"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2663,8 +3842,23 @@
     "applies": {
       "stacks": ["python"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.py"],
+      "terms": [
+        "py",
+        "src",
+        "layout",
+        "level",
+        "package",
+        "working",
+        "tests",
+        "pass",
+        "against",
+        "source",
+        "installed",
+        "ship",
+        "importable",
+        "python"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2696,8 +3890,29 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": [
+        "package.json",
+        "composer.json",
+        "go.mod",
+        "Cargo.toml",
+        "requirements*.txt"
+      ],
+      "terms": [
+        "rust",
+        "lock",
+        "committed",
+        "without",
+        "green",
+        "run",
+        "machine",
+        "says",
+        "nothing",
+        "crate",
+        "versions",
+        "next",
+        "build",
+        "resolves"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2729,8 +3944,23 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.rs", "Cargo.toml"],
+      "terms": [
+        "rust",
+        "fmt",
+        "check",
+        "unformatted",
+        "file",
+        "turns",
+        "next",
+        "author",
+        "diff",
+        "noise",
+        "hides",
+        "real",
+        "change",
+        "tracked"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2762,8 +3992,23 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.rs", "Cargo.toml"],
+      "terms": [
+        "rust",
+        "clippy",
+        "deny",
+        "warnings",
+        "warning",
+        "fail",
+        "run",
+        "fixed",
+        "find",
+        "nothing",
+        "repository",
+        "checks",
+        "denied",
+        "workflow"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2795,8 +4040,23 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.rs", "Cargo.toml"],
+      "terms": [
+        "rust",
+        "no",
+        "library",
+        "unwrap",
+        "panics",
+        "takes",
+        "down",
+        "caller",
+        "process",
+        "value",
+        "would",
+        "have",
+        "let",
+        "decide"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2828,8 +4088,23 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.rs", "Cargo.toml"],
+      "terms": [
+        "rust",
+        "pinned",
+        "toolchain",
+        "unpinned",
+        "makes",
+        "green",
+        "build",
+        "depend",
+        "compiler",
+        "release",
+        "machine",
+        "installed",
+        "project",
+        "tracked"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2861,8 +4136,23 @@
     "applies": {
       "stacks": ["rust"],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["**/*.rs", "Cargo.toml"],
+      "terms": [
+        "rust",
+        "tests",
+        "present",
+        "cargo",
+        "nothing",
+        "run",
+        "exits",
+        "untested",
+        "looks",
+        "green",
+        "crate",
+        "tracks",
+        "integration",
+        "function"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -2892,8 +4182,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "define",
+        "once",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "component",
+        "fields"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -2920,8 +4225,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "args",
+        "only",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "component",
+        "template"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -2948,8 +4268,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "layout",
+        "allowlist",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "component",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "template"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -2976,8 +4311,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "content",
+        "not",
+        "looks",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "appearance"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3004,8 +4354,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "modified",
+        "bump",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "component",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "editing"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3032,8 +4397,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "empty",
+        "array",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "component",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "repeater"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3060,8 +4440,23 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "terms": [
+        "acf",
+        "keep",
+        "keys",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "component",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "rename"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3089,7 +4484,22 @@
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": []
+      "terms": [
+        "wp",
+        "escape",
+        "output",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "acf",
+        "component",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3116,8 +4526,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "token",
+        "values",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "space"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3144,8 +4569,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "no",
+        "clamp",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "fluid"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3172,8 +4612,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "specificity",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "raise",
+        "block"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3200,8 +4655,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "data",
+        "exception",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "express"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3228,8 +4698,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "no",
+        "block",
+        "min",
+        "height",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3256,8 +4741,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "already",
+        "owned",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "delete"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3284,8 +4784,23 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": []
+      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "terms": [
+        "css",
+        "layer",
+        "owner",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "declaration"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3318,7 +4833,22 @@
         "**/*.php",
         "**/acf-json/*.json"
       ],
-      "terms": []
+      "terms": [
+        "review",
+        "new",
+        "names",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "cube",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "consumer"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3349,9 +4879,25 @@
         "**/*.css",
         "web/app/themes/**",
         "**/*.php",
-        "**/acf-json/*.json"
+        "**/acf-json/*.json",
+        "**/*.scss"
       ],
-      "terms": []
+      "terms": [
+        "design",
+        "scale",
+        "values",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "build",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "nearest"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3378,8 +4924,29 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
-      "terms": []
+      "paths": [
+        ".github/workflows/*.yml",
+        "deploy/**",
+        "config/release.php",
+        ".github/workflows/**",
+        "**/*.sh"
+      ],
+      "terms": [
+        "deploy",
+        "tooling",
+        "pin",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "plesk",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "pinned"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3406,8 +4973,29 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
-      "terms": []
+      "paths": [
+        ".github/workflows/*.yml",
+        "deploy/**",
+        "config/release.php",
+        ".github/workflows/**",
+        "**/*.sh"
+      ],
+      "terms": [
+        "deploy",
+        "wpcli",
+        "core",
+        "path",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "plesk",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3435,7 +5023,22 @@
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["mise.toml", ".ddev/**"],
-      "terms": []
+      "terms": [
+        "wp",
+        "never",
+        "mutate",
+        "production",
+        "harvested",
+        "boilerplate",
+        "skill",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "remote"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3462,8 +5065,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "annotate",
+        "edge",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "exported"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3490,8 +5115,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "parse",
+        "at",
+        "edge",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3518,8 +5165,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "discriminated",
+        "unions",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "model"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3546,8 +5215,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "isolate",
+        "casts",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "prefer"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3574,8 +5265,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "narrow",
+        "exports",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "export"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3602,8 +5315,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "simple",
+        "types",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "prefer"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3630,8 +5365,30 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      "terms": []
+      "paths": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts",
+        "**/*.js",
+        "**/*.mjs"
+      ],
+      "terms": [
+        "ts",
+        "prove",
+        "types",
+        "harvested",
+        "krn",
+        "skill",
+        "typescript",
+        "session",
+        "meets",
+        "first",
+        "edit",
+        "matching",
+        "file",
+        "check"
+      ]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3660,8 +5417,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["krn.json", ".github/workflows/**"],
+      "terms": [
+        "gate",
+        "lint",
+        "runs",
+        "configured",
+        "linter",
+        "nobody",
+        "checks",
+        "nothing",
+        "contract",
+        "what",
+        "agents",
+        "run",
+        "command",
+        "named"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -3694,8 +5466,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["krn.json", ".github/workflows/**"],
+      "terms": [
+        "gate",
+        "typecheck",
+        "runs",
+        "type",
+        "setting",
+        "compiled",
+        "accepts",
+        "errors",
+        "exists",
+        "catch",
+        "contract",
+        "what",
+        "agents",
+        "run"
+      ]
     },
     "enforcement": {
       "kind": "command",
@@ -3724,8 +5511,23 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
-      "terms": []
+      "paths": ["krn.json", ".github/workflows/**"],
+      "terms": [
+        "gate",
+        "in",
+        "ci",
+        "check",
+        "proposed",
+        "head",
+        "proves",
+        "merged",
+        "tree",
+        "own",
+        "commands",
+        "prove",
+        "gates",
+        "agents"
+      ]
     },
     "enforcement": {
       "kind": "command",
