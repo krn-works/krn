@@ -1,4 +1,0 @@
-{
-  "ok": false,
-  "reason": "subject must be a Conventional Commit ending in (#N) for this PR"
-}

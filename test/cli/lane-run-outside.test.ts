@@ -200,7 +200,7 @@ test('the brief of an outside repository names neither bin/krn nor npm run fast'
       { run: '7', sha: 'a'.repeat(40) },
       new Error('no log'),
     );
-    assert.match(red, /krn ci logs --run 7/u);
+    assert.match(red, /gh run view 7 --log-failed/u);
     assert.doesNotMatch(red, /bin\/krn|npm run fast/u);
   } finally {
     rmSync(base, { recursive: true, force: true });

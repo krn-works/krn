@@ -106,7 +106,7 @@ export async function renderRetro(
       ? []
       : await windowBlock(readWindow, root, first, last);
   return [
-    `Retro ${task} (measured from git; CI reruns: bin/krn ci logs --run <id>)`,
+    `Retro ${task} (measured from git; CI reruns: gh run view <id> --log-failed)`,
     measured,
     `- merged PRs: ${prs.length > 0 ? prs.map((pr) => `#${pr}`).join(' ') : 'none'}`,
     ...window,
