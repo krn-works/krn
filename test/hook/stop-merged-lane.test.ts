@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { pruneMergedLanes } from '../../src/cli/lane.ts';
+import { PRUNE_GRACE_MS, pruneMergedLanes } from '../../src/cli/lane.ts';
 import { judgeStop } from '../../src/hook/stop.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
 
@@ -83,7 +83,13 @@ test('the next lane start prunes a lane whose merge is on the base and keeps an 
     git(main, 'worktree', 'add', '-q', '--no-track', '-b', 'open-lane', keep);
     recordShip(main, { branch: 'feat-x', sha });
     recordShip(main, { branch: 'open-lane', sha: 'a'.repeat(40) });
-    assert.deepEqual(pruneMergedLanes(main, 'main'), ['feat-x']);
+    // A ship younger than the grace period may still have its lane session running in the worktree.
+    assert.deepEqual(pruneMergedLanes(main, 'main'), []);
+    assert.equal(existsSync(lane), true);
+    assert.deepEqual(
+      pruneMergedLanes(main, 'main', Date.now() + PRUNE_GRACE_MS),
+      ['feat-x'],
+    );
     assert.equal(existsSync(lane), false);
     assert.equal(existsSync(keep), true);
     const branches = git(main, 'branch', '--format=%(refname:short)');
@@ -99,7 +105,10 @@ test('a merged lane with uncommitted work is not pruned', () => {
   try {
     recordShip(main, { branch: 'feat-x', sha });
     writeFileSync(join(lane, 'wip.txt'), 'unsaved\n');
-    assert.deepEqual(pruneMergedLanes(main, 'main'), []);
+    assert.deepEqual(
+      pruneMergedLanes(main, 'main', Date.now() + PRUNE_GRACE_MS),
+      [],
+    );
     assert.equal(existsSync(lane), true);
   } finally {
     rmSync(root, { recursive: true, force: true });

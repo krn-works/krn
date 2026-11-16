@@ -8,6 +8,7 @@ import {
   realpathSync,
   rmSync,
   statfsSync,
+  statSync,
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { z } from 'zod';
@@ -160,8 +161,16 @@ function gitRun(cwd: string, args: string[]) {
  * each lane whose ship record names a merge commit that is on `origin/<base>`, provided the worktree
  * holds no uncommitted change, then prunes the worktrees git lost. Returns the removed lane slugs.
  * Evidence-based, not `git branch --merged`: squash merges leave the lane commits unmerged by ancestry.
+ * A ship younger than PRUNE_GRACE_MS is kept: its lane session may still run there, and removing its cwd
+ * makes every hook of that session fail to spawn (t-vs35jd7 and t-4k4yjzj lanes, 2026-11-16).
  */
-export function pruneMergedLanes(main: string, base: string): string[] {
+export const PRUNE_GRACE_MS = 30 * 60_000;
+
+export function pruneMergedLanes(
+  main: string,
+  base: string,
+  now = Date.now(),
+): string[] {
   gitRun(main, ['worktree', 'prune']);
   const dir = join(main, shipRecordDir);
   if (!existsSync(dir)) return [];
@@ -169,6 +178,7 @@ export function pruneMergedLanes(main: string, base: string): string[] {
   for (const name of readdirSync(dir)) {
     let record: { branch?: unknown; sha?: unknown };
     try {
+      if (now - statSync(join(dir, name)).mtimeMs < PRUNE_GRACE_MS) continue;
       record = JSON.parse(readFileSync(join(dir, name), 'utf8'));
     } catch {
       continue;

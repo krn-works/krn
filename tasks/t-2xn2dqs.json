@@ -1,0 +1,16 @@
+{
+  "id": "t-2xn2dqs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A timed-out standards enforcement is reported, never red",
+  "after": [
+    "t-4k4yjzj"
+  ],
+  "body": [
+    "Outcome: a standards enforcement that times out (ENFORCEMENT_TIMEOUT_MS, src/brain/standards-cli.ts) reports 'timed out' and does not count as red-at-baseline or a blocker; only a completed run that fails is red.\nWhy: t-mnk9rkb lane 2026-11-16: at load 48 s-gate-typecheck-runs went red-at-baseline because tsc exceeded 60 s; npm run fast turned red with no defect (PR #1143 shipped on CI instead).\nProof: a test with an enforcement command that sleeps past a short timeoutMs gets a timed-out verdict, not red, and the Stop/fast standards gate does not block on it."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
