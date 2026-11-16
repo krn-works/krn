@@ -8,11 +8,15 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statfsSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -224,6 +228,82 @@ function build(
 }
 
 let cacheRoot = '';
+
+const GB = 1024 ** 3;
+
+/** Bytes under a path, symlinks not followed. */
+export function dirBytes(path: string): number {
+  let st: ReturnType<typeof lstatSync>;
+  try {
+    st = lstatSync(path);
+  } catch {
+    return 0;
+  }
+  if (!st.isDirectory()) return st.size;
+  let total = 0;
+  for (const n of readdirSync(path)) total += dirBytes(join(path, n));
+  return total;
+}
+
+/** Remove a tree whose directories or files may be read-only (the Go module cache is). */
+function forceRemove(path: string): void {
+  try {
+    if (lstatSync(path).isDirectory()) {
+      chmodSync(path, 0o700);
+      for (const n of readdirSync(path)) forceRemove(join(path, n));
+    }
+  } catch {
+    // already gone
+  }
+  rmSync(path, { recursive: true, force: true });
+}
+
+export interface CacheLimits {
+  capBytes: number;
+  /** Free disk that must remain; pruning continues while below it. */
+  freeFloorBytes: number;
+}
+
+const freeBytes = (path: string): number => {
+  const s = statfsSync(path);
+  return Number(s.bavail) * Number(s.bsize);
+};
+
+/** Cache is over the size cap or the disk is under the free floor. */
+export function cacheOverLimit(
+  root: string,
+  lim: CacheLimits,
+  free: (p: string) => number = freeBytes,
+): boolean {
+  if (!existsSync(root)) return false;
+  return dirBytes(root) > lim.capBytes || free(root) < lim.freeFloorBytes;
+}
+
+/** Delete the largest cache subdirectories until the cache fits the cap and the free floor holds. Call only when no unit is running. */
+export function pruneCache(
+  root: string,
+  lim: CacheLimits,
+  free: (p: string) => number = freeBytes,
+): string[] {
+  if (!existsSync(root)) return [];
+  const dirs = readdirSync(root)
+    .map((name) => ({ name, bytes: dirBytes(join(root, name)) }))
+    .sort((a, b) => b.bytes - a.bytes);
+  let total = dirs.reduce((n, d) => n + d.bytes, 0);
+  const removed: string[] = [];
+  for (const d of dirs) {
+    if (total <= lim.capBytes && free(root) >= lim.freeFloorBytes) break;
+    forceRemove(join(root, d.name));
+    total -= d.bytes;
+    removed.push(d.name);
+  }
+  return removed;
+}
+
+const cacheLimits = (): CacheLimits => ({
+  capBytes: Number(process.env.KRN_SCREEN_CACHE_MAX_GB ?? 8) * GB,
+  freeFloorBytes: Number(process.env.KRN_SCREEN_MIN_FREE_GB ?? 6) * GB,
+});
 /** Third-party install and test commands see no tokens: PATH, HOME and caches inside scratch only. */
 function cleanEnv(): NodeJS.ProcessEnv {
   const c = (n: string) => join(cacheRoot, n);
@@ -328,11 +408,38 @@ async function verify(
     .map((x) => x.r);
   let next = 0;
   const slow = new Set<string>();
+  // Caches are shared by in-flight units: when over a limit, hold new units until the running ones end, then prune.
+  let active = 0;
+  let pruning = false;
+  const settle = async () => {
+    while (cacheOverLimit(cacheRoot, cacheLimits()) || pruning) {
+      if (active === 0 && !pruning) {
+        pruning = true;
+        const gone = pruneCache(cacheRoot, cacheLimits());
+        console.log(`cache pruned: ${gone.join(', ') || 'nothing'}`);
+        pruning = false;
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  };
   const work = async () => {
     while (next < order.length) {
-      const row = order[next++] as ManifestRow;
-      if (only && row.id !== only) continue;
-      if (row.verification) continue;
+      await settle();
+      const row = order[next++];
+      if (!row) return;
+      active++;
+      try {
+        await one(row);
+      } finally {
+        active--;
+      }
+    }
+  };
+  const one = async (row: ManifestRow) => {
+    {
+      if (only && row.id !== only) return;
+      if (row.verification) return;
       if (slow.has(row.repo)) {
         row.verification = {
           installBase: 124,
@@ -341,7 +448,7 @@ async function verify(
           installFix: -1,
           testFix: -1,
         };
-        continue;
+        return;
       }
       const ud = join(unitsDir, row.id);
       const unit = JSON.parse(

@@ -1,0 +1,18 @@
+{
+  "id": "t-q6xd762",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pruneCache/cacheOverLimit tested on fixture cache above cap and under free floor"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Screening verify cache grows without bound (32G) and starves lanes of disk",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: .krn/tmp/screen-scratch/cache grew to 32G (go-build 13G, go-mod 14G, npm 3.1G) during screening verify; disk fell to 4.1G free and krn lane start refused (KRN_LANE_MIN_FREE_GB=5).\nOutcome: evals/units/screening.ts verify keeps its cache under a cap (e.g. prune go-build/go-mod after each Go unit, or a size cap checked between units) and never drives free disk below the lane floor.\nProof: a test runs the cache pruning on a fixture cache dir above the cap and asserts it ends below it.\nFiles: evals/units/screening.ts"
+  ],
+  "kind": "defect",
+  "area": "evals"
+}
