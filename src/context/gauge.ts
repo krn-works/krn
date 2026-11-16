@@ -215,12 +215,13 @@ async function capturePrompt(raw: string): Promise<void> {
   }
 }
 
-// A project that wires its own gauge (KRN) would otherwise be gauged twice.
+// A project that wires its own gauge (KRN, directly or through its hook dispatcher) would otherwise be gauged twice.
 export function wiresOwnGauge(project: string): boolean {
   return ['settings.json', 'settings.local.json'].some((name) => {
     const path = projectPath(project, name);
     return (
-      existsSync(path) && readFileSync(path, 'utf8').includes('context-gauge')
+      existsSync(path) &&
+      /context-gauge|src\/dispatch\/main\.ts/u.test(readFileSync(path, 'utf8'))
     );
   });
 }

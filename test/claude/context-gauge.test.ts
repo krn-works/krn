@@ -512,3 +512,62 @@ test('host gauge serves every project except one that wires its own gauge', asyn
     true,
   );
 });
+
+test('the host entry that ~/.claude/settings.json runs exists and exits 0 on every hook event (t-t4pf6d0)', async () => {
+  // Evidence: #1148 deleted scripts/claude/context-gauge.ts; every prompt and tool call in every
+  // project showed "UserPromptSubmit hook error" / "PostToolUse:ToolSearch hook error".
+  const entry = fileURLToPath(
+    new URL('../../scripts/claude/context-gauge.ts', import.meta.url),
+  );
+  const root = mkdtempSync(join(tmpdir(), 'context-gauge-entry-'));
+  const project = join(root, 'project');
+  mkdirSync(join(project, '.claude'), { recursive: true });
+  try {
+    for (const event of ['UserPromptSubmit', 'PostToolUse']) {
+      const result = spawnSync(process.execPath, [entry, '--host'], {
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: project,
+          HOME: root,
+          XDG_STATE_HOME: join(root, 'state'),
+        },
+        encoding: 'utf8',
+        input: JSON.stringify({
+          session_id: 's',
+          transcript_path: join(root, 'missing.jsonl'),
+          hook_event_name: event,
+          prompt: 'p',
+          tool_name: 'ToolSearch',
+          tool_input: { query: 'select:Monitor' },
+        }),
+      });
+      assert.equal(result.status, 0, `${event}: ${result.stderr}`);
+    }
+    const { wiresOwnGauge } = await import(gaugeModule);
+    assert.equal(wiresOwnGauge(project), false);
+    writeFileSync(
+      join(project, '.claude', 'settings.json'),
+      JSON.stringify({
+        hooks: {
+          PostToolUse: [
+            {
+              hooks: [
+                {
+                  command:
+                    'node "$CLAUDE_PROJECT_DIR/src/dispatch/main.ts" post-tool',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    assert.equal(
+      wiresOwnGauge(project),
+      true,
+      'a dispatcher project gauges itself',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

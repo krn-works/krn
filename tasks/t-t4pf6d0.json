@@ -1,0 +1,18 @@
+{
+  "id": "t-t4pf6d0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "host entry scripts/claude/context-gauge.ts restored; wiresOwnGauge recognizes the dispatcher; regression test"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "The host context-gauge hook entry exists again",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16: recurring \"UserPromptSubmit hook error\" and \"PostToolUse:ToolSearch hook error\". ~/.claude/settings.json runs .krn/product-release/scripts/claude/context-gauge.ts --host; #1148 (12ec94e, t-1v46dxv) deleted that script, so the host hook exits 1 on every prompt and tool call in every project.\nOutcome: scripts/claude/context-gauge.ts exists as the host entry (exit 0 on a UserPromptSubmit payload), and wiresOwnGauge recognizes a project that wires the dispatcher (src/dispatch/main.ts), so KRN is not gauged twice.\nProof: `node --test test/claude/context-gauge.test.ts` passes, including a test that the host entry script exists and exits 0 on a UserPromptSubmit payload.\nFiles: scripts/claude/context-gauge.ts, src/context/gauge.ts, test/claude/context-gauge.test.ts"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
