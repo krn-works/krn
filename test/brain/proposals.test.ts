@@ -7,9 +7,11 @@ import {
   normalizeText,
   overdueProposals,
   parseProposal,
+  parseResearchCandidate,
   proposalFileName,
   renderHarvest,
   type Sourced,
+  staleResearch,
 } from '../../src/brain/proposals.ts';
 import { StandardsDataError } from '../../src/brain/standards.ts';
 
@@ -199,5 +201,68 @@ test('a committed proposal waits its review window; only an undisposed overdue o
       (p) => p.text,
     ),
     ['Fresh lesson from this slice.', 'Stale lesson nobody disposed.'],
+  );
+});
+
+// The plainest hand-written candidate: the contract fields plus a reuse line.
+const plainCandidate = `{
+  "schema": "krn.candidate/v1",
+  "id": "c-1",
+  "source": { "url": "https://example.com/paper" },
+  "pillar": "brain",
+  "claim": "Rank records by hidden-test gain.",
+  "motivated_by": "hidden test h-12 failed",
+  "reuse": "ripgrep https://github.com/BurntSushi/ripgrep",
+  "recorded_at": "2026-11-01"
+}`;
+
+test('parseResearchCandidate accepts reuse or build_because and refuses neither or both', () => {
+  const base = () => JSON.parse(plainCandidate) as Record<string, unknown>;
+  assert.equal(parseResearchCandidate(base()).id, 'c-1');
+  const built = base();
+  delete built.reuse;
+  built.build_because = 'no existing tool reads the ledger';
+  assert.equal(
+    parseResearchCandidate(built).build_because,
+    'no existing tool reads the ledger',
+  );
+  const neither = base();
+  delete neither.reuse;
+  const both = { ...base(), build_because: 'x' };
+  const noUrl = { ...base(), reuse: 'ripgrep' };
+  const noFailure = base();
+  delete noFailure.motivated_by;
+  for (const [bad, pattern] of [
+    [neither, /exactly one of reuse/u],
+    [both, /exactly one of reuse/u],
+    [noUrl, /candidate\.reuse/u],
+    [noFailure, /candidate\.motivated_by/u],
+  ] as const)
+    assert.throws(
+      () => parseResearchCandidate(bad),
+      (error: unknown) =>
+        error instanceof StandardsDataError && pattern.test(error.message),
+    );
+});
+
+test('staleResearch lists candidates older than 7 days without a merged PR or retire verdict', () => {
+  const make = (extra: object, recorded_at = '2026-11-01') =>
+    parseResearchCandidate({
+      ...JSON.parse(plainCandidate),
+      recorded_at,
+      ...extra,
+    });
+  const rows = staleResearch(
+    [
+      make({ id: 'old' }),
+      make({ id: 'merged', merged_pr: '#5' }),
+      make({ id: 'retired', retire: 'superseded' }),
+      make({ id: 'fresh' }, '2026-11-10'),
+    ],
+    '2026-11-16',
+  );
+  assert.deepEqual(
+    rows.map((c) => c.id),
+    ['old'],
   );
 });

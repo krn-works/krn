@@ -1,6 +1,6 @@
 # Fable plan brief
 
-The template for asking Fable to plan breakthroughs. A planner that never sees which predictions held cannot learn what yields real gains, so every request carries the scorecard and every slice states a prediction.
+The template for asking Fable to plan. Every request carries the scorecard and every slice states a prediction.
 
 ## Attach to the request
 
@@ -16,4 +16,6 @@ Each slice becomes one task (`krn task create`) with `Source:` naming the plan, 
 - `Predicted: outside <field> <op> N in <op> K rows` over the outside rows, field one of `adopt`, `drain`, `sessions`, `usd`, `hidden` (pass counts 1, fail 0, none is skipped), for example `outside drain == 0 in >= 3 rows`. Only rows whose hook commit is at or after the task's merge (its `Ticket:` commit on main) count; with none, the claim is unmeasured.
 - `Predicted: metric <name> <op> N`, where `<name>` is a row of `spec/metrics.json` whose command prints one number. `krn ledger --predictions` runs it at HEAD; an unregistered name or a command that fails is unmeasured. Register the metric in the same PR.
 
-`<op>` is one of `>=`, `<=`, `==`, `>`, `<`. A prediction names what would show the slice bit outside KRN's own tests; a slice that passes KRN tests but moves no outside row is a miss. The line is optional for tasks: a task without one is `unpredicted`, never invalid.
+`<op>` is one of `>=`, `<=`, `==`, `>`, `<`. A slice that passes KRN tests but moves no outside row is a miss; a task without the line is `unpredicted`, never invalid.
+
+Rank slices by first-push-green and hidden-test gain, not cost. Research candidates name `reuse:` (tool, URL) or `build-because:`; `krn standards query --stale-research` lists those over 7 days old.
