@@ -1,0 +1,16 @@
+{
+  "session_id": "75cd84a1-3d26-4a93-8f31-60213f19c2cb",
+  "transcript_path": "/work/repo/.claude/projects/capture/75cd84a1-3d26-4a93-8f31-60213f19c2cb.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "f98614d6-b92d-41c7-93ad-48cecab88cb2",
+  "hook_event_name": "PostModelSwitch",
+  "from_model": "claude-haiku-5-5",
+  "to_model": "claude-sonnet-5-5",
+  "requested_model": "sonnet",
+  "source": "sdk",
+  "context_tokens": 28165,
+  "prompt_cache_warm": true,
+  "cache_ttl": "1h",
+  "estimated_cache_write_usd": 0.1127,
+  "pricing": "catalog"
+}

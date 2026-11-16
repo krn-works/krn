@@ -5,18 +5,11 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { hookInput, hookStdin } from '../harness/claude.ts';
 
-const names = {
-  from: ['from_model', 'previous_model', 'old_model'],
-  to: ['to_model', 'new_model', 'model'],
-};
-
-function modelOf(payload: Record<string, unknown>, keys: string[]): string {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === 'string' && /^[\w.[\]:/-]+$/u.test(value))
-      return value;
-  }
-  return 'unknown';
+function modelOf(payload: Record<string, unknown>, key: string): string {
+  const value = payload[key];
+  return typeof value === 'string' && /^[\w.[\]:/-]+$/u.test(value)
+    ? value
+    : 'unknown';
 }
 
 /** The run log of the lane that owns the session: KRN_LANE, else the session id. */
@@ -39,7 +32,7 @@ export function recordModelSwitch(
 ): string {
   const input = hookInput(['PostModelSwitch'], raw, env);
   const payload = JSON.parse(raw) as Record<string, unknown>;
-  const line = `${now.toISOString()} ${modelOf(payload, names.from)} -> ${modelOf(payload, names.to)}\n`;
+  const line = `${now.toISOString()} ${modelOf(payload, 'from_model')} -> ${modelOf(payload, 'to_model')}\n`;
   const log = modelSwitchLog(input.project, input.sessionId, env);
   mkdirSync(dirname(log), { recursive: true });
   appendFileSync(log, line);
