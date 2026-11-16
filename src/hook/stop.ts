@@ -1177,7 +1177,11 @@ function logViolations(
  * edited a file in, else the worktree of the first live task claim its transcript names.
  * Returns the payload cwd when the transcript shows neither.
  */
-export function laneWorktree(cwd: string, payload: unknown): string {
+export function laneWorktree(
+  cwd: string,
+  payload: unknown,
+  projectDir?: string,
+): string {
   const path = (payload as { agent_transcript_path?: unknown } | null)
     ?.agent_transcript_path;
   if (typeof path !== 'string') return cwd;
@@ -1187,13 +1191,22 @@ export function laneWorktree(cwd: string, payload: unknown): string {
   } catch {
     return cwd;
   }
-  const common = git(cwd, [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-common-dir',
-  ]);
-  if (common.status !== 0) return cwd;
-  const main = dirname(common.stdout);
+  // The session cwd may sit in another repository (the lead cd-ed away); the project dir names the lane's.
+  for (const dir of [cwd, projectDir]) {
+    if (dir === undefined || !existsSync(dir)) continue;
+    const common = git(dir, [
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-common-dir',
+    ]);
+    if (common.status !== 0) continue;
+    const found = laneWorktreeIn(dirname(common.stdout), text);
+    if (found !== undefined) return found;
+  }
+  return cwd;
+}
+
+function laneWorktreeIn(main: string, text: string): string | undefined {
   const marker = join(main, '.krn', 'worktrees') + sep;
   const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
   const edited = [
@@ -1218,7 +1231,7 @@ export function laneWorktree(cwd: string, payload: unknown): string {
       /* No claim for this id. */
     }
   }
-  return cwd;
+  return undefined;
 }
 
 /**
@@ -1427,7 +1440,7 @@ export function judgeStop(
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
   const sessionDir = resolve(
     subagent
-      ? laneWorktree(fields?.cwd as string, payload)
+      ? laneWorktree(fields?.cwd as string, payload, env.CLAUDE_PROJECT_DIR)
       : (env.CLAUDE_PROJECT_DIR ??
           (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
   );
