@@ -29,6 +29,8 @@ export type PrRounds = {
   rounds: number;
   /** Conclusion of the first such head's first Check, or null when no head got one. */
   first: string | null;
+  /** Heads counted only from the workflow runs of the PR branch: force-pushed away, so no PR commit carries them. */
+  runOnly: number;
 };
 
 export type FirstPushGreen = {
@@ -40,6 +42,8 @@ export type FirstPushGreen = {
   share: number | null;
   /** Mean rounds over measured PRs, or null when nothing was measured. */
   meanRounds: number | null;
+  /** Heads over all PRs that came only from workflow runs. */
+  runOnlyHeads: number;
 };
 
 /** A cancelled or skipped run never judged the head, so it is not a round. */
@@ -47,11 +51,56 @@ const judged = (run: Record<string, unknown>) =>
   string(run.status) === 'completed' &&
   !['cancelled', 'skipped', 'stale'].includes(string(run.conclusion));
 
-/** Rounds of one PR from the Check runs of each of its commits (oid to runs). */
-export function prRounds(pr: number, checks: Map<string, unknown[]>): PrRounds {
-  const heads = [...checks.values()]
-    .map((runs) => {
-      const done = runs
+/**
+ * The pull-request workflow runs of one branch as `gh run list --json
+ * headSha,conclusion,event,status,startedAt,createdAt` prints them, shaped
+ * like Check runs and keyed by head SHA. Runs older than the PR belong to an
+ * earlier use of the branch name and are dropped.
+ */
+export function headRuns(
+  runs: unknown[],
+  prCreatedAt: string,
+): Map<string, unknown[]> {
+  const since = time(prCreatedAt) ?? 0;
+  const heads = new Map<string, unknown[]>();
+  for (const r of runs.map(object)) {
+    const sha = string(r.headSha);
+    if (!sha || string(r.event) !== 'pull_request') continue;
+    if ((time(r.createdAt) ?? 0) < since) continue;
+    heads.set(sha, [
+      ...(heads.get(sha) ?? []),
+      {
+        status: r.status,
+        conclusion: r.conclusion,
+        started_at: r.startedAt ?? r.createdAt,
+      },
+    ]);
+  }
+  return heads;
+}
+
+/**
+ * Rounds of one PR from the Check runs of each of its commits (oid to runs).
+ * `runs` adds the heads of the PR branch's workflow runs: a head with no
+ * judged Check run of its own, such as one force-pushed away, counts from its run.
+ */
+export function prRounds(
+  pr: number,
+  checks: Map<string, unknown[]>,
+  runs: Map<string, unknown[]> = new Map(),
+): PrRounds {
+  const hasJudged = (list: unknown[] | undefined) =>
+    (list ?? []).map(object).some(judged);
+  const runOnlyShas = [...runs.keys()].filter(
+    (sha) => !hasJudged(checks.get(sha)) && hasJudged(runs.get(sha)),
+  );
+  const all = [
+    ...checks.values(),
+    ...runOnlyShas.map((sha) => runs.get(sha) ?? []),
+  ];
+  const heads = all
+    .map((list) => {
+      const done = list
         .map(object)
         .filter(judged)
         .sort((a, b) => (time(a.started_at) ?? 0) - (time(b.started_at) ?? 0));
@@ -63,6 +112,7 @@ export function prRounds(pr: number, checks: Map<string, unknown[]>): PrRounds {
     number: pr,
     rounds: heads.length,
     first: heads[0] ? string(heads[0].first?.conclusion) : null,
+    runOnly: runOnlyShas.length,
   };
 }
 
@@ -76,6 +126,7 @@ export function summarize(prs: PrRounds[]): FirstPushGreen {
     green,
     share: measured.length ? green / measured.length : null,
     meanRounds: measured.length ? rounds / measured.length : null,
+    runOnlyHeads: prs.reduce((n, p) => n + p.runOnly, 0),
   };
 }
 
@@ -135,7 +186,43 @@ export async function collectFirstPushGreen(
       ]);
       checks.set(sha, array(parse(reply)));
     }
-    return prRounds(number(pr.number) ?? 0, checks);
+    const branch = object(
+      parse(
+        await gh(run, [
+          'pr',
+          'view',
+          String(pr.number),
+          '--repo',
+          repo,
+          '--json',
+          'headRefName,createdAt',
+        ]),
+      ),
+    );
+    const head = string(branch.headRefName);
+    const runs = head
+      ? array(
+          parse(
+            await gh(run, [
+              'run',
+              'list',
+              '--repo',
+              repo,
+              '--branch',
+              head,
+              '--json',
+              'headSha,conclusion,event,status,startedAt,createdAt',
+              '--limit',
+              '100',
+            ]),
+          ),
+        )
+      : [];
+    return prRounds(
+      number(pr.number) ?? 0,
+      checks,
+      headRuns(runs, string(branch.createdAt)),
+    );
   });
   return summarize(prs);
 }
@@ -147,6 +234,7 @@ export function renderFirstPushGreen(r: FirstPushGreen): string {
     `First-push-green: ${pct} (${r.green} of ${r.measured} merged PRs with a completed Check)`,
     `CI rounds per PR (distinct pushed heads with a completed Check): mean ${mean}`,
     `PRs without a completed Check: ${r.prs.length - r.measured}`,
+    `Heads counted only from workflow runs (force-pushed away): ${r.runOnlyHeads}`,
     ...r.prs.map(
       (p) => `#${p.number} rounds ${p.rounds} first ${p.first ?? 'none'}`,
     ),
