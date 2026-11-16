@@ -1,0 +1,19 @@
+{
+  "id": "t-es4ysir",
+  "repo": "mem9-ai/drive9",
+  "base": "0e0a28279ccd8959dee7e9e07cca200ef27b06c2",
+  "reference": "1726b0724c57be9e79564ec0907d0874a3163397",
+  "task": {
+    "title": "perf(client): drain successful DELETE responses to preserve HTTP connection reuse",
+    "body": "## Bug Report\n\n### 1. Minimal reproduce step (Required)\n\nUse an HTTP/1.1 `httptest.Server` that returns a small non-empty JSON body for DELETE, and call `Client.DeleteFileCtx` sequentially with one `Client`. Count accepted TCP connections or record `httptrace.GotConn.Reused` for every request. The current success path closes `resp.Body` without reading it to EOF (`pkg/client/client.go:1400-1406`); the recursive-503 retry path already drains its body.\n\nLive corroboration: on a us-west-2 staging NLB, 5,000 sequential settled-file FUSE unlinks produced one HEAD and one DELETE per file. Each file's HEAD and DELETE had the same server-observed TCP source address, but the previous file's DELETE and the next file's HEAD reused that address 0/4,999 times. The server returned a 16-byte success body. This shows connection churn; the exact latency recovered by a fix still needs an A/B test.\n\n### 2. What did you expect to see? (Required)\n\nSuccessful small DELETE responses are consumed and closed so the shared Go client can reuse an eligible HTTP/1.1 connection. The returned delete result, non-2xx error parsing, and recursive-503 retry semantics remain unchanged.\n\n### 3. What did you see instead (Required)\n\nThe 2xx branch returns immediately after scheduling `Body.Close()`, without reading to EOF. The observed 5K run opened a new upstream TCP connection for the next file. Go's `net/http` documentation says HTTP/1.x keep-alive reuse may fail when a response body is not read to completion and closed.\n\n### 4. What is your drive9 version? (Required)\n\nCLI `fea9cdcfde36e11adbeda9a62ae840cd109c7f82` (Go 1.25.1); staging server image `dat9-server:main-04cee3f`. The test used `--profile none --durability fsync` on the us-west-2 EC2 benchmark host.\n\n### Proposed fix and acceptance criteria\n\nOn 2xx, drain the expected small response body to EOF before closing it. Keep any drain/read error from changing an already acknowledged DELETE into a path-only retry; bound anomalous response handling. Preserve `readError` and the existing recursive-503 branch. Add a client unit test for connection reuse plus error/retry cases, then run the same 5K FUSE workload before/after and report reuse rate and latency. The measured new-connection gap of roughly 3.3 ms per file is an upper bound, not a promised saving.\n\nScope: client only; no server response format change or new protocol. Expected production change: under 30 net LoC, excluding tests.\n"
+  },
+  "spec": "perf(client): drain successful DELETE responses to preserve HTTP connection reuse",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/client/delete_retry_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/client/",
+  "committed": "2026-09-24",
+  "issue": "https://github.com/mem9-ai/drive9/issues/981"
+}

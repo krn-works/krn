@@ -1,0 +1,19 @@
+{
+  "id": "t-2c8n9wq",
+  "repo": "fgrosse/go-coverage-report",
+  "base": "7752bdc735305e63c6f2739d47f2c7ceb8c9438d",
+  "reference": "2d3d0a9621e933d9849ef63873c88ad1557786be",
+  "task": {
+    "title": "Baseline lookup can select stale workflow runs and miss valid coverage artifacts",
+    "body": "## Problem\n\nThe action can select an obsolete workflow run as its coverage baseline because `scripts/github-action.sh` trusts the first result from this query:\n\n```bash\nLAST_SUCCESSFUL_RUN_ID=$(gh run list \\\n  --status=success \\\n  --branch=\"$TARGET_BRANCH\" \\\n  --workflow=\"$GITHUB_BASELINE_WORKFLOW\" \\\n  --event=\"$EVENT_NAME\" \\\n  --json=databaseId \\\n  --limit=1 \\\n  -q '.[] | .databaseId')\n```\n\nOn a high-volume repository, GitHub's workflow-runs listing intermittently returned stale result sets. The selected run still matched the branch, event, and conclusion, but was substantially older than the actual latest matching run.\n\nThis causes two misleading outcomes:\n\n1. If the stale run's artifact expired, the action says the baseline is unavailable even though a recent valid baseline exists.\n2. If the stale artifact remains available, the report compares against old code and attributes unrelated coverage changes to the PR.\n\nRepeated identical queries alternated between the current run and substantially older runs. This matches public reports of the workflow-runs API returning normal-looking but stale responses:\n\n- https://github.com/orgs/community/discussions/206725\n- https://github.com/cli/cli/issues/6678\n\n## Version scope\n\nThis is not a v1.4.0 regression. The baseline lookup is identical in v1.3.1 and v1.4.0:\n\n- https://github.com/fgrosse/go-coverage-report/blob/v1.3.1/scripts/github-action.sh#L104-L119\n- https://github.com/fgrosse/go-coverage-report/blob/v1.4.0/scripts/github-action.sh#L104-L119\n\n## Suggested fix\n\nPlease avoid treating the first response from a single broad workflow-run listing as an authoritative baseline.\n\nA backward-compatible solution could combine:\n\n1. An optional exact `baseline-run-id` or `baseline-sha` input. A caller can then use the base commit against which the PR was actually tested. This also revisits the use case from #26.\n2. Hardened automatic discovery for existing users: retrieve multiple candidates, filter and sort client-side, and preferably validate against the expected base SHA when available.\n3. Distinguish “selected run has no artifact” from “no suitable baseline run found” in the warning, including the selected run's age without exposing repository-specific details.\n\nAn exact override is especially useful because a valid stale response cannot be detected merely by checking its branch/event/conclusion fields—they all match.\n\nI can prepare a focused PR if the preferred input/API shape is agreed.\n"
+  },
+  "spec": "Baseline lookup can select stale workflow runs and miss valid coverage artifacts",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "cmd/go-coverage-report/integration_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./cmd/go-coverage-report/",
+  "committed": "2026-10-02",
+  "issue": "https://github.com/fgrosse/go-coverage-report/issues/109"
+}

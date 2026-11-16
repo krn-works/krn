@@ -1,0 +1,19 @@
+{
+  "id": "t-2ec15be",
+  "repo": "szhekpisov/diffyml",
+  "base": "d860a72288124a9f65741468ad778cdc01e6dd54",
+  "reference": "adb4cb3b54046ac9d2c675d452148a139182607f",
+  "task": {
+    "title": "exlcude not behaving as expected for multidoc yaml",
+    "body": "### Description\n\nI'm honestly not sure if that's a bug or a feature request, but here it goes:\n\nI use diffyml as a library to compare planned changes to the current live state of resources in k8s. (basically `heml diff` but for an internal system).\nTarget state is represented as a multidoc yaml, current state too.\n\nThe live state includes a bunch of lifecycle annotations, labels,  ... that I wold like to exclude from the diff output, but the filtering does not quite work for multidoc yaml\n\n\n### Input YAML\n\n`from.yaml`\n```yaml\napiVersion: example/v1\nkind: Kind1\nmetadata:\n  annotations: {}\n  labels:\n    whatever: value\n  name: foo\n---\napiVersion: example/v1\nkind: Kind2\nmetadata:\n  annotations: {}\n  subresources:\n    example: 2\n  labels:\n    foo: bar\n    quix: qux\n  name: foo\nspec:\n  bar: baz\n---\napiVersion: example/v1\nkind: Kind3\nmetadata:\n  annotations: {}\n  name: foo\nspec:\n  bar: baz\n```\n\n`to.yaml`\n```yaml\napiVersion: example/v1\nkind: Kind1\nmetadata:\n  name: foo\n---\napiVersion: example/v1\nkind: Kind2\nmetadata:\n  name: foo\nspec:\n  bar: baz\n---\napiVersion: example/v1\nkind: Kind3\nmetadata:\n  name: foo\nspec:\n  bar: baz\n\n```\n\n### Command and flags\n\n```bash\ndiffyml --exclude 'metadata.labels.whatever' --exclude 'metadata.annotations' --detect-kubernetes from.yaml to.yaml\n```\n\n### Actual output\n\n```text\nFound six differences\n\nmetadata  (example/v1/Kind1/foo)\n  - two map entries removed:\n    annotations: {}\n    labels:\n      whatever: value\n\nmetadata  (example/v1/Kind2/foo)\n  - three map entries removed:\n    annotations: {}\n    subresources:\n      example: 2\n    labels:\n      foo: bar\n      quix: qux\n\nmetadata  (example/v1/Kind3/foo)\n  - one map entry removed:\n    annotations: {}\n```\n\n### Expected output\n\n```text\nFound two differences\n\nmetadata  (example/v1/Kind2/foo)\n  - two map entries removed:\n    subresources:\n      example: 2\n    labels:\n      foo: bar\n      quix: qux\n```\n\n### Output format\n\ndetailed (default)\n\n### Input characteristics\n\n- [x] Multi-document YAML (multiple `---` separated documents)\n- [x] Kubernetes manifests\n- [ ] YAML anchors/aliases\n- [ ] Remote URL input\n- [ ] Large files (>1000 lines)\n- [ ] Directory comparison\n- [ ] Config file (.diffyml.yml) in use\n\n### diffyml version\n\ndiffyml version 1.7.0 (commit: 9ead239ef12b6e6fb74d6b525cb5b79b4feb43e3, built: 2026-06-21T01:06:11Z)\n\n### OS / Architecture\n\nmacOS 26.5.1 arm64"
+  },
+  "spec": "exlcude not behaving as expected for multidoc yaml",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/diffyml/filter_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/diffyml/",
+  "committed": "2026-07-02",
+  "issue": "https://github.com/szhekpisov/diffyml/issues/189"
+}
