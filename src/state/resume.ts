@@ -7,13 +7,14 @@ import {
   parseCleanup,
   stripMarkup,
 } from './capsule.ts';
-import {
-  type CheckReport,
-  inspectState,
-  normalizeRunPointer,
-} from './check.ts';
+import { type CheckReport, inspectState } from './check.ts';
 import { git, gitRaw } from './git.ts';
-import { type Finding, runDirectoriesDetailed } from './runs.ts';
+import {
+  type Finding,
+  listedRunPointers,
+  normalizeRunPointer,
+  runDirectoriesDetailed,
+} from './runs.ts';
 
 function porcelain(root: string): string[] | null {
   const status = gitRaw(root, ['status', '--porcelain']);
@@ -111,17 +112,15 @@ export function resumeBrief(repo: string): ResumeReport {
       cleanupValue === null
         ? []
         : parseCleanup(stripMarkup(cleanupValue)).entries;
-    const listedPointers = new Set(
-      listed.map((entry) => normalizeRunPointer(report.root, entry.pointer)),
+    const { covered: listedPointers, indexes } = listedRunPointers(
+      report.root,
+      listed.map((entry) => entry.pointer),
     );
     const missingRuns = [
       ...new Set(
         listed
-          .filter(
-            (entry) =>
-              !liveRuns.has(normalizeRunPointer(report.root, entry.pointer)),
-          )
-          .map((entry) => normalizeRunPointer(report.root, entry.pointer)),
+          .map((entry) => normalizeRunPointer(report.root, entry.pointer))
+          .filter((pointer) => !indexes.has(pointer) && !liveRuns.has(pointer)),
       ),
     ];
     const unlistedRuns = [

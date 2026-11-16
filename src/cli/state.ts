@@ -10,12 +10,14 @@ import {
   capsuleDirectory,
   setFields,
   writeHandoff,
+  writeRunIndex,
 } from '../state/write.ts';
 
 const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +
   'krn state set <field> <value> [<field> <value>...] [--replace] [--capsule ID] [--root DIR]  write capsule fields; a cleanup value that drops existing entries needs --replace\n' +
   'krn state add-cleanup <pointer; workflow; consumer; trigger; STATE> [--capsule ID] [--root DIR]  append one cleanup entry\n' +
+  'krn state index [--capsule ID] [--root DIR]  write the run index file listing every run and point the capsule at it\n' +
   'krn state accept <criterion> todo|pass|drop:<why> [--capsule ID] [--root DIR]  upsert an acceptance ledger entry\n' +
   'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--roadmap TEXT] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md (Resume, Merged since the previous SHA)\n' +
   'krn state retro --task ID [--root DIR]  print the retro skeleton: commits, wall time and PRs naming the task, one line per candidate category';
@@ -69,6 +71,11 @@ function writeCommand(command: string, args: string[]): void {
       if (positional.length !== 1) throw new CliUsageError(usage);
       process.stdout.write(
         `added cleanup entry: ${addCleanup(directory, positional[0] as string)}\n`,
+      );
+    } else if (command === 'index') {
+      if (positional.length > 0) throw new CliUsageError(usage);
+      process.stdout.write(
+        `wrote run index: ${writeRunIndex(one('--root') ?? process.cwd(), directory)}\n`,
       );
     } else if (command === 'accept') {
       if (positional.length !== 2) throw new CliUsageError(usage);
@@ -146,6 +153,7 @@ export async function stateCommand(args: string[]): Promise<void> {
   if (
     verb === 'set' ||
     verb === 'add-cleanup' ||
+    verb === 'index' ||
     verb === 'accept' ||
     verb === 'handoff'
   ) {

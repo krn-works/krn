@@ -310,31 +310,78 @@ test('a capsule write over 2048 bytes is refused unless it shrinks the capsule',
   }
 });
 
-test('a cleanup pointer to .krn/runs or a workflow directory covers the runs beneath it', () => {
+test('a directory cleanup pointer covers only itself; a run index file covers every run it lists', () => {
   const root = realpathSync(buildCaseRepo('active'));
   try {
     mkdirSync(join(root, '.krn/runs/lead/evidence'), { recursive: true });
-    mkdirSync(join(root, '.krn/runs/other/probe'), { recursive: true });
+    mkdirSync(join(root, '.krn/runs/lead/stale-probe'), { recursive: true });
     const entry = (pointer: string) =>
       `[${pointer}; lead evidence; next lead; run superseded; CLEANUP_PENDING]`;
     const orphan = krn(root, 'check');
     assert.notEqual(orphan.status, 0);
-    assert.match(orphan.stderr, /orphaned-run: \.krn\/runs\/other\/probe/);
-    const workflow = krn(
+    assert.match(orphan.stderr, /orphaned-run: \.krn\/runs\/lead\/stale-probe/);
+    for (const broad of ['.krn/runs/lead', '.krn/runs']) {
+      const set = krn(root, 'set', 'cleanup', entry(broad), '--replace');
+      assert.equal(set.status, 0, set.stderr);
+      const still = krn(root, 'check');
+      assert.notEqual(still.status, 0);
+      assert.match(still.stderr, /orphaned-run: \.krn\/runs\/lead\/evidence/);
+      assert.match(
+        still.stderr,
+        /orphaned-run: \.krn\/runs\/lead\/stale-probe/,
+      );
+    }
+    const pointer = '.krn/runs/delivery-loop/main/run-index.md';
+    writeFileSync(join(root, pointer), '.krn/runs/lead/evidence\n');
+    const index = krn(
       root,
       'set',
       'cleanup',
-      entry('.krn/runs/lead'),
+      `[.krn/runs/lead; lead evidence; next lead; run superseded; CLEANUP_PENDING, ${pointer}; run-index; lead; index; CLEANUP_PENDING]`,
       '--replace',
     );
-    assert.equal(workflow.status, 0, workflow.stderr);
+    assert.equal(index.status, 0, index.stderr);
     const partial = krn(root, 'check');
-    assert.match(partial.stderr, /orphaned-run: \.krn\/runs\/other\/probe/);
+    assert.notEqual(partial.status, 0);
+    assert.match(
+      partial.stderr,
+      /orphaned-run: \.krn\/runs\/lead\/stale-probe/,
+    );
     assert.doesNotMatch(partial.stderr, /runs\/lead\/evidence/);
-    const all = krn(root, 'set', 'cleanup', entry('.krn/runs'), '--replace');
-    assert.equal(all.status, 0, all.stderr);
-    const covered = krn(root, 'check');
-    assert.equal(covered.status, 0, covered.stderr);
+    const resume = krn(root, 'resume', '--json');
+    const brief = JSON.parse(resume.stdout).capsules[0];
+    assert.deepEqual(brief.unlistedRuns, ['.krn/runs/lead/stale-probe']);
+    assert.ok(!brief.missingRuns.includes(pointer), 'the index is not a run');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('krn state index lists every run so one capsule pointer covers them under the cap', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  const file = join(root, '.krn/runs/delivery-loop/main/state.md');
+  try {
+    for (let n = 0; n < 40; n += 1)
+      mkdirSync(join(root, `.krn/runs/lead/run-number-${n}`), {
+        recursive: true,
+      });
+    assert.notEqual(krn(root, 'check').status, 0);
+    const written = krn(root, 'index');
+    assert.equal(written.status, 0, written.stderr);
+    assert.ok(readFileSync(file).length <= 2048, 'capsule stays under the cap');
+    assert.match(
+      readFileSync(
+        join(root, '.krn/runs/delivery-loop/main/run-index.md'),
+        'utf8',
+      ),
+      /\.krn\/runs\/lead\/run-number-39\n/,
+    );
+    const again = krn(root, 'index');
+    assert.equal(again.status, 0, again.stderr);
+    const checked = krn(root, 'check');
+    assert.equal(checked.status, 0, checked.stderr);
+    mkdirSync(join(root, '.krn/runs/lead/new-orphan'), { recursive: true });
+    assert.match(krn(root, 'check').stderr, /orphaned-run: .*new-orphan/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -29,7 +29,8 @@ import {
   capsuleStoreReport,
   type Finding,
   isInside,
-  posixRelative,
+  listedRunPointers,
+  normalizeRunPointer,
   resolveRepositoryRoot,
   runDirectoriesDetailed,
 } from './runs.ts';
@@ -78,19 +79,6 @@ function reviewEvidenceUnresolved(root: string, token: string): string | null {
   return isInside(root, target) && existsSync(target)
     ? null
     : `evidence ${token} does not exist in the repository`;
-}
-
-export function normalizeRunPointer(root: string, pointer: string): string {
-  // Resolve symlink aliases so one physical run reached by two names has one
-  // identity; a missing pointer falls back to its normalized lexical path.
-  const absolute = resolve(root, pointer);
-  let resolved = absolute;
-  try {
-    resolved = realpathSync(absolute);
-  } catch {
-    resolved = absolute;
-  }
-  return posixRelative(root, resolved);
 }
 
 // A friction candidate is a reflection awaiting an integration decision: it
@@ -373,7 +361,6 @@ const cleanupRule: CapsuleRule = (ctx) => {
         detail: `${entry.pointer} already owned by ${owner}`,
       });
     else ctx.runOwners.set(ownerKey, id);
-    ctx.listedRunPointers.add(normalized);
     if (!ctx.containedInRepo(entry.pointer))
       errors.push({
         id,
@@ -390,6 +377,11 @@ const cleanupRule: CapsuleRule = (ctx) => {
         detail: `${entry.pointer} (${entry.state})`,
       });
   }
+  for (const pointer of listedRunPointers(
+    root,
+    parsed.entries.map((entry) => entry.pointer),
+  ).covered)
+    ctx.listedRunPointers.add(pointer);
 };
 
 const fixedPointRule: CapsuleRule = (ctx) => {
@@ -663,13 +655,8 @@ export function inspectState(repo: string): CheckReport {
     errors.push({ id: 'runs', rule: 'unreadable-run-inventory', detail });
   if (capsules.length > 0) {
     for (const run of inventory.runs) {
-      // A cleanup entry that names a directory above a run (its workflow, or .krn/runs) covers the run.
-      const covered = [
-        run.pointer,
-        join('.krn', 'runs', run.workflow),
-        join('.krn', 'runs'),
-      ].some((pointer) =>
-        listedRunPointers.has(normalizeRunPointer(root, pointer)),
+      const covered = listedRunPointers.has(
+        normalizeRunPointer(root, run.pointer),
       );
       if (!covered)
         errors.push({

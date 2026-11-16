@@ -1,0 +1,18 @@
+{
+  "id": "t-s2y8xs0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "orphaned-run covers exact runs only; krn state index writes run-index.md read by check and resume through listedRunPointers; tests in test/state/write.test.ts"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "orphaned-run reports runs a broad clearing pointer used to hide",
+  "after": [],
+  "body": [
+    "Source: lead review 2026-11-16 of #1156 (cde1fba): src/state/check.ts orphaned-run treats a run as covered when the capsule lists the run, its `.krn/runs/<workflow>` dir or `.krn/runs`, so one broad pointer hides every orphaned run beneath it; src/state/resume.ts:115-130 still matches exactly, so check and resume disagree.\nOutcome: `krn state check` reports orphaned-run for `.krn/runs/lead/stale-probe` when the capsule lists only `.krn/runs/lead` and a run index file names `.krn/runs/lead/evidence`; the capsule stays at or under 2 kB by pointing at one run index file that lists every run; check and resume read the same list.\nWhy: orphaned-run is the guard that keeps abandoned run directories from piling up; a broad pointer silences it.\nProof: test in test/state/ with the scenario above gets the orphaned-run error; the 2 kB cap test (test/state/write.test.ts) stays green; resume and check share one function.\nFiles: src/state/check.ts, src/state/runs.ts, src/state/resume.ts, test/state/write.test.ts"
+  ],
+  "kind": "defect",
+  "area": "state"
+}

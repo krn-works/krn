@@ -8,8 +8,56 @@ import {
   type Stats,
   statSync,
 } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 import { git, gitAvailable } from './git.ts';
+
+export function normalizeRunPointer(root: string, pointer: string): string {
+  // Resolve symlink aliases so one physical run reached by two names has one
+  // identity; a missing pointer falls back to its normalized lexical path.
+  const absolute = resolve(root, pointer);
+  let resolved = absolute;
+  try {
+    resolved = realpathSync(absolute);
+  } catch {
+    resolved = absolute;
+  }
+  return posixRelative(root, resolved);
+}
+
+/** The file name a capsule's cleanup entry points at to cover every run the file lists, one pointer per line. */
+export const RUN_INDEX_FILE = 'run-index.md';
+
+/**
+ * The runs a capsule's cleanup entries cover: each entry's own pointer plus the
+ * pointers listed in any run index file an entry names. A directory pointer
+ * covers only itself, never the runs beneath it. Check and resume both read
+ * the list through this function.
+ */
+export function listedRunPointers(
+  root: string,
+  entryPointers: string[],
+): { covered: Set<string>; indexes: Set<string> } {
+  const covered = new Set<string>();
+  const indexes = new Set<string>();
+  for (const pointer of entryPointers) {
+    const normalized = normalizeRunPointer(root, pointer);
+    covered.add(normalized);
+    if (basename(normalized) !== RUN_INDEX_FILE) continue;
+    let text: string;
+    try {
+      text = readFileSync(resolve(root, pointer), 'utf8');
+    } catch {
+      continue;
+    }
+    indexes.add(normalized);
+    for (const line of text.split('\n')) {
+      const listed = line.trim();
+      if (listed !== '' && !listed.startsWith('#'))
+        covered.add(normalizeRunPointer(root, listed));
+    }
+  }
+  return { covered, indexes };
+}
 
 export interface Finding {
   id?: string;

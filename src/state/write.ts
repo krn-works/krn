@@ -24,7 +24,12 @@ import {
   parseCleanup,
 } from './capsule.ts';
 import { git } from './git.ts';
-import { resolveRepositoryRoot } from './runs.ts';
+import {
+  posixRelative,
+  RUN_INDEX_FILE,
+  resolveRepositoryRoot,
+  runDirectoriesDetailed,
+} from './runs.ts';
 
 /** The capsule holds pointers (task ids, SHAs, paths, the Verify command), never prose copies. */
 export const CAPSULE_BYTE_CAP = 2048;
@@ -176,6 +181,23 @@ export function addCleanup(directory: string, tuple: string): string {
   const value = `[${[...existing, entry].map(render).join(', ')}]`;
   writeCapsuleFile(file, setLine(text, CLEANUP_LABEL, value));
   return entry.pointer;
+}
+
+/**
+ * Lists every run directory in the capsule's run index file and points one
+ * cleanup entry at it, so the capsule stays small however many runs exist.
+ */
+export function writeRunIndex(repo: string, directory: string): string {
+  const { root } = resolveRepositoryRoot(repo);
+  const file = join(directory, RUN_INDEX_FILE);
+  const { runs } = runDirectoriesDetailed(root);
+  writeFileSync(file, `${runs.map((run) => run.pointer).join('\n')}\n`);
+  const pointer = posixRelative(root, file);
+  addCleanup(
+    directory,
+    `${pointer}; run-index; lead; run index lists every run; CLEANUP_PENDING`,
+  );
+  return pointer;
 }
 
 function setLine(text: string, label: string, value: string): string {
