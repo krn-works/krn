@@ -1,0 +1,17 @@
+{
+  "id": "t-2d4k3w7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Probe frontend stack candidates against boilerplate-2026 main and record the comparison",
+  "after": [],
+  "body": [
+    "Outcome: the two adopted frontend records are compared with boilerplate-2026 and the gaps are named; a probe of visual-lab, agent-browser and check:browser on the real boilerplate page (DDEV site) is recorded with commands and exit codes in the research report.\nProof: report.md section on boilerplate-2026 lists exit codes for agent-browser snapshot, mise run check:browser and the visual-lab profile run.\nFiles: .krn/runs/research/frontend-stack/report.md\nSource: operator note 2026-11-16. Read-only observation of boilerplate-2026 (branch beyond-pages, 8e4031c): package.json pins playwright 1.64.1 and axe-core 4.14.0 (matches record s-frontend-browser-gate-axe); tools/browser-check.mjs already checks layout at 320/390/1280, console, origins, axe and a lazy LCP image; docs/design/visual-lab.json exists; mise task vlab calls scripts/vlab.mjs, absent from the installed skill (it ships visual-lab.mjs). Not probed on the real site in this lane (needs DDEV + WordPress, host load above 70); do not edit boilerplate-2026 from KRN."
+  ],
+  "kind": "research",
+  "area": "frontend",
+  "stack": [
+    "frontend"
+  ]
+}
