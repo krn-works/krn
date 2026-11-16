@@ -986,6 +986,26 @@ test('a head that moved between the Check and the pinned merge exits 77', async 
   });
 });
 
+test('a merge GitHub reports as already in progress keeps waiting and ends merged', async () => {
+  const r = receiver({
+    pulls: [auto, auto, merged],
+    mergeRefusal: 'GraphQL: Merge already in progress (mergePullRequest)\n',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('a merge already in progress that never lands still ends open with exit 80', async () => {
+  const r = receiver({
+    pulls: [auto],
+    mergeRefusal: 'GraphQL: Merge already in progress (mergePullRequest)\n',
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 80);
+    return true;
+  });
+});
+
 test('any other merge refusal still fails the ship', async () => {
   const r = receiver({ pulls: [auto], mergeRefusal: 'GraphQL: not allowed' });
   await assert.rejects(shipCommand(args, r), /not allowed/u);
