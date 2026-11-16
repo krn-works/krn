@@ -1,7 +1,11 @@
 {
   "id": "t-86v5dek",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "main() guarantees one verdict line: early exits print 'fast FAIL (<stage>): exit N', crashes 'fast FAIL (<stage>): crashed: ...'; regression test covers git exit and index crash"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "npm run fast always ends with a verdict line",

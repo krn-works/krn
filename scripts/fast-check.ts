@@ -687,7 +687,36 @@ async function preflight(
   return { steps, failed: steps.find((step) => !step.ok) };
 }
 
-export async function main(root: string, argv: string[] = []): Promise<number> {
+/** The stage check() is in, named by the verdict line when it stops without one. */
+let stage = 'args';
+
+/**
+ * Runs the check and guarantees one verdict line on stdout: a crash or an early exit
+ * (usage, git, missing tools) prints `fast FAIL (<stage>): ...` instead of ending silently.
+ */
+export async function main(
+  root: string,
+  argv: string[] = [],
+  write: (text: string) => void = (text) => process.stdout.write(text),
+): Promise<number> {
+  stage = 'args';
+  let code: number;
+  try {
+    code = await check(root, argv);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    write(`fast FAIL (${stage}): crashed: ${message.split('\n')[0]}\n`);
+    return 1;
+  }
+  // 0 and 1 print their own PASS/FAIL line; every other exit stopped before a verdict.
+  if (code !== 0 && code !== 1)
+    write(
+      `fast FAIL (${stage}): exit ${code} before any check ran; see the line above\n`,
+    );
+  return code;
+}
+
+async function check(root: string, argv: string[]): Promise<number> {
   const started = performance.now();
   const parsed = parseArgs(root, argv);
   if ('error' in parsed) {
@@ -695,7 +724,9 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     return 64;
   }
   // The standards index is generated from the pack: regenerate it so the diff below carries it.
+  stage = 'index';
   refreshIndex(root);
+  stage = 'git';
   let changed: string[];
   let removed: string[];
   let surviving: Set<string>;
@@ -728,6 +759,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     );
     return 0;
   }
+  stage = 'tools';
   const tools = toolBin(root);
   if (!tools) {
     process.stderr.write(
@@ -739,6 +771,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
+  stage = 'select';
   const tests = listTests(root);
   const recordsFile = join(root, 'standards/records.json');
   const related = [
@@ -769,6 +802,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     if (guard.has(related[i] ?? '')) related.splice(i, 1);
   // One slot for the whole check: the guard, tsc and tests (and a Biome redo) never queue twice.
   return inTestSlot(root, async () => {
+    stage = 'preflight';
     const pre = await preflight(
       root,
       parsed.base,
@@ -833,6 +867,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
             ...files,
           ])
         : undefined;
+    stage = 'verify';
     let verified = verify();
     const steps: Step[] = [...pre.steps];
     if (lint) {
