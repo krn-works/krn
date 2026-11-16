@@ -1,0 +1,19 @@
+{
+  "id": "t-2k8ih26",
+  "repo": "urunc-dev/urunc",
+  "base": "65f5ff81bdcca948a5c6b6ba32a7a4a1a5ebdc7b",
+  "reference": "3a78cc53699506b87a78602166c230a7ca836a32",
+  "task": {
+    "title": "hermit: the guest gets no default route (`gateway=` is not a Hermit boot argument)",
+    "body": "For the `hermit` unikernel type, `pkg/unikontainers/unikernels/hermit_rs.go` builds the command line as `ip=<ip>/<prefix> gateway=<gw> [-- <args>]`. Hermit has no `gateway=` argument:\n\n- Hermit's kernel on main reads the address and the gateway from one argument, `ip=<ip>/<prefix>:<gateway>` (`src/env/ip_config.rs`, since hermit-os/kernel f2f05350 of 2026-08-13). It logs `could not parse bootarg: gateway=<gw>` and configures the interface without a gateway.\n- The latest Hermit release, v0.13.2, reads neither `ip=` nor `gateway=`. It takes `-ip <ip> -mask <mask> -gateway <gw>` (`src/env.rs`). This is from reading the code; I haven't run v0.13.2.\n- No Hermit version has parsed `gateway=`.\n\nTo reproduce, I used urunc built with `make static` from 8355257, an echo server on Hermit main 0b8328c with hermit-loader v0.5.7 (the loader as `com.urunc.unikernel.binary`, the app as `com.urunc.unikernel.initrd`), QEMU, and nerdctl's default bridge. urunc runs:\n\n```\nqemu-system-x86_64 ... -kernel /cntrRootfs/unikernel/hermit-loader-x86_64-multiboot ... -initrd /cntrRootfs/unikernel/echo.elf -no-reboot -append \"ip=10.4.0.3/24 gateway=10.4.0.1\"\n```\n\nThe guest logs:\n\n```\n[INFO  env       ] bootargs = /cntrRootfs/unikernel/hermit-loader-x86_64-multiboot ip=10.4.0.3/24 gateway=10.4.0.1\n[ERROR env       ] could not parse bootarg: gateway=10.4.0.1\n[INFO  device    ] IP address: 10.4.0.3/24\n```\n\nA client on the bridge (10.4.0.1) gets its echo. A client whose address is outside the guest's subnet (192.168.77.1 on the host's `lo`, so the reply has to go through the gateway) gets no reply.\n\nThe fix is to write `ip=<ip>/<prefix>:<gw>`, and `ip=<ip>/<prefix>` when there is no gateway. I'm working on a PR.\n\nLLM usage: this issue was written with the help of Claude Opus 5.5 (`claude-opus-5-5`). I reviewed it, and the reproduction above was run before filing.\n"
+  },
+  "spec": "hermit: the guest gets no default route (`gateway=` is not a Hermit boot argument)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/unikontainers/unikernels/hermit_rs_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/unikontainers/unikernels/",
+  "committed": "2026-11-11",
+  "issue": "https://github.com/urunc-dev/urunc/issues/1197"
+}

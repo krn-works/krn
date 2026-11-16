@@ -1,0 +1,19 @@
+{
+  "id": "t-22gi9wd",
+  "repo": "buildbarn/bb-storage",
+  "base": "ff9af3883025f517a42725cb66b1a11cc33ea4c2",
+  "reference": "99e0fabf66d3c8c5dd4af25755cdbf1cccb035ba",
+  "task": {
+    "title": "Mkdir loses os.ModeSticky on Linux",
+    "body": "On Linux, `localDirectory.Mkdir(name, 0o700 | os.ModeSticky)` succeeds but creates a directory without the sticky bit. `Directory.Mkdir` is documented as equivalent to `os.Mkdir`, which preserves that bit.\n\nThe Unix adapter casts `os.FileMode` directly to `uint32`. Go's `os.ModeSticky` and the kernel's `S_ISVTX` use different bit positions, so passing the former to `mkdirat()` loses it.\n\nReproduced against main at ff9af3883025f517a42725cb66b1a11cc33ea4c2 on Linux x86_64: create a local directory handle, call `Mkdir` with `0o700 | os.ModeSticky`, then inspect the new directory with `os.Stat`. Expected mode: `os.ModeDir | 0o700 | os.ModeSticky`. Actual mode omits `os.ModeSticky`.\n\nI have a small mode-conversion fix and tests covering the resulting mode, umasks including 0700/0777, and refusal to modify existing directories or symlinks. The mode and umask cases fail on the original code and pass with the fix. This report concerns Linux; BSD systems strip sticky bits during directory creation and need a separate approach.\n"
+  },
+  "spec": "Mkdir loses os.ModeSticky on Linux",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/filesystem/local_directory_linux_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+  "committed": "2026-09-29",
+  "issue": "https://github.com/buildbarn/bb-storage/issues/374"
+}

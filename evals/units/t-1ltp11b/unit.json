@@ -1,0 +1,19 @@
+{
+  "id": "t-1ltp11b",
+  "repo": "taylorcox75/qRemote",
+  "base": "1e7f23394d123cfa0ff103bbcbedadaf6c8df2d8",
+  "reference": "29867089b37b123a54be8b85b25fcec071d62321",
+  "task": {
+    "title": "\"Always Open With..\"",
+    "body": "According to the latest update \"qRemote now registers as an \"Open In\" handler for .torrent files — open a torrent file from another app to add it directly\"\n\nWhat does that mean exactly? In my Files app, I can see that my torrent has the qRemote icon on it, but tapping doesn't take me to qRemote. It just tries to show it via Preview. If I tap \"Get Info\" on the .torrent, it says \"No Apps Available\" next to \"Always Open With\".  I can share the .torrent to qRemote but I feel like it should be simpler than that? Or am I doing something wrong? \n\nThanks. "
+  },
+  "spec": "\"Always Open With..\"",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/utils/app-config.test.ts"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install jest \"tests/utils/app-config.test.ts\"",
+  "committed": "2026-07-16",
+  "issue": "https://github.com/taylorcox75/qRemote/issues/125"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-1al6kuk",
+  "repo": "cockroachdb/cockroach-operator-legacy",
+  "base": "f3e60ffe2e6bfec6320f1c06f8a481a01524080e",
+  "reference": "5a812ab2deb0156d8d27548470a021687f27a14c",
+  "task": {
+    "title": "Version-checker Job ignores `nodeSelector`",
+    "body": "The StatefulSet builder applies `spec.nodeSelector` to the CockroachDB pods (`pkg/resource/statefulset.go`, `makePodTemplate`), but the version-checker Job builder does not (`pkg/resource/job.go`, `buildPodTemplate`). The two builders each copy the scheduling fields (affinity, tolerations, topology spread, image pull secret, priority class) onto their pod templates independently, and `nodeSelector` was added to only one.\n\nOn a cluster pinned to a node pool, the database pods land where the image can be pulled and the architecture matches, while the version-check Job may be scheduled elsewhere and never complete, stalling installs and upgrades.\n\n**Fix.** One shared method on the cluster that applies its scheduling fields to a pod spec, used by both builders, with a test that the two builders produce identical scheduling fields from the same cluster.\n"
+  },
+  "spec": "Version-checker Job ignores `nodeSelector`",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/resource/scheduling_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/resource/",
+  "committed": "2026-10-30",
+  "issue": "https://github.com/cockroachdb/cockroach-operator-legacy/issues/1170"
+}

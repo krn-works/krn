@@ -1,0 +1,19 @@
+{
+  "id": "t-2rntorm",
+  "repo": "tokencanopy/e2a",
+  "base": "56414d74673f4d8e3aeebe90a3a2be5ca4452c87",
+  "reference": "b8701361da3ba5fde371b4c6b9fb0487b876aae9",
+  "task": {
+    "title": "bounded() truncates SMTP diagnostic text at a raw byte offset, splitting UTF-8 runes",
+    "body": "`bounded()` in `internal/messagelifecycle/reconstruct.go` truncates recipient/review diagnostic text (`smtp_detail`, `failure_reason`, `failure_code`, `review_resolution`) at a raw byte offset with no UTF-8 boundary check:\n\n```go\nfunc bounded(value string) string {\n\tif len(value) <= maxDiagnosticStringBytes {\n\t\treturn value\n\t}\n\treturn value[:maxDiagnosticStringBytes]\n}\n```\n\nThe sibling function `SafeDiagnostic()` in `model.go` does the same job for a different call site and gets it right, extending the truncation back to a valid rune boundary. `bounded()` predates it and was never updated to match.\n\nSince `message_recipients.detail` holds live SMTP bounce/deferral text from foreign mail servers, a diagnostic that happens to land a multi-byte rune across byte 2048 gets cut mid-rune. `validatedEvidenceCopy` (model.go) only checks `len(text) > maxDiagnosticStringBytes`, not UTF-8 validity, so the invalid string is accepted, and the JSON round-trip in `cloneTransition` silently substitutes U+FFFD for the broken bytes rather than erroring.\n\nRepro (Go, package `messagelifecycle`): feed a `RecipientSnapshot.Detail` of 683 repeats of `中` (2049 bytes, so the 2048-byte cap always splits the last rune) through `Reconstruct()`. The resulting `Evidence[\"smtp_detail\"]` comes back invalid UTF-8 (and, after the JSON round-trip, longer than the 2048-byte cap it was supposed to enforce).\n\nFix is to route `bounded()` through `SafeDiagnostic()` so both call sites share one truncation rule.\n"
+  },
+  "spec": "bounded() truncates SMTP diagnostic text at a raw byte offset, splitting UTF-8 runes",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/messagelifecycle/reconstruct_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/messagelifecycle/",
+  "committed": "2026-10-19",
+  "issue": "https://github.com/tokencanopy/e2a/issues/1055"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-h6a7wlt",
+  "repo": "naxhq/NexQ",
+  "base": "414a17182677495cabe43401fbb9a70ae7aed795",
+  "reference": "010a6325b76f64eaaa3e58deefddd33104cc6f67",
+  "task": {
+    "title": "[Bug]: Custom endpoint shows \"/v1/api/chat not found\" instead of the real error, and a new token needs a restart",
+    "body": "### What happened?\n\nI set up the Custom LLM provider with Ollama Cloud (base URL `https://ollama.com/v1`, Bearer Token). Every answer failed with:\n\n```\nCustom endpoint request failed (404 Not Found): {\"error\":\"path \\\"/v1/api/chat\\\" not found\"}\n```\n\nThat message sent me in the wrong direction (I first thought the model name or its `-cloud` suffix was the problem). After digging, it's two separate things:\n\n1. **The real error is thrown away.** NexQ calls `/chat/completions` first and, if that fails for any reason, falls back to Ollama's `/api/chat`. Only the fallback's answer is shown. In my case `/chat/completions` answered `401 Unauthorized` (wrong token), and Ollama Cloud doesn't serve `/api/chat` under `/v1`, so all I ever saw was the 404 for the fallback path.\n2. **A new token isn't used until NexQ restarts.** With Custom as the active provider, pasting a new token in Settings stores it, but the running provider keeps the old one. Spaces around a pasted token are also sent as part of it, which gives another 401.\n\nBoth `gemma4:31b` and `gemma4:31b-cloud` work against Ollama Cloud with a correct Bearer token, so the model name wasn't the problem.\n\n### Steps to reproduce\n\n1. Settings > LLM > Custom: base URL `https://ollama.com/v1`, auth **Bearer Token**, a wrong token (or the right one with a trailing space).\n2. Make Custom the active provider, start a meeting and ask for an answer.\n3. See `404 Not Found ... path \"/v1/api/chat\" not found`.\n4. Paste the correct token and ask again: same error until NexQ restarts.\n\n### Expected behavior\n\n- The error says what the endpoint actually answered for each path NexQ tried, e.g. `/chat/completions answered 401 Unauthorized`.\n- A token changed while Custom is in use applies at once, without spaces around it.\n\n### NexQ version\n\n2.32.0 (the code is the same on main at 2.33.0)\n\n### Operating system\n\nWindows 11\n\n### OS version and hardware\n\nWindows 11 (build 26300)\n\n### Area\n\nAI responses (LLM)\n\n### STT provider(s)\n\nNot relevant\n\n### LLM provider(s)\n\nCustom endpoint\n\n### Logs\n\nWith extra logging on a test build (token lengths only), the first request's real answer:\n\n```\nINFO  [llm::custom] CustomLLM: auth bearer, 40-character credential\nWARN  [llm::custom] CustomLLM: /chat/completions answered 401 Unauthorized; trying /api/chat\n```\n\nThe stored token turned out to be the wrong key (40 characters; the Ollama key is 57). After pasting the right one, the provider in use kept the old token until a restart.\n\n### Screenshots, recordings or log files\n\n_No response_\n\n### Before submitting\n\n- [x] I am using the latest release, or I have confirmed the bug still exists on it.\n- [x] I searched existing issues and this is not a duplicate.\n- [x] I included my log, or explained why I can't.\n- [x] I checked logs and screenshots for personal information.\n"
+  },
+  "spec": "[Bug]: Custom endpoint shows \"/v1/api/chat not found\" instead of the real error, and a new token needs a restart",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "src/settings/LLMSettings.sync.test.tsx"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"src/settings/LLMSettings.sync.test.tsx\"",
+  "committed": "2026-11-04",
+  "issue": "https://github.com/naxhq/NexQ/issues/78"
+}

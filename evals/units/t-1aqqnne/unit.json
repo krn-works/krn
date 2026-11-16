@@ -1,0 +1,19 @@
+{
+  "id": "t-1aqqnne",
+  "repo": "urunc-dev/urunc",
+  "base": "eba28d3f07aa878f0e04a972928b6aabe2dd0850",
+  "reference": "1150978008bc662d5056f3605805f43cd125bebf",
+  "task": {
+    "title": "Hooks run concurrently instead of in the listed order",
+    "body": "We currently run each stage's hooks concurrently, one goroutine per hook. So when a stage has more than one hook they don't run in listed order, and a failing hook doesn't stop the ones after it. The spec requires both: hooks \"MUST be called in the listed order\" ([config.md](https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-hooks)), and a failing `createRuntime`/`createContainer`/`startContainer` hook MUST stop the container ([runtime.md](https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#lifecycle)).\n\nThe sequential path already exists in the tree behind a toggle. Since the concurrency only matters when a stage has 2+ hooks, exactly the case it gets wrong, we can just run them sequentially and drop the concurrent path, which also retires the panic #445 fixed inside it.\n"
+  },
+  "spec": "Hooks run concurrently instead of in the listed order",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/unikontainers/unikontainers_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+  "committed": "2026-10-26",
+  "issue": "https://github.com/urunc-dev/urunc/issues/1066"
+}

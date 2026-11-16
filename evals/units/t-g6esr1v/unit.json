@@ -1,0 +1,19 @@
+{
+  "id": "t-g6esr1v",
+  "repo": "ccaprani/pycba",
+  "base": "548ea0e8a4927f6e32fec5f8733555494b607361",
+  "reference": "20033e33214b45aa37e5ae945cc1a261bdbb05e5",
+  "task": {
+    "title": "Using at() for rotation at supports",
+    "body": "Hi Colin. Firstly - thanks for pyCBA. I've started building it into a workflow specific for field testing. Working out which test vehicles to use, quickly exploring expected results for different scenarios, helping define sensor locations based on expected signals, etc.. It's been a good way to speed up the preparation for tests.\n\nIn the process I ran into an issue how rotation comes back using [at()](https://ccaprani.github.io/pycba/_modules/pycba/results.html#BeamResults.at), at a support. Understand it is to do with the padding for the bending moment and shear diagrams.\nThe same thing as what is handled for deflection by deflection_curve() \n\nTo reproduce:\n```\nimport pycba as cba\n\nL=10.0\nP=100.0\nEI = 30 * 10e9 * 1e-6\n\nbeam_analysis = cba.BeamAnalysis([L], EI, supports=[\"pinned\", \"roller\"])\nbeam_analysis.set_loads([[1, 2, P, L/2, 0]])\nbeam_analysis.analyze()\n\nprint(beam_analysis.at(0.0)[\"R\"]) # (padded endpoint, = rotation *EI)\n\nr = beam_analysis.beam_results.results\nprint(r.R[0], r.R[1])       \nprint(P*L**2 / (16*EI))\n```\n\nFix -\nMy own workaround has been a function like deflection_curve() but for rotation, which I then interpolate at the position x. Though the same thing could probably be implemented within at() as a small change."
+  },
+  "spec": "Using at() for rotation at supports",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/test_results.py"
+  },
+  "install": "python3 -m venv .venv && for x in test tests dev; do .venv/bin/python -m pip install -q pytest -e \".[$x]\" && exit 0; done; .venv/bin/python -m pip install -q pytest -e .",
+  "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_results.py\"",
+  "committed": "2026-09-15",
+  "issue": "https://github.com/ccaprani/pycba/issues/179"
+}

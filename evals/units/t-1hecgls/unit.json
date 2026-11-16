@@ -1,0 +1,19 @@
+{
+  "id": "t-1hecgls",
+  "repo": "lmilojevicc/pi-zentui",
+  "base": "b8c0a1611804f3f188e3e000ce9c506578d3d34d",
+  "reference": "1c5c9307ec086d71e424e156efbb656c7a00ba54",
+  "task": {
+    "title": "User message styling doesn't apply on Pi 1.0.x (UserMessageComponent shape changed)",
+    "body": "## Problem\nWith Pi 1.0.2 and pi-zentui 0.29.2, `components.userMessages` (enabled, any style, e.g. `labeled`) has no effect: user messages render with Pi's native look. Footer/editor work fine.\n\n## Cause\n`nativeMarkdown()` in `extensions/zentui/user-message.ts` only recognises the old `UserMessageComponent` shape: `Container > Box > Markdown` with `paddingX === 0` and `paddingY === 0`. In Pi 1.0.2 `rebuild()` adds the `Markdown` directly (no Box), with `paddingX = outputPad` (1), `paddingY = 1`, and the message background in `defaultTextStyle.bgColor`. The shape check fails, so Zentui silently falls back to the native renderer.\n\n## Suggested fix\n- Accept the `Markdown` as a direct child (keep Box-wrapped support for older Pi).\n- Drop the zero-padding requirement.\n- Strip `bgColor` from the inherited `defaultTextStyle` so the Zentui frame isn't painted over Pi's background.\n\nWorking local patch to `nativeMarkdown()`:\n\n```ts\nlet renderer = children[0];\nif (isRecord(renderer) && !isNativeMarkdown(renderer)) {\n  const box = renderer;\n  if (!Array.isArray(box.children) || box.children.length !== 1) return undefined;\n  renderer = box.children[0];\n}\nif (!isNativeMarkdown(renderer)) return undefined;\nconst child = renderer as Record<string, unknown>;\nif (typeof child.text !== \"string\" || !isRecord(child.theme)) return undefined;\n// ...existing theme/options checks...\nconst { bgColor: _bg, ...textStyle } = (child.defaultTextStyle ?? {}) as Record<string, unknown>;\n// pass `textStyle` (when defaultTextStyle was defined) as input.defaultTextStyle\n```\n\n## Environment\n- pi-coding-agent 1.0.2, pi-zentui 0.29.2, macOS\n- Other components that inspect Pi component internals (e.g. thinking steps) may be affected similarly; not verified.\n"
+  },
+  "spec": "User message styling doesn't apply on Pi 1.0.x (UserMessageComponent shape changed)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/user-message-native.test.ts"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"test/user-message-native.test.ts\"",
+  "committed": "2026-10-05",
+  "issue": "https://github.com/lmilojevicc/pi-zentui/issues/171"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-f024qw4",
+  "repo": "cuttle-cards/cuttle",
+  "base": "da1394199473000063658babf699bf50a61054b9",
+  "reference": "de0507212e8c000372fab77fe5d134da7d554bff",
+  "task": {
+    "title": "Four one-off: discarded cards flash in the caster's hand on the victim's screen",
+    "body": "## Summary\nWhen you are hit with a 4, the two randomly discarded cards briefly appear in your **opponent's** hand on your screen before landing in scrap. The reveal animation meant for the caster is playing on the victim's client instead.\n\n## Root cause\nThe client's `RESOLVE` handler assumes `evData.playedBy` is the player who **resolved** the one-off (the victim), but the server sends the **caster**.\n\n- `api/helpers/game-states/create-socket-events.js:56-58` flips `playedBy` on `MoveType.RESOLVE`: `playedBy = (playedBy + 1) % 2`, so on the socket event it is the player who *played* the one-off.\n- `src/plugins/sockets/inGameEvents.js:65-74` (the comment there says the opposite) runs `processFours` when `evData.playedBy !== gameStore.myPNum`.\n  - On the **victim's** client, `playedBy` (caster) is not `myPNum`, so `processFours` runs. It splices the discarded cards into `opponent.value.hand`, which is the caster's hand (`src/stores/game.js:487-499`). That is the bug.\n  - On the **caster's** client, `playedBy === myPNum`, so it skips the animation and just calls `updateGame`. The reveal the caster should see never plays.\n\nThe server-side discard is correct: `api/helpers/game-states/moves/resolve/four.js` uses the raw, unflipped `playedBy` (the resolver) to pick the victim. Only the client condition is inverted.\n\n## Introduced by\n#1384 (`31011b47`, rework fours to discard two cards at random), which routed fours through `RESOLVE` and reused the legacy `RESOLVE_FOUR` condition. In that legacy path `playedBy` was the resolver, so the condition was right there.\n\n## Suggested fix\nIn the `RESOLVE` -> `case 4` branch of `src/plugins/sockets/inGameEvents.js`, invert the check so `processFours` runs when `evData.playedBy === gameStore.myPNum` (the caster) and the victim just calls `updateGame`. Fix the misleading comment. Leave the legacy `RESOLVE_FOUR` case alone.\n\n## Repro\n1. Two players, player A plays a 4 and player B has 2+ cards in hand with no glasses 8 and a non-empty deck.\n2. Player B resolves.\n3. On B's screen, the discarded cards appear face-up in A's hand for about 1s, then jump to scrap.\n4. On A's screen, there is no reveal.\n\n## Test gap\n`tests/e2e/specs/in-game/one-offs/4_fours.spec.js` asserts the end state (hand sizes, scrap, log) but not the intermediate opponent-hand reveal, so it does not catch this."
+  },
+  "spec": "Four one-off: discarded cards flash in the caster's hand on the victim's screen",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/specs/in-game-events.spec.js"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/specs/in-game-events.spec.js\"",
+  "committed": "2026-10-18",
+  "issue": "https://github.com/cuttle-cards/cuttle/issues/1440"
+}

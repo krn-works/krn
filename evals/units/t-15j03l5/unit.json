@@ -1,0 +1,19 @@
+{
+  "id": "t-15j03l5",
+  "repo": "edgehero/pi-dispatch",
+  "base": "0b4f1ab9971a565405e51da45df2fe4cb51d24a2",
+  "reference": "408cdf500d1be3f555542cb9d186cff0e7b300a8",
+  "task": {
+    "title": "The sandbox gateway defaults its log folder to <deployment>/logs, not the folder the worker and the console use",
+    "body": "## Problem\n\n`readGatewayConfig` sets `logsDir: resolve(config.deployment, env.PI_LOGS_DIR ?? \"logs\")` (gateway/src/config.mjs:38).\nWith `PI_LOGS_DIR` unset in the deployment `.env`, the gateway writes into `<deployment>/logs`:\n- its console audit rows (`sandbox-browser-*`, `sandbox-watch-*`), through `makeConsoleAudit`\n  (gateway/src/audit.mjs:7), into `<deployment>/logs/console-audit/`;\n- its crash journal, `<deployment>/logs/sandbox-gateway-active/` (gateway/src/audit.mjs:8).\n\nThe worker and the console default to `~/.pi-dispatch/logs` (`defaultLogsDir` and `logsDirPath`,\nworker/src/config.mjs:1085 and 1149; the console at admin/src/console/config.mjs:137). A relative `PI_LOGS_DIR`\nresolves against the deployment folder in both the gateway and the console, so only the default differs.\n\n`<deployment>/logs` is where the service manager writes `worker.out.log` and `worker.err.log`. docs/backup.md:164-167\nlists it as not backed up and says \"`PI_LOGS_DIR` must never be pointed at that directory\". docs/backup.md:310-311 says\nit again.\n\n## Why it matters\n\nWith the default:\n- The console's Audit page reads `console-audit` under its own folder (admin/src/console/cli.mjs:652), so it never\n  shows who opened or watched a sandbox in the browser.\n- The worker prunes audit months under its own folder only (`makeConsoleAuditReaper`, worker/src/start.mjs:1493), so\n  the gateway's rows are kept forever, whatever `PI_CONSOLE_AUDIT_RETENTION_DAYS` says.\n- A backup made by docs/backup.md leaves them out.\n\nThe audit trail is split across two folders, and the one the console reads looks complete.\n\n## Change\n\n- The gateway uses the same default as the worker and the console (`logsDirPath`), so with `PI_LOGS_DIR` unset its\n  rows land in the console's audit log.\n- docs/sandbox-gateway.md says which folder the gateway writes to.\n- docs/upgrading.md says what to do with rows already written under `<deployment>/logs/console-audit/`.\n\n## Done when\n\n- With `PI_LOGS_DIR` unset, a browser attach shows on the console's Audit page, and a test pins the gateway's default\n  to `logsDirPath`.\n- The gateway writes nothing under `<deployment>/logs` unless `PI_LOGS_DIR` points there.\n- docs/sandbox-gateway.md names the folder.\n"
+  },
+  "spec": "The sandbox gateway defaults its log folder to <deployment>/logs, not the folder the worker and the console use",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "gateway/test/config.test.mjs"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 node --test \"gateway/test/config.test.mjs\"",
+  "committed": "2026-11-03",
+  "issue": "https://github.com/edgehero/pi-dispatch/issues/805"
+}

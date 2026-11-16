@@ -1,0 +1,19 @@
+{
+  "id": "t-1bh70i6",
+  "repo": "milvus-io/milvus-sdk-node",
+  "base": "991ff3ea18c2a43ad40eeae684b2aa3ed6f884c5",
+  "reference": "af1deab91d4e8d3873c5e919238b4d86799f8b1d",
+  "task": {
+    "title": "`count()` drops `exprValues`, `partition_names`, `consistency_level` and `timeout`",
+    "body": "## Problem\n\n`MilvusClient.count()` builds a new query request containing only the collection name, the filter, `db_name` and `cluster_id` ([`milvus/grpc/Data.ts`](https://github.com/milvus-io/milvus-sdk-node/blob/7c427fd0fa78a44a84b021e78498bc20e3998766/milvus/grpc/Data.ts#L1425-L1444)):\n\n```ts\nasync count(data: CountReq): Promise<CountResult> {\n  const req: any = {\n    collection_name: data.collection_name,\n    expr: data.filter || data.expr || '',\n    output_fields: [DEFAULT_COUNT_QUERY_STRING],\n  };\n  if (data.db_name) req.db_name = data.db_name;\n  if (data.cluster_id) req.cluster_id = data.cluster_id;\n  const queryResult = await this.query(req);\n  ...\n}\n```\n\nAs a result:\n\n- **`timeout` and `client_request_id` are accepted but ignored.** `CountReq` extends `collectionNameReq` → `GrpcTimeOut`, so the type allows them, but they never reach `query()`. A `count()` with `timeout: 5000` runs with no deadline.\n- **`exprValues` can't be used.** `CountReq` doesn't declare it, and `count()` wouldn't forward it anyway. A filter that uses templates, such as `id in {ids}` (the recommended way to send large ID lists, or `membership_match(..., {blob}, type=roaring)` blobs), can't be counted with `count()`.\n- **`partition_names` and `consistency_level` can't be used either.** In plain JS they're silently dropped. A count paired with a `query()` page that targets specific partitions, or uses `Strong` consistency, counts something different from the page it's meant to total.\n\n## Repro\n\n```js\nconst { data } = await client.count({\n  collection_name: 'c',\n  filter: 'id in {ids}',\n  exprValues: { ids: [1, 2, 3] },\n  partition_names: ['p1'],\n  consistency_level: 'Strong',\n  timeout: 5000,\n});\n// Only collection_name and the filter string reach query():\n// {ids} is never bound, all partitions are counted, the default consistency is used, and there is no deadline.\n```\n\n## Workaround\n\nCall `query()` directly:\n\n```js\nconst res = await client.query({\n  collection_name: 'c',\n  filter: 'id in {ids}',\n  exprValues: { ids: [1, 2, 3] },\n  partition_names: ['p1'],\n  consistency_level: 'Strong',\n  timeout: 5000,\n  output_fields: ['count(*)'],\n});\nconst total = Number(res.data[0]['count(*)']);\n```\n\n## Proposed fix\n\n- Add `exprValues`, `partition_names` and `consistency_level` to `CountReq` (the same types as on `QueryReq`).\n- Forward them from `count()`, along with the `GrpcTimeOut` fields (`timeout`, `client_request_id` / `client-request-id`). For example, spread `data` into the query request, then set `expr` and `output_fields`, so new `GrpcTimeOut` fields are picked up automatically.\n- Add a unit test that checks every field is forwarded to `query()`.\n\nFound on `@zilliz/milvus2-sdk-node` 3.0.6. Still present on `main` at 7c427fd.\n"
+  },
+  "spec": "`count()` drops `exprValues`, `partition_names`, `consistency_level` and `timeout`",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/utils/Data.spec.ts"
+  },
+  "install": "npm install --ignore-scripts",
+  "test": "timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
+  "committed": "2026-11-16",
+  "issue": "https://github.com/milvus-io/milvus-sdk-node/issues/628"
+}

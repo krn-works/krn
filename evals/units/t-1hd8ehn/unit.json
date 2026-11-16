@@ -1,0 +1,19 @@
+{
+  "id": "t-1hd8ehn",
+  "repo": "google/gonids",
+  "base": "4be2b63b8f528db6b8c0e077fe4060ab627acdbf",
+  "reference": "cc7252cb6ab762aa35b78311a5ff0f31559b4b7b",
+  "task": {
+    "title": "unsupported suricata 8 sticky buffers",
+    "body": "gonids is missing support for quite a few sticky buffers as of suricata 8. I've hit parse failures on the following:\n\n```\nmqtt.connect.password\nmqtt.connect.username\nmqtt.publish.message\nmqtt.publish.topic\nfile.name\nsmtp.rcpt_to\nwebsocket.payload\n```\n\nfor completeness, here's the complete list of unsupported sticky buffers:\n\n```\ndnp3.data\ndns.additionals.rrname\ndns.answer.name\ndns.answers.rrname\ndns.authorities.rrname\ndns.queries.rrname\ndns.query.name\ndns.response.rrname\nemail.cc\nemail.date\nemail.from\nemail.message_id\nemail.received\nemail.subject\nemail.to\nemail.url\nemail.x_mailer\nenip.product_name\nenip.service_name\nfile.name\nftp.completion_code\nftp.reply\nike.init_spi\nike.key_exchange_payload\nike.nonce_payload\nike.resp_spi\nike.vendor\nkrb5.cname\nkrb5.sname\nldap.request.attribute_type\nldap.request.dn\nldap.responses.attribute_type\nldap.responses.dn\nldap.responses.message\nmdns.additionals.rrname\nmdns.answers.rrname\nmdns.authorities.rrname\nmdns.queries.rrname\nmdns.response.rrname\nmqtt.connect.clientid\nmqtt.connect.password\nmqtt.connect.protocol_string\nmqtt.connect.username\nmqtt.connect.willmessage\nmqtt.connect.willtopic\nmqtt.publish.message\nmqtt.publish.topic\nmqtt.subscribe.topic\nmqtt.unsubscribe.topic\nntp.reference_id\npgsql.query\nrfb.name\nsdp.attribute\nsdp.bandwidth\nsdp.connection_data\nsdp.email\nsdp.encryption_key\nsdp.media.connection_data\nsdp.media.encryption_key\nsdp.media.media\nsdp.media.media_info\nsdp.origin\nsdp.phone_number\nsdp.repeat_time\nsdp.session_info\nsdp.session_name\nsdp.time\nsdp.timezone\nsdp.uri\nsip.content_length\nsip.content_type\nsip.from\nsip.protocol\nsip.request_line\nsip.response_line\nsip.stat_code\nsip.stat_msg\nsip.to\nsip.user_agent\nsip.via\nsmb.named_pipe\nsmb.ntlmssp_domain\nsmb.ntlmssp_user\nsmb.share\nsmtp.helo\nsmtp.mail_from\nsmtp.rcpt_to\nsnmp.usm\ntls.alpn\ntls.random_bytes\ntls.random_time\ntls.subjectaltname\nwebsocket.payload\n```\n\nA couple of these (`smb.named_pipe`, `smb.share`, `krb5.cname` and `krb5.sname`) are supported in an underscored form.\n\nThanks for the help! For context, I'm trying to parse the Vulncheck initial access rule set to do some mechanical manipulations."
+  },
+  "spec": "unsupported suricata 8 sticky buffers",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "parser_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./",
+  "committed": "2026-10-23",
+  "issue": "https://github.com/google/gonids/issues/249"
+}

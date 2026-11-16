@@ -1,0 +1,19 @@
+{
+  "id": "t-1mx3apz",
+  "repo": "tokencanopy/e2a",
+  "base": "a19f8a1a0c9f32b3556d8697231e6bd7d70c54a6",
+  "reference": "cbfba9b737c11b3f5d4775f4b49bb11ea61e500e",
+  "task": {
+    "title": "webhook events don't carry scheduled_at for held/scheduled sends (#815 follow-up)",
+    "body": "## What\n\nSince #833 (\"preserve send_at across a review hold\"), a held message that carried a future `send_at` is re-armed on approval: it returns `status=scheduled` with `scheduled_at` on the HTTP surfaces (send response, approve response, review queue, message detail) and actually submits at that instant.\n\nBut the async webhook events are not extended:\n\n- `email.review_requested` (`buildPendingApprovalEvent` in `internal/agent/webhooks_api.go`) — no `scheduled_at`, even though a future `send_at` was stamped on the held draft.\n- `email.review_approved` (`buildApprovedEvent`) — no `scheduled_at`, so a subscriber cannot tell whether approval re-armed the schedule or is sending immediately.\n\nThe events themselves fire correctly and on time (`review_approved` at approval, `email.sent` at the scheduled instant) — this is purely a payload-surface gap.\n\n## Why it is worth closing\n\nA reviewer that drives review asynchronously via webhooks (an automated approver, a queue consumer, a compliance workflow) receives `email.review_approved` with no way to know the message was deferred to `scheduled_at` vs. delivered now. Today they would have to go back and `GET /v1/messages/{id}` to discover it. Both features are beta, so this is an additive (optional field) change with no compatibility cost.\n\n## Fix\n\nAdd optional `scheduled_at` (RFC 3339, `x-stability-level: beta`) to the `email.review_requested` and `email.review_approved` event payloads when the message carries a schedule:\n\n1. `buildPendingApprovalEvent`: include `msg.ScheduledAt` (the row already has it after the hold stamps it).\n2. `buildApprovedEvent`: include `sent.ScheduledAt` — present when approval re-armed the schedule; note it stays set on the row after the instant passes, so document \"set when the message was scheduled; retained afterwards\".\n3. Regenerate / update the OpenAPI + generated SDK event models, and cover with a webhook-payload test (e.g. in `internal/agent/webhooks_events_test.go`).\n\nFollow-up to #815 / #833."
+  },
+  "spec": "webhook events don't carry scheduled_at for held/scheduled sends (#815 follow-up)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/agent/webhooks_events_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/agent/",
+  "committed": "2026-08-31",
+  "issue": "https://github.com/tokencanopy/e2a/issues/836"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-2htshp4",
+  "repo": "lmilojevicc/pi-zentui",
+  "base": "1f20f77907005d90251bb2d0428075aca714e063",
+  "reference": "5fb50613f38346ed5c94e519fc8f030bfba34a68",
+  "task": {
+    "title": "rendering: decorated autocomplete menu breaks with editor horizontal padding",
+    "body": "**Zentui version**: main@1f20f77 (local checkout)\n**Pi version**: 0.87.1\n**Install source**: local checkout\n**Terminal and display environment**: macOS, iTerm2, MesloLGS NF (Nerd Font)\n**Affected area**: Editor/input box\n\n**Expected rendering**\n\nWith the native editor's horizontal padding enabled (`editorPaddingX` > 0), the native autocomplete list shifts right by the padding amount. Zentui's decorated editor frames (palette completion menu, minimalist borders, etc.) should still detect and decorate the autocomplete rows.\n\n**Actual rendering**\n\nThe decorated frame compares its base-rendered suffix lines against the captured autocomplete rows without stripping the left padding introduced by the horizontal padding, so the row match fails and the decorated completion menu breaks / falls back to native rendering.\n\n**Relevant Zentui config**\n\nNo custom config required; reproduces with default editor styles once the native editor's horizontal padding is non-zero.\n\n**Screenshot or recording**\n\nN/A — covered by automated native-editor tests in the incoming fix; happy to add a recording on request.\n"
+  },
+  "spec": "rendering: decorated autocomplete menu breaks with editor horizontal padding",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/editor-mouse.test.ts"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"test/editor-mouse.test.ts\"",
+  "committed": "2026-09-29",
+  "issue": "https://github.com/lmilojevicc/pi-zentui/issues/152"
+}

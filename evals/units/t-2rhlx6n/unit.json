@@ -1,0 +1,19 @@
+{
+  "id": "t-2rhlx6n",
+  "repo": "opensearch-project/opensearch-go",
+  "base": "40ca0b0ffe66fad201e8721d12c75f5bbb29e554",
+  "reference": "e196ceb12d609bdf66d001989ffc8ac1c5a4485b",
+  "task": {
+    "title": "[BUG] Buffered response body failures bypass retries and node health updates",
+    "body": "### What is the bug?\n\n`Transport.Request` returns a response-body read error after the retry loop has already completed and the selected node has been reported successful. If a node sends HTTP 200 and then truncates or stalls its response body, a buffered read-only request cannot fail over to another healthy node, even with retries and per-attempt timeout retries enabled.\n\n`Transport.Stream` has a different contract: its caller owns the unread body. This report concerns buffered `Request` calls.\n\n### How can one reproduce the bug?\n\nA minimal transport-level reproduction needs no cluster:\n\n1. Set `OPENSEARCH_GO_ROUTER=false` to isolate the ordinary connection-pool path.\n2. Configure two seed URLs, `MaxRetries: 1`, and a custom `http.RoundTripper`.\n3. For the first `POST /documents/_search`, return HTTP 200 with a body whose `Read` returns `io.ErrUnexpectedEOF`.\n4. Make the next round trip return HTTP 200 with a complete JSON body.\n5. Call `Transport.Request` and count round trips.\n\nCurrent result: one round trip, an error matching `ErrResponseBodyRead` and `io.ErrUnexpectedEOF`, and no retry through the second node. The first node is reported successful before its body is read.\n\nThe same boundary applies when a real HTTP server flushes HTTP 200 headers and stalls its body: the per-attempt timeout can stop the body read, but its error occurs outside the retry and node-health handling.\n\nA regression test on the current commit fails with:\n\n```text\nTestRequestRetriesResponseBodyFailure\nReceived unexpected error:\n    error reading response body: unexpected EOF\n```\n\nThe test also checks that a successful retry sends the original search request body and uses a different node.\n\n### What is the expected behavior?\n\nFor safely repeatable buffered operations such as search, read failures should participate in the existing retry and failover limits before the attempt is reported successful. Per-attempt timeouts should respect `EnableRetryOnTimeout`; `DisableRetry`, maximum attempts, and caller cancellation/deadlines must retain their semantics.\n\nA caller cancellation or expired caller deadline must not demote an otherwise healthy node or trigger retries. This should not add unconditional replay of writes with an unknown outcome, because the server may already have applied them. The unread streaming contract of `Stream` should be preserved.\n\nIf no retry is performed or all attempts fail, the buffered partial response and typed body-read error should remain available to the caller.\n\n### What is your host/environment?\n\n- opensearch-go v5.2.0 / current `main`: `5de4b8cb356043e6027c2606aec1a2b7e99d51b5`\n- Go 1.27.1, macOS/arm64\n- A deterministic custom `http.RoundTripper`; no OpenSearch cluster required\n\n### Do you have any additional context?\n\n[`Request` reads the body after `stream` returns](https://github.com/opensearch-project/opensearch-go/blob/5de4b8cb356043e6027c2606aec1a2b7e99d51b5/opensearchtransport/opensearchtransport.go#L1639-L1653), while `stream` owns retries and connection-health updates. Moving only error propagation does not put the body outcome inside those decisions.\n"
+  },
+  "spec": "[BUG] Buffered response body failures bypass retries and node health updates",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "opensearchtransport/request_body_retry_internal_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+  "committed": "2026-11-10",
+  "issue": "https://github.com/opensearch-project/opensearch-go/issues/1296"
+}

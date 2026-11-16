@@ -1,0 +1,19 @@
+{
+  "id": "t-1fxajbu",
+  "repo": "openkruise/agents",
+  "base": "5f518fc6a3b5f8a62af0397e723553b85987732e",
+  "reference": "10db25ac3ecb5cd40380f0d2738d2aa51fb78369",
+  "task": {
+    "title": "feat: runtime client TLS loaders should accept cert-manager key names (tls.crt/tls.key)",
+    "body": "### Background\nWhen provisioning the runtime mTLS client certificate with cert-manager, the issued Secret uses cert-manager's standard data keys `tls.crt` / `tls.key` (plus `ca.crt`). The runtime client TLS bundle loaders only recognize `client.crt` / `client.key` for the client key pair, so a cert-manager-issued Secret yields server-authenticated TLS only — the client certificate/key pair is silently ignored (directory loader) or rejected as unpaired (Secret loader).\n\n### Issue Type\nfeature\n\n### Relevant Code\n- pkg/utils/runtime/transport.go — `clientCAFile = \"ca.crt\"`, `clientCertFile = \"client.crt\"`, `clientKeyFile = \"client.key\"` are the only recognized names.\n  - `NewTLSBundle(dir)` reads `client.crt` / `client.key` from the mounted dir; if both are absent it degrades to server-authenticated TLS.\n  - `NewTLSBundleFromSecret(...)` reads the `client.crt` / `client.key` data keys; `ca.crt` is required and honored.\n- Consumers: sandbox-manager `--runtime-client-cert-secret` (cmd/sandbox-manager/main.go) and sandbox-controller `--runtime-client-cert-dir` (cmd/agent-sandbox-controller/main.go).\n\n### Notes\n- `ca.crt` already matches cert-manager's key, so CA verification works today; only the client key-pair names diverge.\n- Directory-mounted consumers can work around this with a Secret volume `items:` remap (tls.crt→client.crt, tls.key→client.key), but the Secret-backed loader used by sandbox-manager reads the Secret through the API and cannot remap.\n- The sandbox-gateway runtime mTLS loader already reads tls.crt/tls.key/ca.crt, so the two loaders in this path are inconsistent.\n"
+  },
+  "spec": "feat: runtime client TLS loaders should accept cert-manager key names (tls.crt/tls.key)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/utils/runtime/transport_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/utils/runtime/",
+  "committed": "2026-09-21",
+  "issue": "https://github.com/openkruise/agents/issues/992"
+}

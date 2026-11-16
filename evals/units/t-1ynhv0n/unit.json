@@ -1,0 +1,19 @@
+{
+  "id": "t-1ynhv0n",
+  "repo": "microsoft/dcp",
+  "base": "5901d3d7b96af094c0b18f5d41675e5ea88273be",
+  "reference": "4268aa268a4a232b8dbbc365782fc1204a8a0529",
+  "task": {
+    "title": "ContainerVolume stuck in Pending",
+    "body": "# ContainerVolume stuck in Pending: Docker Desktop 4.94 returns \"volume <name> not found\"\n\n## Summary\nWith Docker Desktop 4.94.0 (engine 29.8.2, Windows), DCP never creates missing named volumes. `VolumeReconciler` repeatedly logs `Could not determine whether container volume exists` and the volume stays `Pending`, so dependent containers never start.\n\n## Cause\n`docker volume inspect <missing>` now returns:\n\n```\nError response from daemon: volume <name> not found\n```\n\n`internal/docker/cli_orchestrator.go` only treats `(?i)no such volume` as `containers.ErrNotFound`, so the error is treated as unknown and `docker volume create` is never reached (`controllers/volume_controller.go`).\n\n## Repro\n1. Docker Desktop 4.94.0 / engine 29.8.2\n2. AppHost with `.WithDataVolume(\"some-volume\")`, volume not present\n3. `aspire start`: the volume stays Pending indefinitely\n\n## Suggested fix\nAlso match `(?i)volume (.*) not found` in `volumeNotFoundRegEx` (Docker and Podman orchestrators).\n\n## Environment\n- Aspire 13.6.1\n- Docker Desktop 4.94.0 (241994), client/server 29.8.2, Windows"
+  },
+  "spec": "ContainerVolume stuck in Pending",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/docker/cli_orchestrator_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/docker/",
+  "committed": "2026-11-02",
+  "issue": "https://github.com/microsoft/dcp/issues/293"
+}

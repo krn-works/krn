@@ -1,0 +1,19 @@
+{
+  "id": "t-9pv6ifp",
+  "repo": "jasonfen/terminal-space-program",
+  "base": "8062d30dbe5aa56a1d149b9da709986ab813456e",
+  "reference": "6869ab8c32fb393f7803d3810c626060ac2d1bbc",
+  "task": {
+    "title": "A flag at the closest-approach point is hidden under the ✕ marker",
+    "body": "## What the player sees\nTarget a flag or wreck that sits exactly where the closest-approach ✕ falls on the map: the ✕ draws over the `⚑`/`☠`, so the mark you are aiming at disappears.\n\n## Why\nThe marker pass draws ✕ after surface marks and the later glyph wins the cell (noted in ADR 0066 S3, #872, `internal/tui/screens/orbit.go` glyph pass).\n\n## Want\nDecide which wins the cell for a surface target (the targeted mark, most likely, since the ✕ means nothing for a point on the ground). Guard at 140x40 with the site under the ✕; show it red first."
+  },
+  "spec": "A flag at the closest-approach point is hidden under the ✕ marker",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/tui/screens/orbit_target_markers_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+  "committed": "2026-11-09",
+  "issue": "https://github.com/jasonfen/terminal-space-program/issues/882"
+}

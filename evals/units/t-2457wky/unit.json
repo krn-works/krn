@@ -1,0 +1,19 @@
+{
+  "id": "t-2457wky",
+  "repo": "buildbarn/bb-storage",
+  "base": "99e0fabf66d3c8c5dd4af25755cdbf1cccb035ba",
+  "reference": "fec637f05f214a45d86b012975f598b6a4e7250f",
+  "task": {
+    "title": "Unix recursive removal stops when an entry has already disappeared",
+    "body": "`filesystem.Directory.RemoveAll()` is documented as equivalent to `os.RemoveAll()`, but the Unix implementation returns `ENOENT` for an absent entry. Recursive cleanup also stops if another process removes a child after `readdirnames()` has listed it, leaving later siblings behind.\n\nReproduced against bb-storage main at ff9af3883025f517a42725cb66b1a11cc33ea4c2 on macOS. The same error paths are shared by Linux and FreeBSD.\n\nA minimal case is opening a temporary directory with `filesystem.NewLocalDirectory()` and calling `RemoveAll(path.MustNewComponent(\"missing\"))`. Expected: success, as with `os.RemoveAll()`. Actual: `no such file or directory`.\n\nThe concurrent case occurs when a tool's background cleanup overlaps the worker's cleanup. Cleanup should finish removing the remaining siblings without following symbolic links outside the tree. Only missing entries should count as removed; permission and descriptor errors must still be returned.\n\nThe regression tests in #373 use the public directory API to cover absent roots, concurrent child removal, outside symlink targets, and permission/descriptor failures. The absent-root test fails deterministically on the original behavior. The bounded concurrent test also failed in the observed negative run, but does not require a particular traversal interleaving. Both pass with the fix.\n"
+  },
+  "spec": "Unix recursive removal stops when an entry has already disappeared",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/filesystem/local_directory_remove_unix_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+  "committed": "2026-09-29",
+  "issue": "https://github.com/buildbarn/bb-storage/issues/372"
+}

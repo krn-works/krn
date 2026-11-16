@@ -1,0 +1,19 @@
+{
+  "id": "t-1c70pao",
+  "repo": "pc-style/x-md",
+  "base": "89e2d0eb51f5d417e89bfc6ba429d70fbfeae7c8",
+  "reference": "35635119ce942adda9e073e5b4f68ef71c089933",
+  "task": {
+    "title": "MCP: x_md_get_post / x_md_get_profile raise on null lang (outputSchema says string)",
+    "body": "## What happens\n\n`x_md_get_post` and `x_md_get_profile` fail on any result where a post carries a null `lang`:\n\n```\nRuntimeError: Invalid structured content returned by tool x_md_get_post: None is not of type 'string'\n\nFailed validating 'type' in schema['properties']['posts']['items']['properties']['lang']:\n    {'type': 'string'}\n\nOn instance['posts'][0]['lang']:\n    None\n```\n\nThe tool call raises instead of returning, even though the server sent a correct result: `result.isError` is `false` and `result.content[0].text` holds the right Markdown.\n\n## Why\n\nThe `outputSchema` on both tools declares `posts[].lang` as `{\"type\": \"string\"}`, but FxTwitter returns `lang: null` for posts with no detected language. The MCP SDK validates `structuredContent` against the declared `outputSchema` before handing the result back, so validation fails and the client raises — the text content is never reached.\n\n## Repro\n\n```bash\ncurl -sS -X POST https://mdfromx.com/mcp \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json' \\\n  -d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"x_md_get_post\",\"arguments\":{\"url\":\"https://x.com/trq212/status/2052809885763747935\"}}}'\n```\n\n`result.structuredContent.posts[0].lang` is `null`, which fails the tool's own declared schema. It is data-dependent: a post with a detected language (`https://x.com/jack/status/20`, `lang: \"en\"`) validates fine, so the failure rate tracks how often posts come back without a language tag.\n\n`x_md_search_posts`, `x_md_get_followers` and `x_md_get_following` are unaffected — their payloads do not carry `lang: null`.\n\n## Suggested fix\n\nEither one satisfies the schema the server ships:\n\n- declare `lang` as `{\"type\": [\"string\", \"null\"]}`, or\n- omit the key when it is null.\n\n## Impact\n\nTwo of the five read tools are unusable in strict clients whenever the payload carries a null `lang` — which is common. Observed against Hermes Agent v0.22.5 on the Python MCP SDK (`mcp/client/session.py`, `_call_tool` output-schema validation); the same validation path is used by other clients built on that SDK, so the blast radius is every strict consumer rather than one harness.\n\nThe plain HTTP routes are unaffected — `GET /api/v1/posts` and the permalink form return the same data with no schema validation — so only the MCP structured output is affected.\n"
+  },
+  "spec": "MCP: x_md_get_post / x_md_get_profile raise on null lang (outputSchema says string)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "lib/mcp.test.ts"
+  },
+  "install": "npm install --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"lib/mcp.test.ts\"",
+  "committed": "2026-10-30",
+  "issue": "https://github.com/pc-style/x-md/issues/113"
+}

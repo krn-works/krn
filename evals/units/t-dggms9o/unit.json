@@ -1,0 +1,19 @@
+{
+  "id": "t-dggms9o",
+  "repo": "sgl-project/rbg",
+  "base": "79f7e5858fdc30ffaeadef4aea12c3809dcb348d",
+  "reference": "7b384f4def17706c12c93ff7e330e42c0555f0a8",
+  "task": {
+    "title": "sharedServiceSelection LeaderOnly→All never recreates worker pods: InstanceSet in-place gate ignores component serviceName changes",
+    "body": "## Summary\n\nSwitching a leaderWorkerPattern role's `sharedServiceSelection` from `LeaderOnly` to `All` adds the worker **component's `serviceName`** in the RoleInstanceSet template — the pod template itself is byte-identical. Because nothing recreates the worker pod, it never gains the hostname/subdomain network identity that the `All` policy promises, and `sharedServiceSelection` round-trips silently wedge.\n\n## Root cause chain\n\nVerified from kind log artifacts of the failing e2e runs and reproduced in envtest:\n\n1. hostname/subdomain are set **only at pod creation** (`setComponentPodIdentity`, `pkg/reconciler/roleinstance/core/instance_core.go:162`); there is no path that patches them onto a live pod.\n2. The InstanceSet rollout's in-place gate — `canNotInPlaceUpdate` → `componentSizeChanges` (`pkg/inplace/instance/inplaceupdate/inplace_update_defaults.go:140`) — compares **only component sizes**, so a `serviceName`-only diff is judged in-place-able. The controller log shows that branch being taken (`Updating instance ... from=...-f96459f7 to=...-68b449cd84`, then `targets=[]`): the RoleInstance is patched in place, `deleteInstance` never runs, and the pods are never recreated.\n3. The sibling RoleInstance/pod-level control already handles this correctly — `isComponentExtensionSpecChanged` (`pkg/reconciler/roleinstance/inplaceupdate/inplaceupdate.go:166`) compares the component `serviceName` and forces recreate. The InstanceSet-level gate is simply missing the equivalent check.\n\n## Reproduction on main (`0821cb5b`)\n\nAn envtest case that creates a LeaderOnly LWP role, switches it to `All`, and asserts the worker **pod's** `subdomain` times out on upstream main: the RIS worker component `serviceName` is correctly added, but the pod is never recreated.\n\nNote the existing `test/envtest/testcase/rbg/shared_service_selection_test.go` covers \"All from creation\" and \"All→LeaderOnly\" at the RIS level only — it asserts the component `serviceName`, which passes either way, so this gap is invisible to the current suite. Adding a pod-identity assertion for the LeaderOnly→All direction would pin it.\n\n## E2E impact\n\n`shared service selection should follow the policy round trip between LeaderOnly and All` fails deterministically on PR #487's head (4/4 runs across both e2e jobs), while passing on upstream main and on #487's earlier (2026-09-28) head — main's e2e appears to be one timing/state shift away from the same failure. The exact trigger that makes it fire on one head and not another was not pinned down (leading suspects: suite-state pollution from #487's new orphan-adoption e2e spec, or a timing shift around instance availability).\n\n## Suggested fix\n\nExtend `canNotInPlaceUpdate` to compare component `serviceName` (mirroring `isComponentExtensionSpecChanged`), so a serviceName change falls back to delete-and-recreate and the worker pod comes back with its network identity.\n\nRelated: #487 (its e2e CI is currently blocked by this).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+  },
+  "spec": "sharedServiceSelection LeaderOnly→All never recreates worker pods: InstanceSet in-place gate ignores component serviceName changes",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/reconciler/roleinstance/utils/instance_utils_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/reconciler/roleinstance/utils/",
+  "committed": "2026-10-12",
+  "issue": "https://github.com/sgl-project/rbg/issues/493"
+}

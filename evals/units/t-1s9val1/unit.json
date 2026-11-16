@@ -1,0 +1,19 @@
+{
+  "id": "t-1s9val1",
+  "repo": "microsoft/vscode-cosmosdb",
+  "base": "4d0ccf8e835f0cbf4788732ff7a42930e4b7c6d8",
+  "reference": "179be28c836c57fdbf5c7e3e9583f8450b187c80",
+  "task": {
+    "title": "💡 Explain Role dropdown options in the container Data tab",
+    "body": "## Description\n\nIn the data modeler's **Container** step, on the **Data** tab, the **Role** dropdown lists **Unique / business key**, **Query filter**, and **Payload / other** without explaining what they mean. It's difficult to understand which role to choose.\n\n## Steps to reproduce\n\n1. Open the data modeler and navigate to the **Container** step.\n1. Open the **Data** tab.\n1. Expand the **Role** dropdown for a property.\n\n## Suggested improvement\n\nAdd descriptive text to each option explaining its purpose and when to select it. Use Fluent UI's option-description support where available.\n\n## Expected behavior\n\nUsers can understand each role and choose the appropriate option without leaving the modeler to find documentation.\n\n## Screenshot context\n\nThe supplied bug-bash screenshot shows the expanded **Role** dropdown for the `id` property, with **Unique / business key**, **Query filter**, and **Payload / other** displayed as labels only. The screenshot itself is not attached yet because browser sign-in is required for the image upload."
+  },
+  "spec": "💡 Explain Role dropdown options in the container Data tab",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "src/webviews/cosmosdb/DataModeling/pages/DataPage.test.tsx"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"src/webviews/cosmosdb/DataModeling/pages/DataPage.test.tsx\"",
+  "committed": "2026-11-11",
+  "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3488"
+}

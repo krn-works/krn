@@ -1,0 +1,19 @@
+{
+  "id": "t-1jr2vwd",
+  "repo": "temporalio/temporal-worker-controller",
+  "base": "25c20ef71c06c81a478f9d0693e2d6b467dd4428",
+  "reference": "7f26c4c610c61c5c1bcd1616f0519d5cb2594d17",
+  "task": {
+    "title": "[Bug] With a pinned build ID, the controller keeps updating the Deployment after a template change",
+    "body": "### What are you really trying to do?\n\n<!-- \nTell us at a high level what you're doing, to avoid XY problem (https://en.wikipedia.org/wiki/XY_problem) \n-->\n\nChange a pod template field on a WorkerDeployment that pins `unsafeCustomBuildID` and have it applied in place to the already-deployed version.\n\n### Describe the bug\n\n<!-- A clear and concise description of what the bug is. -->\n\n<!-- If applicable, add screenshots or code blocks to help explain your problem. You can also use [Loom](http://loom.com/) to do short, free video bug reports. -->\n\nThe first update applies correctly, but then the controller detects drift on every reconcile and re-updates the same Deployment (~every 10s) until the spec changes. \n\nThe `temporal.io/pod-template-spec-hash` annotation is produced by hashing different inputs during creation vs update.\n\n - [NewDeploymentWithOwnerRef](https://github.com/temporalio/temporal-workercontroller/blob/8ece9779577348a1436c58b9b3e8dc47af62114a/internal/k8s/deployments.go#L302-L318) applies controller's envvars/volumes after hashing the template.\n - [checkAndUpdateDeploymentPodTemplateSpec](https://github.com/temporalio/temporal-workercontroller/blob/8ece9779577348a1436c58b9b3e8dc47af62114a/internal/planner/planner.go#L600-L606) compares against the hash of the template.\n - [updateDeploymentWithPodTemplateSpec](https://github.com/temporalio/temporal-worker-controller/blob/8ece9779577348a1436c58b9b3e8dc47af62114a/internal/planner/planner.go#L648-L663) hashes _after_ applying the controller changes.\n\nThe impact is small. In my repro, the Deployment generation stayed constant across the updates without pod restarts, so the repeats are server-side no-ops. The cost is just an API write + a logline per reocncile per deployment.\n\n### Minimal Reproduction\n\n<!-- \nModify our hello world templates to demonstrate:\n\n- TypeScript: https://github.com/temporalio/samples-typescript/tree/main/hello-world\n- Go: https://github.com/temporalio/money-transfer-project-template-go\n- Java: https://github.com/temporalio/money-transfer-project-template-java\n- PHP: https://github.com/temporalio/samples-php#samples\n-->\n\n1. Create a WorkerDeployment with `unsafeCustomBuildID: stable`\n2. Change any pod template field\n3. Watch the controller log: \"updating deployment\" indefinitely\n\nCan also be seen via a unit test: run `checkAndUpdateDeploymentPodTemplateSpec` again after an update and it will return the Deployment again.\n\n### Environment/Versions\n\n<!-- Please complete the following information where relevant. -->\n\n - temporal-worker-controller main at 8ece977\n\n### Additional context\n\n<!-- Add any other context about the problem here. -->\n\nI have a fix ready: hash the template before applying the controller. Happy to open a PR for this!"
+  },
+  "spec": "[Bug] With a pinned build ID, the controller keeps updating the Deployment after a template change",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/planner/planner_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/planner/",
+  "committed": "2026-10-22",
+  "issue": "https://github.com/temporalio/temporal-worker-controller/issues/656"
+}

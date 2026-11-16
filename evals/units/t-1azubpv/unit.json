@@ -1,0 +1,19 @@
+{
+  "id": "t-1azubpv",
+  "repo": "google/gonids",
+  "base": "084a61bb5b3bce1e932485ead08a054febe5d24a",
+  "reference": "dd9681bd61283c9d6a1c4f265b1754c0b7721d02",
+  "task": {
+    "title": "Intra-rule slice and pointer aliasing of Transforms across Content and PCRE matchers",
+    "body": " ### Description\n\n    When parsing rules with sticky buffer transformations (e.g., `to_lowercase`, `dotprefix`, `url_decode`), `parser.go` assigns the active `[]*Transform` slice directly to each `Content` and `PCRE` matcher without cloning the slice or its elements:\n\n    ```go\n    con := &Content{\n        DataPosition: st.dataPosition,\n        Pattern:      c,\n        Negate:       negate,\n        Options:      options,\n        Transforms:   st.activeTransforms,\n    }\n    ```\n    *(and similarly for `PCRE` matchers: `p.Transforms = st.activeTransforms`)*\n\n    Because all matchers under the same sticky buffer share the same underlying `[]*Transform` backing array and `*Transform` pointers, two aliasing issues can occur:\n\n    1. **Post-parse AST mutation affects sibling matchers**:\n       If a rule has multiple `content` or `pcre` matchers sharing a sticky buffer (e.g. `http.uri; to_lowercase; content:\"foo\"; content:\"bar\";`), both `Content` structs point to the exact same `[]*Transform` backing array and `*Transform` structs. Modifying `r.Contents()[0].Transforms[0]` or appending to `r.Contents()[0].Transforms` (when spare slice\n  capacity exists) unintentionally mutates `r.Contents()[1].Transforms`.\n\n    2. **Backing array overwrites when transforms are interleaved with matchers**:\n       Once `st.activeTransforms` has spare capacity (e.g., `len == 2, cap == 4` after appending two transforms), if a subsequent transform is encountered before another matcher on the same buffer, `append(st.activeTransforms, ...)` mutates the shared backing array in place. Any caller that appends a single element to an earlier matcher's `Transforms` slice\n  will collide with the shared backing array.\n\n    ### Example Reproduction\n\n    ```go\n    r, err := ParseRule(`alert http any any -> any any (msg:\"test\"; http.uri; to_lowercase; content:\"a\"; content:\"b\"; sid:1; rev:1;)`)\n    if err != nil {\n        t.Fatal(err)\n    }\n\n    // Mutating the transform on the first content match unintentionally mutates the second content match.\n    r.Contents()[0].Transforms[0].Name = \"to_uppercase\"\n\n    // Fail: r.Contents()[1].Transforms[0].Name is now also \"to_uppercase\"\n    ```\n\n    ### Proposed Fix\n\n    Create a deep copy (or fresh slice with cloned `Transform` structs) when attaching `activeTransforms` to a `Content` or `PCRE` matcher, e.g.:\n\n    ```go\n    func cloneTransforms(src []*Transform) []*Transform {\n        if len(src) == 0 {\n            return nil\n        }\n        dst := make([]*Transform, len(src))\n        for i, t := range src {\n            cp := *t\n            dst[i] = &cp\n        }\n        return dst\n    }\n    ```"
+  },
+  "spec": "Intra-rule slice and pointer aliasing of Transforms across Content and PCRE matchers",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "parser_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./",
+  "committed": "2026-10-08",
+  "issue": "https://github.com/google/gonids/issues/227"
+}

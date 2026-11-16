@@ -1,0 +1,19 @@
+{
+  "id": "t-fd2ngpy",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "0a34c62f65bae1cdacf51e30f968a2a526d4d785",
+  "reference": "904f13cd218263580cd036742b785513a1cb7403",
+  "task": {
+    "title": "Zod backend: .meta({ id }) is ignored on a schema derived with .extend() / .omit()",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0`\n\n### Description\n\n`.meta({ id })` names a Zod schema's component, but not when the schema is derived from another one, as in `base.extend(...)`, `base.omit(...)` or `base.pick(...)`. The component keeps the variable's name.\n\nIn `processFileForZodSchema`, the `VariableDeclarator` visitor reads the id only when `isZodSchema(init)` is true. A chain that starts at another schema's name rather than at `z` takes the fallback branch, which stores the schema under the variable name without reading `.meta({ id })`.\n\n### Minimal Reproduction\n\n```ts\n// src/schemas/orders.ts\nimport { z } from \"zod\";\n\nexport const orderSchema = z\n  .object({ id: z.string(), total: z.number() })\n  .meta({ id: \"Order\", description: \"An order\" });\n\nexport const newOrderSchema = orderSchema\n  .omit({ id: true })\n  .meta({ id: \"NewOrder\", description: \"An order to create\" });\n```\n\n```ts\n// src/app/api/orders/route.ts\n/**\n * Create an order\n * @body newOrderSchema\n * @response orderSchema\n * @openapi\n */\nexport async function POST() {\n  return Response.json({});\n}\n```\n\n### Actual Output\n\n```json\n\"requestBody\": { \"content\": { \"application/json\": { \"schema\": { \"$ref\": \"#/components/schemas/newOrderSchema\" } } } }\n```\n\nThe component is named `newOrderSchema`. Its `description` is applied; only the id is lost.\n\n### Expected Output\n\n```json\n\"requestBody\": { \"content\": { \"application/json\": { \"schema\": { \"$ref\": \"#/components/schemas/NewOrder\" } } } }\n```\n\n### Suggested fix\n\nRead `.meta({ id })` in both branches of the visitor. They already convert the node the same way (`processZodNode`), so only the id lookup differs.\n\nI have a PR ready with the fix and a test.\n\n### Related, not fixed here\n\nIn the same repro, the components also include `orderSchema` and `newOrderSchema`: copies of `Order` and `NewOrder` under the variable names that `@body` / `@response` use, which nothing references. That happens on 1.10.0 for a plain `z.object(...).meta({ id })` too, so it seems to be a separate issue.\n"
+  },
+  "spec": "Zod backend: .meta({ id }) is ignored on a schema derived with .extend() / .omit()",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/schema/zod/zod-converter.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/225"
+}

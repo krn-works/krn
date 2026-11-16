@@ -1,0 +1,19 @@
+{
+  "id": "t-1jtbgxz",
+  "repo": "thebanri/limoni",
+  "base": "0f88711509fc132146f12e7c455e3982f0bc3246",
+  "reference": "fc4745a1e0cc55cc287a3519ec8aa82774ed2b05",
+  "task": {
+    "title": "Input parser drops application-mode arrow keys (SS3), breaking Lemonhunt turning",
+    "body": "## Summary\n\nLimoni v0.9.2's `core/driver/parser.go` recognizes normal-mode arrow keys (`CSI A/B/C/D`), but its SS3 branch recognizes only F1–F4 (`SS3 P/Q/R/S`). Application-mode arrows (`SS3 A/B/C/D`) are consumed without producing a key event.\n\nThis makes Lemonhunt's left/right turning controls unresponsive when the terminal is in application cursor-key mode (DECCKM).\n\n## Observed scenario\n\nRunning the published Lemonhunt module (`v0.0.0-20260926154851-031f5bd58bd7`, which depends on Limoni v0.9.2) in Hex1b's web-terminal demo:\n\n```sh\ngo install github.com/thebanri/limoni/apps/lemonhunt@latest\nlemonhunt\n```\n\nThe configured zsh emits `ESC [ ? 1 h` to enable application cursor keys and does not disable that mode before launching commands. Hex1b consequently sends the standard application-mode arrow sequences. Limoni's fullscreen setup does not reset DECCKM, and the parser discards those inputs.\n\nLemonhunt works in Ghostty in the reported environment. Its negotiated Kitty keyboard protocol provides a different input path, so that result alone does not exercise legacy SS3 arrow handling.\n\n## Minimal parser reproduction\n\nRun against `github.com/thebanri/limoni v0.9.2`:\n\n```go\npackage main\n\nimport (\n    \"fmt\"\n    \"github.com/thebanri/limoni/core/driver\"\n)\n\nfunc main() {\n    for _, wire := range []string{\n        \"\\x1b[D\", \"\\x1b[C\", // normal left/right\n        \"\\x1bOD\", \"\\x1bOC\", // application left/right\n    } {\n        ev, consumed := driver.ParseEvent([]byte(wire))\n        fmt.Printf(\"bytes=%X consumed=%d keyEvent=%v\\n\",\n            wire, consumed, ev.Type == driver.EventKey)\n    }\n}\n```\n\nObserved output:\n\n```text\nbytes=1B5B44 consumed=3 keyEvent=true\nbytes=1B5B43 consumed=3 keyEvent=true\nbytes=1B4F44 consumed=3 keyEvent=false\nbytes=1B4F43 consumed=3 keyEvent=false\n```\n\n## Expected behavior\n\nRecognize application-mode arrows as the same logical keys as their normal-mode counterparts:\n\n| Key | Normal mode | Application mode |\n| --- | --- | --- |\n| Up | `ESC [ A` | `ESC O A` |\n| Down | `ESC [ B` | `ESC O B` |\n| Right | `ESC [ C` | `ESC O C` |\n| Left | `ESC [ D` | `ESC O D` |\n\n## Suggested fix\n\nExtend the `case 'O'` SS3 branch in [`core/driver/parser.go`](https://github.com/thebanri/limoni/blob/v0.9.2/core/driver/parser.go) to recognize `A/B/C/D`, preserving existing F1–F4 handling. Application-mode Home/End (`SS3 H/F`) appear to have the same omission and are worth covering too. Add regression tests for complete and fragmented sequences.\n\n## Workaround\n\nReset DECCKM immediately before launching Lemonhunt, on the same command line so the shell cannot re-enable it between commands:\n\n```sh\nprintf '\\033[?1l'; lemonhunt\n```\n\nThe parser mismatch was reproduced directly against v0.9.2, and the shell mode transitions were captured locally. The workaround's reset-before-child ordering was verified; the game itself was not re-tested end-to-end with the workaround."
+  },
+  "spec": "Input parser drops application-mode arrow keys (SS3), breaking Lemonhunt turning",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "core/driver/parser_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./core/driver/",
+  "committed": "2026-09-29",
+  "issue": "https://github.com/thebanri/limoni/issues/78"
+}

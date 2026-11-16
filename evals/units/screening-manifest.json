@@ -304,5 +304,4017 @@
       "installFix": -1,
       "testFix": -1
     }
+  },
+  {
+    "id": "t-2blfi57",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/971",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/972",
+    "base": "b94a186e15048e5a7feb1d7b4a66651e68723e24",
+    "fix": "93ed0e89b8326c97319c8fb83ce8dc823bbbb9a0",
+    "committed": "2026-09-26",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 124,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1doy0cd",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/966",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/967",
+    "base": "654fd0953c7dd6ad44b3c551c4ac5b8525c3d8f5",
+    "fix": "9fdd4ea4f65af17cc4fba8bd1a8d9f6dfd651371",
+    "committed": "2026-09-24",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-ulqjo5c",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/936",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/955",
+    "base": "13e890622ad7d2afd66d49fd28ce6133fcf6d5d7",
+    "fix": "40103b128d1e480dc747a8795513827ae966dbd1",
+    "committed": "2026-09-22",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-ehzy3ue",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/898",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/905",
+    "base": "e11bfde7be732663af47ade790df7808bf302a03",
+    "fix": "6e999e67393bd4f44a902cb357837977a6cef7f4",
+    "committed": "2026-09-08",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-ehzy3ue",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/898",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/900",
+    "base": "1bc5c2c8f8e71469eaba4c27eae40ae0756dc799",
+    "fix": "fdadeea44c19f813bfd09f1cf7c358a072b8d777",
+    "committed": "2026-09-08",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-14d2qhu",
+    "repo": "mem9-ai/drive9",
+    "issue": "https://github.com/mem9-ai/drive9/issues/894",
+    "fixPr": "https://github.com/mem9-ai/drive9/pull/897",
+    "base": "82bb5945565c8fba68d57e60be9ca1d25095470c",
+    "fix": "ca566618e11f1c7fc9fdfa6af255591f822053de",
+    "committed": "2026-09-07",
+    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2g4lvtq",
+    "repo": "scaleway/scaleway-sdk-go",
+    "issue": "https://github.com/scaleway/scaleway-sdk-go/issues/3290",
+    "fixPr": "https://github.com/scaleway/scaleway-sdk-go/pull/3295",
+    "base": "8885f0852ca6dce9246d6ed09303c591b5a5d6fb",
+    "fix": "196b1113915c4a065ae583868e8aebb4ccc972fe",
+    "committed": "2026-09-23",
+    "test": "timeout 240 go test -count=1 ./api/instance/v1/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2k7s6up",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1802",
+    "fixPr": "https://github.com/ukama/ukama/pull/1811",
+    "base": "acd32722278b531a7770acb460edec701d92d33c",
+    "fix": "3bea25ff1dca92e47f0182e69f45fcf99a899591",
+    "committed": "2026-10-24",
+    "test": "timeout 240 go test -count=1 ./systems/common/grpc/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-eil0mto",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1793",
+    "fixPr": "https://github.com/ukama/ukama/pull/1794",
+    "base": "d1a33a3f566e554795024c701659e071fb776c81",
+    "fix": "026f32d52fcaad3c2cd98117ee5c73422fa0c38e",
+    "committed": "2026-10-12",
+    "test": "timeout 240 go test -count=1 ./systems/common/msgBusServiceClient/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2npv5us",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1740",
+    "fixPr": "https://github.com/ukama/ukama/pull/1756",
+    "base": "934613d942aa95ce56f796315b8846a414b18051",
+    "fix": "5c95d8254f4ee7ccb91bd6bbe1dfe240b86e6766",
+    "committed": "2026-10-02",
+    "test": "timeout 240 go test -count=1 ./systems/console-bff/operation/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-14dbywh",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1746",
+    "fixPr": "https://github.com/ukama/ukama/pull/1747",
+    "base": "0fdbe6fb4be4577f474c45088b9b2f2f3563996e",
+    "fix": "934613d942aa95ce56f796315b8846a414b18051",
+    "committed": "2026-10-01",
+    "test": "timeout 240 go test -count=1 ./systems/node/configurator/pkg/server/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1rxom6c",
+    "repo": "ukama/ukama",
+    "issue": "https://github.com/ukama/ukama/issues/1744",
+    "fixPr": "https://github.com/ukama/ukama/pull/1745",
+    "base": "3bbff496384dc9c63b6f26bcfb1a8b0e47d06d92",
+    "fix": "0fdbe6fb4be4577f474c45088b9b2f2f3563996e",
+    "committed": "2026-10-01",
+    "test": "timeout 240 go test -count=1 ./systems/notification/event-notify/pkg/server/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2h8q0dt",
+    "repo": "hiero-ledger/hiero-sdk-go",
+    "issue": "https://github.com/hiero-ledger/hiero-sdk-go/issues/1806",
+    "fixPr": "https://github.com/hiero-ledger/hiero-sdk-go/pull/1823",
+    "base": "9afa6e3f654a6cb2c628241571a777ded8538890",
+    "fix": "ef3d65b65f60712fd3a1b61c5332838c85b545b9",
+    "committed": "2026-09-23",
+    "test": "timeout 240 go test -count=1 ./sdk/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-l8cb4x3",
+    "repo": "hiero-ledger/hiero-sdk-go",
+    "issue": "https://github.com/hiero-ledger/hiero-sdk-go/issues/1797",
+    "fixPr": "https://github.com/hiero-ledger/hiero-sdk-go/pull/1798",
+    "base": "5bbd7b1ea2358710d6a39d9ed24ea0c1fcde3d92",
+    "fix": "e8fb353545d42a75c7e74d89a39a1a789ba19cce",
+    "committed": "2026-08-31",
+    "test": "timeout 240 go test -count=1 ./sdk/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-w8wb07x",
+    "repo": "hiero-ledger/hiero-sdk-go",
+    "issue": "https://github.com/hiero-ledger/hiero-sdk-go/issues/1782",
+    "fixPr": "https://github.com/hiero-ledger/hiero-sdk-go/pull/1790",
+    "base": "9d4226568f0bfc582391fae4ac167e7699aa0b2d",
+    "fix": "97a721367529116e5d6ea39216355b6eda2dd133",
+    "committed": "2026-07-27",
+    "test": "timeout 240 go test -count=1 ./sdk/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2gdsh8i",
+    "repo": "hiero-ledger/hiero-sdk-go",
+    "issue": "https://github.com/hiero-ledger/hiero-sdk-go/issues/1762",
+    "fixPr": "https://github.com/hiero-ledger/hiero-sdk-go/pull/1764",
+    "base": "97b9e3eb05b8f02c27e9a25a41b851d2d2935383",
+    "fix": "47249905864ff58991052f8f893654e1e4e7b6fd",
+    "committed": "2026-07-09",
+    "test": "timeout 240 go test -count=1 ./sdk/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-osuu3om",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/881",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/933",
+    "base": "84cac1a619a0466dac9f50537657d05f31f0a587",
+    "fix": "d17ef418b0bb53a591537230db6272e2a433d06f",
+    "committed": "2026-11-09",
+    "test": "timeout 240 go test -count=1 ./internal/save/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-9pv6ifp",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/882",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/926",
+    "base": "8062d30dbe5aa56a1d149b9da709986ab813456e",
+    "fix": "6869ab8c32fb393f7803d3810c626060ac2d1bbc",
+    "committed": "2026-11-09",
+    "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1wkygko",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/760",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/805",
+    "base": "b0d4524af0f94cc942da7d17d4247e85c3ae653f",
+    "fix": "9425745df65e03d4f34d938222e03e9fffb02daf",
+    "committed": "2026-10-26",
+    "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2jrj59l",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/729",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/778",
+    "base": "e17e57a1771cde43a4a2c4f9e156d962d47d1580",
+    "fix": "29bb83f4dd0bd5d7c7f9e77d88ac70f78c089a2d",
+    "committed": "2026-10-24",
+    "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1myowwn",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/689",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/698",
+    "base": "44250e5688692acbfe0dcb1d263e8f3c471fae09",
+    "fix": "9868f48202259f81887a6c6fdfbffba271f83e50",
+    "committed": "2026-10-17",
+    "test": "timeout 240 go test -count=1 ./internal/sim/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1p5tq1q",
+    "repo": "jasonfen/terminal-space-program",
+    "issue": "https://github.com/jasonfen/terminal-space-program/issues/648",
+    "fixPr": "https://github.com/jasonfen/terminal-space-program/pull/657",
+    "base": "49706078be33c1df8585e25af5f011f488b79eb6",
+    "fix": "2fae096e533b36ec15ff62b16e45271a0dfd2195",
+    "committed": "2026-10-15",
+    "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-x967rzc",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4195",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4243",
+    "base": "e0feb5651ef670b60b726d431cbae7ca922feb5e",
+    "fix": "8157d6c2ae5f05a3322a7abb66b05c8217cfe7a6",
+    "committed": "2026-11-05",
+    "test": "timeout 240 go test -count=1 ./prover-ray/recursion/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2mg3o41",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4194",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4238",
+    "base": "5e5ea64898561935078dd061047c1eb625b016ff",
+    "fix": "bdf9a1035ba839b84233c94c2a29341f7d30c074",
+    "committed": "2026-10-19",
+    "test": "timeout 240 go test -count=1 ./prover-ray/recursion/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1xggf4t",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4193",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4234",
+    "base": "5d3f2defb3924d3b5fd4e72d7cf80b175cda9b55",
+    "fix": "ba8240b816eb8e8f025e4e753d23abce27a5d353",
+    "committed": "2026-10-19",
+    "test": "timeout 240 go test -count=1 ./prover-ray/recursion/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1tma9yw",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4190",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4198",
+    "base": "adc579368cddf8cd70341c45751418df99f29f1c",
+    "fix": "b9559bb88abd0d7f4ccb032af75de9087f9c05e9",
+    "committed": "2026-10-16",
+    "test": "timeout 240 go test -count=1 ./prover-ray/recursion/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-17oepc8",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/4034",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/4153",
+    "base": "c3f9fb76e03427130160d1b429f8e7a8b8de46ac",
+    "fix": "c6609be3951dd6533fcecb1f910251b49069d4a7",
+    "committed": "2026-10-24",
+    "test": "timeout 240 go test -count=1 ./prover-ray/zkcdriver/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-137xa8y",
+    "repo": "LFDT-Lineth/lineth-monorepo",
+    "issue": "https://github.com/LFDT-Lineth/lineth-monorepo/issues/3849",
+    "fixPr": "https://github.com/LFDT-Lineth/lineth-monorepo/pull/3850",
+    "base": "cc5eb0691e8007d9878d07c3c9942e3a398aa244",
+    "fix": "a24d1aacfb04bcb9190a5257f213261a6a4b19af",
+    "committed": "2026-08-26",
+    "test": "timeout 240 go test -count=1 ./arithmetization/src/test/zkc/keccakf/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-22785ea",
+    "repo": "lnccbrown/HSSM",
+    "issue": "https://github.com/lnccbrown/HSSM/issues/1231",
+    "fixPr": "https://github.com/lnccbrown/HSSM/pull/1236",
+    "base": "933c63c01717cdc157eeae6baf4a53352a52e5fd",
+    "fix": "84b06d4c03ee47a3740baef7e5ed03df7e6b4b95",
+    "committed": "2026-08-24",
+    "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/unit/test_link.py\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 4,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 4
+    }
+  },
+  {
+    "id": "t-g6esr1v",
+    "repo": "ccaprani/pycba",
+    "issue": "https://github.com/ccaprani/pycba/issues/179",
+    "fixPr": "https://github.com/ccaprani/pycba/pull/182",
+    "base": "548ea0e8a4927f6e32fec5f8733555494b607361",
+    "fix": "20033e33214b45aa37e5ae945cc1a261bdbb05e5",
+    "committed": "2026-09-15",
+    "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_results.py\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1hecgls",
+    "repo": "lmilojevicc/pi-zentui",
+    "issue": "https://github.com/lmilojevicc/pi-zentui/issues/171",
+    "fixPr": "https://github.com/lmilojevicc/pi-zentui/pull/172",
+    "base": "b8c0a1611804f3f188e3e000ce9c506578d3d34d",
+    "fix": "1c5c9307ec086d71e424e156efbb656c7a00ba54",
+    "committed": "2026-10-05",
+    "test": "timeout 240 npx --no-install vitest run \"test/user-message-native.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2htshp4",
+    "repo": "lmilojevicc/pi-zentui",
+    "issue": "https://github.com/lmilojevicc/pi-zentui/issues/152",
+    "fixPr": "https://github.com/lmilojevicc/pi-zentui/pull/153",
+    "base": "1f20f77907005d90251bb2d0428075aca714e063",
+    "fix": "5fb50613f38346ed5c94e519fc8f030bfba34a68",
+    "committed": "2026-09-29",
+    "test": "timeout 240 npx --no-install vitest run \"test/editor-mouse.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-j5tygrp",
+    "repo": "lmilojevicc/pi-zentui",
+    "issue": "https://github.com/lmilojevicc/pi-zentui/issues/65",
+    "fixPr": "https://github.com/lmilojevicc/pi-zentui/pull/69",
+    "base": "793a485c8efe3b7baf8f0af4729226a873914046",
+    "fix": "87aac6ee2bf5c21f270b2d51267fcfb1700acc87",
+    "committed": "2026-07-31",
+    "test": "timeout 240 npx --no-install vitest run \"test/format.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-27zb56p",
+    "repo": "MatteoGabriele/agentscan",
+    "issue": "https://github.com/MatteoGabriele/agentscan/issues/563",
+    "fixPr": "https://github.com/MatteoGabriele/agentscan/pull/565",
+    "base": "4bf8ecf579b2ee084689428361f11775a50cd980",
+    "fix": "c45fb32eae824dd6b1f440672a2ebee17bdeb107",
+    "committed": "2026-11-07",
+    "test": "timeout 240 npx --no-install vitest run \"server/api/webhook/github.post.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1mmauox",
+    "repo": "MatteoGabriele/agentscan",
+    "issue": "https://github.com/MatteoGabriele/agentscan/issues/333",
+    "fixPr": "https://github.com/MatteoGabriele/agentscan/pull/414",
+    "base": "c6aeeb9c280ecdb34dadbb3b4cb84b2c54749a7c",
+    "fix": "f54759761fc4934940496abeb08dd61f792c6493",
+    "committed": "2026-09-01",
+    "test": "timeout 240 npx --no-install vitest run \"shared/utils/count-classification-by-date.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-976nd16",
+    "repo": "MatteoGabriele/agentscan",
+    "issue": "https://github.com/MatteoGabriele/agentscan/issues/392",
+    "fixPr": "https://github.com/MatteoGabriele/agentscan/pull/395",
+    "base": "14b963595cc46f0ea0b0d282741c77f3941d97e3",
+    "fix": "a8746e6df8b4a447bd77d56a94b46fe7752a8a19",
+    "committed": "2026-08-28",
+    "test": "timeout 240 npx --no-install vitest run \"server/api/webhook/github.post.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2m8brd0",
+    "repo": "MatteoGabriele/agentscan",
+    "issue": "https://github.com/MatteoGabriele/agentscan/issues/233",
+    "fixPr": "https://github.com/MatteoGabriele/agentscan/pull/237",
+    "base": "0cd0c2b736db3025b44b6049223413a6b782f0b9",
+    "fix": "f0e90848a3b511ee7cb0bcce47f4b35eac02f80c",
+    "committed": "2026-07-03",
+    "test": "timeout 240 npx --no-install vitest run \"test/unit/shared/utils/charts.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-h6a7wlt",
+    "repo": "naxhq/NexQ",
+    "issue": "https://github.com/naxhq/NexQ/issues/78",
+    "fixPr": "https://github.com/naxhq/NexQ/pull/79",
+    "base": "414a17182677495cabe43401fbb9a70ae7aed795",
+    "fix": "010a6325b76f64eaaa3e58deefddd33104cc6f67",
+    "committed": "2026-11-04",
+    "test": "timeout 240 npx --no-install vitest run \"src/settings/LLMSettings.sync.test.tsx\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-8stixi6",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/579",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/585",
+    "base": "10036179338d2546fec84292407fc65ab830b0de",
+    "fix": "9afc392b02aa434158e202be2e44ce9b44729855",
+    "committed": "2026-11-06",
+    "test": "timeout 240 npx --no-install jest \"test/encodeRoundTrip.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-mw51e88",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/570",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/583",
+    "base": "8798b6a7b9b3a4217b549ae0019c182ecb78518d",
+    "fix": "2f49758fac22916dcc9d3978043ad9e8ec6b99ab",
+    "committed": "2026-11-06",
+    "test": "timeout 240 npx --no-install jest \"lib/fromPgn.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-q6b8r96",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/569",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/582",
+    "base": "5e8eb7ec76a77d104416b6a1417ec1152eae7708",
+    "fix": "8798b6a7b9b3a4217b549ae0019c182ecb78518d",
+    "committed": "2026-11-06",
+    "test": "timeout 240 npx --no-install jest \"test/formatHeader.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-25m7448",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/574",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/578",
+    "base": "a6d99807eec64fd9bde2be6b875f2e7a4fc3a142",
+    "fix": "cb26ce0f7d668cc3a69dad215a9e93efa7642fd9",
+    "committed": "2026-11-05",
+    "test": "timeout 240 npx --no-install jest \"test/nvForm.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1gd7n7p",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/551",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/552",
+    "base": "502f7034eb73c410252d0bae89f2d03f09882b05",
+    "fix": "65bb42d2e7de4d9eca2b70c95040ee34c19d9c36",
+    "committed": "2026-11-03",
+    "test": "timeout 240 npx --no-install jest \"test/variantMatch.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1zij7bk",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/550",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/549",
+    "base": "1d611c717e64592b35afe0cb66366735b2c717d0",
+    "fix": "502f7034eb73c410252d0bae89f2d03f09882b05",
+    "committed": "2026-11-02",
+    "test": "timeout 240 npx --no-install jest \"test/txEvent.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-226cne1",
+    "repo": "canboat/canboatjs",
+    "issue": "https://github.com/canboat/canboatjs/issues/537",
+    "fixPr": "https://github.com/canboat/canboatjs/pull/538",
+    "base": "e4a84d24c0640c979e8cfe36cc62e4ed02863c8e",
+    "fix": "e164ee689958c831149ae3b2a7ae11170f1fe374",
+    "committed": "2026-10-27",
+    "test": "timeout 240 npx --no-install jest \"test/decimal.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1d7k0sg",
+    "repo": "un-ts/changesets-gitlab",
+    "issue": "https://github.com/un-ts/changesets-gitlab/issues/276",
+    "fixPr": "https://github.com/un-ts/changesets-gitlab/pull/277",
+    "base": "a2f6b28c9c78f3abbc2b8978e3d7efd4991cec58",
+    "fix": "27db5adf8fc6b4ab3014b4938039d2c6010e481f",
+    "committed": "2026-10-25",
+    "test": "timeout 240 npx --no-install vitest run \"test/get-changed-packages.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-cdv0zuk",
+    "repo": "un-ts/changesets-gitlab",
+    "issue": "https://github.com/un-ts/changesets-gitlab/issues/254",
+    "fixPr": "https://github.com/un-ts/changesets-gitlab/pull/257",
+    "base": "0db157c67cb3e366186126273775f638c1660722",
+    "fix": "53464239533a744f7bd94a5736aa1c05537a6ee3",
+    "committed": "2026-09-19",
+    "test": "timeout 240 npx --no-install vitest run \"test/get-changed-packages.spec.ts\"",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1yoo5cd",
+    "repo": "taylorcox75/qRemote",
+    "issue": "https://github.com/taylorcox75/qRemote/issues/247",
+    "fixPr": "https://github.com/taylorcox75/qRemote/pull/255",
+    "base": "18ba59a60733ca030fc8211bad7664f4498f45dc",
+    "fix": "00d2040c0788b34b883636c10a7f49cd92e517b9",
+    "committed": "2026-09-20",
+    "test": "timeout 240 npx --no-install jest \"tests/utils/torrent-state.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1ltp11b",
+    "repo": "taylorcox75/qRemote",
+    "issue": "https://github.com/taylorcox75/qRemote/issues/125",
+    "fixPr": "https://github.com/taylorcox75/qRemote/pull/127",
+    "base": "1e7f23394d123cfa0ff103bbcbedadaf6c8df2d8",
+    "fix": "29867089b37b123a54be8b85b25fcec071d62321",
+    "committed": "2026-07-16",
+    "test": "timeout 240 npx --no-install jest \"tests/utils/app-config.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-m4fs7o1",
+    "repo": "vexl-it/vexl",
+    "issue": "https://github.com/vexl-it/vexl/issues/2827",
+    "fixPr": "https://github.com/vexl-it/vexl/pull/2834",
+    "base": "10c17649d5ad5af40695e5dcc1381ee4821e1d6f",
+    "fix": "7351c3bce86f238c1794afcf7b6248e91d4c9cf5",
+    "committed": "2026-11-09",
+    "test": "timeout 240 npx --no-install jest \"apps/mobile/src/state/chat/atoms/sendMessagesActionAtom.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-29s1nmq",
+    "repo": "vexl-it/vexl",
+    "issue": "https://github.com/vexl-it/vexl/issues/2720",
+    "fixPr": "https://github.com/vexl-it/vexl/pull/2722",
+    "base": "3f6ec525e45e461142a417137f03a5f4153946e6",
+    "fix": "7e9d853d01d73088bf7f6a9a2b37f6167f9a0f7b",
+    "committed": "2026-09-05",
+    "test": "timeout 240 npx --no-install jest \"apps/mobile/src/utils/notifications/chatNotifications.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-10amry0",
+    "repo": "bretzel-app/crumbs",
+    "issue": "https://github.com/bretzel-app/crumbs/issues/96",
+    "fixPr": "https://github.com/bretzel-app/crumbs/pull/97",
+    "base": "31732e8144d8e08a044e62f1d7cee8aeec333070",
+    "fix": "faf926c08149348a77b8b197af000c8d570a61e1",
+    "committed": "2026-10-11",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/settings.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-h6kk81n",
+    "repo": "bretzel-app/crumbs",
+    "issue": "https://github.com/bretzel-app/crumbs/issues/86",
+    "fixPr": "https://github.com/bretzel-app/crumbs/pull/87",
+    "base": "e8c30c518cb851f4004a203242c392d2b96ac069",
+    "fix": "6bdcc3c2144f841510f405a1360ae39a2edfd850",
+    "committed": "2026-09-07",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/dark-mode.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1k3tx49",
+    "repo": "victorGPT/vibeusage",
+    "issue": "https://github.com/victorGPT/vibeusage/issues/202",
+    "fixPr": "https://github.com/victorGPT/vibeusage/pull/203",
+    "base": "4891a5882781e2fff65bf4f7b6609d521265ae98",
+    "fix": "27d4a1b56ca61809daab0253d20daee6d3457ea6",
+    "committed": "2026-11-06",
+    "test": "timeout 240 node --test \"test/insforge-client.test.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-ky5hsvd",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/644",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/645",
+    "base": "470f12771146cd5c8642c90ca9844afafadde01c",
+    "fix": "4915979ae0597f55187d02266d15773df6b45892",
+    "committed": "2026-11-05",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Commands/ExportCollectionsTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-e7hax11",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/640",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/641",
+    "base": "e218c2f5a984b8e54d8a0bf344e510ed488e5b91",
+    "fix": "cdd7886a7b2cf8121075c4b4403ea263f8d946ac",
+    "committed": "2026-10-28",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Assets/AssetTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-2aqf6qe",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/630",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/631",
+    "base": "5b8f88b99b08063999d6f8041e13ff51a30ccd64",
+    "fix": "74542fa62d87a4bd5276bc14de124951d1b40665",
+    "committed": "2026-10-07",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Entries/EntryTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-1t0gpac",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/622",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/623",
+    "base": "90aaf661a0c444f2046a514be9fbaaadb7bdfef7",
+    "fix": "e4c6b1c36371df5d9554d958e6ab8e5e57d4dda7",
+    "committed": "2026-09-28",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Assets/AssetContainerContentsTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-26979p0",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/618",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/619",
+    "base": "9970ad707e453fbde16ff9da2645342823e2940e",
+    "fix": "5389d1ab3677f4bf5b7a244217350198b165010b",
+    "committed": "2026-09-16",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Entries/EntryTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-2kceilc",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/616",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/617",
+    "base": "d46f1765b2ab601f1543a0a2b51585c351d3cbb9",
+    "fix": "9970ad707e453fbde16ff9da2645342823e2940e",
+    "committed": "2026-09-14",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Entries/EntryTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-xkcj7rm",
+    "repo": "statamic/eloquent-driver",
+    "issue": "https://github.com/statamic/eloquent-driver/issues/609",
+    "fixPr": "https://github.com/statamic/eloquent-driver/pull/610",
+    "base": "23513f3b671158472f2396feecfedb533b64fad1",
+    "fix": "d46f1765b2ab601f1543a0a2b51585c351d3cbb9",
+    "committed": "2026-09-14",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Repositories/AssetRepositoryTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 2,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 2
+    }
+  },
+  {
+    "id": "t-5m7c90c",
+    "repo": "php-translation/extractor",
+    "issue": "https://github.com/php-translation/extractor/issues/193",
+    "fixPr": "https://github.com/php-translation/extractor/pull/194",
+    "base": "14c16dc129312d927f4af2c014bb7542542c4395",
+    "fix": "b2e93f9aa56c9150119eea7799fa6b662f317130",
+    "committed": "2026-09-11",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Resources/Php/Symfony/ParentType.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 127,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 127
+    }
+  },
+  {
+    "id": "t-1daq33d",
+    "repo": "pluginsGLPI/fields",
+    "issue": "https://github.com/pluginsGLPI/fields/issues/1349",
+    "fixPr": "https://github.com/pluginsGLPI/fields/pull/1353",
+    "base": "2e8ab272da0d6e31ecf2facfa853df61bdb1fadd",
+    "fix": "a6c8744a617008b8a4fee672882c3506895e7cbf",
+    "committed": "2026-11-16",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Units/ContainerTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 127,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 127
+    }
+  },
+  {
+    "id": "t-2gd4aq1",
+    "repo": "pluginsGLPI/fields",
+    "issue": "https://github.com/pluginsGLPI/fields/issues/1268",
+    "fixPr": "https://github.com/pluginsGLPI/fields/pull/1269",
+    "base": "6ffc52e94ad8411237e9a7a38e596bff7f71d666",
+    "fix": "e4614ec08134b7ba0b228495c45a42c345b2d903",
+    "committed": "2026-09-23",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Units/ContainerItemUpdateTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 127,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 127
+    }
+  },
+  {
+    "id": "t-194gtpb",
+    "repo": "buildbarn/bb-storage",
+    "issue": "https://github.com/buildbarn/bb-storage/issues/377",
+    "fixPr": "https://github.com/buildbarn/bb-storage/pull/379",
+    "base": "338f6e4210df3a4d1b7fd0e3705b8dfb04737792",
+    "fix": "b72851dbdc74c37cc4b72caeb546c1142f4bd8c5",
+    "committed": "2026-09-30",
+    "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2kf43cg",
+    "repo": "buildbarn/bb-storage",
+    "issue": "https://github.com/buildbarn/bb-storage/issues/376",
+    "fixPr": "https://github.com/buildbarn/bb-storage/pull/378",
+    "base": "677f49d41847194598d27ff90a3ca9b00d86a4ff",
+    "fix": "338f6e4210df3a4d1b7fd0e3705b8dfb04737792",
+    "committed": "2026-09-30",
+    "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-22gi9wd",
+    "repo": "buildbarn/bb-storage",
+    "issue": "https://github.com/buildbarn/bb-storage/issues/374",
+    "fixPr": "https://github.com/buildbarn/bb-storage/pull/375",
+    "base": "ff9af3883025f517a42725cb66b1a11cc33ea4c2",
+    "fix": "99e0fabf66d3c8c5dd4af25755cdbf1cccb035ba",
+    "committed": "2026-09-29",
+    "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2457wky",
+    "repo": "buildbarn/bb-storage",
+    "issue": "https://github.com/buildbarn/bb-storage/issues/372",
+    "fixPr": "https://github.com/buildbarn/bb-storage/pull/373",
+    "base": "99e0fabf66d3c8c5dd4af25755cdbf1cccb035ba",
+    "fix": "fec637f05f214a45d86b012975f598b6a4e7250f",
+    "committed": "2026-09-29",
+    "test": "timeout 240 go test -count=1 ./pkg/filesystem/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1gt0i40",
+    "repo": "jeeftor/audiobook-organizer",
+    "issue": "https://github.com/jeeftor/audiobook-organizer/issues/200",
+    "fixPr": "https://github.com/jeeftor/audiobook-organizer/pull/201",
+    "base": "596d75b0c0a8e558be989d47b364b7a368a5e034",
+    "fix": "a95ee2cfe07c4548eb219cf756eaa1485ed9a484",
+    "committed": "2026-07-15",
+    "test": "timeout 240 go test -count=1 ./web/tests/e2e/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2rntorm",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/1055",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/1056",
+    "base": "56414d74673f4d8e3aeebe90a3a2be5ca4452c87",
+    "fix": "b8701361da3ba5fde371b4c6b9fb0487b876aae9",
+    "committed": "2026-10-19",
+    "test": "timeout 240 go test -count=1 ./internal/messagelifecycle/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1mx3apz",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/836",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/944",
+    "base": "a19f8a1a0c9f32b3556d8697231e6bd7d70c54a6",
+    "fix": "cbfba9b737c11b3f5d4775f4b49bb11ea61e500e",
+    "committed": "2026-08-31",
+    "test": "timeout 240 go test -count=1 ./internal/agent/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2qlzb3d",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/608",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/931",
+    "base": "66100e63275b9c84454cacd1f4cd36c50faab11c",
+    "fix": "fe0a52e70aa9c237d39b8d7a7688c9705f655d61",
+    "committed": "2026-08-23",
+    "test": "timeout 240 go test -count=1 ./internal/emailauth/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-l1wce76",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/816",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/924",
+    "base": "3a606d6c512f7583664a6390f1a90e7f7565e884",
+    "fix": "e929121f1a3a03ec636037bd4bb5b9b0c4d376ff",
+    "committed": "2026-08-21",
+    "test": "timeout 240 go test -count=1 ./cli/src/__tests__/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-a7gttxa",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/826",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/906",
+    "base": "1ac48cd736d9b9fbf4511d938ad97d91a9dab4ca",
+    "fix": "36409f0a605324dbb0787c446a32ce8a7ea85302",
+    "committed": "2026-08-17",
+    "test": "timeout 240 go test -count=1 ./internal/identity/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2l6znpf",
+    "repo": "tokencanopy/e2a",
+    "issue": "https://github.com/tokencanopy/e2a/issues/635",
+    "fixPr": "https://github.com/tokencanopy/e2a/pull/636",
+    "base": "8955b8897b7d7b7e23c9497f51f3c74129eb3f7f",
+    "fix": "fb5ae9fa6fbfcf6fffe44328fff3527bdd8d1a96",
+    "committed": "2026-07-21",
+    "test": "timeout 240 go test -count=1 ./mcp/tests/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-13l26fa",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/378",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/380",
+    "base": "0bf2bf31388c88b9f98f617b6f939d24db529a1c",
+    "fix": "1bfb271e37b903944bf74086d6a7a854e7e9940f",
+    "committed": "2026-10-24",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1fihj1w",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/348",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/373",
+    "base": "4bf393f32bd3ad7eced013417c68f6244c9ec6dd",
+    "fix": "699893a773766c5a860f97d09c38f554d9682cbb",
+    "committed": "2026-10-02",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-bi8r80b",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/349",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/358",
+    "base": "586d870f8a6bb418cfbc8d986eee02d5ed7dbe3d",
+    "fix": "c300ce4164fe1f91adebfb924025f253ca52a145",
+    "committed": "2026-09-17",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-27osi9b",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/356",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/357",
+    "base": "c300ce4164fe1f91adebfb924025f253ca52a145",
+    "fix": "44bf9c22c88d3024be5a66b3ee85dda8b94826fe",
+    "committed": "2026-09-17",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1xtk34n",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/354",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/355",
+    "base": "73515f7ae8448b2a926af1e0960e18a6f914875a",
+    "fix": "388fb9d3b7d1cb0328cbdda03883c6f6d191f7bb",
+    "committed": "2026-09-16",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-8niclvu",
+    "repo": "git-pkgs/git-pkgs",
+    "issue": "https://github.com/git-pkgs/git-pkgs/issues/346",
+    "fixPr": "https://github.com/git-pkgs/git-pkgs/pull/350",
+    "base": "6c6160fe9740e510525a7fc7901d7a5795936e61",
+    "fix": "0ce0d597766141973efccd4119eeb79ed5635cd9",
+    "committed": "2026-09-15",
+    "test": "timeout 240 go test -count=1 ./cmd/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1hd8ehn",
+    "repo": "google/gonids",
+    "issue": "https://github.com/google/gonids/issues/249",
+    "fixPr": "https://github.com/google/gonids/pull/255",
+    "base": "4be2b63b8f528db6b8c0e077fe4060ab627acdbf",
+    "fix": "cc7252cb6ab762aa35b78311a5ff0f31559b4b7b",
+    "committed": "2026-10-23",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1azubpv",
+    "repo": "google/gonids",
+    "issue": "https://github.com/google/gonids/issues/227",
+    "fixPr": "https://github.com/google/gonids/pull/228",
+    "base": "084a61bb5b3bce1e932485ead08a054febe5d24a",
+    "fix": "dd9681bd61283c9d6a1c4f265b1754c0b7721d02",
+    "committed": "2026-10-08",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2dbpzs0",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/672",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/673",
+    "base": "7f26c4c610c61c5c1bcd1616f0519d5cb2594d17",
+    "fix": "c0af3a8d8fbabfd7e4ab0229164d45fcf72afb72",
+    "committed": "2026-10-22",
+    "test": "timeout 240 go test -count=1 ./internal/temporal/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1jr2vwd",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/656",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/662",
+    "base": "25c20ef71c06c81a478f9d0693e2d6b467dd4428",
+    "fix": "7f26c4c610c61c5c1bcd1616f0519d5cb2594d17",
+    "committed": "2026-10-22",
+    "test": "timeout 240 go test -count=1 ./internal/planner/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2en60kh",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/609",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/610",
+    "base": "fde47e730f6f98499107b05e543eb3bbe8d8e7a3",
+    "fix": "8f8ff326e9cc2f2d17b8aab5a163ad2a29d568e8",
+    "committed": "2026-09-27",
+    "test": "timeout 240 go test -count=1 ./internal/planner/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2bhptm4",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/583",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/606",
+    "base": "8daf17523a02e4eac18e326e654045ad42562b81",
+    "fix": "fde47e730f6f98499107b05e543eb3bbe8d8e7a3",
+    "committed": "2026-09-18",
+    "test": "timeout 240 go test -count=1 ./internal/controller/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-24ssu3w",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/573",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/587",
+    "base": "0d271206b815ada77e61cd140c4cfb60e922cae5",
+    "fix": "84d717c31fd1e8899515a104fe63c791c41046ff",
+    "committed": "2026-09-14",
+    "test": "timeout 240 go test -count=1 ./internal/planner/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-28xhe7a",
+    "repo": "temporalio/temporal-worker-controller",
+    "issue": "https://github.com/temporalio/temporal-worker-controller/issues/463",
+    "fixPr": "https://github.com/temporalio/temporal-worker-controller/pull/508",
+    "base": "16a1fdf4e67c919674db51753edf961a09d7170b",
+    "fix": "33585e858bbcafbb3e1d8e524f736360a9fa7410",
+    "committed": "2026-08-17",
+    "test": "timeout 240 go test -count=1 ./internal/tests/internal/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2p8vj77",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/1667",
+    "fixPr": "https://github.com/kenn-io/forge/pull/1737",
+    "base": "3c6ffde47936c479f4bdeafdddc49ca730acd548",
+    "fix": "4e727d3c4a957a74ad5ce8d5ec7c08b24abf90de",
+    "committed": "2026-11-02",
+    "test": "timeout 240 go test -count=1 ./internal/workspace/localruntime/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1c4dlg5",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/1594",
+    "fixPr": "https://github.com/kenn-io/forge/pull/1641",
+    "base": "40e5128aff0124637b84ad70f08f21b90f6fde17",
+    "fix": "c3e2d25bcbd5c36be2630af05dbdc34151ba6591",
+    "committed": "2026-10-29",
+    "test": "timeout 240 go test -count=1 ./internal/db/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-mcpb4pl",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/1550",
+    "fixPr": "https://github.com/kenn-io/forge/pull/1561",
+    "base": "9b1395f78eea9cdbfaa0164fde081b01a9d43204",
+    "fix": "b3d77f282d311ff68fdc2a8307d8d22061a65e85",
+    "committed": "2026-10-27",
+    "test": "timeout 240 go test -count=1 ./internal/github/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-20vrr8j",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/1551",
+    "fixPr": "https://github.com/kenn-io/forge/pull/1560",
+    "base": "b8a6707a20d435516db0fa6d73e08a4eb7f37cbb",
+    "fix": "67e951fc98d3814ddd27fe6ff3d68336dc39ec0f",
+    "committed": "2026-10-27",
+    "test": "timeout 240 go test -count=1 ./internal/server/accessservertest/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1d49vn6",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/1113",
+    "fixPr": "https://github.com/kenn-io/forge/pull/1114",
+    "base": "3863216790dcdbd9c3a1c03ddeb7dc272edba299",
+    "fix": "d6bfbd9efdb1c4dd80c5ba51d639b4fbdd64aca1",
+    "committed": "2026-09-17",
+    "test": "timeout 240 go test -count=1 ./internal/testutil/processjob/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2cdlg6x",
+    "repo": "kenn-io/forge",
+    "issue": "https://github.com/kenn-io/forge/issues/948",
+    "fixPr": "https://github.com/kenn-io/forge/pull/988",
+    "base": "3167fc6421287c0d0045537d7593b15966d3832c",
+    "fix": "a0b312c1a87dc191cc01e0434aded852887e4e0d",
+    "committed": "2026-08-28",
+    "test": "timeout 240 go test -count=1 ./frontend/src/lib/components/diff/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-orsbqpu",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/6501",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6533",
+    "base": "d77f40b202a2039751dab7d6a5cbacf3fb644264",
+    "fix": "ba967e39707ba47fe129060bb56da18a9f3a0df7",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./cmd/evener-hub/internal/hubcore/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2i4c7zb",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/6412",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6528",
+    "base": "a23db36c08ac0cfe51429f1a18fce5c0907a6e76",
+    "fix": "1fa2fd6072cadbdbec8fdee5e5a07ff86a04ba9a",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./llm/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-4cgva49",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/5373",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6500",
+    "base": "e0f65cbb81f2b2de2642070a928ba323bdbc0d1f",
+    "fix": "a95c4e3daf8ab43aa72b207d49bd0ecc257e104d",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./cmd/evener-hub/frontend/src/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2g5ncbt",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/6414",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6492",
+    "base": "fa8b5236e570a527a4b30bf0430917ef2e8531c2",
+    "fix": "5405393e0cf122012fd0334fc89c41ba1dd999f5",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./cmd/evener-hub/internal/hubcore/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1wwd455",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/6307",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6491",
+    "base": "4f8bd7e6010f16a4f5cd44a62b02523411d9278d",
+    "fix": "39af6b24c7e087359c58995d71484d3c0d1d3bbc",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./agent/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1gdbnvc",
+    "repo": "prime-radiant-inc/evener",
+    "issue": "https://github.com/prime-radiant-inc/evener/issues/6395",
+    "fixPr": "https://github.com/prime-radiant-inc/evener/pull/6487",
+    "base": "797e68a27b68f98fcdef3bb58256dc098e018d99",
+    "fix": "3e5fdcc247ab8d6255efb8e5bb9d56541ca5c588",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./cmd/evener-hub/frontend/scripts/cascadeguard/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2ey1r0y",
+    "repo": "soypat/lneto",
+    "issue": "https://github.com/soypat/lneto/issues/234",
+    "fixPr": "https://github.com/soypat/lneto/pull/290",
+    "base": "ffaf8a64579839241a823e7b67be6a6f0c814f49",
+    "fix": "9a0f413cb232101cfcffa8e478687ddf92bbfc8b",
+    "committed": "2026-10-26",
+    "test": "timeout 240 go test -count=1 ./x/xnet/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-21j2bbc",
+    "repo": "u-root/gobusybox",
+    "issue": "https://github.com/u-root/gobusybox/issues/170",
+    "fixPr": "https://github.com/u-root/gobusybox/pull/174",
+    "base": "217c3675e772a152baa6d8b631bc26409976bdf2",
+    "fix": "c357db87175f22479366ae33c4f850674a0d4ac8",
+    "committed": "2026-10-29",
+    "test": "timeout 240 go test -count=1 ./src/pkg/bb/findpkg/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-21jpk1k",
+    "repo": "mliezun/caddy-snake",
+    "issue": "https://github.com/mliezun/caddy-snake/issues/216",
+    "fixPr": "https://github.com/mliezun/caddy-snake/pull/218",
+    "base": "5d08971ca557fa249350f2c2196b29f679fc8042",
+    "fix": "c1b65bcfd3eafce33e02bf1508faae4a2bb1c106",
+    "committed": "2026-07-15",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1zfi9g2",
+    "repo": "auth0/go-auth0",
+    "issue": "https://github.com/auth0/go-auth0/issues/826",
+    "fixPr": "https://github.com/auth0/go-auth0/pull/843",
+    "base": "dbaffdfff7bce2a5a3261be93fd5699fcebcaff4",
+    "fix": "3f3810b0884bd10d29118f9bb6d3bc7483fb7606",
+    "committed": "2026-08-05",
+    "test": "timeout 240 go test -count=1 ./management/internal/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1ynhv0n",
+    "repo": "microsoft/dcp",
+    "issue": "https://github.com/microsoft/dcp/issues/293",
+    "fixPr": "https://github.com/microsoft/dcp/pull/340",
+    "base": "5901d3d7b96af094c0b18f5d41675e5ea88273be",
+    "fix": "4268aa268a4a232b8dbbc365782fc1204a8a0529",
+    "committed": "2026-11-02",
+    "test": "timeout 240 go test -count=1 ./internal/docker/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1c34vu4",
+    "repo": "microsoft/dcp",
+    "issue": "https://github.com/microsoft/dcp/issues/296",
+    "fixPr": "https://github.com/microsoft/dcp/pull/312",
+    "base": "6c9f6fd214bafae81360ef6d7caed56a4faf0b89",
+    "fix": "2d892a08e55ecb164c2af8ebd72cdb7d67fd1b58",
+    "committed": "2026-10-26",
+    "test": "timeout 240 go test -count=1 ./pkg/io/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1kcngbt",
+    "repo": "microsoft/dcp",
+    "issue": "https://github.com/microsoft/dcp/issues/300",
+    "fixPr": "https://github.com/microsoft/dcp/pull/311",
+    "base": "0fa5d16db929d278ebe6eeca01dde02f2d3630ed",
+    "fix": "6c9f6fd214bafae81360ef6d7caed56a4faf0b89",
+    "committed": "2026-10-26",
+    "test": "timeout 240 go test -count=1 ./internal/docker/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-13xtwkt",
+    "repo": "thebanri/limoni",
+    "issue": "https://github.com/thebanri/limoni/issues/117",
+    "fixPr": "https://github.com/thebanri/limoni/pull/119",
+    "base": "8043c21f651c297c81bf72cea855b95d88283c6a",
+    "fix": "fe5486c8e4368dab423e5247b9f6f9f0a2fa2f61",
+    "committed": "2026-11-05",
+    "test": "timeout 240 go test -count=1 ./widgets/",
+    "verification": {
+      "installBase": -2,
+      "testBase": -2,
+      "baseFailure": "none",
+      "installFix": -2,
+      "testFix": -2
+    }
+  },
+  {
+    "id": "t-1jtbgxz",
+    "repo": "thebanri/limoni",
+    "issue": "https://github.com/thebanri/limoni/issues/78",
+    "fixPr": "https://github.com/thebanri/limoni/pull/79",
+    "base": "0f88711509fc132146f12e7c455e3982f0bc3246",
+    "fix": "fc4745a1e0cc55cc287a3519ec8aa82774ed2b05",
+    "committed": "2026-09-29",
+    "test": "timeout 240 go test -count=1 ./core/driver/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1ly1acr",
+    "repo": "thebanri/limoni",
+    "issue": "https://github.com/thebanri/limoni/issues/59",
+    "fixPr": "https://github.com/thebanri/limoni/pull/64",
+    "base": "897311ec4f4fd9db107278e89e0acefee389c372",
+    "fix": "2f5722214e8b6321afc60f46e29b5494c94554a9",
+    "committed": "2026-09-25",
+    "test": "timeout 240 go test -count=1 ./graphics/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-obh9z0b",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/212",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/208",
+    "base": "57059fa593fae4050f0e236e3279867d2365a627",
+    "fix": "151d21122c625fb222dcc4e37cd7ecf8020f14ff",
+    "committed": "2026-11-04",
+    "test": "timeout 240 go test -count=1 ./internal/vibe/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-6di00yf",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/210",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/206",
+    "base": "29ddbc232f45b5f8a695e91c7574955b88a0ff98",
+    "fix": "089e8ad1d428fc66d48527032139e688f733ef49",
+    "committed": "2026-11-04",
+    "test": "timeout 240 go test -count=1 ./internal/provider/apple/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-fd481gz",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/204",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/205",
+    "base": "31def02bd334f76ecc8a69caeb6c3c642df0fe55",
+    "fix": "29ddbc232f45b5f8a695e91c7574955b88a0ff98",
+    "committed": "2026-11-02",
+    "test": "timeout 240 go test -count=1 ./internal/tui/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-ehksfbi",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/162",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/166",
+    "base": "cfae359086e34470c6588303febd103be0dffb21",
+    "fix": "58fefdca1c006a58e45b82b12d38588ed1ec6957",
+    "committed": "2026-10-16",
+    "test": "timeout 240 go test -count=1 ./internal/tui/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-wmst6so",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/143",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/144",
+    "base": "b3aec064cc63a90eb8a364bef604715c8d446766",
+    "fix": "7ad349e11704dcb73cf9be22086c11aa061dc8b1",
+    "committed": "2026-09-25",
+    "test": "timeout 240 go test -count=1 ./internal/player/local/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1ez02lp",
+    "repo": "simonepelosi/vibez",
+    "issue": "https://github.com/simonepelosi/vibez/issues/110",
+    "fixPr": "https://github.com/simonepelosi/vibez/pull/133",
+    "base": "a1587ca8ff3c237a6c705a819289993dbbfa298c",
+    "fix": "cbbe57658b2546b1ad9fd6ecac9fec971e630e42",
+    "committed": "2026-09-14",
+    "test": "timeout 240 go test -count=1 ./internal/player/mpris/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-24uxfkk",
+    "repo": "banteg/crimson",
+    "issue": "https://github.com/banteg/crimson/issues/669",
+    "fixPr": "https://github.com/banteg/crimson/pull/670",
+    "base": "405bd8e0b64a1ff077924d7847dcb8c82a242318",
+    "fix": "8b790dc1dd5ee2bde90491756cce74d067d837f1",
+    "committed": "2026-10-12",
+    "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/modes/test_perk_menu_visibility.py\"",
+    "verification": {
+      "installBase": -2,
+      "testBase": -2,
+      "baseFailure": "none",
+      "installFix": -2,
+      "testFix": -2
+    }
+  },
+  {
+    "id": "t-184l43c",
+    "repo": "brain-score/vision",
+    "issue": "https://github.com/brain-score/vision/issues/2569",
+    "fixPr": "https://github.com/brain-score/vision/pull/2599",
+    "base": "d60041d28dbf52759a733e3b3b57a0b41df83be6",
+    "fix": "603d188d39be0bfd4c32fe1cc47cf3275ae70aa0",
+    "committed": "2026-10-15",
+    "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_model_helpers/temporal/activations/test_temporal_cache_key.py\"",
+    "verification": {
+      "installBase": -2,
+      "testBase": -2,
+      "baseFailure": "none",
+      "installFix": -2,
+      "testFix": -2
+    }
+  },
+  {
+    "id": "t-1nzvzsd",
+    "repo": "brain-score/vision",
+    "issue": "https://github.com/brain-score/vision/issues/2503",
+    "fixPr": "https://github.com/brain-score/vision/pull/2511",
+    "base": "f083fe3b9dba987416d133dea2f87c8f3c77a6f2",
+    "fix": "81a295d8fef4e585a912c9e2de6e91a0bebfac64",
+    "committed": "2026-09-08",
+    "test": "timeout 240 .venv/bin/python -m pytest -q -p no:cacheprovider \"tests/test_model_helpers/activations/test_preprocessing_resolution.py\"",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-a5azsg7",
+    "repo": "blinkbitcoin/blink-mobile",
+    "issue": "https://github.com/blinkbitcoin/blink-mobile/issues/4372",
+    "fixPr": "https://github.com/blinkbitcoin/blink-mobile/pull/4380",
+    "base": "797f642bec54acbd34673662e1d68d508bdec583",
+    "fix": "cd1a4410d5130764d53167451ca4780e509c49d4",
+    "committed": "2026-11-04",
+    "test": "timeout 240 npx --no-install jest \"__tests__/hooks/use-unseen-tx-amount-badge.spec.ts\"",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-zywgjlt",
+    "repo": "pc-style/x-md",
+    "issue": "https://github.com/pc-style/x-md/issues/166",
+    "fixPr": "https://github.com/pc-style/x-md/pull/169",
+    "base": "fc960745312e9e090089cf7b40c253a62f2327a2",
+    "fix": "2c98cb6b7397ae84c99afa12c132ce40c8c474db",
+    "committed": "2026-11-09",
+    "test": "timeout 240 npx --no-install vitest run \"lib/fallback-timeouts.test.ts\"",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1c70pao",
+    "repo": "pc-style/x-md",
+    "issue": "https://github.com/pc-style/x-md/issues/113",
+    "fixPr": "https://github.com/pc-style/x-md/pull/114",
+    "base": "89e2d0eb51f5d417e89bfc6ba429d70fbfeae7c8",
+    "fix": "35635119ce942adda9e073e5b4f68ef71c089933",
+    "committed": "2026-10-30",
+    "test": "timeout 240 npx --no-install vitest run \"lib/mcp.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1xal4gn",
+    "repo": "openpi-dev/openpi",
+    "issue": "https://github.com/openpi-dev/openpi/issues/908",
+    "fixPr": "https://github.com/openpi-dev/openpi/pull/911",
+    "base": "e01230cef711acbef704fc18cad20bf68aa701ac",
+    "fix": "1120cafcd3f5c1ad466df1c7b823976a3e911f72",
+    "committed": "2026-11-07",
+    "test": "timeout 240 npx --no-install vitest run \"tests/web/session-worktree.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1yqmum3",
+    "repo": "openpi-dev/openpi",
+    "issue": "https://github.com/openpi-dev/openpi/issues/748",
+    "fixPr": "https://github.com/openpi-dev/openpi/pull/749",
+    "base": "abc59e74e97cfe8e507131547ac4c91666a000ae",
+    "fix": "31b2d045ec7147ac5fc3b2e350bbd55b0a2aa7cd",
+    "committed": "2026-10-23",
+    "test": "timeout 240 npx --no-install vitest run \"tests/extensions/ai-providers/cursor-protobuf.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1weqeet",
+    "repo": "openpi-dev/openpi",
+    "issue": "https://github.com/openpi-dev/openpi/issues/733",
+    "fixPr": "https://github.com/openpi-dev/openpi/pull/734",
+    "base": "b2a82fc6551586dad139b40d6b262722bb54d103",
+    "fix": "c02989603c72f414f26d86000a690f59466a4b78",
+    "committed": "2026-10-23",
+    "test": "timeout 240 npx --no-install vitest run \"tests/extensions/usage/providers.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-d2rncdt",
+    "repo": "ever-co/ever-works",
+    "issue": "https://github.com/ever-co/ever-works/issues/1726",
+    "fixPr": "https://github.com/ever-co/ever-works/pull/1733",
+    "base": "a508593e5b8c133e31cab80ff44e85a19ee4a87c",
+    "fix": "c5bedfdf7fb6ec05eb924d6b87223fec0f6eeab4",
+    "committed": "2026-07-21",
+    "test": "timeout 240 npx --no-install vitest run \"packages/agent/src/agents/__tests__/agent-schedule-dispatcher.service.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 127,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 127
+    }
+  },
+  {
+    "id": "t-2n2nrs7",
+    "repo": "Weaverse/weaverse",
+    "issue": "https://github.com/Weaverse/weaverse/issues/535",
+    "fixPr": "https://github.com/Weaverse/weaverse/pull/536",
+    "base": "85c44c3aa3360fa4d8e0cbe8594c35172a61d301",
+    "fix": "99fc4362988d8d9e23991cb31b6a8598bf6a8df2",
+    "committed": "2026-10-06",
+    "test": "timeout 240 npx --no-install vitest run \"packages/hydrogen/__tests__/weaverse-client.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1uwb232",
+    "repo": "metafab/otel-gui",
+    "issue": "https://github.com/metafab/otel-gui/issues/14",
+    "fixPr": "https://github.com/metafab/otel-gui/pull/15",
+    "base": "2516223cd7070bb51dc0d30f2155d0196a9169b9",
+    "fix": "ec34578a1f78d2e24465a2e63a9103f7e81b9d59",
+    "committed": "2026-10-10",
+    "test": "timeout 240 npx --no-install vitest run \"src/lib/server/protobuf.test.ts\"",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1s9val1",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3488",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3563",
+    "base": "4d0ccf8e835f0cbf4788732ff7a42930e4b7c6d8",
+    "fix": "179be28c836c57fdbf5c7e3e9583f8450b187c80",
+    "committed": "2026-11-11",
+    "test": "timeout 240 npx --no-install vitest run \"src/webviews/cosmosdb/DataModeling/pages/DataPage.test.tsx\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1182p41",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3559",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3560",
+    "base": "5403d4ed179774d4725ada7128e57a912cc7fbde",
+    "fix": "4d0ccf8e835f0cbf4788732ff7a42930e4b7c6d8",
+    "committed": "2026-11-09",
+    "test": "timeout 240 npx --no-install vitest run \"src/webviews/cosmosdb/AccountOverview/AccountHealthStatus.test.tsx\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1rq9l1b",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3531",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3545",
+    "base": "69d9e33a6b5a803d1ed3b7fd44e646bf13995d15",
+    "fix": "0a88593372a26ac64f71390725f0afef529c7d74",
+    "committed": "2026-11-06",
+    "test": "timeout 240 npx --no-install vitest run \"src/webviews/cosmosdb/DataModeling/DataModelingWizard.test.tsx\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 124
+    }
+  },
+  {
+    "id": "t-23e5f42",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3496",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3543",
+    "base": "8563c5e881e02da9ec07b0b7d9323682e1d598d2",
+    "fix": "42917806083b34a30c00426ab45cbe3540c8c32f",
+    "committed": "2026-11-06",
+    "test": "timeout 240 npx --no-install vitest run \"test/e2e/specs/data-modeler-radio-cards.spec.ts\"",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-130hk2w",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3216",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3524",
+    "base": "69fb522a9fdc27f1ef968b6274d7a6529c0beb5a",
+    "fix": "c8f46aee5f14b7537b1b550d2d39c3220b2535fc",
+    "committed": "2026-11-04",
+    "test": "timeout 240 npx --no-install vitest run \"src/panels/BaseTab.test.ts\"",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-200fnzr",
+    "repo": "microsoft/vscode-cosmosdb",
+    "issue": "https://github.com/microsoft/vscode-cosmosdb/issues/3494",
+    "fixPr": "https://github.com/microsoft/vscode-cosmosdb/pull/3523",
+    "base": "0790654b7285ce45bd92bc85fc9d419c298dc187",
+    "fix": "69fb522a9fdc27f1ef968b6274d7a6529c0beb5a",
+    "committed": "2026-11-04",
+    "test": "timeout 240 npx --no-install vitest run \"src/panels/trpc/routers/dataModelingRouter.test.ts\"",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-m07uv33",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/235",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/237",
+    "base": "b5ff80c082001f3705ed7ae114a2b25b31b283a9",
+    "fix": "07aa52c8fb6d0d2659dbfeecca242349990e7be2",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-27y3bp0",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/232",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/234",
+    "base": "3224f34fe91d119d79352fa4dbfe2e49ccefa19e",
+    "fix": "8ae5802bd48ac435f128e2ecdfa591357a986111",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2qss8ix",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/231",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/233",
+    "base": "3ee7412b7e3b573333dc38f813b11f8d9a068be3",
+    "fix": "3224f34fe91d119d79352fa4dbfe2e49ccefa19e",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/openapi/version-processor.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1br2xiq",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/229",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/230",
+    "base": "cd5ce6bb3ea790cc0866589dfd42c5bd4652a0de",
+    "fix": "3ee7412b7e3b573333dc38f813b11f8d9a068be3",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/openapi/version-processor.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-fd2ngpy",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/225",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/226",
+    "base": "0a34c62f65bae1cdacf51e30f968a2a526d4d785",
+    "fix": "904f13cd218263580cd036742b785513a1cb7403",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1bfdvot",
+    "repo": "tazo90/next-openapi-gen",
+    "issue": "https://github.com/tazo90/next-openapi-gen/issues/221",
+    "fixPr": "https://github.com/tazo90/next-openapi-gen/pull/222",
+    "base": "895ee3226a875263b3caf16b6bc66d19e3011858",
+    "fix": "eecfe7d159080454f7f6886b5ac9c0ea4fdf01d8",
+    "committed": "2026-11-13",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/features/unions-and-intersections.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1bh70i6",
+    "repo": "milvus-io/milvus-sdk-node",
+    "issue": "https://github.com/milvus-io/milvus-sdk-node/issues/628",
+    "fixPr": "https://github.com/milvus-io/milvus-sdk-node/pull/629",
+    "base": "991ff3ea18c2a43ad40eeae684b2aa3ed6f884c5",
+    "fix": "af1deab91d4e8d3873c5e919238b4d86799f8b1d",
+    "committed": "2026-11-16",
+    "test": "timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-14zbrpq",
+    "repo": "milvus-io/milvus-sdk-node",
+    "issue": "https://github.com/milvus-io/milvus-sdk-node/issues/624",
+    "fixPr": "https://github.com/milvus-io/milvus-sdk-node/pull/625",
+    "base": "541aff1254b0864603d50691c6ba9161833c3812",
+    "fix": "991ff3ea18c2a43ad40eeae684b2aa3ed6f884c5",
+    "committed": "2026-11-16",
+    "test": "timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-19o1j2y",
+    "repo": "devlint/GitWand",
+    "issue": "https://github.com/devlint/GitWand/issues/287",
+    "fixPr": "https://github.com/devlint/GitWand/pull/292",
+    "base": "98b53fe2a5f817c0f49bb067e7e0bde4603dd1a2",
+    "fix": "d5a951123646ca64cbe5c4debbc6f719514bac03",
+    "committed": "2026-11-10",
+    "test": "timeout 240 node --test \"apps/desktop/src/utils/__tests__/fetchRefresh.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-rk86nxb",
+    "repo": "danielroe/forges",
+    "issue": "https://github.com/danielroe/forges/issues/149",
+    "fixPr": "https://github.com/danielroe/forges/pull/241",
+    "base": "2396ce6ae9d140f2b5cd0a58f8efdfc80cc92568",
+    "fix": "5aa9e709130b5c65f70cc3ff1a8b2bc8422bf2e4",
+    "committed": "2026-10-24",
+    "test": "timeout 240 npx --no-install vitest run \"test/unit/helpers.test.ts\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-5i13xjl",
+    "repo": "fwcd/tree-sitter-kotlin",
+    "issue": "https://github.com/fwcd/tree-sitter-kotlin/issues/287",
+    "fixPr": "https://github.com/fwcd/tree-sitter-kotlin/pull/290",
+    "base": "1852ea17b7f60fb3f9d84e0b1555d56b46b39fb1",
+    "fix": "c8f018028bd3c152fda365cfdc1b2790c95a6322",
+    "committed": "2026-10-28",
+    "test": "timeout 240 npx --no-install vitest run \"test/corpus/literals.txt\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-4wtymyn",
+    "repo": "Ahmadkhattak1/awesome-downloader",
+    "issue": "https://github.com/Ahmadkhattak1/awesome-downloader/issues/16",
+    "fixPr": "https://github.com/Ahmadkhattak1/awesome-downloader/pull/100",
+    "base": "c0046123f63571113c2d33a444ea5e9b57dd4bb8",
+    "fix": "7c4fcffd5f232d0affda6dfa21f1fa40aa4b471f",
+    "committed": "2026-11-11",
+    "test": "timeout 240 node --test \"tests/manifest-references.test.mjs\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-y5eqedq",
+    "repo": "cuttle-cards/cuttle",
+    "issue": "https://github.com/cuttle-cards/cuttle/issues/1467",
+    "fixPr": "https://github.com/cuttle-cards/cuttle/pull/1487",
+    "base": "db4fd3cbadb8736200105ae00c5e0e5f17e90ddd",
+    "fix": "01541c9645ca10a863367e19304fcff153a60ede",
+    "committed": "2026-11-10",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/specs/out-of-game/profile.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1pmypf3",
+    "repo": "cuttle-cards/cuttle",
+    "issue": "https://github.com/cuttle-cards/cuttle/issues/1412",
+    "fixPr": "https://github.com/cuttle-cards/cuttle/pull/1477",
+    "base": "ae602c111f18b1e51424aecce01d04018f3cb7d0",
+    "fix": "39312e132564edf7cab23333fe21cc4451cd9cee",
+    "committed": "2026-11-08",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/specs/in-game/one-offs/4_fours.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1k9n394",
+    "repo": "cuttle-cards/cuttle",
+    "issue": "https://github.com/cuttle-cards/cuttle/issues/1451",
+    "fixPr": "https://github.com/cuttle-cards/cuttle/pull/1458",
+    "base": "132ed182c339b95c349730b8aeef9c77ff982a95",
+    "fix": "1ffc5c963c298d85fc1dcd45ee8d0fd11d0d6437",
+    "committed": "2026-10-26",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/specs/in-game/layout.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2nigl2h",
+    "repo": "cuttle-cards/cuttle",
+    "issue": "https://github.com/cuttle-cards/cuttle/issues/1447",
+    "fixPr": "https://github.com/cuttle-cards/cuttle/pull/1450",
+    "base": "0bab3d5329e3f7936cb43ef4d75aaedd19a3a436",
+    "fix": "21726ce56c050891dfcb83f8dc96dbf87acdad46",
+    "committed": "2026-10-21",
+    "test": "timeout 240 npx --no-install vitest run \"tests/e2e/specs/in-game/handLimit.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-f024qw4",
+    "repo": "cuttle-cards/cuttle",
+    "issue": "https://github.com/cuttle-cards/cuttle/issues/1440",
+    "fixPr": "https://github.com/cuttle-cards/cuttle/pull/1442",
+    "base": "da1394199473000063658babf699bf50a61054b9",
+    "fix": "de0507212e8c000372fab77fe5d134da7d554bff",
+    "committed": "2026-10-18",
+    "test": "timeout 240 npx --no-install vitest run \"tests/unit/specs/in-game-events.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-15j03l5",
+    "repo": "edgehero/pi-dispatch",
+    "issue": "https://github.com/edgehero/pi-dispatch/issues/805",
+    "fixPr": "https://github.com/edgehero/pi-dispatch/pull/814",
+    "base": "0b4f1ab9971a565405e51da45df2fe4cb51d24a2",
+    "fix": "408cdf500d1be3f555542cb9d186cff0e7b300a8",
+    "committed": "2026-11-03",
+    "test": "timeout 240 node --test \"gateway/test/config.test.mjs\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-v338ayy",
+    "repo": "mdn/mcp",
+    "issue": "https://github.com/mdn/mcp/issues/201",
+    "fixPr": "https://github.com/mdn/mcp/pull/276",
+    "base": "8e7ec2dd0273594b6a7e48b2c44f09765dbfe2c1",
+    "fix": "527a170d44820425c4182fa5e1220dba792e355c",
+    "committed": "2026-10-22",
+    "test": "timeout 240 node --test \"test/server.test.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-13axy56",
+    "repo": "mdn/mcp",
+    "issue": "https://github.com/mdn/mcp/issues/231",
+    "fixPr": "https://github.com/mdn/mcp/pull/274",
+    "base": "377ce8f73734cb3b130abee52bb83804e21c131c",
+    "fix": "284bc79e6a4499c8272eb1ed4af56233826f2253",
+    "committed": "2026-10-05",
+    "test": "timeout 240 node --test \"test/server.test.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1ks1ygl",
+    "repo": "mdn/mcp",
+    "issue": "https://github.com/mdn/mcp/issues/209",
+    "fixPr": "https://github.com/mdn/mcp/pull/210",
+    "base": "36bafb45daba7c304b6b2b39a424a34e7e7902cd",
+    "fix": "c47482c7ff6cb88062f13c3b2af513048655ded3",
+    "committed": "2026-07-16",
+    "test": "timeout 240 node --test \"test/tools/get-doc.test.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-8wqmnew",
+    "repo": "nfse-nacional/nfse-php",
+    "issue": "https://github.com/nfse-nacional/nfse-php/issues/74",
+    "fixPr": "https://github.com/nfse-nacional/nfse-php/pull/75",
+    "base": "83e6484ed860eec04801d560431898c6065f85fe",
+    "fix": "f0b4d585311ddf80b243e0d5580e9a70484c22f1",
+    "committed": "2026-11-06",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Unit/Xml/DpsXmlBuilderTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-19xq34v",
+    "repo": "nfse-nacional/nfse-php",
+    "issue": "https://github.com/nfse-nacional/nfse-php/issues/55",
+    "fixPr": "https://github.com/nfse-nacional/nfse-php/pull/56",
+    "base": "5794ecdae48515105e4d29717e8e22d61b13585e",
+    "fix": "104ef9686dee1e70648a3c2782e8d46fe36ee372",
+    "committed": "2026-09-08",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/SchemaTextTest.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1f03qvl",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/3094",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3095",
+    "base": "d61549dc7fb96972f50b40b1c4dd92e86ce4fc9c",
+    "fix": "85daadff4276f645831f50d883c01e497cac614e",
+    "committed": "2026-10-03",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/test-global-defaults-css.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-13yikyj",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/2941",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3089",
+    "base": "eef169f87238456a02e80610d8dcd897bc1c3072",
+    "fix": "5b7c7be7ee1d796e1076176fc4f6832ac34a5fc6",
+    "committed": "2026-10-02",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/test-loader.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-18v5itt",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/2991",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3084",
+    "base": "067db8967093b1f4267b6445cae8c249d0c6c62d",
+    "fix": "6812669dab414868d69e7663cd65f27afbd54211",
+    "committed": "2026-10-09",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/test-base-css-renderer-guard.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-rcr0dq5",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/3074",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3083",
+    "base": "9a9408dc67b6b5d869c64d4fcd7beeb46a748315",
+    "fix": "cffaf07e8397affb3409c7229de5fa7281cd00dd",
+    "committed": "2026-09-29",
+    "test": "timeout 240 vendor/bin/phpunit \"src/blocks/test/e2e/blocks/posts.spec.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-zjh1etg",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/3066",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3070",
+    "base": "840231c4960352ca44426fd4e2702c01142f1fc7",
+    "fix": "01234162d754fa7699d5fd90359d06943df78abc",
+    "committed": "2026-09-26",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/test-blocks-css.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1046gp3",
+    "repo": "Codeinwp/otter-blocks",
+    "issue": "https://github.com/Codeinwp/otter-blocks/issues/2980",
+    "fixPr": "https://github.com/Codeinwp/otter-blocks/pull/3057",
+    "base": "0007f85ae3626ef0f698bbe534e3483eea5221c0",
+    "fix": "7403e07189a5ffd600c0d6a4f24fed8204cf18e9",
+    "committed": "2026-09-18",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/test-patterns-registration.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-23tnrzf",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/477",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/478",
+    "base": "3ea1f455d8cd9c3e122d960c53d13b02aceca44b",
+    "fix": "65f9fcda2cca95ec007b73aed5f1e27cc4af761b",
+    "committed": "2026-08-10",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/panel-admin/tests/Feature/Marketing/MeetingShowcasePageTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-mesb5ko",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/459",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/462",
+    "base": "cf13720256f735dd38be7a4b15f1a7c768c14dca",
+    "fix": "aeefb62912a4440c5dd8432b6d53c2c54bb75427",
+    "committed": "2026-08-02",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/panel-app/tests/Feature/Timeline/ThreadPageTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2fucohg",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/397",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/457",
+    "base": "de3efd470a234a79703aba38611e92794934cdf6",
+    "fix": "6350329cf05a84b591c222331e2259075240a6c3",
+    "committed": "2026-08-10",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/panel-app/tests/Feature/ProfilePageTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-sqyfzms",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/436",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/445",
+    "base": "71a6ab1a666bf34644798a4672b7b481c9fa23a3",
+    "fix": "b5a1919bd0a8062ce5fb783ec24ef16e0743f249",
+    "committed": "2026-07-23",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/portal/tests/Feature/SocialLinksPageTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1owgkmd",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/427",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/443",
+    "base": "fab620070251861dba12475c3ef81d678adcc679",
+    "fix": "209ebbac013ea5b97ec57ede98272d035f2214f1",
+    "committed": "2026-08-02",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/profile/tests/Unit/SocialPlatformTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-26hay5j",
+    "repo": "he4rt/heartdevs.com",
+    "issue": "https://github.com/he4rt/heartdevs.com/issues/441",
+    "fixPr": "https://github.com/he4rt/heartdevs.com/pull/442",
+    "base": "a686bafee27c33cba68ecf9e3ec8a1967b1c478d",
+    "fix": "405a13df784dbb6ebe93bbe6d26567668b86af35",
+    "committed": "2026-07-28",
+    "test": "timeout 240 vendor/bin/phpunit \"app-modules/panel-app/tests/Feature/ConnectionHubTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-v3tut7n",
+    "repo": "liberusoftware/project-genealogy-laravel-filament",
+    "issue": "https://github.com/liberusoftware/project-genealogy-laravel-filament/issues/1548",
+    "fixPr": "https://github.com/liberusoftware/project-genealogy-laravel-filament/pull/1601",
+    "base": "fe9f3d39d4501003332a3ef5b859fa3623e325fd",
+    "fix": "dc7d5cf4793c014586c66fc32a825d4b61a0a5bb",
+    "committed": "2026-07-20",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Feature/Models/TreeStampsOwnerTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1i686o8",
+    "repo": "pradosoft/prado",
+    "issue": "https://github.com/pradosoft/prado/issues/1515",
+    "fixPr": "https://github.com/pradosoft/prado/pull/1518",
+    "base": "a5f496960cdae10d2372979783b1830d968b1379",
+    "fix": "55d50796ac141124bc89253f05ae229c30de3e95",
+    "committed": "2026-11-11",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/Caching/TCacheTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1ahfxzi",
+    "repo": "pradosoft/prado",
+    "issue": "https://github.com/pradosoft/prado/issues/1249",
+    "fixPr": "https://github.com/pradosoft/prado/pull/1256",
+    "base": "50397a444f9c85cd035be26dcb42a28bba67be73",
+    "fix": "8e9b72dc70337f2c77468d5f1985533f0eaa72ca",
+    "committed": "2026-09-02",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/Util/TCallChainTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-qz7izif",
+    "repo": "baserproject/basercms",
+    "issue": "https://github.com/baserproject/basercms/issues/4644",
+    "fixPr": "https://github.com/baserproject/basercms/pull/4645",
+    "base": "a27a1cc8a5bb6948e6fd94805692548acf914a94",
+    "fix": "7b018962a747b778d03f56611edc8336cda4cc9c",
+    "committed": "2026-11-13",
+    "test": "timeout 240 vendor/bin/phpunit \"plugins/bc-mail/tests/TestCase/Service/Front/MailFrontServiceTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1rop3de",
+    "repo": "baserproject/basercms",
+    "issue": "https://github.com/baserproject/basercms/issues/4640",
+    "fixPr": "https://github.com/baserproject/basercms/pull/4641",
+    "base": "6998c9876dd818253708d555275452c648ccd842",
+    "fix": "a27a1cc8a5bb6948e6fd94805692548acf914a94",
+    "committed": "2026-11-13",
+    "test": "timeout 240 vendor/bin/phpunit \"plugins/baser-core/tests/TestCase/Service/PluginsServiceTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1vptek7",
+    "repo": "baserproject/basercms",
+    "issue": "https://github.com/baserproject/basercms/issues/4638",
+    "fixPr": "https://github.com/baserproject/basercms/pull/4639",
+    "base": "1b458479a14e41199c2c572e40fd8fecc928bf2c",
+    "fix": "6998c9876dd818253708d555275452c648ccd842",
+    "committed": "2026-11-13",
+    "test": "timeout 240 vendor/bin/phpunit \"plugins/baser-core/tests/TestCase/Service/PermissionsServiceTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1hcnfot",
+    "repo": "baserproject/basercms",
+    "issue": "https://github.com/baserproject/basercms/issues/4501",
+    "fixPr": "https://github.com/baserproject/basercms/pull/4503",
+    "base": "c61bc7978431afd7543baddaf7e647ff81285c1a",
+    "fix": "a232a79534e856bb895417562d9f3cffc3462a4b",
+    "committed": "2026-08-19",
+    "test": "timeout 240 vendor/bin/phpunit \"plugins/baser-core/tests/TestCase/View/Helper/BcArrayHelperTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2ql2sjo",
+    "repo": "PrinsFrank/pdfparser",
+    "issue": "https://github.com/PrinsFrank/pdfparser/issues/461",
+    "fixPr": "https://github.com/PrinsFrank/pdfparser/pull/462",
+    "base": "3c30bef4161d60ba4a10a257f627294595d5875b",
+    "fix": "a2b2bd9c9609073949a049d8aff41a3a8b30e113",
+    "committed": "2026-07-16",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Unit/Document/Dictionary/DictionaryValue/Array/ArrayValueTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-uyzwv6g",
+    "repo": "PrinsFrank/pdfparser",
+    "issue": "https://github.com/PrinsFrank/pdfparser/issues/459",
+    "fixPr": "https://github.com/PrinsFrank/pdfparser/pull/460",
+    "base": "f8b9d9f466d5a11ef89705d0f6f73270ffbd51d7",
+    "fix": "3c30bef4161d60ba4a10a257f627294595d5875b",
+    "committed": "2026-07-16",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/Unit/Document/Dictionary/DictionaryValue/Array/ArrayValueTest.php\"",
+    "verification": {
+      "installBase": 2,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1u0v8u4",
+    "repo": "Automattic/woocommerce-payments",
+    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12358",
+    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12401",
+    "base": "4cbff8e8e4a5deb9710b97921610b19e3ba141f7",
+    "fix": "392d77e33e58f1fe123ad34f92a9387cbed800a5",
+    "committed": "2026-11-12",
+    "test": "timeout 240 vendor/bin/phpunit \"client/checkout/classic/__tests__/payment-processing.test.js\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-eg7cms5",
+    "repo": "Automattic/woocommerce-payments",
+    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12126",
+    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12139",
+    "base": "569bb195a303dbe45dee7b86bdf22b1789f1f9fe",
+    "fix": "5fca9a21b3ea0542bfab572c7e8298208a6de675",
+    "committed": "2026-09-24",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/subscriptions/test-class-wc-payments-subscription-service.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-eg7cms5",
+    "repo": "Automattic/woocommerce-payments",
+    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12126",
+    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12128",
+    "base": "22e1dcf6885ac3548fc2db93c79f31ebc1066745",
+    "fix": "e52b576bd622e7298119f742c7a223f65ae73054",
+    "committed": "2026-09-22",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/subscriptions/test-class-wc-payments-subscription-service.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1gl9jx6",
+    "repo": "Automattic/woocommerce-payments",
+    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12116",
+    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12117",
+    "base": "e5bc0e2158b8f2c66769a996140f65e0f0b1cffa",
+    "fix": "0890090e2441b2d7182ada08afc52a1543f23f73",
+    "committed": "2026-09-11",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/test-class-wc-payments-fraud-service.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-y33ej07",
+    "repo": "Automattic/woocommerce-payments",
+    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12071",
+    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12075",
+    "base": "f0abac2dde6375f1ea13e185e7b04fce8bcdd4be",
+    "fix": "d33e0bb5d690b617ff97ab7fdd19f763a95a0869",
+    "committed": "2026-08-28",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/test-class-wc-payments-woopay-direct-checkout.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-16li0yo",
+    "repo": "elementor/activity-log",
+    "issue": "https://github.com/elementor/activity-log/issues/244",
+    "fixPr": "https://github.com/elementor/activity-log/pull/247",
+    "base": "94551a17d6a8594010d90796af91b9b78f0bf09b",
+    "fix": "37b56110a540f5bf26271f5a973c22dfd2766f29",
+    "committed": "2026-10-12",
+    "test": "timeout 240 vendor/bin/phpunit \"tests/phpunit/test-maintenance-activation.php\"",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-efbwahr",
+    "repo": "coregx/coregex",
+    "issue": "https://github.com/coregx/coregex/issues/191",
+    "fixPr": "https://github.com/coregx/coregex/pull/192",
+    "base": "5d174843fb6f7f3cf65870ae0b7b89e01d128bca",
+    "fix": "d2d9fa59b484f8b7c620103027bdfa843127fdd6",
+    "committed": "2026-10-17",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1xwyjlv",
+    "repo": "coregx/coregex",
+    "issue": "https://github.com/coregx/coregex/issues/183",
+    "fixPr": "https://github.com/coregx/coregex/pull/187",
+    "base": "94b20cd62544200651e92af235eb659f4fcbec83",
+    "fix": "6145950f2e155b13e179d2423417edff6a727f66",
+    "committed": "2026-10-10",
+    "test": "timeout 240 go test -count=1 ./meta/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1xwyjlv",
+    "repo": "coregx/coregex",
+    "issue": "https://github.com/coregx/coregex/issues/183",
+    "fixPr": "https://github.com/coregx/coregex/pull/185",
+    "base": "8a0c8e0fc36cf0fc7ae706f7e95a3105f3116bed",
+    "fix": "94b20cd62544200651e92af235eb659f4fcbec83",
+    "committed": "2026-10-10",
+    "test": "timeout 240 go test -count=1 ./meta/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1xy6tp9",
+    "repo": "seatsurfing/seatsurfing",
+    "issue": "https://github.com/seatsurfing/seatsurfing/issues/2861",
+    "fixPr": "https://github.com/seatsurfing/seatsurfing/pull/2862",
+    "base": "7a00f9f79f2e4e684808340051e69b6522414260",
+    "fix": "53937fca89b1570e78d619ab76d4186cf181dacc",
+    "committed": "2026-11-11",
+    "test": "timeout 240 go test -count=1 ./ui/src/util/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-18w2orx",
+    "repo": "seatsurfing/seatsurfing",
+    "issue": "https://github.com/seatsurfing/seatsurfing/issues/2852",
+    "fixPr": "https://github.com/seatsurfing/seatsurfing/pull/2859",
+    "base": "3f0093707090b34427cb6df3e420073afbbdc133",
+    "fix": "7fe7c5fa9582b44c0dbf04322a16de941fccc157",
+    "committed": "2026-11-03",
+    "test": "timeout 240 go test -count=1 ./ui/src/util/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2otexeb",
+    "repo": "seatsurfing/seatsurfing",
+    "issue": "https://github.com/seatsurfing/seatsurfing/issues/2831",
+    "fixPr": "https://github.com/seatsurfing/seatsurfing/pull/2839",
+    "base": "ce4af67184b6f200cde7bf84d255d6f5952d884c",
+    "fix": "4e61c9b5ad6ede668ae110560909f4cfd15b7f5f",
+    "committed": "2026-10-31",
+    "test": "timeout 240 go test -count=1 ./ui/src/util/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1al6kuk",
+    "repo": "cockroachdb/cockroach-operator-legacy",
+    "issue": "https://github.com/cockroachdb/cockroach-operator-legacy/issues/1170",
+    "fixPr": "https://github.com/cockroachdb/cockroach-operator-legacy/pull/1172",
+    "base": "f3e60ffe2e6bfec6320f1c06f8a481a01524080e",
+    "fix": "5a812ab2deb0156d8d27548470a021687f27a14c",
+    "committed": "2026-10-30",
+    "test": "timeout 240 go test -count=1 ./pkg/resource/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-bbufb3v",
+    "repo": "open-feature/open-feature-operator",
+    "issue": "https://github.com/open-feature/open-feature-operator/issues/851",
+    "fixPr": "https://github.com/open-feature/open-feature-operator/pull/852",
+    "base": "0cd2e6278c5db6b279583fa50c3aa640fb0ca775",
+    "fix": "14a38644319ed36526c79ecc17f6bc5eabaf1c56",
+    "committed": "2026-07-31",
+    "test": "timeout 240 go test -count=1 ./api/core/v1beta1/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-g74dknp",
+    "repo": "opensearch-project/opensearch-go",
+    "issue": "https://github.com/opensearch-project/opensearch-go/issues/1300",
+    "fixPr": "https://github.com/opensearch-project/opensearch-go/pull/1304",
+    "base": "9b3f9b656bdf9252940c483a68ec413bf2be3c86",
+    "fix": "0ba42f85cbf17c6136d6d3737f8151ee8dc64323",
+    "committed": "2026-11-11",
+    "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2rhlx6n",
+    "repo": "opensearch-project/opensearch-go",
+    "issue": "https://github.com/opensearch-project/opensearch-go/issues/1296",
+    "fixPr": "https://github.com/opensearch-project/opensearch-go/pull/1299",
+    "base": "40ca0b0ffe66fad201e8721d12c75f5bbb29e554",
+    "fix": "e196ceb12d609bdf66d001989ffc8ac1c5a4485b",
+    "committed": "2026-11-10",
+    "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2hofih6",
+    "repo": "opensearch-project/opensearch-go",
+    "issue": "https://github.com/opensearch-project/opensearch-go/issues/1253",
+    "fixPr": "https://github.com/opensearch-project/opensearch-go/pull/1254",
+    "base": "451ef7e9a36ec918edd80be11a7fe959ee04d2e2",
+    "fix": "37714d6e2de1d6cd886113bf89264a80ac2d285d",
+    "committed": "2026-10-28",
+    "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-r70tm5c",
+    "repo": "openkruise/agents",
+    "issue": "https://github.com/openkruise/agents/issues/1168",
+    "fixPr": "https://github.com/openkruise/agents/pull/1169",
+    "base": "395c2c9081aa866409f41ff80c3dd6691f58ff35",
+    "fix": "f525d34b780e9a482e8e2ef8dabd1b353de0141c",
+    "committed": "2026-11-05",
+    "test": "timeout 240 go test -count=1 ./pkg/servers/e2b/adapters/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1fxajbu",
+    "repo": "openkruise/agents",
+    "issue": "https://github.com/openkruise/agents/issues/992",
+    "fixPr": "https://github.com/openkruise/agents/pull/994",
+    "base": "5f518fc6a3b5f8a62af0397e723553b85987732e",
+    "fix": "10db25ac3ecb5cd40380f0d2738d2aa51fb78369",
+    "committed": "2026-09-21",
+    "test": "timeout 240 go test -count=1 ./pkg/utils/runtime/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2b85tih",
+    "repo": "openkruise/agents",
+    "issue": "https://github.com/openkruise/agents/issues/802",
+    "fixPr": "https://github.com/openkruise/agents/pull/803",
+    "base": "61598f5c0903773d75c2898238f2c84c6f42d19c",
+    "fix": "75b4f73477e553b08676d671f2d3ecbbb3410541",
+    "committed": "2026-08-28",
+    "test": "timeout 240 go test -count=1 ./pkg/controller/sandboxset/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-jea7wip",
+    "repo": "openkruise/agents",
+    "issue": "https://github.com/openkruise/agents/issues/706",
+    "fixPr": "https://github.com/openkruise/agents/pull/707",
+    "base": "4a94c3ad703367b6f56b7a09b86a3b8df24a1d2a",
+    "fix": "5c4b1d06011aab02fe48a324a28b36166f8f874a",
+    "committed": "2026-08-31",
+    "test": "timeout 240 go test -count=1 ./pkg/servers/e2b/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2ouowe0",
+    "repo": "ClickHouse/clickhouse-operator",
+    "issue": "https://github.com/ClickHouse/clickhouse-operator/issues/349",
+    "fixPr": "https://github.com/ClickHouse/clickhouse-operator/pull/354",
+    "base": "09774ab13f31eb4fcedbb6376685b12a62df7dc6",
+    "fix": "146f699164da11b780dc94e102ed1aa081d4c6e9",
+    "committed": "2026-09-30",
+    "test": "timeout 240 go test -count=1 ./internal/controller/clickhouse/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 124,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2q8jw4a",
+    "repo": "ClickHouse/clickhouse-operator",
+    "issue": "https://github.com/ClickHouse/clickhouse-operator/issues/321",
+    "fixPr": "https://github.com/ClickHouse/clickhouse-operator/pull/343",
+    "base": "b7300a5eefe76869bbe54cdd39c6ed67809c5968",
+    "fix": "1daccd859972843389dd06a9be5abd8fe0fc5744",
+    "committed": "2026-09-23",
+    "test": "timeout 240 go test -count=1 ./internal/controller/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-z2qsf4t",
+    "repo": "ClickHouse/clickhouse-operator",
+    "issue": "https://github.com/ClickHouse/clickhouse-operator/issues/335",
+    "fixPr": "https://github.com/ClickHouse/clickhouse-operator/pull/340",
+    "base": "2fe902e06c72b839621614a2973965fd5a6b9475",
+    "fix": "b7300a5eefe76869bbe54cdd39c6ed67809c5968",
+    "committed": "2026-09-23",
+    "test": "timeout 240 go test -count=1 ./internal/controller/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1qlghaj",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3720",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3723",
+    "base": "a2caa986eb99c28c139a4f81e337c3d4192a10f8",
+    "fix": "af72bf675726da8e5828c37929f3d3bdaf6d6bf9",
+    "committed": "2026-11-14",
+    "test": "timeout 240 go test -count=1 ./internal/server/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1a4hib0",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3718",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3719",
+    "base": "6de3775d2e2a5d90a55e4f799a1e672863b351d0",
+    "fix": "a2caa986eb99c28c139a4f81e337c3d4192a10f8",
+    "committed": "2026-11-14",
+    "test": "timeout 240 go test -count=1 ./pkg/core/cluster/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2mxlizg",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3714",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3715",
+    "base": "01d18ec11dcea59c1b82f37cb60f45ca65562802",
+    "fix": "55b244c0e7a65cecf8bd8f6dd4b19a74dbdec606",
+    "committed": "2026-11-14",
+    "test": "timeout 240 go test -count=1 ./internal/app/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1ew29tn",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3701",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3710",
+    "base": "a90568a200b027394021b4b02ba710d683760b3a",
+    "fix": "070a1c622fa93fd477a489715e4e119ffdee0e8e",
+    "committed": "2026-11-13",
+    "test": "timeout 240 go test -count=1 ./internal/server/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 124,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 124
+    }
+  },
+  {
+    "id": "t-14cimmv",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3703",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3705",
+    "base": "b933d7c22a25a6fd4419aa8609f2a9627774b643",
+    "fix": "faf4561bc52ebe39f49ca9ec1d8caae174e4bc2b",
+    "committed": "2026-11-13",
+    "test": "timeout 240 go test -count=1 ./internal/server/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-dhve69f",
+    "repo": "FootprintAI/Containarium",
+    "issue": "https://github.com/FootprintAI/Containarium/issues/3702",
+    "fixPr": "https://github.com/FootprintAI/Containarium/pull/3704",
+    "base": "e648a99c8bb23a61eb31124de18c40e501b4554c",
+    "fix": "b933d7c22a25a6fd4419aa8609f2a9627774b643",
+    "committed": "2026-11-13",
+    "test": "timeout 240 go test -count=1 ./internal/server/",
+    "verification": {
+      "installBase": 124,
+      "testBase": -1,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-1th5gsp",
+    "repo": "GreyhavenHQ/greywall",
+    "issue": "https://github.com/GreyhavenHQ/greywall/issues/104",
+    "fixPr": "https://github.com/GreyhavenHQ/greywall/pull/105",
+    "base": "5581056d0523bfa244d8061008744ed9f72a0361",
+    "fix": "60ab1b5bfd41c1683220435a85fc116dc29fd04f",
+    "committed": "2026-08-13",
+    "test": "timeout 240 go test -count=1 ./internal/sandbox/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2bajtah",
+    "repo": "undistro/zora",
+    "issue": "https://github.com/undistro/zora/issues/337",
+    "fixPr": "https://github.com/undistro/zora/pull/341",
+    "base": "4775630f30b4e45f73eebb881287edf9e89f2159",
+    "fix": "1fcf8357259f040c4b1efb7e3507658d1c5ff39b",
+    "committed": "2026-08-26",
+    "test": "timeout 240 go test -count=1 ./pkg/plugins/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1mwsacc",
+    "repo": "sgl-project/rbg",
+    "issue": "https://github.com/sgl-project/rbg/issues/547",
+    "fixPr": "https://github.com/sgl-project/rbg/pull/553",
+    "base": "c2896cc0d9ccb8b72de0dda4838f52d8807c9ff1",
+    "fix": "ea5e82ae59169e0e954fb1c7068f9480fb4b7375",
+    "committed": "2026-11-12",
+    "test": "timeout 240 go test -count=1 ./pkg/reconciler/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1lw0yyc",
+    "repo": "sgl-project/rbg",
+    "issue": "https://github.com/sgl-project/rbg/issues/539",
+    "fixPr": "https://github.com/sgl-project/rbg/pull/540",
+    "base": "3612013e6f779401831f5947dc124cc4313faddb",
+    "fix": "98d3c4be8c4c018ddbeb516b66a4eba4981c225c",
+    "committed": "2026-11-04",
+    "test": "timeout 240 go test -count=1 ./pkg/reconciler/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2cx3n8u",
+    "repo": "sgl-project/rbg",
+    "issue": "https://github.com/sgl-project/rbg/issues/481",
+    "fixPr": "https://github.com/sgl-project/rbg/pull/501",
+    "base": "56c49531084191ad982c7b1512d64bb83acd2098",
+    "fix": "c78a7b178114ea2ef94d74887f85d29e039db885",
+    "committed": "2026-10-19",
+    "test": "timeout 240 go test -count=1 ./pkg/reconciler/roleinstanceset/statefulmode/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-25fu76l",
+    "repo": "sgl-project/rbg",
+    "issue": "https://github.com/sgl-project/rbg/issues/496",
+    "fixPr": "https://github.com/sgl-project/rbg/pull/497",
+    "base": "95440e391f242501215308922522895a05f3006b",
+    "fix": "56c49531084191ad982c7b1512d64bb83acd2098",
+    "committed": "2026-10-15",
+    "test": "timeout 240 go test -count=1 ./pkg/reconciler/roleinstance/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-dggms9o",
+    "repo": "sgl-project/rbg",
+    "issue": "https://github.com/sgl-project/rbg/issues/493",
+    "fixPr": "https://github.com/sgl-project/rbg/pull/495",
+    "base": "79f7e5858fdc30ffaeadef4aea12c3809dcb348d",
+    "fix": "7b384f4def17706c12c93ff7e330e42c0555f0a8",
+    "committed": "2026-10-12",
+    "test": "timeout 240 go test -count=1 ./pkg/reconciler/roleinstance/utils/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-184o4in",
+    "repo": "verygoodplugins/whatsapp-mcp",
+    "issue": "https://github.com/verygoodplugins/whatsapp-mcp/issues/249",
+    "fixPr": "https://github.com/verygoodplugins/whatsapp-mcp/pull/250",
+    "base": "bfa2c08185d910cf11f457266fbbdbb2465994dc",
+    "fix": "4e107371bb7b3b9bb304fa9db88f41cbec45d5af",
+    "committed": "2026-09-23",
+    "test": "timeout 240 go test -count=1 ./scripts/tests/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2plnwnu",
+    "repo": "verygoodplugins/whatsapp-mcp",
+    "issue": "https://github.com/verygoodplugins/whatsapp-mcp/issues/167",
+    "fixPr": "https://github.com/verygoodplugins/whatsapp-mcp/pull/168",
+    "base": "30d2bdb6947fd87ca21efbe43ae7bfd3c4781ea6",
+    "fix": "43afd2ef77aa161ae353cc0d4c318bfd4f071808",
+    "committed": "2026-08-08",
+    "test": "timeout 240 go test -count=1 ./whatsapp-bridge/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2gfa21k",
+    "repo": "verygoodplugins/whatsapp-mcp",
+    "issue": "https://github.com/verygoodplugins/whatsapp-mcp/issues/156",
+    "fixPr": "https://github.com/verygoodplugins/whatsapp-mcp/pull/157",
+    "base": "c22219f29bb8bd490fc260941155626ab30150c8",
+    "fix": "eb0565de3e123e23e9fcc28a308d34898f0c7d77",
+    "committed": "2026-08-08",
+    "test": "timeout 240 go test -count=1 ./whatsapp-bridge/",
+    "verification": {
+      "installBase": 1,
+      "testBase": -1,
+      "baseFailure": "assertion",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-28dq3wv",
+    "repo": "chenquan/diskusage",
+    "issue": "https://github.com/chenquan/diskusage/issues/195",
+    "fixPr": "https://github.com/chenquan/diskusage/pull/197",
+    "base": "869146c8c0ebefa5379120cbba22a405e67c67ba",
+    "fix": "cb26bfec096932eb5de6beff985e29336f7a65cf",
+    "committed": "2026-11-12",
+    "test": "timeout 240 go test -count=1 ./internal/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2bfpqyi",
+    "repo": "connectrpc/protoc-gen-connect-openapi",
+    "issue": "https://github.com/connectrpc/protoc-gen-connect-openapi/issues/283",
+    "fixPr": "https://github.com/connectrpc/protoc-gen-connect-openapi/pull/288",
+    "base": "0e11f40f62d8afff0f35cba673b2cdf378aaf3f7",
+    "fix": "c2848e119f3f87679540c9ca98f24b20bdfd7a25",
+    "committed": "2026-09-24",
+    "test": "timeout 240 go test -count=1 ./internal/converter/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-huxzmuf",
+    "repo": "gpustack/gguf-parser-go",
+    "issue": "https://github.com/gpustack/gguf-parser-go/issues/42",
+    "fixPr": "https://github.com/gpustack/gguf-parser-go/pull/43",
+    "base": "4949ca76e1d7b6ab0ae6ca5892b4fa441a3c11c5",
+    "fix": "c007ab1cfc285d30d502bed033c4b0b5b3c53624",
+    "committed": "2026-08-27",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-25an0iz",
+    "repo": "gpustack/gguf-parser-go",
+    "issue": "https://github.com/gpustack/gguf-parser-go/issues/38",
+    "fixPr": "https://github.com/gpustack/gguf-parser-go/pull/39",
+    "base": "a5d9227ae50725494c827c7810c662e102143293",
+    "fix": "4949ca76e1d7b6ab0ae6ca5892b4fa441a3c11c5",
+    "committed": "2026-08-27",
+    "test": "timeout 240 go test -count=1 ./",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-2f3cc85",
+    "repo": "grafana/github-datasource",
+    "issue": "https://github.com/grafana/github-datasource/issues/813",
+    "fixPr": "https://github.com/grafana/github-datasource/pull/814",
+    "base": "44b212392dc8a4b217ef6746b72b7400ca01c6f1",
+    "fix": "3e3e732a3ea156f53841650f386db9593a4ed1e2",
+    "committed": "2026-11-13",
+    "test": "timeout 240 go test -count=1 ./pkg/github/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-2k8ih26",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/1197",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/1198",
+    "base": "65f5ff81bdcca948a5c6b6ba32a7a4a1a5ebdc7b",
+    "fix": "3a78cc53699506b87a78602166c230a7ca836a32",
+    "committed": "2026-11-11",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/unikernels/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-1aqqnne",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/1066",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/1155",
+    "base": "eba28d3f07aa878f0e04a972928b6aabe2dd0850",
+    "fix": "1150978008bc662d5056f3605805f43cd125bebf",
+    "committed": "2026-10-26",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-u91b5dy",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/1011",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/1017",
+    "base": "aad45521785bd23ff04eff4bc898848c06cf552e",
+    "fix": "40385b3e6f103ca0049a0fcca57c72e27fede98f",
+    "committed": "2026-09-03",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 0,
+      "baseFailure": "none",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-11kv38i",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/1010",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/1015",
+    "base": "83c30e878a84b6b9e701686943e746fe03e1bcd4",
+    "fix": "45cfe27bb345199c182474b12598ed1f062289b8",
+    "committed": "2026-09-03",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 0
+    }
+  },
+  {
+    "id": "t-ohy9f20",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/987",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/989",
+    "base": "3395292f75292ec8d02e0710af2aaa1921ef046c",
+    "fix": "2141d5e5ce2d2fab4dac1d2b7d2540eb89f920e3",
+    "committed": "2026-08-28",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-137oufo",
+    "repo": "urunc-dev/urunc",
+    "issue": "https://github.com/urunc-dev/urunc/issues/867",
+    "fixPr": "https://github.com/urunc-dev/urunc/pull/868",
+    "base": "3d57114358121a37eeb78d3d07cb256531f1d5ed",
+    "fix": "310f3b5318cda32554ad9389159cdb682c4b9a10",
+    "committed": "2026-10-02",
+    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
+    }
+  },
+  {
+    "id": "t-b3sajsj",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/2711",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2800",
+    "base": "9c3bba74f1e228630656510144bf02f2a12e04da",
+    "fix": "d0583081446e3f4b886042c9e45ee8f04a767de5",
+    "committed": "2026-11-16",
+    "test": "timeout 240 go test -count=1 ./internal/adapter/server/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1mzruke",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/2734",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2780",
+    "base": "77216f2aeebebc5abbebe762054f15d47be08971",
+    "fix": "93c282ee7adbc3a21cd585285eb48ae38a565ae4",
+    "committed": "2026-11-13",
+    "test": "timeout 240 go test -count=1 ./internal/adapter/mcp/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-28npa4v",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/2525",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2740",
+    "base": "d2bea0535e28bb578a7ea732779d665463433af2",
+    "fix": "87a1a21ca1a8fd73f0bb96b2aebcf5700e1a9f8d",
+    "committed": "2026-11-06",
+    "test": "timeout 240 go test -count=1 ./internal/adapter/server/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1a9hd6m",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/1797",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2624",
+    "base": "34be512e0e1af848719a4ae6a9a70da903580de0",
+    "fix": "7d74f30262415f703cacf7f1248e108ccfaae127",
+    "committed": "2026-11-02",
+    "test": "timeout 240 go test -count=1 ./internal/app/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-1xax530",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/2074",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2620",
+    "base": "77584ed9980e88bbe7de2ff74f9b6a7736ed2edb",
+    "fix": "6dd10faa4db94944b060b6f5e9fb72b856d363e0",
+    "committed": "2026-10-29",
+    "test": "timeout 240 go test -count=1 ./cmd/mecak8s/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
+  },
+  {
+    "id": "t-2q63vke",
+    "repo": "stacklok/mecatl",
+    "issue": "https://github.com/stacklok/mecatl/issues/2376",
+    "fixPr": "https://github.com/stacklok/mecatl/pull/2619",
+    "base": "2b8be428ba693fe41b2eebb7f5b7ba519d09469e",
+    "fix": "77584ed9980e88bbe7de2ff74f9b6a7736ed2edb",
+    "committed": "2026-10-29",
+    "test": "timeout 240 go test -count=1 ./apps/web/src/features/chat/",
+    "verification": {
+      "installBase": 0,
+      "testBase": 1,
+      "baseFailure": "assertion",
+      "installFix": 0,
+      "testFix": 1
+    }
   }
 ]

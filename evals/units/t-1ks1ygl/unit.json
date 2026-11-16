@@ -1,0 +1,19 @@
+{
+  "id": "t-1ks1ygl",
+  "repo": "mdn/mcp",
+  "base": "36bafb45daba7c304b6b2b39a424a34e7e7902cd",
+  "reference": "c47482c7ff6cb88062f13c3b2af513048655ded3",
+  "task": {
+    "title": "URLs redirected to anchors error",
+    "body": "https://mozilla.sentry.io/issues/7610217217/\n\n- The input path was `/en-US/docs/Web/JavaScript/Reference/Reserved_words`\n- This attempted to load `/en-US/docs/Web/JavaScript/Reference/Reserved_words/index.json`\n- But ended up redirected to https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#Keywords/index.json instead\n\nThis seemed to happen because the redirect was to a section rather than a full URL, so fixing it in dex would end up losing some context here which we should surface to the LLM."
+  },
+  "spec": "URLs redirected to anchors error",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/tools/get-doc.test.js"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 node --test \"test/tools/get-doc.test.js\"",
+  "committed": "2026-07-16",
+  "issue": "https://github.com/mdn/mcp/issues/209"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-g74dknp",
+  "repo": "opensearch-project/opensearch-go",
+  "base": "9b3f9b656bdf9252940c483a68ec413bf2be3c86",
+  "reference": "0ba42f85cbf17c6136d6d3737f8151ee8dc64323",
+  "task": {
+    "title": "[BUG] Startup seed health checks can panic after pool mutation",
+    "body": "### What is the bug?\n\nThe asynchronous startup health-check loop and the default multi-server pool share the backing array of the initial seed slice. If a failed discovery request mutates the pool before the startup loop has read every seed, the loop can encounter a nil connection and panic in `(*Connection).healthCheck`.\n\nThe same issue occurs with a `ConnectionPoolFunc` that returns `NewConnectionPool(conns, nil)`.\n\n### How can one reproduce the bug?\n\nA deterministic package-level reproduction uses mocked HTTP and health-check responses:\n\n1. Configure three seed URLs, the default router and `SkipConnectionShuffle: true`.\n2. Before the startup goroutines consume the seed slice, call `getNodesInfo`. Return a network timeout for `/_nodes/http` and fail health checks for the selected seed; let other seeds pass.\n3. Resume the startup goroutines. `GOMAXPROCS=1` and `testing/synctest` allow this interleaving to be reproduced.\n4. Repeat with a factory returning `NewConnectionPool(conns, nil)`; call that pool's `Next()` before step 2 to initialize it.\n\nActual result: a nil-pointer panic during startup instead of a normal network error.\n\n### What is the expected behavior?\n\nA failed seed should not crash the process. Startup should continue with healthy seeds, and requests should remain able to use them. The startup seed iteration must be independent of pool slice mutations.\n\n### What is your host/environment?\n\n- opensearch-go v5.2.0; upstream `main` at `5de4b8cb356043e6027c2606aec1a2b7e99d51b5`.\n- Go 1.26.10 / 1.27.1, macOS arm64.\n- Mocked transport; no OpenSearch cluster required.\n\n### Do you have any additional context?\n\nThe regression is reproducible for both the default pool and the factory case described above. It is timing-dependent and does not occur on every failed startup request."
+  },
+  "spec": "[BUG] Startup seed health checks can panic after pool mutation",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "opensearchtransport/startup_seed_slice_internal_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+  "committed": "2026-11-11",
+  "issue": "https://github.com/opensearch-project/opensearch-go/issues/1300"
+}

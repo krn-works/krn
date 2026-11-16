@@ -1,0 +1,19 @@
+{
+  "id": "t-2qss8ix",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "3ee7412b7e3b573333dc38f813b11f8d9a068be3",
+  "reference": "3224f34fe91d119d79352fa4dbfe2e49ccefa19e",
+  "task": {
+    "title": "OpenAPI 3.0: a nullable $ref loses nullable, as 3.0 ignores a $ref's siblings",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0`\n\n### Description\n\nWith `openapi: \"3.0.0\"`, a nullable reference to a named schema is emitted as a `$ref` with `nullable: true` (and any `description`) next to it. OpenAPI 3.0 ignores every sibling of a `$ref`, so `nullable` is lost: validators reject `null`, and client generators type the field without `| null`.\n\n### Minimal Reproduction\n\n```ts\n// src/schemas/customers.ts\nimport { z } from \"zod\";\n\nexport const addressSchema = z.object({ city: z.string() }).meta({ id: \"Address\" });\n\nexport const customerSchema = z.object({\n  address: addressSchema.nullable().describe(\"Where to ship\"),\n});\n```\n\nUsed as a route's `@response customerSchema`.\n\n### Actual Output\n\n```json\n\"address\": { \"$ref\": \"#/components/schemas/Address\", \"description\": \"Where to ship\", \"nullable\": true }\n```\n\n### Expected Output\n\n```json\n\"address\": { \"allOf\": [{ \"$ref\": \"#/components/schemas/Address\" }], \"description\": \"Where to ship\", \"nullable\": true }\n```\n\n### Cause\n\nThe Zod converter emits `anyOf: [{ $ref }, { type: \"null\" }]`. `downgradeSchemaForOpenApi30` collapses that into the non-null branch plus `nullable: true`, which for a `$ref` branch puts `nullable` next to the `$ref`. OpenAPI 3.1 keeps the `anyOf` and is unaffected.\n"
+  },
+  "spec": "OpenAPI 3.0: a nullable $ref loses nullable, as 3.0 ignores a $ref's siblings",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/openapi/version-processor.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/openapi/version-processor.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/231"
+}

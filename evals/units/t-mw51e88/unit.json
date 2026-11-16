@@ -1,0 +1,19 @@
+{
+  "id": "t-mw51e88",
+  "repo": "canboat/canboatjs",
+  "base": "8798b6a7b9b3a4217b549ae0019c182ecb78518d",
+  "reference": "2f49758fac22916dcc9d3978043ad9e8ec6b99ab",
+  "task": {
+    "title": "Parity: a line with length 0 and no data gives a message",
+    "body": "A line with a length of 0 and no data gives a message. canboat skips it with `skipping malformed input line: line ends after the length field; no payload section`.\n\n```\n2020-08-22T13:52:43.993Z,7,65301,255,0,0\n2016-04-09T16:41:09.092Z,3,126208,32,255,0\n```\n\ncanboatjs gives `{\"data\":\"\"}` for the first and an empty 126208 for the second. A message with no data doesn't exist on the bus. These come from a logger that wrote a broken line.\n\nAlso lenient: `2022-04-17-04:35:34.254,4,129551,3,255,20,…,10,00,0,0c,…`, which has a one-digit byte. canboat refuses the line, and canboatjs reads it.\n\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01MeXuErQ3L6E3CUd9agLzjV\n"
+  },
+  "spec": "Parity: a line with length 0 and no data gives a message",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "lib/fromPgn.test.ts"
+  },
+  "install": "npm install --ignore-scripts",
+  "test": "timeout 240 npx --no-install jest \"lib/fromPgn.test.ts\"",
+  "committed": "2026-11-06",
+  "issue": "https://github.com/canboat/canboatjs/issues/570"
+}

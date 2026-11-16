@@ -1,0 +1,19 @@
+{
+  "id": "t-13axy56",
+  "repo": "mdn/mcp",
+  "base": "377ce8f73734cb3b130abee52bb83804e21c131c",
+  "reference": "284bc79e6a4499c8272eb1ed4af56233826f2253",
+  "task": {
+    "title": "The CPU usage for the 'claude' process (even when idle) goes high when this MCP server is enabled (affects in terminal mode as well as VS code extension mode)",
+    "body": "Steps to reproduce:\n* Use Claude Code, via terminal or VS Code extension (without this MCP server or preferably without any MCP servers).\n* Launch Claude Code and don't do anything there\n* Monitor the CPU usage (let's consider this baseline)\n* Now, install this MCP server (https://mcp.mdn.mozilla.net/) in Claude Code\n* Launch Claude Code and don't do anything there\n* Monitor the CPU usage (on my Ubuntu 22.04, the CPU usage by Claude Code's process is around 4 to 5 times of the baseline we noted in previous steps)"
+  },
+  "spec": "The CPU usage for the 'claude' process (even when idle) goes high when this MCP server is enabled (affects in terminal mode as well as VS code extension mode)",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/server.test.js"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 node --test \"test/server.test.js\"",
+  "committed": "2026-10-05",
+  "issue": "https://github.com/mdn/mcp/issues/231"
+}
