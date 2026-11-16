@@ -1,0 +1,18 @@
+{
+  "id": "t-f4ajrx0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "memory-refs reads tasks/archive/*.jsonl first; real memory MISSING-TASK 48 -> 0; test/claude/memory-refs.test.ts red before, green after"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Memory-refs resolves archived tasks",
+  "after": [],
+  "body": [
+    "Outcome: scripts/claude/memory-refs.ts resolves task ids archived by krn task archive (tasks/archive/*.jsonl), so archived tasks are not reported MISSING-TASK.\nWhy: after S17 (c524955) archived 731 closed tasks, memory-refs reported 48 false MISSING-TASK findings on the operator memory and the session start named 9 stale notes.\nProof: node --test test/claude/memory-refs.test.ts: pass with an archived task reported STALE-TASK, not MISSING-TASK; the real memory check drops from 48 MISSING-TASK to 0."
+  ],
+  "kind": "defect",
+  "area": "memory"
+}

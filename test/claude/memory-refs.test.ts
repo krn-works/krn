@@ -58,17 +58,23 @@ test('checks memory references, text and text grammar', () => {
     writeFileSync(join(root, 'docs/real.md'), 'real');
     writeFileSync(join(root, 'tasks/t-aaaaaaa.json'), '{"status":"closed"}');
     writeFileSync(join(root, 'tasks/t-bbbbbbb.json'), '{"status":"open"}');
+    // `krn task archive` moved this closed task out of tasks/*.json: it still resolves.
+    mkdirSync(join(root, 'tasks/archive'));
+    writeFileSync(
+      join(root, 'tasks/archive/2026-11.jsonl'),
+      '{"id":"t-ddddddd","status":"closed"}\n',
+    );
     writeFileSync(join(memory, 'MEMORY.md'), '[a](a.md)\n[gone](gone.md)\n');
     writeFileSync(
       join(memory, 'a.md'),
-      't-aaaaaaa still open\nt-aaaaaaa history\nt-ccccccc\nt-bbbbbbb pending\n`docs/real.md`\n```\n`docs/missing.ts`\n```\n`~/<placeholder>/x` `https://example.invalid/x`\n`krn/gate` `fix/review-line-limit` `/code-review`\n`docs/real.md:3-5` `docs/real.md:219,371-379`\n`docs/missing.ts:12`\n',
+      't-aaaaaaa still open\nt-aaaaaaa history\nt-ccccccc\nt-bbbbbbb pending\n`docs/real.md`\n```\n`docs/missing.ts`\n```\n`~/<placeholder>/x` `https://example.invalid/x`\n`krn/gate` `fix/review-line-limit` `/code-review`\n`docs/real.md:3-5` `docs/real.md:219,371-379`\n`docs/missing.ts:12`\nt-ddddddd waits\n',
     );
     writeFileSync(join(memory, 'b.md'), 'unindexed');
     const result = run();
     assert.equal(result.status, 65, result.stderr);
     assert.equal(
       result.stdout,
-      'MISSING-INDEX MEMORY.md:2 gone\nSTALE-TASK a.md:1 t-aaaaaaa\nMISSING-TASK a.md:3 t-ccccccc\nDANGLING a.md:7 docs/missing.ts\nDANGLING a.md:12 docs/missing.ts:12\nUNINDEXED b.md\nmemory-refs: 6 findings in 3 files\n',
+      'MISSING-INDEX MEMORY.md:2 gone\nSTALE-TASK a.md:1 t-aaaaaaa\nMISSING-TASK a.md:3 t-ccccccc\nDANGLING a.md:7 docs/missing.ts\nDANGLING a.md:12 docs/missing.ts:12\nSTALE-TASK a.md:13 t-ddddddd\nUNINDEXED b.md\nmemory-refs: 7 findings in 3 files\n',
     );
     rmSync(memory, { recursive: true });
     assert.equal(run().status, 64);
