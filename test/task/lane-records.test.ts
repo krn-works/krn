@@ -174,7 +174,14 @@ for (const state of ['absent', 'expired', 'malformed']) {
       writeFileSync(join(f.main, '.krn/task-claims/T-1.json'), '{bad');
     }
     f.ok(f.main, 'edit', 'T-1', '--title', 'Fallback');
-    assert.equal(JSON.parse(f.bytes(f.main)).title, 'Fallback');
+    // The main checkout is clean: the edit of the published record waits on the pending ref.
+    const pending = f.git(
+      f.main,
+      'show',
+      'refs/krn/pending-tasks:tasks/T-1.json',
+    );
+    assert.equal(JSON.parse(pending).title, 'Fallback');
+    assert.equal(JSON.parse(f.bytes(f.main)).title, 'Subject');
     if (state !== 'expired')
       assert.equal(JSON.parse(f.bytes(f.lane)).title, 'Subject');
   });

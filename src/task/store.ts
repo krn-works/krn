@@ -12,7 +12,12 @@ import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import { ARCHIVE_DIR, findArchived, readArchive } from './archive.ts';
-import { addPendingTask, isPendingId, pendingTaskFiles } from './pending.ts';
+import {
+  addPendingTask,
+  editGoesPending,
+  isPendingId,
+  pendingTaskFiles,
+} from './pending.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -302,6 +307,11 @@ export function listTasks(
  * directory. A malformed record is reported; the rest of the tracker is not checked.
  */
 export function readTask(root: string, id: TaskId): TaskRecord | undefined {
+  const pending = pendingTaskFiles(root).get(id);
+  if (pending !== undefined) {
+    const parsed = parseTaskDocument(pending);
+    if (parsed.record !== undefined && parsed.id === id) return parsed.record;
+  }
   const path = join(root, 'tasks', `${id}.json`);
   if (existsSync(path)) {
     const parsed = parseTaskDocument(readFileSync(path));
@@ -310,11 +320,6 @@ export function readTask(root: string, id: TaskId): TaskRecord | undefined {
         parsed.findings.map((finding) => `tasks/${id}.json: ${finding}`),
       );
     return parsed.record;
-  }
-  const pending = pendingTaskFiles(root).get(id);
-  if (pending !== undefined) {
-    const parsed = parseTaskDocument(pending);
-    if (parsed.record !== undefined && parsed.id === id) return parsed.record;
   }
   return findArchived(root, id);
 }
@@ -501,7 +506,7 @@ export function editTask(
   options: Pick<TaskStoreOptions, 'refuse'> = {},
 ): TaskRecord {
   const record = getTask(root, id);
-  const pending = pendingTaskFiles(root).has(id);
+  const pending = pendingTaskFiles(root).has(id) || editGoesPending(root, id);
   if (!pending && !existsSync(join(root, 'tasks', `${id}.json`)))
     throw new TaskDataError([
       `tasks/${id}.json: task is archived and read-only; create a new task instead`,
