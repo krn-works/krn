@@ -35,6 +35,15 @@ for (const file of files) {
 }
 writeFileSync(
   join(target, 'source.json'),
-  `${JSON.stringify({ repository: 'boilerplate-2026', path: '.agents/skills', commit }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      repository: 'boilerplate-2026',
+      aliases: ['boilerplate-rekurencja'],
+      path: '.agents/skills',
+      commit,
+    },
+    null,
+    2,
+  )}\n`,
 );
 console.log(`site skills: ${files.length} files from ${commit}`);

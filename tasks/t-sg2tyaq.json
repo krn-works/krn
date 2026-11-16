@@ -1,7 +1,11 @@
 {
   "id": "t-sg2tyaq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "refresh keeps site skills in the pin source repo and edited copies elsewhere unless --force; test/adopt/skill-set.test.ts red on main, green now; rehearsed on clone of boilerplate clone"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "krn adopt --refresh restores the pinned site skills over the source repository's own newer copies",

@@ -14,20 +14,25 @@ export interface Drift {
 }
 
 /** The tracker is part of the adoption when tasks/ exists; krn.json, tasks/ and the CI call stay repo-owned. */
-function options(root: string) {
-  return { refresh: true, tracker: existsSync(join(root, 'tasks')) };
+function options(root: string, force = false) {
+  return { refresh: true, force, tracker: existsSync(join(root, 'tasks')) };
 }
 
 /** Compares without keeping any change: adopt writes into its journal, which is rolled back at once. */
 export function adoptionDrift(root: string): Drift {
   const report = adopt(root, options(root));
   report.rollback();
-  return split(report.written, report.unchanged, report.created);
+  const drift = split(report.written, report.unchanged, report.created);
+  // A site skill edited in this repository is drift even though a refresh keeps it.
+  return { ...drift, drifted: [...drift.drifted, ...(report.held ?? [])] };
 }
 
-/** Rewrites the drifted and missing files to what adopt writes now; repo-owned files are not touched. */
-export function refreshAdoption(root: string): Drift {
-  const report = adopt(root, options(root));
+/**
+ * Rewrites the drifted and missing files to what adopt writes now; repo-owned files are not touched.
+ * An edited site skill file stays as it is (`kept`) unless `force` asks for the pinned copy.
+ */
+export function refreshAdoption(root: string, force = false): Drift {
+  const report = adopt(root, options(root, force));
   return split(report.written, report.unchanged, report.created);
 }
 

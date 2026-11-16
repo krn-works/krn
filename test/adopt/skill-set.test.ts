@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { adoptionDrift } from '../../src/adopt/drift.ts';
+import { adoptionDrift, refreshAdoption } from '../../src/adopt/drift.ts';
 import {
   SITE_SKILLS_DIR,
   siteSkillNames,
@@ -227,6 +227,56 @@ test('krn adopt installs every file of the boilerplate skills into a WordPress r
     const stale = '.agents/skills/cube-css/references/tokens.md';
     writeFileSync(join(root, stale), 'older source\n');
     assert.deepEqual(adoptionDrift(root).drifted, [stale]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function refreshFixture(name: string): string {
+  const root = adoptFixture('wp-config.php');
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name }));
+  return root;
+}
+
+const newerSkill = '.agents/skills/cube-css/references/tokens.md';
+
+test('a refresh never writes a site skill into the repository the pin comes from, whatever its name or origin', () => {
+  for (const name of ['boilerplate-2026', 'boilerplate-rekurencja']) {
+    const root = refreshFixture(name);
+    try {
+      writeFileSync(join(root, newerSkill), 'newer in the source repository\n');
+      assert.deepEqual(adoptionDrift(root).drifted, []);
+      refreshAdoption(root);
+      refreshAdoption(root, true);
+      assert.equal(
+        readFileSync(join(root, newerSkill), 'utf8'),
+        'newer in the source repository\n',
+        name,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a refresh elsewhere reports an edited site skill as drift and overwrites it only with force', () => {
+  const root = refreshFixture('some-site');
+  try {
+    writeFileSync(join(root, newerSkill), 'edited here\n');
+    assert.deepEqual(adoptionDrift(root).drifted, [newerSkill]);
+    const refreshed = refreshAdoption(root);
+    assert.equal(refreshed.drifted.includes(newerSkill), false);
+    assert.equal(refreshed.kept.includes(newerSkill), true);
+    assert.equal(readFileSync(join(root, newerSkill), 'utf8'), 'edited here\n');
+    refreshAdoption(root, true);
+    assert.equal(
+      readFileSync(join(root, newerSkill), 'utf8'),
+      readFileSync(
+        join(SITE_SKILLS_DIR, 'cube-css/references/tokens.md'),
+        'utf8',
+      ),
+    );
+    assert.deepEqual(adoptionDrift(root).drifted, []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
