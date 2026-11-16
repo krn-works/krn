@@ -1,7 +1,11 @@
 {
   "id": "t-zyz0k8x",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/brain/ci-rule-coverage.test.ts passes: 38 CI checks, each mapped to one enforced scoped s-ci-* record, 0 unmapped"
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "Every rule CI enforces is a scoped brain record",

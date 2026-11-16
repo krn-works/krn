@@ -43,5 +43,1125 @@
     "valid_from": "2026-11-13",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "s-ci-biome-clean",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Code and JSON pass Biome with warnings as errors; run npm run fast, which formats with biome --write, before every commit. CI runs `biome check --error-on-warnings .`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.mjs", "**/*.json", "biome.json"],
+      "terms": ["biome", "format", "json", "lint", "warning"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'biome check --error-on-warnings .'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["biome.json", "test/rules/lint-warnings.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-import-boundaries",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Imports between src areas follow the layer map in scripts/boundaries.ts; core imports only its own files. CI runs `node scripts/boundaries.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "scripts/boundaries.ts"],
+      "terms": ["boundary", "import", "layer", "core", "adapter"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node scripts/boundaries.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/boundaries.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-task-quality",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Task records pass every task-quality rule: a stated outcome, a Proof as `cmd: verdict` and the Files they touch. CI runs `node src/cli/main.ts task check --quality`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["tasks/**"],
+      "terms": ["task", "quality", "proof", "outcome"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node src/cli/main.ts task check --quality'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["#1022", "src/task/quality.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-typecheck",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The tree typechecks under tsc --noEmit; every tracked .ts file is reached by the tsconfig include globs. CI runs `tsc --noEmit`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["**/*.ts", "tsconfig.json"],
+      "terms": ["tsc", "typecheck", "types", "typescript"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'tsc --noEmit'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["tsconfig.json"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-commit-title",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The PR title, which becomes the squash subject, reads `type(scope): outcome (t-id)`. CI runs `node scripts/commit-title.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["scripts/commit-title.ts"],
+      "terms": ["commit", "title", "pull", "subject", "squash"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node scripts/commit-title.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/commit-title.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-weakened-tests",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A PR deletes no assertion, adds no skip, only or todo, and deletes no test file whose target stays, unless its body has a `Weakens-tests: <reason>` line. CI runs `node scripts/weak-tests.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/**"],
+      "terms": [
+        "weak",
+        "weakened",
+        "assertion",
+        "skip",
+        "only",
+        "todo",
+        "tests"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node scripts/weak-tests.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/weak-tests.mjs"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-task-records",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A PR whose commits carry `Ticket: <id>` closes that task; work that leaves it open carries `Refs: <id>`. CI runs `node src/cli/main.ts task check`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["tasks/**"],
+      "terms": ["task", "ticket", "refs", "close", "trailer"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node src/cli/main.ts task check'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["src/task/cli.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-test-suite",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The full suite passes in every CI shard; a new test file under test/ mirrors its src area and uses node:test. CI runs `npm test`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/**", "scripts/test-suite.mjs"],
+      "terms": ["test", "tests", "shard", "suite"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'npm test'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/test-suite.mjs"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-agent-config-secrets",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Tracked agent config holds no token-shaped values. CI runs `node --test test/rules/agent-config-secrets.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".claude/**", ".agents/**", ".codex/**"],
+      "terms": ["secret", "token", "credential", "config"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/agent-config-secrets.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/agent-config-secrets.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-capture-privacy",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Committed receiver captures carry no account state: credit balance, usage or installation id. CI runs `node --test test/rules/capture-privacy-guard.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/fixtures/**"],
+      "terms": ["capture", "fixture", "privacy", "account"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/capture-privacy-guard.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["#393"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-commit-title-format",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Commit and PR titles keep the conventional `type(scope): outcome (t-id)` form. CI runs `node --test test/rules/commit-title.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["scripts/commit-title.ts"],
+      "terms": ["commit", "title", "conventional"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/commit-title.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/commit-title.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-context-budget-hooks",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Context budget settings wire the documented hooks, and the project gauge matcher names every built-in tool the ceiling refuses. CI runs `node --test test/rules/context-budget.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".claude/settings.json", "src/context/**"],
+      "terms": ["context", "budget", "gauge", "hook", "matcher"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/context-budget.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/context-budget.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-docs-referenced",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Every file under docs/ is named by a rule, test, skill, hook or script that reads it. CI runs `node --test test/rules/docs-referenced.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["docs/**"],
+      "terms": ["docs", "document", "referenced", "orphan"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/docs-referenced.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/docs-referenced.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-flag-value-reader",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "CLI value flags read their value through the shared reader, never a `startsWith(\"--\")` missing-value check. CI runs `node --test test/rules/flag-value-reader.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/cli/**", "src/**"],
+      "terms": ["flag", "value", "cli", "argument", "option"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/flag-value-reader.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/flag-value-reader.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-format-contract",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Every format the build reads has a schema file under spec/schema, krn.json declares it, and every task file conforms to krn.task/v1. CI runs `node --test test/rules/format-contract.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["spec/schema/**", "krn.json", "tasks/**"],
+      "terms": ["format", "schema", "contract", "versioned"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/format-contract.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["#1109"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-harness-literals",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Outside src/harness no string literal names the `.claude` directory or the `claude` binary. CI runs `node --test test/rules/harness-literals.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**"],
+      "terms": ["claude", "harness", "literal", "directory", "binary"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/harness-literals.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["src/harness/claude.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-host-path-guard",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Tracked tests, scripts and sources name no host-specific path; captures use the redaction placeholder. CI runs `node --test test/rules/host-path-guard.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "test/**", "scripts/**"],
+      "terms": ["host", "path", "home", "absolute"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/host-path-guard.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/host-path-guard.test.mjs"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-instruction-bytes",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Agent instruction bytes stay within spec/context-budget.json; growth is a reviewed edit of that file with its reason in the PR body. CI runs `node --test test/rules/instruction-bytes.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/skills/**",
+        ".claude/skills/**",
+        "spec/context-budget.json"
+      ],
+      "terms": ["instruction", "bytes", "budget", "skill", "agents"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/instruction-bytes.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["spec/context-budget.json"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-instruction-references",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Instruction text names only npm scripts and repository files that exist. CI runs `node --test test/rules/instruction-references.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["AGENTS.md", "CLAUDE.md", ".agents/skills/**", "docs/**"],
+      "terms": ["instruction", "reference", "path", "dead", "script"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/instruction-references.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/instruction-references.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-lane-close-rule",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "KRN-11 and the lane brief agree: a lane closes its own task in its own PR and names the close command and the Ticket trailer. CI runs `node --test test/rules/lane-close-rule.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["AGENTS.md", ".agents/skills/delivery-lead/**"],
+      "terms": ["lane", "close", "task", "ticket", "trailer"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/lane-close-rule.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/lane-close-rule.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-lane-limit",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Lead surfaces state only the lane budget limit and never merge with gh pr merge. CI runs `node --test test/rules/lane-limit.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".agents/skills/delivery-lead/**", "docs/program/**"],
+      "terms": ["lane", "limit", "budget", "merge", "lead"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/lane-limit.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/lane-limit.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-lead-traps",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The open traps section of the lead loop is `none` or a list of ids that each have a workaround. CI runs `node --test test/rules/lead-traps.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".agents/skills/delivery-lead/**", "docs/program/**"],
+      "terms": ["trap", "lead", "workaround"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/lead-traps.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/lead-traps.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-lint-warnings",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "npm run lint fails on Biome warnings. CI runs `node --test test/rules/lint-warnings.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["biome.json", "package.json"],
+      "terms": ["lint", "warning", "biome"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/lint-warnings.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/lint-warnings.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-local-settings-ignore",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The repository .gitignore ignores local Claude settings without relying on global excludes. CI runs `node --test test/rules/local-settings-ignore.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".gitignore", ".claude/**"],
+      "terms": ["gitignore", "settings", "local", "permission"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/local-settings-ignore.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/local-settings-ignore.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-one-owner-docs",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "plan.md is the one plan file and each delivery rule text has one owner; other docs point to it. CI runs `node --test test/rules/one-owner-docs.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["docs/program/**"],
+      "terms": ["docs", "plan", "owner", "duplicate"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/one-owner-docs.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/one-owner-docs.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-role-names-paths",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Tracked code, test and script paths carry no phase, slice, ticket or round tokens. CI runs `node --test test/rules/path-token-guard.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "test/**", "scripts/**"],
+      "terms": ["name", "file", "phase", "slice", "token", "role"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/path-token-guard.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/path-token-guard.test.mjs"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-project-skills",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The lead loop skills are project skills for Codex and Claude Code, name the real launch command, and every agent file has a description. CI runs `node --test test/rules/project-skills.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".agents/skills/**", ".claude/skills/**", ".claude/agents/**"],
+      "terms": ["skill", "agent", "description", "lead", "launch"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/project-skills.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/project-skills.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-receiver-evidence",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Every module that spawns a receiver names its evidence in spec/receivers.json: a verbatim capture, a test driving the real receiver, or `pending: <open task>`. CI runs `node --test test/rules/receiver-evidence.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "spec/receivers.json"],
+      "terms": ["receiver", "spawn", "capture", "evidence", "integration"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/receiver-evidence.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["spec/receivers.json"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-required-check-owner",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The required check App id and check name come from spec/ci-admission.json; no source repeats the literal. CI runs `node --test test/rules/required-check-owner.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "spec/ci-admission.json"],
+      "terms": ["required", "check", "app", "admission"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/required-check-owner.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["spec/ci-admission.json"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-sandbox-stubs",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "No tracked file is an empty sandbox placeholder; stage files by name, never git add -A. CI runs `node --test test/rules/sandbox-stubs.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["**/*"],
+      "terms": ["sandbox", "placeholder", "empty", "stage", "add"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/sandbox-stubs.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["#565"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-session-role",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The lead role is tied to the delivery-lead skill in one workflow paragraph; a session without a lead brief stays in its checkout. CI runs `node --test test/rules/session-role.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [
+        "AGENTS.md",
+        "docs/program/repository-workflow.md",
+        ".agents/skills/delivery-lead/**"
+      ],
+      "terms": ["session", "role", "lead", "worktree"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/session-role.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/session-role.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-settings-hygiene",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Every project hook command has a timeout and runs a script that exists. CI runs `node --test test/rules/settings-hygiene.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".claude/settings.json", ".codex/**"],
+      "terms": ["hook", "settings", "timeout", "command"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/settings-hygiene.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/settings-hygiene.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-shard-weights",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "No shard weight names a deleted test file, and no test file is heavy enough to bound its shard wall; a recorded weight lives in scripts/lib/shard-weights.json. CI runs `node --test test/rules/shard-weight-coverage.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/**", "scripts/lib/shard-weights.*"],
+      "terms": ["shard", "weight", "test", "file", "new"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/shard-weight-coverage.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/lib/shard-weights.json"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-steering-consistency",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Each steering fact stated in the instruction files holds in the code it describes. CI runs `node --test test/rules/steering-consistency.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["AGENTS.md", "docs/program/**", ".agents/skills/**"],
+      "terms": ["steering", "fact", "consistency", "instruction"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/steering-consistency.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/steering-consistency.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-test-hygiene",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Tests never wait on the clock, skip without quarantine, assert wall-clock deltas or set a per-test timeout; poll a condition under a deadline. CI runs `node --test test/rules/test-hygiene.test.mjs`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/**"],
+      "terms": ["test", "wait", "sleep", "skip", "timeout", "flake"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/test-hygiene.test.mjs'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/test-hygiene.test.mjs"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-transcript-readers",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "No source outside src/harness reads transcript files. CI runs `node --test test/rules/transcript-readers.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**"],
+      "terms": ["transcript", "harness", "reader"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/transcript-readers.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/transcript-readers.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-typecheck-coverage",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The tsconfig include covers every tracked .ts file. CI runs `node --test test/rules/typecheck-coverage.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["tsconfig.json", "**/*.ts"],
+      "terms": ["tsconfig", "include", "typecheck", "coverage"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/typecheck-coverage.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/typecheck-coverage.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ci-fr40-freeze",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "The frozen FR-40 inputs match what the freeze regenerates; regenerate them when the layer map or repo contract changes. CI runs `node --test test/evals/fr40-freeze.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["evals/fr40/**", "scripts/boundaries.ts", "krn.json"],
+      "terms": ["fr40", "freeze", "eval", "layer"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/evals/fr40-freeze.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/evals/fr40-freeze.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": []
   }
 ]
