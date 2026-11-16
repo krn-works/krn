@@ -978,7 +978,9 @@ test('a head that moved between the Check and the pinned merge exits 77', async 
   const r = receiver({
     pulls: [auto],
     mergeRefusal:
-      'GraphQL: Head branch was modified. Review and try the merge again. (mergePullRequest)',
+      capture('fixtures/gh', 'pr-merge-head-moved').streams.stderr?.toString(
+        'utf8',
+      ) ?? '',
   });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
     assert.equal(e.exitCode, 77);

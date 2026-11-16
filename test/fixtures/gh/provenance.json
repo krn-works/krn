@@ -135,6 +135,16 @@
         "file": "gh-error-connecting.stderr.log",
         "sha256": "eed65211f0fcee1b82c2661764250c1adaebcb36f0cb78a702d59632f056c439"
       }
+    },
+    {
+      "name": "pr-merge-head-moved",
+      "command": "gh pr merge 1274 --repo krn-works/krn --squash --match-head-commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "setup": "scratch open PR 1274 (throwaway base and head branches, closed and deleted after); the pinned SHA is not the PR head",
+      "exitCode": 1,
+      "stderr": {
+        "file": "pr-merge-head-moved.stderr.log",
+        "sha256": "8f3e37b1c5f398b21d07330b6092a13839d3f3e290d0ca8cf10572922ff89a10"
+      }
     }
   ]
 }
