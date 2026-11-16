@@ -335,6 +335,29 @@ function detectNode(root: string): Detected | undefined {
   };
 }
 
+const MISE_TEST_TASKS = ['check:test', 'test'];
+
+/** A mise test task (`check:test`, then `test`) named by a [tasks.<name>] table in mise.toml. */
+function detectMise(root: string): Detected | undefined {
+  for (const file of ['mise.toml', '.mise.toml']) {
+    let text: string;
+    try {
+      text = readFileSync(join(root, file), 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    const names = new Set<string>();
+    for (const m of text.matchAll(
+      /^\s*\[tasks\.(?:"([^"]+)"|'([^']+)'|([\w:-]+))\]/gm,
+    ))
+      names.add(m[1] ?? m[2] ?? m[3] ?? '');
+    const task = MISE_TEST_TASKS.find((t) => names.has(t));
+    if (task) return { stack: 'mise', test: `mise run ${task}` };
+  }
+  return undefined;
+}
+
 function pythonTestFiles(dir: string): string[] {
   try {
     return readdirSync(dir).filter((f) => /^test.*\.py$/.test(f));
@@ -490,8 +513,13 @@ export function detectStack(root: string): Detected | undefined {
       test: 'go test ./...',
       related: 'go test {files}',
     };
+  const node = detectNode(root);
+  // A vacuous workspace command is no test command: a mise test task beats it.
+  const viaNode = node?.vacuous ? undefined : node;
   return (
-    detectNode(root) ??
+    viaNode ??
+    detectMise(root) ??
+    node ??
     detectPython(root) ??
     detectPhpunit(root) ??
     detectMakeTest(root) ??

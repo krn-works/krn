@@ -1,7 +1,11 @@
 {
   "id": "t-jpttk6k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "detectMise + vacuous workspace fallback; test/repo/contract.test.ts red on main, green here; real boilerplate clone detects mise run check:test"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Test command detection picks a vacuous npm workspaces command and ignores mise tasks",
