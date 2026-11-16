@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { closeExposure } from '../../src/brain/close-exposure.ts';
+import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
 import { ownsProductRelease, shipCommand } from '../../src/ci/ship.ts';
 import { CommandFailure, run } from '../../src/deliver/transport.ts';
 import { capture } from '../receivers/capture.ts';
@@ -35,6 +37,7 @@ function receiver(options: {
   proofExit?: number;
   lateConflict?: string;
   autoRefusal?: string;
+  common?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -107,7 +110,8 @@ function receiver(options: {
       return out(`${base}\n`);
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
-    if (a.includes('--git-common-dir')) return out('/r/.git\n');
+    if (a.includes('--git-common-dir'))
+      return out(`${options.common ?? '/r'}/.git\n`);
     if (a[0] === 'merge-tree') {
       // The pre-push trial merges clean; the trial after the PR turned dirty conflicts, shaped
       // like git merge-tree --write-tree --name-only: exit 1, tree id, paths, blank line.
@@ -169,6 +173,30 @@ test('ship pushes, creates, auto-merges, waits through the merge and leaves the 
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
+});
+
+test('a merged ship completes the pending close row of its task with the PR and the Check conclusion, once', async () => {
+  const main = mkdtempSync(join(tmpdir(), 'ship-close-row-'));
+  const log = join(main, EXPOSURES_FILE);
+  mkdirSync(join(main, '.krn', 'brain'), { recursive: true });
+  closeExposure(main, {
+    task: 't-3ag9eqn',
+    clauses: ['r-a'],
+    pr: null,
+    ci: null,
+    hidden: null,
+  });
+  const r = receiver({ pulls: [auto, merged], common: main });
+  await shipCommand(args, r);
+  const rows = readFileSync(log, 'utf8').trim().split('\n');
+  assert.equal(rows.length, 1);
+  assert.deepEqual(JSON.parse(rows[0] ?? '').evidence, {
+    pr: 7,
+    ci: 'success',
+    hidden: null,
+  });
+  await shipCommand(args, receiver({ pulls: [auto, merged], common: main }));
+  assert.equal(readFileSync(log, 'utf8').trim().split('\n').length, 1);
 });
 
 test('ship on a repository whose default branch is master opens the PR against master', async () => {

@@ -4,6 +4,7 @@ import { chmodSync, readFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
+import { shipCommand } from '../../src/ci/ship.ts';
 import { capture } from '../receivers/capture.ts';
 import {
   cli,
@@ -156,6 +157,65 @@ test('a task closed without a stored claim writes no row, and an unknown --hidde
     const closed = close(repo, bin);
     assert.equal(closed.status, 0, closed.stderr);
     assert.throws(() => rows(repo), /ENOENT/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('a lane that closed before its PR existed gets the PR and Check written onto the one close row when ship records the merge, and a rerun adds nothing', async () => {
+  const repo = await widgetRepo();
+  try {
+    await runCli(repo, ['claim', 'T-1', '--actor', 'worker'], { spawn: true });
+    const bin = join(repo, '.krn', 'tmp', 'bin');
+    await ghReplaying(bin, undefined);
+    const closed = close(repo, bin, '--hidden', 'pass');
+    assert.equal(closed.status, 0, closed.stderr);
+    assert.deepEqual(rows(repo)[0]?.evidence, {
+      pr: null,
+      ci: null,
+      hidden: 'pass',
+    });
+    const view = capture('fixtures/gh', 'pr-1131-merged-view').streams.stdout;
+    const gh = async (a: string[]): Promise<string> => {
+      if (a[1] === 'list')
+        return '1131 add3abc8a898d2289824da10a37b523ebbbfbe6a';
+      if (a[1] === 'view') return view?.toString('utf8') ?? '';
+      throw new Error(`unexpected gh ${a.join(' ')}`);
+    };
+    const out = (stdout: string) => ({ code: 0, stdout, stderr: '' });
+    const run = (_command: string, a: string[]) => {
+      const line = a.join(' ');
+      if (line === 'rev-parse --abbrev-ref HEAD') return out('lane\n');
+      if (a[0] === 'status') return out('');
+      if (line === 'rev-parse --show-toplevel') return out(`${repo}/lane\n`);
+      if (a.includes('--git-common-dir')) return out(`${repo}/.git\n`);
+      if (line === 'rev-parse HEAD') return out(`${'a'.repeat(40)}\n`);
+      throw new Error(`unexpected git ${line}`);
+    };
+    const args = [
+      '--title',
+      'fix(task): a close row (T-1)',
+      '--body-file',
+      'body.md',
+      '--repo',
+      'o/r',
+    ];
+    const previous = process.env.KRN_TASK;
+    process.env.KRN_TASK = 'T-1';
+    try {
+      await shipCommand(args, { cwd: repo, run, gh });
+      await shipCommand(args, { cwd: repo, run, gh });
+    } finally {
+      if (previous === undefined) delete process.env.KRN_TASK;
+      else process.env.KRN_TASK = previous;
+    }
+    const [row, ...rest] = rows(repo);
+    assert.equal(rest.length, 0);
+    assert.deepEqual(row?.evidence, {
+      pr: 1131,
+      ci: 'success',
+      hidden: 'pass',
+    });
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
