@@ -1,7 +1,11 @@
 {
   "id": "t-4z7czaq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regression tests in test/hook/stop-lane-branch.test.ts fail on origin/main and pass with the single lane-record resolution in src/hook/stop.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The worker Stop gate judges the lane branch, not the main checkout the shell returned to",

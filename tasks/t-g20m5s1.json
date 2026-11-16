@@ -1,7 +1,11 @@
 {
   "id": "t-g20m5s1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regression tests in test/hook/stop-lane-branch.test.ts fail on origin/main and pass with the single lane-record resolution in src/hook/stop.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The Stop check resolves a lane's branch to another worktree",
