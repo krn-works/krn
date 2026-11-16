@@ -1,7 +1,11 @@
 {
   "id": "t-dqy2jev",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "state layout schema, check/tidy/--dry-run, INDEX.md, scratch dir rule proven by test/state/layout.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The .krn state directory has one declared layout, a tidy command and an index",

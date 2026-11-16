@@ -63,6 +63,11 @@ export function closureRule(task: string): string {
   return `- Task record: this PR completes ${task}. Use the trailer \`Ticket: ${task}\` and, from inside your worktree, run \`bin/krn task close ${task} --as done --note <what you proved>\` so the closed record ships in your PR (CI rejects Ticket on an open task). If the task stays open, use \`Refs: ${task}\` and do not close it. Edit no other tracker file.`;
 }
 
+/** The scratch rule for a named task: logs and drafts live in the worktree's own .krn/tmp, so no path leaves the worktree. */
+export function scratchRule(): string {
+  return '- Scratch: write logs, drafts and PR bodies under `.krn/tmp/` inside your own worktree (it disappears with the worktree); never write `../../x.log` or any path outside the worktree.';
+}
+
 /** The lane brief with the FR-40 carrier prefix; `closure` appends the closure line (only `krn lane brief --task` sets it, so the measured carrier stays byte-identical) (D0, t-5983e6g): the measured arm-B prompt. */
 export function laneBriefText(
   repo: string,
@@ -131,7 +136,7 @@ export function laneBrief(
     .map((part) => part.trimEnd())
     .join('\n\n');
   return {
-    text: `${body.trimEnd()}\n\n${workerRules(repo)}${closure ? `\n${closureRule(task)}` : ''}\n`,
+    text: `${body.trimEnd()}\n\n${workerRules(repo)}${closure ? `\n${closureRule(task)}\n${scratchRule()}` : ''}\n`,
     packet:
       packet === null || packet.records.length === 0 ? null : packet.sha256,
     tokens: packet?.tokens ?? 0,

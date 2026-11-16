@@ -9,7 +9,7 @@ const usage = {
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned; lists each registered adopted repository that lacks pack records (`pack-stale=`) and exits 65 with the remedy `krn adopt --refresh-all`; `krn doctor --unattended [--window-hours N] [--root <repo>]` exits 0 only when an App token mints and the bw serve session outlives the window (default 8h), else 69 (mint), 75 (vault) or, with --root, 67 (GitHub App not installed on the repository) with the remedy',
   state:
-    'krn state check|resume|set|accept|handoff|retro [--root DIR]  delivery-loop capsule check, resume brief and writers; check exits 1 when divergent',
+    'krn state check|resume|set|accept|handoff|retro|tidy [--root DIR]  delivery-loop capsule and .krn/ layout check, resume brief and writers; check exits 1 when divergent; tidy [--dry-run] moves strays and applies retention',
   lane: 'krn lane start|run|drop|brief [...]  run: start the lane, run one headless claude session on a task, ship the commit (exit 0 only when merged; a failed run keeps its worktree and releases the claim); drop SLUG: remove a dead lane worktree, branch and claim; start: fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; brief: print a lane brief behind the FR-40 brain packet; `krn lane` lists verbs',
   findings:
     'krn findings validate <file>  check review findings JSON: confirmed needs path:line evidence, a reproduce command and a verifier other than the finder; needs_validation carries no severity; exit 1 on a problem',
