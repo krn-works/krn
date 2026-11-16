@@ -1,0 +1,17 @@
+{
+  "id": "t-vs35jd7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship completes the close evidence row with the merged PR and Check conclusion",
+  "after": [
+    "t-nzbhbtq"
+  ],
+  "body": [
+    "Outcome: the exposure evidence row of a lane-closed task carries the merged PR number and the Check conclusion. Today (#1134) `krn task close --as done` reads `gh pr view` for the current branch, but a lane closes its task inside its worktree before `krn pr ship` opens the PR, so pr and ci are null on the normal path; `krn pr ship` should write (or complete) the evidence row after the merge it records.\nWhy: S19 lane report 2026-11-16; without this, S19's evidence is empty for every lane-delivered task and exposures cannot learn from outcomes.\nProof: a test drives close-in-worktree then a ship merge record (verbatim gh capture) and finds an exposure row with pr and ci set.",
+    "Files: src/ci/ship.ts, src/task/close-evidence.ts, src/brain/close-exposure.ts"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

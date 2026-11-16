@@ -1,0 +1,14 @@
+{
+  "id": "t-wheen73",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Stop accepts a deleted test whose imported source the branch deletes, whatever its name",
+  "after": [],
+  "body": [
+    "Outcome: the Stop hook accepts a deleted test when the branch deletes the source it covers even if the names differ: test/adopt/prune-unused.test.ts covered src/adopt/unused.ts (`krn adopt --prune-unused`), both deleted in #1135-era S28 step 1 (706c874), and Stop still refused \"deleted test\". Match by the test's imports of deleted modules (or the CLI flag it drives), not only by file stem.\nWhy: S28 lane 2026-11-16 ended in a BLOCKER line after a merged PR; #1130 (89ad66f) only matches same-stem sources.\nProof: a hook test deletes a source and a differently named test that imports it, and Stop exits 0."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
