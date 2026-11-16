@@ -1,7 +1,11 @@
 {
   "id": "t-bvhfanp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "boilerplate-rekurencja (census row with test command node --test tests/) adopted by korneliuszburian/boilerplate-rekurencja#4, merged c38515f; tier 1-2 gate tasks t-c3at2zq t-nj4858q closed in that PR after KRN #1239 (0e47585); proof on merged main: krn task list --kind gate --json -> 0 open; receiver suite 81/0."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A real operator repository runs KRN (S29)",
