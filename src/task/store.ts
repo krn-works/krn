@@ -11,6 +11,7 @@ import {
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
+import { ARCHIVE_DIR, findArchived, readArchive } from './archive.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -174,6 +175,7 @@ function scanTaskDirectory(root: string): {
     compare(left.name, right.name),
   )) {
     const relativePath = `tasks/${entry.name}`;
+    if (entry.name === ARCHIVE_DIR && entry.isDirectory()) continue;
     if (!entry.name.endsWith('.json')) {
       findings.push(`${relativePath}: non-JSON file in tasks directory`);
       continue;
@@ -209,6 +211,22 @@ function scanTaskDirectory(root: string): {
     if (parsed.record === undefined) continue;
 
     records.set(parsed.record.id, parsed.record);
+  }
+
+  for (const line of readArchive(root)) {
+    findings.push(...line.findings);
+    if (line.id !== undefined && isTaskId(line.id)) {
+      if (ids.has(line.id))
+        findings.push(`${line.path}: id "${line.id}" is also a live task file`);
+      ids.add(line.id);
+    }
+    references.push({
+      path: line.path,
+      id: line.id,
+      after: line.after,
+      resolutionRef: line.resolutionRef,
+    });
+    if (line.record !== undefined) records.set(line.record.id, line.record);
   }
 
   for (const reference of references) {
@@ -259,8 +277,51 @@ export function listTasks(
     );
 }
 
+/**
+ * One task read from its own file, then from the archive, without scanning the
+ * directory. A malformed record is reported; the rest of the tracker is not checked.
+ */
+export function readTask(root: string, id: TaskId): TaskRecord | undefined {
+  const path = join(root, 'tasks', `${id}.json`);
+  if (existsSync(path)) {
+    const parsed = parseTaskDocument(readFileSync(path));
+    if (parsed.record === undefined || parsed.id !== id)
+      throw new TaskDataError(
+        parsed.findings.map((finding) => `tasks/${id}.json: ${finding}`),
+      );
+    return parsed.record;
+  }
+  return findArchived(root, id);
+}
+
+/**
+ * Ids of tasks that list `id` in `after`. Only text that names the id is
+ * parsed, so the cost stays at one read per file.
+ */
+export function dependentsOf(root: string, id: TaskId): TaskId[] {
+  const found = new Set<TaskId>();
+  const consider = (text: string): void => {
+    if (!text.includes(id)) return;
+    const parsed = parseTaskDocument(text);
+    if (parsed.record?.after.includes(id)) found.add(parsed.record.id);
+  };
+  const directory = join(root, 'tasks');
+  if (!existsSync(directory)) return [];
+  for (const entry of readdirSync(directory, { withFileTypes: true }))
+    if (entry.isFile() && entry.name.endsWith('.json'))
+      consider(readFileSync(join(directory, entry.name), 'utf8'));
+  for (const line of readArchive(root))
+    if (line.record?.after.includes(id)) found.add(line.record.id);
+  return [...found].sort();
+}
+
+/** Whether a live or archived record exists for `id`, without scanning the directory. */
+export function hasTask(root: string, id: TaskId): boolean {
+  return readTask(root, id) !== undefined;
+}
+
 export function getTask(root: string, id: TaskId): TaskRecord {
-  const record = loadTaskIndex(root).get(id);
+  const record = readTask(root, id);
   if (record === undefined)
     throw new TaskDataError([
       `tasks/${id}.json: task does not exist; run krn task list for the ids`,
@@ -352,17 +413,12 @@ export function closeTask(
   resolution: TaskResolution,
   verifier: (root: string, command: string) => number = runVerify,
 ): TaskRecord {
-  const index = loadTaskIndex(root);
-  const record = index.get(id);
-  if (record === undefined)
-    throw new TaskDataError([
-      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
-    ]);
+  const record = getTask(root, id);
   if (record.status === 'closed')
     throw new TaskDataError([`tasks/${id}.json: task is already closed`]);
   if (
     (resolution.kind === 'duplicate' || resolution.kind === 'superseded') &&
-    (resolution.ref === null || !index.has(resolution.ref))
+    (resolution.ref === null || !hasTask(root, resolution.ref))
   )
     throw new TaskDataError([
       `tasks/${id}.json: ${resolution.kind} resolution requires an existing ref`,
@@ -411,11 +467,10 @@ export function editTask(
   id: TaskId,
   input: EditTask,
 ): TaskRecord {
-  const index = loadTaskIndex(root);
-  const record = index.get(id);
-  if (record === undefined)
+  const record = getTask(root, id);
+  if (!existsSync(join(root, 'tasks', `${id}.json`)))
     throw new TaskDataError([
-      `tasks/${id}.json: task does not exist; run krn task list for the ids`,
+      `tasks/${id}.json: task is archived and read-only; create a new task instead`,
     ]);
   if (record.status === 'closed' && input.reopen !== true)
     throw new TaskDataError([

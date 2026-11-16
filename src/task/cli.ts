@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { commandErrorExitCode } from '../cli-kit/command-error.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
+import { ARCHIVE_AFTER_DAYS, archiveClosedTasks } from './archive.ts';
 import {
   branchMisses,
   formatBranchMiss,
@@ -43,10 +44,12 @@ import {
   checkTaskDirectory,
   closeTask,
   createTask,
+  dependentsOf,
   editTask,
   getTask,
   listTasks,
   loadTaskIndex,
+  readTask,
   repositoryRoot,
 } from './store.ts';
 
@@ -86,6 +89,8 @@ const verbHelp: Record<string, string> = {
     'krn task ready [--limit N] [--explain ID] [--json]\nList ready tasks one line each (see `krn task show ID` for the body), or explain one task. Example: krn task ready --explain t-a1b2c3d --json',
   claim:
     'krn task claim ID --actor NAME [--worktree PATH] [--reason TEXT] [--takeover --reason TEXT] [--json]\nOr use --next instead of ID. Example: krn task claim --next --actor lead --json',
+  archive:
+    'krn task archive [--older-than DAYS] [--json]\nMove closed tasks created at least DAYS (default 14) ago from tasks/<id>.json into tasks/archive/<YYYY-MM>.jsonl; show, list, check and Ticket: checks read both.',
   release:
     'krn task release ID [--json]\nRelease a task claim. Example: krn task release t-a1b2c3d --json',
   close:
@@ -152,6 +157,7 @@ async function execute(args: string[], json: boolean): Promise<CommandOutput> {
   if (command === 'claim') return claim(options, json);
   if (command === 'release') return release(options, json);
   if (command === 'edit') return edit(options, json);
+  if (command === 'archive') return archive(options, json);
   throw usage(`unknown task verb "${command}"`);
 }
 
@@ -292,6 +298,24 @@ function parseFrom(value: string): TaskOrigin {
       `--from must be KIND:REF with KIND one of ${TASK_ORIGINS.join(', ')}`,
     );
   return { kind, ref };
+}
+
+function archive(args: string[], json: boolean): CommandOutput {
+  let days = ARCHIVE_AFTER_DAYS;
+  if (args.length === 2 && args[0] === '--older-than') {
+    days = Number(args[1]);
+    if (!Number.isInteger(days) || days < 0)
+      throw usage('--older-than takes a whole number of days');
+  } else if (args.length > 0)
+    throw usage('usage: krn task archive [--older-than DAYS] [--json]');
+  const root = repositoryRoot();
+  const index = loadTaskIndex(root);
+  const moved = archiveClosedTasks(root, index.values(), new Date(), days);
+  return result(
+    { archived: moved.archived, files: moved.files },
+    `Archived ${moved.archived.length} task(s) into ${moved.files.length} file(s).\n`,
+    json,
+  );
 }
 
 function show(args: string[], json: boolean): CommandOutput {
@@ -680,10 +704,8 @@ interface ShowDetails {
 }
 
 function showDetails(root: string, task: TaskRecord): ShowDetails {
-  const records = listTasks(root, 'all');
-  const byId = new Map(records.map((record) => [record.id, record]));
   const blockers = task.after.map((id): TaskBlocker => {
-    const dependency = byId.get(id);
+    const dependency = readTask(root, id);
     const blocking =
       dependency?.status !== 'closed' || dependency.resolution?.kind !== 'done';
     return {
@@ -693,11 +715,7 @@ function showDetails(root: string, task: TaskRecord): ShowDetails {
       blocking,
     };
   });
-  const dependents = records
-    .filter((record) => record.after.includes(task.id))
-    .map((record) => record.id)
-    .sort();
-  return { blockers, dependents };
+  return { blockers, dependents: dependentsOf(root, task.id) };
 }
 
 function formatBlocker(dependency: TaskBlocker): string {

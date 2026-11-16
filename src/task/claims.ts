@@ -19,7 +19,7 @@ import {
   TaskUsageError,
 } from './record.ts';
 import { atomicWrite } from './staged-write.ts';
-import { getTask, loadTaskIndex } from './store.ts';
+import { getTask, hasTask, loadTaskIndex } from './store.ts';
 
 export const claimKeys = [
   'id',
@@ -192,11 +192,11 @@ export function taskLookupRoot(
   id: TaskId,
   lanes: string[] = [],
 ): string {
-  if (loadTaskIndex(root).has(id)) return root;
+  if (hasTask(root, id)) return root;
   const held = inspectClaimAt(mainCheckoutRoot(root), id).claim?.worktree;
   for (const candidate of [...(held ? [held] : []), ...lanes]) {
     if (!existsSync(join(candidate, 'tasks', `${id}.json`))) continue;
-    if (loadTaskIndex(candidate).has(id)) return candidate;
+    if (hasTask(candidate, id)) return candidate;
   }
   return root;
 }
