@@ -13,7 +13,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(
-  new URL('../../scripts/claude/context-restart.ts', import.meta.url),
+  new URL('../../src/dispatch/main.ts', import.meta.url),
 );
 
 test('restart hook emits bounded JSON with branch, open claims and newest handoff only', () => {
@@ -62,7 +62,7 @@ test('restart hook emits bounded JSON with branch, open claims and newest handof
       join(root, '.krn/runs/delivery-loop/outcome/handoff.md'),
       'pointer only fixture-claim',
     );
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, [script, 'session-start'], {
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: root,
@@ -98,7 +98,7 @@ test('restart hook emits bounded JSON with branch, open claims and newest handof
     );
     const linked = join(root, 'linked');
     git(['worktree', 'add', '--detach', linked, 'HEAD']);
-    const resumed = spawnSync(process.execPath, [script], {
+    const resumed = spawnSync(process.execPath, [script, 'session-start'], {
       env: { ...process.env, CLAUDE_PROJECT_DIR: linked },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -144,7 +144,7 @@ test('restart hook emits bounded JSON with branch, open claims and newest handof
         .map((entry) => JSON.stringify(entry))
         .join('\n'),
     );
-    const compacted = spawnSync(process.execPath, [script], {
+    const compacted = spawnSync(process.execPath, [script, 'session-start'], {
       env: { ...process.env, CLAUDE_PROJECT_DIR: linked },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -168,7 +168,7 @@ test('restart hook exits silently outside git', () => {
   assert.ok(existsSync(script), 'restart script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-restart-'));
   try {
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, [script, 'session-start'], {
       cwd: root,
       env: {
         ...process.env,
@@ -195,7 +195,7 @@ test('restart hook serves the clear source and rejects unknown ones', () => {
   const root = mkdtempSync(join(tmpdir(), 'context-restart-'));
   try {
     const run = (source: string) =>
-      spawnSync(process.execPath, [script], {
+      spawnSync(process.execPath, [script, 'session-start'], {
         cwd: root,
         env: {
           ...process.env,
@@ -272,7 +272,7 @@ test('restart hook injects one consolidated block from the newest handoff within
         '',
       ].join('\n'),
     );
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, [script, 'session-start'], {
       // SessionStart stays fast: a slow hook is killed and fails below.
       timeout: 5_000,
       env: {

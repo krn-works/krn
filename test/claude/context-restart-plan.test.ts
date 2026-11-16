@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 // KRN-12: the real SessionStart hook script in a real git repository (ADR 0024, S1).
 const hook = fileURLToPath(
-  new URL('../../scripts/claude/context-restart.ts', import.meta.url),
+  new URL('../../src/dispatch/main.ts', import.meta.url),
 );
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -60,7 +60,7 @@ function fixture(handoffTask: string): string {
 }
 
 function sessionStart(root: string): string {
-  const result = spawnSync(process.execPath, [hook], {
+  const result = spawnSync(process.execPath, [hook, 'session-start'], {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: root,

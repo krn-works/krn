@@ -21,9 +21,15 @@ import { object } from './io.ts';
 // (a turn the model kept working on after the advisory) and how far that
 // step and the session ran past it.
 
-const gauge = fileURLToPath(
-  new URL('../../scripts/claude/context-gauge.ts', import.meta.url),
-);
+const gauge = fileURLToPath(new URL('./gauge.ts', import.meta.url));
+// The gauge route alone, the way the dispatcher loads it.
+const gaugeArgs = (extra: string[]) => [
+  '--input-type=module',
+  '-e',
+  'await (await import(process.argv[1])).main()',
+  gauge,
+  ...extra,
+];
 // The hook reads the last 256 KiB; twice that keeps its view identical.
 const view = 512 * 1024;
 
@@ -139,7 +145,7 @@ export function replay(
       writeFileSync(path, bytes.subarray(Math.max(0, stop - view), stop));
       const result = spawnSync(
         process.execPath,
-        host ? [gauge, '--host'] : [gauge],
+        gaugeArgs(host ? ['--host'] : []),
         {
           // Host-mode state stays in the throwaway root, apart from the real host.
           env: {

@@ -55,7 +55,7 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md): the 2,000-token packet budget is 
 
 ## Expected effect
 
-- Lead SessionStart hook output falls from 14,344 bytes to at most 4,800. Measure: `node scripts/claude/context-restart.ts < test/fixtures/claude/session-start.json | wc -c`, and `.krn/runs/startup-context/measure.py 30` before and after.
+- Lead SessionStart hook output falls from 14,344 bytes to at most 4,800. Measure: `node src/dispatch/main.ts session-start < test/fixtures/claude/session-start.json | wc -c`, and `.krn/runs/startup-context/measure.py 30` before and after.
 - Mean Jaccard overlap of served record sets between sessions on different tasks falls from about 1.0 to under 0.4. Measure: `krn standards effect --overlap` over `exposures.jsonl`.
 - `applies.terms` or `applies.paths` filled goes from 0 of 136 to 100% of in-force served records. Measure: `node -e` count over the two served files.
 - recall@5 is reported, and reaches at least 0.6 on the 30 cases for the task-start packet. Measure: `node evals/retrieval/run.ts` prints one line per moment.

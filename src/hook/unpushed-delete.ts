@@ -141,7 +141,7 @@ export function decide(payload: unknown): string | undefined {
       if (task.includes(tip.slice(0, 7))) continue;
       if (read(() => claimTask(root, id)).includes(tip.slice(0, 7))) continue;
       if (read(() => String(squashMerged(cwd, tip))) === 'true') continue;
-      return `Refused: ${target.kind} ${target.name} holds unpushed commit ${tip.slice(0, 12)} of open task ${id}, and tasks/${id}.json does not record it. Push the branch, or record the SHA first: \`krn task edit ${id} --append-body "Unpushed work: ${tip}"\` (scripts/claude/unpushed-delete.ts).`;
+      return `Refused: ${target.kind} ${target.name} holds unpushed commit ${tip.slice(0, 12)} of open task ${id}, and tasks/${id}.json does not record it. Push the branch, or record the SHA first: \`krn task edit ${id} --append-body "Unpushed work: ${tip}"\`.`;
     } catch {
       // An unreadable ref, task file or record cannot prove unrecorded work: allow this target.
     }

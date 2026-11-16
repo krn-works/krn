@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(
-  new URL('../../scripts/claude/unpushed-delete.ts', import.meta.url),
+  new URL('../../src/dispatch/main.ts', import.meta.url),
 );
 const settings = fileURLToPath(
   new URL('../../.claude/settings.json', import.meta.url),
@@ -30,7 +30,7 @@ const git = (cwd: string, args: string[]) => {
   return result.stdout.trim();
 };
 const hook = (cwd: string, command: string) =>
-  spawnSync(process.execPath, [script], {
+  spawnSync(process.execPath, [script, 'pre-tool'], {
     encoding: 'utf8',
     input: JSON.stringify({
       session_id: 's',

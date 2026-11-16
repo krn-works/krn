@@ -16,9 +16,10 @@ import { fileURLToPath } from 'node:url';
 const path = (name: string) =>
   fileURLToPath(new URL(`../../scripts/claude/${name}`, import.meta.url));
 const inbox = path('operator-inbox.ts');
-const promptHook = path('context-gauge.ts');
+const dispatch = fileURLToPath(
+  new URL('../../src/dispatch/main.ts', import.meta.url),
+);
 const handoffCheck = path('handoff-requests.ts');
-const restart = path('context-restart.ts');
 const settings = fileURLToPath(
   new URL('../../.claude/settings.json', import.meta.url),
 );
@@ -64,7 +65,7 @@ function fixture() {
     session = sessionId,
     env: Record<string, string> = interactive,
   ) =>
-    spawnSync(process.execPath, [promptHook], {
+    spawnSync(process.execPath, [dispatch, 'user-prompt'], {
       input: JSON.stringify({
         session_id: session,
         prompt,
@@ -151,7 +152,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
     assert.equal(entry.session, sessionId);
     assert.match(entry.time, /^\d{4}-\d\d-\d\dT.*Z$/u);
     assert.equal(
-      spawnSync(process.execPath, [promptHook], {
+      spawnSync(process.execPath, [dispatch, 'user-prompt'], {
         input: 'not json',
         env: { ...hostEnv, CLAUDE_PROJECT_DIR: root },
       }).status,
@@ -231,7 +232,7 @@ test('headless runs and hand-fed benchmark payloads are not captured', () => {
   const file = join(root, '.krn/operator/inbox.jsonl');
   try {
     const payload = JSON.parse(headlessPayload);
-    const result = spawnSync(process.execPath, [promptHook], {
+    const result = spawnSync(process.execPath, [dispatch, 'user-prompt'], {
       input: JSON.stringify({ ...payload, cwd: root, prompt: directive }),
       env: { ...hostEnv, ...headless, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
@@ -319,7 +320,7 @@ test('session start names open inbox entries in one bounded line', () => {
       'f',
     );
     submit(directive);
-    const result = spawnSync(process.execPath, [restart], {
+    const result = spawnSync(process.execPath, [dispatch, 'session-start'], {
       input: JSON.stringify({
         session_id: 's1',
         transcript_path: join(root, 't.jsonl'),
@@ -353,13 +354,13 @@ test('a session started by the launcher leaves its class on the inbox row and in
       });
     const agent = join(bin, 'successor-agent');
     const lines = ['#!/bin/sh'];
-    for (const [script, payload] of [
-      [restart, hookInput('SessionStart', { source: 'startup' })],
-      [restart, hookInput('SessionStart', { source: 'resume' })],
-      [promptHook, hookInput('UserPromptSubmit', { prompt: directive })],
+    for (const [event, payload] of [
+      ['session-start', hookInput('SessionStart', { source: 'startup' })],
+      ['session-start', hookInput('SessionStart', { source: 'resume' })],
+      ['user-prompt', hookInput('UserPromptSubmit', { prompt: directive })],
     ] as const)
       lines.push(
-        `printf '%s' '${payload}' | ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} >/dev/null`,
+        `printf '%s' '${payload}' | ${JSON.stringify(process.execPath)} ${JSON.stringify(dispatch)} ${event} >/dev/null`,
       );
     writeFileSync(agent, `${lines.join('\n')}\n`, { mode: 0o755 });
     const launched = spawnSync(

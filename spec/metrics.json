@@ -54,7 +54,7 @@
     },
     "served-set-overlap": { "command": "bin/krn standards effect --overlap" },
     "session-start-bytes": {
-      "command": "node scripts/claude/context-restart.ts < test/fixtures/claude/session-start.json | wc -c | tr -d ' '"
+      "command": "node src/dispatch/main.ts session-start < test/fixtures/claude/session-start.json | wc -c | tr -d ' '"
     },
     "src-lines": {
       "command": "find src -name '*.ts' | xargs cat | wc -l | tr -d ' '"

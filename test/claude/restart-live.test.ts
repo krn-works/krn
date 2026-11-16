@@ -13,7 +13,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(
-  new URL('../../scripts/claude/context-restart.ts', import.meta.url),
+  new URL('../../src/dispatch/main.ts', import.meta.url),
 );
 const day = 24 * 60 * 60 * 1000;
 
@@ -85,7 +85,7 @@ test('restart block shows only live claims; stale ones never reach the model', (
     claim('dead-undated', {}, true);
 
     const run = () => {
-      const result = spawnSync(process.execPath, [script], {
+      const result = spawnSync(process.execPath, [script, 'session-start'], {
         env: {
           ...process.env,
           CLAUDE_PROJECT_DIR: root,
