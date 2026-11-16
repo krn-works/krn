@@ -1,7 +1,11 @@
 {
   "id": "t-26p4xm7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evals/replay runner, arm config and row format; dry run prints 9 rows (test/evals/replay-run.test.ts)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "One replay harness runs arms A, B and C (S6)",
