@@ -1,0 +1,18 @@
+{
+  "id": "t-cajxcd0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "app-token test: fetch dropped twice then 201 returns token; 401 fails after one call; persistent drop gives up after 4 calls"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "App token mint survives a transient fetch failure",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: `krn pr ship` exited 70 three times in one hour (\"github-app-token: GitHub refused the installation token (fetch failed)\") for #1164, #1165 and #1166 while `krn doctor --unattended` minted a token minutes later; the host load average was near 30.\nOutcome: src/ci/app-token.ts retries a network-level fetch failure (no HTTP status) up to 3 times with backoff before exit 70, and reuses a cached token that is still valid; an HTTP 401/403/404 still fails at once.\nWhy: one transient network blip kills a ship that already waited through CI, and the lane re-ships by hand.\nProof: an app-token test whose fake fetch throws TypeError(\"fetch failed\") twice then answers 201 returns the token; one that answers 401 fails after one call.\nFiles: src/ci/app-token.ts, test/ci/app-token.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

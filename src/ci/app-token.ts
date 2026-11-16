@@ -133,6 +133,26 @@ export function writeCache(env: Env, value: Cached): void {
   }
 }
 
+const NETWORK_RETRIES = 3;
+const RETRY_BACKOFF_MS = 200;
+
+/** fetch that retries a network-level failure (it threw, so no HTTP status exists); a status reply returns at once. */
+async function fetchRetrying(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      if (attempt >= NETWORK_RETRIES) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_BACKOFF_MS * 2 ** attempt),
+      );
+    }
+  }
+}
+
 type Credential = { appId: string; installationId: string; key: string };
 
 async function readCredential(env: Env): Promise<Credential> {
@@ -180,7 +200,7 @@ async function repositoryInstallation(
 ): Promise<string> {
   let id: unknown;
   try {
-    const response = await fetch(
+    const response = await fetchRetrying(
       `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/installation`,
       { headers },
     );
@@ -231,7 +251,7 @@ export async function mintToken(
       : await repositoryInstallation(api, headers, owner, name);
   let reply: z.infer<typeof tokenReplySchema> | undefined;
   try {
-    const response = await fetch(
+    const response = await fetchRetrying(
       `${api}/app/installations/${encodeURIComponent(installation)}/access_tokens`,
       {
         method: 'POST',
