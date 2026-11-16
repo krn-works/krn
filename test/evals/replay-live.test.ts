@@ -380,3 +380,39 @@ test('a screened session reaches only the unit base: no reference fix, no later 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('--screen takes a sources path relative to where it runs', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units, stub } = fixture(root);
+    const rowsFile = join(root, 'rows.jsonl');
+    const r = spawnSync(
+      'node',
+      [
+        join(repo, 'evals/replay/run.ts'),
+        '--screen',
+        '--units-dir',
+        units,
+        '--sources',
+        'sources',
+        '--scratch',
+        join(root, 'scratch'),
+        '--rows',
+        rowsFile,
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          KRN_EVAL_CLAUDE: stub,
+          KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+        },
+      },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(parseRows(readFileSync(rowsFile, 'utf8')).length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
