@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { sessionOf } from '../../evals/replay/live.ts';
 import { parseRows } from '../../evals/replay/screen.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
@@ -204,6 +205,77 @@ test('--reps 2 records two graded rows per eligible unit and a unit passes when 
     ]);
     assert.ok(peak(log) <= 2);
     assert.match(r.stdout, /A pass rate: 50\.0% \(2 screened\)/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/** Verbatim `claude -p --output-format json` result of a session stopped by the usage limit (captured 2026-11-13). */
+const usageLimit =
+  '{"is_error":true,"num_turns":9,"subtype":"success","api_error_status":429,"api_error":"usage_limit_reached","result":"You\'ve hit your weekly limit · resets Nov 13, 7pm (Europe/Warsaw)","type":"result","duration_ms":27467,"total_cost_usd":0.41}';
+
+test('a usage-limited, crashed or silent session did not run; a result or the time limit did', () => {
+  assert.deepEqual(sessionOf(usageLimit, false), { cost: 0.41, ran: false });
+  assert.deepEqual(sessionOf('', false), { cost: 0, ran: false });
+  assert.deepEqual(sessionOf('Error: boom', false), { cost: 0, ran: false });
+  assert.deepEqual(sessionOf('{"result":"ok","total_cost_usd":0.25}', false), {
+    cost: 0.25,
+    ran: true,
+  });
+  assert.deepEqual(sessionOf('', true), { cost: 0, ran: true });
+});
+
+test('--screen records a usage-limited session ungraded and the next run screens it again', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units, stub } = fixture(root);
+    const limited = join(root, 'limited');
+    writeFileSync(
+      limited,
+      `#!/bin/sh\ncat >/dev/null\ntouch fixed.txt\ncat <<'J'\n${usageLimit}\nJ\n`,
+    );
+    chmodSync(limited, 0o755);
+    const rowsFile = join(root, 'rows.jsonl');
+    const run = (bin: string) =>
+      spawnSync(
+        'node',
+        [
+          'evals/replay/run.ts',
+          '--screen',
+          '--units-dir',
+          units,
+          '--sources',
+          join(root, 'sources'),
+          '--scratch',
+          join(root, 'scratch'),
+          '--rows',
+          rowsFile,
+        ],
+        {
+          cwd: repo,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            KRN_EVAL_CLAUDE: bin,
+            KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+          },
+        },
+      );
+    const first = run(limited);
+    assert.equal(first.status, 0, first.stderr);
+    const voided = parseRows(readFileSync(rowsFile, 'utf8'));
+    assert.equal(voided.length, 2);
+    for (const x of voided) assert.equal(x.pass, null);
+    assert.match(first.stdout, /A pass rate: unmeasured/);
+    const second = run(stub);
+    assert.equal(second.status, 0, second.stderr);
+    const graded = parseRows(readFileSync(rowsFile, 'utf8')).filter(
+      (x) => x.pass !== null,
+    );
+    assert.deepEqual(Object.fromEntries(graded.map((x) => [x.unit, x.pass])), {
+      't-aaaaaaa': true,
+      't-bbbbbbb': false,
+    });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

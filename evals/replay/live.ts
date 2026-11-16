@@ -75,6 +75,24 @@ export function armEnv(
 
 interface Session {
   cost: number;
+  /** False when the session never ran to a result (spawn error, usage limit, crash): its row stays ungraded. */
+  ran: boolean;
+}
+
+/**
+ * Reads `claude -p --output-format json` output. A session ran when it printed a result that is not an error, or when
+ * the time limit killed it (the arm had its full budget). Anything else, such as a usage-limit result, is not evidence
+ * about the arm.
+ */
+export function sessionOf(out: string, timedOut: boolean): Session {
+  let r: { total_cost_usd?: unknown; is_error?: unknown } | undefined;
+  try {
+    r = JSON.parse(out) as typeof r;
+  } catch {
+    // Not JSON: no result line.
+  }
+  const cost = typeof r?.total_cost_usd === 'number' ? r.total_cost_usd : 0;
+  return { cost, ran: timedOut || (r !== undefined && r.is_error !== true) };
 }
 
 function runClaude(
@@ -100,7 +118,9 @@ function runClaude(
       { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: true },
     );
     let out = '';
+    let timedOut = false;
     const timer = setTimeout(() => {
+      timedOut = true;
       try {
         if (p.pid) process.kill(-p.pid, 'SIGKILL');
       } catch {
@@ -117,15 +137,7 @@ function runClaude(
     p.on('close', () => {
       clearTimeout(timer);
       appendFileSync(log, out);
-      let cost = 0;
-      try {
-        const c = (JSON.parse(out) as { total_cost_usd?: unknown })
-          .total_cost_usd;
-        if (typeof c === 'number') cost = c;
-      } catch {
-        // Not JSON: the cost stays unmeasured.
-      }
-      resolve({ cost });
+      resolve(sessionOf(out, timedOut));
     });
   });
 }
@@ -157,12 +169,14 @@ export async function screenUnit(
       () => runClaude(wt, promptOf(unit), env, o.sessionMs ?? 30 * 60_000, log),
       slotEnv,
     );
-    const g = await gradeWorktree(wt, unit, dir, log, o.scratch);
+    const g = session.ran
+      ? await gradeWorktree(wt, unit, dir, log, o.scratch)
+      : undefined;
     return {
       unit: unit.id,
       arm: arm.id,
       rep,
-      pass: g.install === 0 && g.test === 0,
+      pass: g ? g.install === 0 && g.test === 0 : null,
       cost: session.cost,
       harness: o.harness,
     };
