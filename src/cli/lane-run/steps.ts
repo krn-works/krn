@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import { shipCommand } from '../../ci/ship.ts';
-import { proofOfTitle } from '../pr-body.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
 
 export interface LaneVerdict {
@@ -50,11 +49,7 @@ export const defaultSteps: Required<LaneRunSteps> = {
   },
   start: async (args) => (await import('../lane.ts')).startLane(args),
   ship: async (args) =>
-    shipCommand(args, {
-      proofOf: proofOfTitle,
-      completeClose: (await import('../../brain/close-exposure.ts'))
-        .completeCloseExposure,
-    }),
+    shipCommand(args, (await import('../pr.ts')).cliShipRuntime),
   mint: async (env) => {
     const result = spawnSync(process.execPath, [tokenHelper, 'token'], {
       encoding: 'utf8',
