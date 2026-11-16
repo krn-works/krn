@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { cutText } from './cut-text.ts';
 
@@ -13,6 +22,8 @@ export type InboxEntry = {
   text: string;
   // Set by a launcher (SESSION_CLASS_VARIABLE): the prompt came from automation.
   source?: SessionClass;
+  // Set from the transcript row of the prompt: the harness or an agent wrote it, not the operator.
+  origin?: string;
 };
 export type Disposition = {
   hash: string;
@@ -115,6 +126,14 @@ const harnessWrapper =
 const harnessSentence =
   /^(This session is being continued from a previous conversation|\[Request interrupted by user)/u;
 
+// Harness blocks injected into the middle of a prompt: reminders, hook context, notifications.
+const harnessBlock =
+  /<(task-notification|system-reminder|local-command-[a-z]+|bash-(?:input|stdout|stderr)|command-(?:name|message|args)|[a-z-]*additional-context)>[\s\S]*?(?:<\/\1>|$)/gu;
+
+// The prompt without its harness blocks; what remains is the operator's own words.
+export const stripHarnessBlocks = (text: string): string =>
+  text.replace(harnessBlock, '').trim();
+
 export const isHarnessText = (text: string): boolean =>
   harnessWrapper.test(text.trimStart()) ||
   harnessSentence.test(text.trimStart());
@@ -141,14 +160,52 @@ export const inboxText = (prompt: string): string =>
 export const oneLine = (text: string, length: number): string =>
   cutText(text.replace(/\s+/gu, ' '), length);
 
+// The origin kind Claude Code records on the transcript row of a prompt ("human",
+// "task-notification", "auto-continuation"); a missing row or file means unknown.
+export function promptOrigin(
+  transcriptPath: unknown,
+  promptId: unknown,
+): string | undefined {
+  if (typeof transcriptPath !== 'string' || typeof promptId !== 'string')
+    return undefined;
+  try {
+    const fd = openSync(transcriptPath, 'r');
+    try {
+      const size = fstatSync(fd).size;
+      const length = Math.min(size, 1 << 20);
+      const buffer = Buffer.alloc(length);
+      readSync(fd, buffer, 0, length, size - length);
+      const rows = buffer.toString('utf8').split('\n').reverse();
+      for (const row of rows) {
+        if (!row.includes(promptId)) continue;
+        const parsed = JSON.parse(row) as {
+          promptId?: string;
+          type?: string;
+          origin?: { kind?: unknown };
+        };
+        if (parsed.type === 'user' && parsed.promptId === promptId)
+          return typeof parsed.origin?.kind === 'string'
+            ? parsed.origin.kind
+            : undefined;
+      }
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    /* an unreadable transcript leaves the origin unknown, never blocks the prompt */
+  }
+  return undefined;
+}
+
 export function capture(
   root: string,
   session: string,
   prompt: string,
   env: NodeJS.ProcessEnv = process.env,
+  origin?: string,
 ): void {
   if (isHarnessText(prompt) || isAutomatedSession(session, env)) return;
-  const text = inboxText(prompt);
+  const text = inboxText(stripHarnessBlocks(prompt));
   if (!text) return;
   mkdirSync(directory(root), { recursive: true });
   const source = launcherClass(env);
@@ -158,6 +215,7 @@ export function capture(
     time: new Date().toISOString(),
     text,
     ...(source ? { source } : {}),
+    ...(origin && origin !== 'human' ? { origin } : {}),
   };
   appendFileSync(inboxFile(root), `${JSON.stringify(entry)}\n`);
 }
@@ -248,6 +306,7 @@ export function openEntries(root: string): InboxEntry[] {
   return allEntries(root).filter((entry) => {
     if (
       entry.source ||
+      entry.origin ||
       entry.time <= since ||
       done.has(entry.hash) ||
       seen.has(entry.hash)

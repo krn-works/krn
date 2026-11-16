@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -25,8 +26,23 @@ import {
 import { git } from './git.ts';
 import { resolveRepositoryRoot } from './runs.ts';
 
+/** The capsule holds pointers (task ids, SHAs, paths, the Verify command), never prose copies. */
+export const CAPSULE_BYTE_CAP = 2048;
+
+/** A capsule over the cap is refused unless the write shrinks it, so an oversized one can be cut down field by field. */
+function refuseOversizedCapsule(file: string, text: string): void {
+  const size = Buffer.byteLength(text);
+  if (size <= CAPSULE_BYTE_CAP) return;
+  const before = existsSync(file) ? statSync(file).size : 0;
+  if (size <= before) return;
+  throw new Error(
+    `capsule would be ${size} bytes, over the ${CAPSULE_BYTE_CAP}-byte cap; keep pointers (task ids, SHAs, paths) and move prose to a file`,
+  );
+}
+
 /** Capsules are replaced whole: a crash leaves the old file, never a torn one. */
 function writeCapsuleFile(file: string, text: string): void {
+  refuseOversizedCapsule(file, text);
   const temporary = join(dirname(file), `.${randomUUID()}.tmp`);
   try {
     writeFileSync(temporary, text);

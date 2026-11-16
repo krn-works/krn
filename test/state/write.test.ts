@@ -271,3 +271,71 @@ test('capsule writes replace the file whole instead of rewriting it in place', (
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('a capsule write over 2048 bytes is refused unless it shrinks the capsule', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  const file = join(root, '.krn/runs/delivery-loop/main/state.md');
+  try {
+    // A realistic pointer capsule: task ids, SHAs, paths and the Verify command only.
+    const pointers = krn(
+      root,
+      'set',
+      'evidence',
+      'merged 4611aaf 986758d fcb6aab; verify npm run fast; log .krn/runs/lead/decisions.md',
+      'next',
+      'lead: deliver t-fixture1 then t-fixture2',
+    );
+    assert.equal(pointers.status, 0, pointers.stderr);
+    assert.ok(readFileSync(file).length <= 2048, 'pointer capsule fits');
+
+    const prose = krn(
+      root,
+      'set',
+      'evidence',
+      'long prose copy of a file '.repeat(120),
+    );
+    assert.notEqual(prose.status, 0);
+    assert.match(prose.stderr, /over the 2048-byte cap/);
+    assert.ok(readFileSync(file).length <= 2048, 'refused write left the file');
+
+    // An oversized capsule from before the cap can still be cut down field by field.
+    writeFileSync(
+      file,
+      `${readFileSync(file, 'utf8')}\nExtra: ${'x'.repeat(4000)}\n`,
+    );
+    const cut = krn(root, 'set', 'evidence', 'merged 4611aaf');
+    assert.equal(cut.status, 0, cut.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a cleanup pointer to .krn/runs or a workflow directory covers the runs beneath it', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  try {
+    mkdirSync(join(root, '.krn/runs/lead/evidence'), { recursive: true });
+    mkdirSync(join(root, '.krn/runs/other/probe'), { recursive: true });
+    const entry = (pointer: string) =>
+      `[${pointer}; lead evidence; next lead; run superseded; CLEANUP_PENDING]`;
+    const orphan = krn(root, 'check');
+    assert.notEqual(orphan.status, 0);
+    assert.match(orphan.stderr, /orphaned-run: \.krn\/runs\/other\/probe/);
+    const workflow = krn(
+      root,
+      'set',
+      'cleanup',
+      entry('.krn/runs/lead'),
+      '--replace',
+    );
+    assert.equal(workflow.status, 0, workflow.stderr);
+    const partial = krn(root, 'check');
+    assert.match(partial.stderr, /orphaned-run: \.krn\/runs\/other\/probe/);
+    assert.doesNotMatch(partial.stderr, /runs\/lead\/evidence/);
+    const all = krn(root, 'set', 'cleanup', entry('.krn/runs'), '--replace');
+    assert.equal(all.status, 0, all.stderr);
+    const covered = krn(root, 'check');
+    assert.equal(covered.status, 0, covered.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
