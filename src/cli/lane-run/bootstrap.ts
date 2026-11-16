@@ -5,7 +5,7 @@ import {
   BOOTSTRAP_TASK_TITLE,
   GREEN_BASE_TASK_TITLE,
 } from '../../adopt/adopt.ts';
-import { namedTests } from '../../adopt/canary.ts';
+import { namedTests } from '../../adopt/verify.ts';
 import { findContract, parseContractFile } from '../../repo/contract.ts';
 import { getTask } from '../../task/store.ts';
 import { git } from './git.ts';

@@ -46,7 +46,7 @@ test('adopt on a testless repository exits 0, keeps the adoption set and records
   assert.equal(contract.vacuous, true);
 });
 
-test('--canary on a bootstrap repository reports bootstrap, not a skip, and exits 0', () => {
+test('--verify on a bootstrap repository reports bootstrap, not a skip, and exits 0', () => {
   const root = testless();
   assert.equal(
     spawnSync(process.execPath, [cli, 'adopt', root, '--no-canary'], {
@@ -54,7 +54,7 @@ test('--canary on a bootstrap repository reports bootstrap, not a skip, and exit
     }).status,
     0,
   );
-  const run = spawnSync(process.execPath, [cli, 'adopt', root, '--canary'], {
+  const run = spawnSync(process.execPath, [cli, 'adopt', root, '--verify'], {
     encoding: 'utf8',
   });
   assert.equal(run.status, 0, run.stdout + run.stderr);

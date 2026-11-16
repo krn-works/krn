@@ -318,3 +318,14 @@ test('only an HTTP 404 reply is a repository not found', () => {
   assert.equal(isRepositoryNotFound(0, ''), false);
   assert.equal(isRepositoryNotFound(1, 'gh: Forbidden (HTTP 403)'), false);
 });
+
+test('adopt --verify runs the canary exactly once and krn adopt no longer takes --canary', () => {
+  const run = verify(repo, protectedBranch);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.equal(run.stdout.match(/^canary /gmu)?.length, 1, run.stdout);
+  const gone = spawnSync(process.execPath, [cli, 'adopt', '.', '--canary'], {
+    encoding: 'utf8',
+  });
+  assert.equal(gone.status, 64);
+  assert.match(gone.stderr, /unknown flag --canary/u);
+});

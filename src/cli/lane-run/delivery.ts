@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { syncLockfile } from '../../adopt/host-remediation.ts';
+import { syncLockfile } from '../../adopt/init.ts';
 import { findContract } from '../../repo/contract.ts';
 import { baseIsVacuous, bootstrapProof, isBootstrapTask } from './bootstrap.ts';
 import { fastCheck } from './environment.ts';
