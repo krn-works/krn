@@ -29,6 +29,7 @@ import {
   releaseClaim,
 } from '../task/claims.ts';
 import { taskFile } from '../task/paths.ts';
+import { takePendingTask } from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { laneBriefText } from './lane-brief.ts';
@@ -506,6 +507,8 @@ export async function startLane(
     throw new CliUsageError(
       `krn.json is not on origin/${base}: commit the files krn adopt wrote and merge them to ${base} before starting lanes`,
     );
+  // A record pending on the publish ref moves into the checkout, then into the lane like any untracked one.
+  if (task !== undefined) takePendingTask(origin, task);
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
   // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in

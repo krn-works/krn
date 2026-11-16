@@ -1,7 +1,11 @@
 {
   "id": "t-jd4cp2d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "create in the main checkout writes to refs/krn/pending-tasks (checkout stays clean, show/list read it); krn task publish ships all pending records in one PR; lane start takes its pending record"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "task records created in the main checkout reach a PR without manual carrying",

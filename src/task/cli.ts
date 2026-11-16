@@ -25,6 +25,7 @@ import {
 } from './claims.ts';
 import { type CloseEvidenceSink, closeEvidenceOf } from './close-evidence.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
+import { addPendingTask, pendingApplies } from './pending.ts';
 import { allTaskQualityFailures, recordQualityFailures } from './quality.ts';
 import {
   isTaskCategory,
@@ -74,6 +75,7 @@ const quickstart = [
   'krn task show t-a1b2c3d',
   'krn task list --status all',
   'krn task create --title "Add a task" --kind feature --area task --priority 1 --body-file -',
+  'krn task publish   (ships the records create left pending in the main checkout, one PR)',
   'krn task edit t-a1b2c3d --title "Update task"',
   'krn task dep add t-a1b2c3d --after t-b2c3d4e',
   'krn task close t-a1b2c3d --as done',
@@ -283,6 +285,8 @@ function create(args: string[], json: boolean): CommandOutput {
       ? cwdRoot
       : registeredTaskWorktree(cwdRoot, worktree);
   const mainRoot = mainCheckoutRoot(cwdRoot);
+  // In the main checkout the record waits on the pending ref for `krn task publish`.
+  const pending = worktree === undefined && pendingApplies(cwdRoot);
   const record = createTask(
     targetRoot,
     {
@@ -299,9 +303,19 @@ function create(args: string[], json: boolean): CommandOutput {
     {
       uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot],
       refuse: refuseLowQuality,
+      ...(pending
+        ? {
+            write: (id: string, contents: string) =>
+              addPendingTask(cwdRoot, id, contents),
+          }
+        : {}),
     },
   );
-  return result({ task: record }, `${record.id}\n`, json);
+  if (pending)
+    process.stderr.write(
+      `${record.id} is pending; krn task publish ships every pending record in one PR\n`,
+    );
+  return result({ task: record, pending }, `${record.id}\n`, json);
 }
 
 // The same rules `krn task check --quality` runs in CI, applied before a record is written.
