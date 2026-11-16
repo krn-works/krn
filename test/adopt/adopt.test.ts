@@ -9,6 +9,7 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -547,6 +548,66 @@ test('adopt puts the rules block into a regular CLAUDE.md and keeps its text', (
   const rerun = adoptArgs(root, '--test', 'npm test');
   assert.equal(rerun.status, 0, rerun.stderr);
   assert.equal(readFileSync(join(root, 'CLAUDE.md'), 'utf8'), claude);
+});
+
+test('adopt writes no CLAUDE.md where a test of the repository asserts it is absent', () => {
+  const root = scratch();
+  mkdirSync(join(root, 'tests'));
+  writeFileSync(
+    join(root, 'tests', 'agents.test.mjs'),
+    "test('instructions live only in AGENTS.md', () => {\n  assert.equal(existsSync(join(root, 'CLAUDE.md')), false);\n});\n",
+  );
+  const run = adoptArgs(root, '--test', 'node --test tests/');
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(existsSync(join(root, 'CLAUDE.md')), false);
+  assert.match(
+    readFileSync(join(root, 'AGENTS.md'), 'utf8'),
+    /krn-adoption:start/u,
+  );
+});
+
+test('adopt mirrors each new skill into a .claude/skills directory of per-skill links', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.agents', 'skills', 'mine'), { recursive: true });
+  writeFileSync(
+    join(root, '.agents', 'skills', 'mine', 'SKILL.md'),
+    '---\nname: mine\n---\n',
+  );
+  mkdirSync(join(root, '.claude', 'skills'), { recursive: true });
+  symlinkSync(
+    '../../.agents/skills/mine',
+    join(root, '.claude', 'skills', 'mine'),
+  );
+  const run = adoptArgs(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  const agents = readdirSync(join(root, '.agents', 'skills')).sort();
+  assert.ok(agents.includes('delivery-lead'));
+  assert.deepEqual(readdirSync(join(root, '.claude', 'skills')).sort(), agents);
+  for (const name of agents)
+    assert.equal(
+      readlinkSync(join(root, '.claude', 'skills', name)),
+      `../../.agents/skills/${name}`,
+    );
+});
+
+test('adopt with a ref adds no CI call when a workflow already runs the test command through a mise task', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.github', 'workflows'), { recursive: true });
+  writeFileSync(
+    join(root, 'mise.toml'),
+    '[tasks."check:test"]\nrun = "node --test tests/"\n\n[tasks.check]\ndepends = ["check:test"]\n',
+  );
+  writeFileSync(
+    join(root, '.github', 'workflows', 'build.yml'),
+    'name: build\non: push\njobs:\n  check:\n    steps:\n      - run: mise run check\n',
+  );
+  const run = adopt(root, '--test', 'node --test tests/');
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(existsSync(join(root, '.github', 'workflows', 'ci.yml')), false);
+  assert.equal(
+    existsSync(join(root, '.github', 'workflows', 'krn-ci.yml')),
+    false,
+  );
 });
 
 test('adopt ends with the commit, merge, PATH and install steps', () => {

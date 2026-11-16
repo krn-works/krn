@@ -61,6 +61,52 @@ export function runsCommand(text: string, command: string): boolean {
   return workflowCommands(text).some((run) => pattern.test(run));
 }
 
+const MISE_RUN = /(?:^|[\s;&|(])mise\s+run\s+([\w:.-]+)/gu;
+
+/** The text of each `[tasks.<name>]` table of the repository's mise.toml, by task name. */
+function miseTasks(root: string): Map<string, string> {
+  const tasks = new Map<string, string>();
+  const file = join(root, 'mise.toml');
+  if (!existsSync(file)) return tasks;
+  const parts = readFileSync(file, 'utf8').split(
+    /^\[tasks\.("?)([^\]"]+)\1\]\s*$/mu,
+  );
+  for (let index = 1; index + 2 < parts.length; index += 3)
+    tasks.set(parts[index + 1] ?? '', parts[index + 2] ?? '');
+  return tasks;
+}
+
+/** True when a `mise run <task>` step of `text` reaches `command` through the task's `run` or `depends`. */
+function runsViaMise(
+  text: string,
+  command: string,
+  tasks: Map<string, string>,
+): boolean {
+  if (tasks.size === 0) return false;
+  const seen = new Set<string>();
+  const reaches = (name: string): boolean => {
+    if (seen.has(name)) return false;
+    seen.add(name);
+    const body = tasks.get(name);
+    if (body === undefined) return false;
+    const commands = body
+      .replace(/^depends\s*=\s*\[[^\]]*\]/gmu, '')
+      .replace(/^(?:depends|description|usage)\s*=.*$/gmu, '')
+      .matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/gu);
+    if (
+      [...commands].some((m) => runsCommand(`- run: ${m[1] ?? m[2]}`, command))
+    )
+      return true;
+    const depends = /^depends\s*=\s*\[([^\]]*)\]/mu.exec(body)?.[1] ?? '';
+    return [...depends.matchAll(/"([^"]+)"/gu)].some((match) =>
+      reaches(match[1] ?? ''),
+    );
+  };
+  return workflowCommands(text).some((run) =>
+    [...run.matchAll(MISE_RUN)].some((match) => reaches(match[1] ?? '')),
+  );
+}
+
 /** The repository's workflow files as repository-relative path and text, sorted, minus `exclude`. */
 export function readWorkflows(
   root: string,
@@ -83,12 +129,17 @@ export function workflowGates(
   exclude: readonly string[] = [],
 ): WorkflowGates {
   const workflows = readWorkflows(root, exclude);
+  const tasks = miseTasks(root);
   const result: WorkflowGates = { runBy: {}, missing: [], duplicated: [] };
   for (const key of GATE_KEYS) {
     const command = commands[key];
     if (command === undefined || command.trim() === '') continue;
     const files = workflows
-      .filter((workflow) => runsCommand(workflow.text, command))
+      .filter(
+        (workflow) =>
+          runsCommand(workflow.text, command) ||
+          runsViaMise(workflow.text, command, tasks),
+      )
       .map((workflow) => workflow.file);
     result.runBy[key] = files;
     if (files.length === 0) result.missing.push(key);

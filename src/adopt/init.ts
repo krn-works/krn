@@ -90,7 +90,7 @@ function workflow(setup: string[], runs: string[]): string {
     '  test:',
     '    runs-on: ubuntu-latest',
     '    steps:',
-    '      - uses: actions/checkout@v4',
+    '      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2',
     ...setup,
     ...runs.map((run) => `      - run: ${run}`),
     '',
@@ -184,17 +184,17 @@ export function ciWorkflow(
 /** The toolchain setup steps a stack's CI workflow needs before its commands. */
 const CI_SETUP: Record<InitStack, string[]> = {
   ts: [
-    '      - uses: actions/setup-node@v4',
+    '      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0',
     '        with:',
     '          node-version: 24',
   ],
   go: [
-    '      - uses: actions/setup-go@v5',
+    '      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5',
     '        with:',
     '          go-version-file: go.mod',
   ],
   python: [
-    '      - uses: actions/setup-python@v5',
+    '      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5',
     '        with:',
     "          python-version: '3.12'",
   ],
