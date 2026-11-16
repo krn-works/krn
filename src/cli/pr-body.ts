@@ -152,6 +152,21 @@ function commitsSince(root: string, base: string): string[] {
   return result.stdout.split('\n').filter(Boolean);
 }
 
+// A branch whose commits carry `Refs: <id>` and none `Ticket: <id>` leaves the
+// task open, so the body must not claim the ticket.
+function commitsLeaveTaskOpen(root: string, base: string, id: string): boolean {
+  const result = spawnSync(
+    'git',
+    ['-C', root, 'log', '--format=%B%x00', `${base}..HEAD`],
+    { encoding: 'utf8' },
+  );
+  if (result.status !== 0) return false;
+  const bodies = result.stdout.split('\0');
+  const has = (key: string) =>
+    new RegExp(`^${key}:\\s*${id}\\s*$`, 'm').test(bodies.join('\n'));
+  return has('Refs') && !has('Ticket');
+}
+
 export function prBodyCommand(args: string[]): string {
   let id: string | undefined;
   let verified = '';
@@ -207,12 +222,13 @@ export function prBodyCommand(args: string[]): string {
     throw new CliUsageError(
       `Unknown task ${id} in ${root}; a task created in a slice worktree needs --worktree <path>`,
     );
+  const range = base ?? `origin/${contractBase(root)}`;
   const text = renderPrBody({
     task,
-    commits: commitsSince(root, base ?? `origin/${contractBase(root)}`),
+    commits: commitsSince(root, range),
     verified,
     agent,
-    refs,
+    refs: refs || commitsLeaveTaskOpen(root, range, id),
     lane,
     assumptions,
   });

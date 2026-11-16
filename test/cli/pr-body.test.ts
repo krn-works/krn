@@ -294,3 +294,55 @@ test('proofCommands skips a span whose arguments are a bare ellipsis', () => {
   };
   assert.deepEqual(proofCommands(record), ['node --test a.test.ts']);
 });
+
+test('krn pr body prints Refs and no Ticket when every commit carries Refs (t-5yd4nx8)', () => {
+  // Evidence: PR #1249 commits carried 'Refs: t-1p7dmw9' but the body said Ticket.
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-refs-'));
+  try {
+    const git = (...a: string[]) =>
+      spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@example.invalid');
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks', 't-abc1234.json'),
+      `${JSON.stringify(task, null, 2)}\n`,
+    );
+    git('add', '.');
+    git('commit', '-qm', 'seed');
+    git(
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'feat(x): one (t-abc1234)\n\nRefs: t-abc1234',
+    );
+    const run = () =>
+      spawnSync(
+        process.execPath,
+        [cli, 'pr', 'body', '--task', 't-abc1234', '--base', 'HEAD~1'],
+        { cwd: dir, encoding: 'utf8' },
+      );
+    const open = run();
+    assert.equal(open.status, 0, open.stderr);
+    assert.match(open.stdout, /^Refs: t-abc1234$/m);
+    assert.doesNotMatch(open.stdout, /^Ticket:/m);
+    git(
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'feat(x): two (t-abc1234)\n\nTicket: t-abc1234',
+    );
+    const closing = spawnSync(
+      process.execPath,
+      [cli, 'pr', 'body', '--task', 't-abc1234', '--base', 'HEAD~2'],
+      { cwd: dir, encoding: 'utf8' },
+    );
+    assert.match(closing.stdout, /^Ticket: t-abc1234$/m);
+    assert.doesNotMatch(closing.stdout, /^Refs:/m);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
