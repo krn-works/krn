@@ -158,3 +158,42 @@ test('a linked worktree neither sees nor writes pending records', (t) => {
   const id = f.create(lane, 'In the lane');
   assert.ok(existsSync(join(lane, 'tasks', `${id}.json`)));
 });
+
+test('edit of a pending record rewrites it on the pending ref and show prints the edit', (t) => {
+  const f = fixture(t);
+  const id = f.create(f.main, 'Pending to edit');
+  const edit = f.task(f.main, 'edit', id, '--append-body', 'Appended line.');
+  assert.equal(edit.status, 0, edit.stderr);
+  const shown = JSON.parse(f.task(f.main, 'show', id, '--json').stdout);
+  assert.ok(shown.task.body.includes('Appended line.'));
+  const held = f.git(f.main, 'show', `${PENDING_REF}:tasks/${id}.json`);
+  assert.match(held, /Appended line\./u);
+  assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+});
+
+test('edit of a closed archived record still refuses with exit 65', (t) => {
+  const f = fixture(t);
+  const close = f.task(
+    f.main,
+    'close',
+    't-exist01',
+    '--as',
+    'done',
+    '--note',
+    'x',
+  );
+  assert.equal(close.status, 0, close.stderr);
+  const archive = f.task(f.main, 'archive', '--older-than', '0');
+  assert.equal(archive.status, 0, archive.stderr);
+  assert.match(archive.stdout, /Archived 1 /u, archive.stdout);
+  const edit = f.task(
+    f.main,
+    'edit',
+    't-exist01',
+    '--reopen',
+    '--append-body',
+    'More.',
+  );
+  assert.equal(edit.status, 65);
+  assert.match(edit.stderr, /archived and read-only/u);
+});
