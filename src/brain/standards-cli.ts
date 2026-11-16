@@ -70,10 +70,8 @@ import {
   splitProject,
 } from './standards.ts';
 import { renderReview, reviewStandards } from './standards-review.ts';
+import { usage } from './standards-verbs.ts';
 import { NO_MATCH, queryStandards, renderHit } from './worker-packet.ts';
-
-export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--overlap] [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--type TYPE] [--json] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -497,7 +495,7 @@ function flags(
 const ROOT = new Set(['--root']);
 const CHECK_FLAGS = new Set(['--root', '--record']);
 
-function checkCommand(rest: readonly string[]): void {
+export function checkCommand(rest: readonly string[]): void {
   const { values, positional } = flags(rest, new Set(), CHECK_FLAGS);
   if (positional.length > 0) throw new CliUsageError(usage);
   const root = repositoryRoot(
@@ -517,7 +515,7 @@ function checkCommand(rest: readonly string[]): void {
 }
 
 /** `krn standards review [--root DIR]`: the enforced records the diff can break, with offending file:line; exit 1 on a violation. */
-function reviewCommand(rest: readonly string[]): void {
+export function reviewCommand(rest: readonly string[]): void {
   const { values, positional } = flags(rest, new Set(), ROOT);
   if (positional.length > 0) throw new CliUsageError(usage);
   const root = repositoryRoot(
@@ -560,7 +558,7 @@ function mainCheckout(root: string): string {
 }
 
 /** `krn standards query TEXT`: the ranked records that apply to what the session is doing now; each shown record is logged as a "query" exposure. */
-function queryCommand(rest: readonly string[]): void {
+export function queryCommand(rest: readonly string[]): void {
   const json = rest.includes('--json');
   const { values, positional } = flags(
     rest.filter((arg) => arg !== '--json'),
@@ -607,7 +605,7 @@ function queryCommand(rest: readonly string[]): void {
   );
 }
 
-function effectCommand(rest: readonly string[]): void {
+export function effectCommand(rest: readonly string[]): void {
   const overlapOnly = rest.includes('--overlap');
   const { values, positional } = flags(
     rest.filter((arg) => arg !== '--overlap'),
@@ -641,7 +639,7 @@ function ownRecordFiles(root: string): string[] {
   );
 }
 
-function retireCommand(rest: readonly string[]): void {
+export function retireCommand(rest: readonly string[]): void {
   const write = rest.includes('--write');
   const { values, positional } = flags(
     rest.filter((arg) => arg !== '--write'),
@@ -707,7 +705,7 @@ export function propose(
   return { file, created: true };
 }
 
-function proposeCommand(rest: readonly string[]): void {
+export function proposeCommand(rest: readonly string[]): void {
   const { values, positional } = flags(
     rest,
     new Set(['--evidence']),
@@ -918,7 +916,7 @@ function bareRepos(rest: readonly string[]): boolean {
   return next === undefined || next.startsWith('-');
 }
 
-function harvestCommand(rest: readonly string[]): void {
+export function harvestCommand(rest: readonly string[]): void {
   const everyAdopted = bareRepos(rest);
   const rules = rest.includes('--rules');
   const parsed = flags(
@@ -958,7 +956,7 @@ function harvestCommand(rest: readonly string[]): void {
     process.stdout.write(`${line}\n`);
 }
 
-function installCommand(rest: readonly string[]): void {
+export function installCommand(rest: readonly string[]): void {
   const flagSet = new Set(rest);
   if (
     !flagSet.has('--global') ||
@@ -983,17 +981,4 @@ function installCommand(rest: readonly string[]): void {
   process.stdout.write(
     `global standards: ${changed.length === 0 ? 'unchanged' : `wrote ${changed.join(', ')}`}\n`,
   );
-}
-
-export function standardsCommand(args: string[]): void {
-  const [verb, ...rest] = args;
-  if (verb === 'check') checkCommand(rest);
-  else if (verb === 'install') installCommand(rest);
-  else if (verb === 'propose') proposeCommand(rest);
-  else if (verb === 'harvest') harvestCommand(rest);
-  else if (verb === 'effect') effectCommand(rest);
-  else if (verb === 'retire') retireCommand(rest);
-  else if (verb === 'review') reviewCommand(rest);
-  else if (verb === 'query') queryCommand(rest);
-  else throw new CliUsageError(usage);
 }
