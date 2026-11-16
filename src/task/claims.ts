@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
+import { readArchive } from './archive.ts';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -127,24 +128,42 @@ export async function readyTasks(
  * holds nothing and is removed; claims of open or unknown tasks stay.
  */
 async function pruneClosedClaims(mainRoot: string): Promise<void> {
+  releaseClosedClaims(mainRoot);
+}
+
+/**
+ * Removes every claim whose task record under `recordsRoot` says closed and returns the ids released.
+ * `only` limits it to one task: ship passes the merged task, whose closed record sits in its worktree.
+ */
+export function releaseClosedClaims(
+  mainRoot: string,
+  recordsRoot: string = mainRoot,
+  only?: string,
+): string[] {
   let names: string[];
   try {
     names = readdirSync(join(mainRoot, '.krn', 'task-claims'));
   } catch {
-    return;
+    return [];
   }
-  const index = loadTaskIndex(mainRoot);
-  for (const name of names) {
+  const index = loadTaskIndex(recordsRoot);
+  // An archived task is closed by definition and has no file under tasks/.
+  const archived = new Set(readArchive(recordsRoot).map((line) => line.id));
+  const released: string[] = [];
+  for (const name of names.sort()) {
     if (!name.endsWith('.json')) continue;
     const id = name.slice(0, -'.json'.length) as TaskId;
-    if (index.get(id)?.status !== 'closed') continue;
+    if (only !== undefined && id !== only) continue;
+    if (index.get(id)?.status !== 'closed' && !archived.has(id)) continue;
     try {
       unlinkSync(claimPath(mainRoot, id));
+      released.push(id);
     } catch {
       /* Removed first by another ready: nothing left to remove. */
     }
     removeTakeoverMarkers(mainRoot, id);
   }
+  return released;
 }
 
 export function inspectClaim(root: string, id: TaskId): ClaimInspection {

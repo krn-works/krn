@@ -131,6 +131,8 @@ export async function shipCommand(
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
+    /** Releases the claim in `main` of a task whose record in `worktree` is closed; the cli supplies the tracker's. */
+    releaseClaim?: (main: string, worktree: string, task: string) => void;
     /** Completes the close evidence row of a task whose PR merged; the cli supplies the brain's writer. */
     completeClose?: (
       main: string,
@@ -225,6 +227,12 @@ export async function shipCommand(
   // The lane ends here: the worktree and branch stay, and the lead prunes merged lanes at the next lane start.
   const cleanup = (sha: string) => {
     recordShip(main, { branch, sha, ...(task ? { task } : {}) });
+    if (task !== undefined)
+      try {
+        runtime.releaseClaim?.(main, worktree, task);
+      } catch {
+        // The PR is merged: a claim that stays is tidied by the next state check.
+      }
     return `lane: worktree ${worktree} and branch ${branch} kept; the next krn lane start prunes merged lanes
 main checkout: ${main}`;
   };

@@ -15,6 +15,7 @@ import {
   writeHandoff,
   writeRunIndex,
 } from '../state/write.ts';
+import { releaseClosedClaims } from '../task/claims.ts';
 
 const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +
@@ -225,7 +226,10 @@ export async function stateCommand(args: string[]): Promise<void> {
   const repo = root ?? target ?? process.cwd();
   let report: ReturnType<typeof inspectState> | ReturnType<typeof resumeBrief>;
   try {
-    report = command === 'check' ? inspectState(repo) : resumeBrief(repo);
+    report =
+      command === 'check'
+        ? inspectState(repo, releaseClosedClaims)
+        : resumeBrief(repo);
   } catch (error) {
     throw new CliUsageError(
       error instanceof Error ? error.message : String(error),

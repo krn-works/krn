@@ -553,7 +553,14 @@ const CAPSULE_RULES: readonly CapsuleRule[] = [
   foreignAskRule,
 ];
 
-export function inspectState(repo: string): CheckReport {
+/**
+ * `releaseClosedClaims` removes the claims of closed tasks under the root and returns their ids; the
+ * tracker owns it and the cli supplies it, so a read-only caller (resume) releases nothing.
+ */
+export function inspectState(
+  repo: string,
+  releaseClosedClaims?: (root: string) => string[],
+): CheckReport {
   const { root, hasGit } = resolveRepositoryRoot(repo);
   const errors: Finding[] = [];
   const warnings: Finding[] = [];
@@ -643,6 +650,20 @@ export function inspectState(repo: string): CheckReport {
         rule: 'transient-sandbox-placeholder',
         detail: `${path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path} is an empty sandbox placeholder a running lane session left; lane run removes it when the session ends`,
       });
+
+  // A task closes inside its delivery branch, so its claim outlives the merge: it holds nothing.
+  let released: string[] = [];
+  try {
+    released = releaseClosedClaims?.(root) ?? [];
+  } catch {
+    // Unreadable task data releases nothing; `krn task check` names it.
+  }
+  for (const id of released)
+    warnings.push({
+      id: 'claims',
+      rule: 'stale-claim',
+      detail: `released the claim of closed task ${id}`,
+    });
 
   for (const path of stateLoss(root))
     errors.push({
