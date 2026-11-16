@@ -1,0 +1,17 @@
+{
+  "id": "t-3f8bjvv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Frontend records name the project's own browser gate",
+  "after": [],
+  "body": [
+    "Outcome: the adopted frontend records name the project's own browser gate when one exists (for boilerplate-2026, `mise run check:browser`, which needs DDEV, fixtures and `mise run build`) and tell an agent to run it instead of a hand-written Playwright script.\nProof: `krn standards query \"frontend browser verification\"` prints a record that mentions the project gate command; a records test asserts the record text.\nEvidence: probe on the real site, exit 0, 433 PASS lines, 0 FAIL, 112 s, covering layout at 320/390/1280, console, origins, axe, LCP, nav and motion, a superset of s-frontend-browser-gate-axe."
+  ],
+  "kind": "feature",
+  "area": "standards",
+  "stack": [
+    "frontend"
+  ]
+}

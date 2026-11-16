@@ -1,7 +1,11 @@
 {
   "id": "t-2d4k3w7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "report .krn/runs/research/frontend-stack/report.md section boilerplate-2026: agent-browser snapshot exit 0, mise run check:browser exit 0 (433 PASS), vlab mise task exit 2, visual-lab run exit 2 BLOCKED (no figma section); 2 follow-up tasks"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "Probe frontend stack candidates against boilerplate-2026 main and record the comparison",
