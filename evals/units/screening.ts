@@ -253,6 +253,37 @@ const run = (cmd: string, cwd: string, log: string): Promise<number> =>
     p.on('close', (c) => resolve(c ?? 1));
   });
 
+/** Copy the hidden test into a prepared worktree, install and run it: the grade of whatever state the worktree holds. */
+export async function gradeWorktree(
+  wt: string,
+  unit: Unit,
+  unitDir: string,
+  log: string,
+  scratch: string,
+): Promise<{ install: number; test: number; compile: boolean }> {
+  cacheRoot = join(scratch, 'cache');
+  mkdirSync(dirname(join(wt, unit.hidden.dest)), { recursive: true });
+  writeFileSync(
+    join(wt, unit.hidden.dest),
+    readFileSync(join(unitDir, unit.hidden.file)),
+  );
+  const install = await run(
+    `timeout 300 sh -c ${JSON.stringify(unit.install)}`,
+    wt,
+    log,
+  );
+  if (install !== 0) return { install, test: -1, compile: false };
+  const mark = readFileSync(log, 'utf8').length;
+  const test = await run(unit.test, wt, log);
+  const tail = readFileSync(log, 'utf8').slice(mark);
+  const compile =
+    /\[build failed\]|\[setup failed\]|undefined: |ImportError|ModuleNotFoundError|SyntaxError|Cannot find module|Class .* not found|Call to undefined/.test(
+      tail,
+    ) ||
+    (unit.test.includes('pytest') && test === 2);
+  return { install, test, compile };
+}
+
 /** Run the hidden test on one commit in a throwaway worktree of the clone. */
 async function gradeAt(
   clone: string,
@@ -266,27 +297,8 @@ async function gradeAt(
   rmSync(wt, { recursive: true });
   git(clone, 'worktree', 'add', '-q', '--detach', wt, sha);
   try {
-    mkdirSync(dirname(join(wt, unit.hidden.dest)), { recursive: true });
-    writeFileSync(
-      join(wt, unit.hidden.dest),
-      readFileSync(join(unitDir, unit.hidden.file)),
-    );
     appendFileSync(log, `\n== ${sha}\n`);
-    const install = await run(
-      `timeout 300 sh -c ${JSON.stringify(unit.install)}`,
-      wt,
-      log,
-    );
-    if (install !== 0) return { install, test: -1, compile: false };
-    const mark = readFileSync(log, 'utf8').length;
-    const test = await run(unit.test, wt, log);
-    const tail = readFileSync(log, 'utf8').slice(mark);
-    const compile =
-      /\[build failed\]|\[setup failed\]|undefined: |ImportError|ModuleNotFoundError|SyntaxError|Cannot find module|Class .* not found|Call to undefined/.test(
-        tail,
-      ) ||
-      (unit.test.includes('pytest') && test === 2);
-    return { install, test, compile };
+    return await gradeWorktree(wt, unit, unitDir, log, scratch);
   } finally {
     git(clone, 'worktree', 'remove', '--force', wt);
   }
