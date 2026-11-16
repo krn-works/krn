@@ -126,8 +126,26 @@ test('the own-records index lists every enforced own record within its byte budg
   assert.ok(enforced.length > 0);
   assert.equal(lines(index).length, enforced.length);
   assert.ok(Buffer.byteLength(index) <= OWN_INDEX_BUDGET_BYTES);
-  // The measured size is 5776 bytes.
-  assert.equal(OWN_INDEX_BUDGET_BYTES, 5800);
+  // The measured size is 5776 bytes; the budget leaves room for a few more records.
+  assert.equal(OWN_INDEX_BUDGET_BYTES, 6400);
+});
+
+test('the own index still renders after one more 200-byte record is added', () => {
+  const own = parseStandards(
+    JSON.parse(readFileSync(join(root, '.agents/standards.json'), 'utf8')),
+  );
+  const template = enforcedRecords(own)[0] as (typeof own)[number];
+  const sentence = `${'A whole rule sentence for the room check '.repeat(4).trim()}.`;
+  const extra = {
+    ...template,
+    id: 's-fixture-room',
+    text: sentence,
+    applies: { ...template.applies, paths: [] },
+  };
+  const index = renderStandardsIndex([...own, extra], 'own');
+  const line = lines(index).find((l) => l.startsWith('s-fixture-room')) ?? '';
+  assert.ok(Buffer.byteLength(line) >= 150 && Buffer.byteLength(line) <= 200);
+  assert.ok(Buffer.byteLength(index) <= OWN_INDEX_BUDGET_BYTES);
 });
 
 function fixture(ownRecords: unknown[]): string {
