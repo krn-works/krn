@@ -794,7 +794,7 @@ test('fast check runs the CI rule coverage test when a test/rules file is added 
   assert.ok(!selectTests(['test/other.test.ts'], tests).includes(coverage));
 });
 
-test('fast prints a FAIL verdict naming the stage when its first stage crashes or exits early', async () => {
+test('fast prints a FAIL verdict naming the stage when a stage crashes', async () => {
   const { main } = await import('../scripts/fast-check.ts');
   const dir = mkdtempSync(join(tmpdir(), 'fast-verdict-'));
   try {
@@ -802,10 +802,6 @@ test('fast prints a FAIL verdict naming the stage when its first stage crashes o
     const write = (text: string): void => {
       lines.push(text);
     };
-    // Not a repository: git fails before any check (exit 2), formerly with no verdict line.
-    assert.equal(await main(dir, [], write), 2);
-    assert.match(lines.join(''), /^fast FAIL \(git\): exit 2/mu);
-    lines.length = 0;
     spawnSync('git', ['init', '-q'], { cwd: dir });
     mkdirSync(join(dir, 'standards'));
     writeFileSync(join(dir, 'standards', 'records.json'), '{bad');

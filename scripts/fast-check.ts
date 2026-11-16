@@ -691,8 +691,9 @@ async function preflight(
 let stage = 'args';
 
 /**
- * Runs the check and guarantees one verdict line on stdout: a crash or an early exit
- * (usage, git, missing tools) prints `fast FAIL (<stage>): ...` instead of ending silently.
+ * Runs the check so a crash still ends in a verdict: an uncaught error prints
+ * `fast FAIL (<stage>): crashed: ...` instead of exiting 1 with only the npm banner.
+ * Usage and setup exits (64, 2) keep their `fast: ...` line on stderr and no verdict.
  */
 export async function main(
   root: string,
@@ -700,20 +701,13 @@ export async function main(
   write: (text: string) => void = (text) => process.stdout.write(text),
 ): Promise<number> {
   stage = 'args';
-  let code: number;
   try {
-    code = await check(root, argv);
+    return await check(root, argv);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     write(`fast FAIL (${stage}): crashed: ${message.split('\n')[0]}\n`);
     return 1;
   }
-  // 0 and 1 print their own PASS/FAIL line; every other exit stopped before a verdict.
-  if (code !== 0 && code !== 1)
-    write(
-      `fast FAIL (${stage}): exit ${code} before any check ran; see the line above\n`,
-    );
-  return code;
 }
 
 async function check(root: string, argv: string[]): Promise<number> {
