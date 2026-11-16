@@ -386,3 +386,26 @@ test('krn state index lists every run so one capsule pointer covers them under t
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('krn state handoff refreshes the run index, so a run made after the last index is not orphaned', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  const index = join(root, '.krn/runs/delivery-loop/main/run-index.md');
+  try {
+    mkdirSync(join(root, '.krn/runs/lead/before-index'), { recursive: true });
+    const written = krn(root, 'index');
+    assert.equal(written.status, 0, written.stderr);
+    mkdirSync(join(root, '.krn/runs/lead/after-index'), { recursive: true });
+    assert.match(krn(root, 'check').stderr, /orphaned-run: .*after-index/);
+    const handoff = krn(root, 'handoff', '--task', 't-abc1234');
+    assert.equal(handoff.status, 0, handoff.stderr);
+    assert.match(
+      readFileSync(index, 'utf8'),
+      /\.krn\/runs\/lead\/after-index\n/,
+    );
+    const checked = krn(root, 'check');
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.doesNotMatch(checked.stderr, /orphaned-run/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

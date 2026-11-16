@@ -1,0 +1,18 @@
+{
+  "id": "t-q8m4m43",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "handoff rewrites run-index.md in the same write; test/state/write.test.ts creates a run after index, handoff, check has no orphaned-run"
+  },
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Handoff refreshes the run index it points at",
+  "after": [],
+  "body": [
+    "Source: lane report for #1164 (319c950, t-s2y8xs0): `krn state handoff` does not refresh run-index.md, so a run created after the last `krn state index` is reported orphaned at the next session start.\nOutcome: `krn state handoff` rewrites the capsule's run-index.md in the same write, so `krn state check --root .` right after a handoff reports 0 orphaned-run errors.\nWhy: the delivery-handoff skill must not need a second command an agent will forget.\nProof: a state test creates a new run directory, runs the handoff writer, then check reports no orphaned-run.\nFiles: src/state/write.ts, test/state/write.test.ts"
+  ],
+  "kind": "defect",
+  "area": "state"
+}
