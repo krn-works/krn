@@ -1,0 +1,18 @@
+{
+  "id": "t-jc0knhc",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "review_by 2026-12-15 on both records; pack-hygiene passes"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Main red: two S11 records lack review_by after S15 pack hygiene",
+  "after": [],
+  "body": [
+    "Outcome: main is green again: s-ts-erasable-syntax and s-ts-strict-optional (added by #1152) carry review_by like every advisory record, as test/brain/pack-hygiene.test.ts (added by #1153) requires.\nWhy: #1152 and #1153 were each green on their own base and merged minutes apart; main CI at a7b80aa failed pack-hygiene (2 records without review_by), turning every later PR red (#1154).\nProof: node --test test/brain/pack-hygiene.test.ts: pass on main."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}

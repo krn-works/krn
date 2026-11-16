@@ -1,0 +1,15 @@
+{
+  "id": "t-b2xz7gd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship merges only a PR whose Check ran on the current base",
+  "after": [],
+  "body": [
+    "Outcome: two PRs that are each green on their own base cannot both merge when together they turn main red: krn pr ship (or the repository ruleset) requires the PR head to contain the current base before auto-merge, or a merge queue runs Check on the combined result.\nWhy: 2026-11-16 #1152 and #1153 merged green minutes apart and main at a7b80aa went red (pack-hygiene), blocking #1154; with 4-6 parallel lanes this recurs.\nProof: a ship test where the base moved after the PR's Check refuses to merge until the branch is updated and Check reruns (exit 76 or an update step), or the ruleset shows strict required checks / a merge queue.",
+    "Files: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
