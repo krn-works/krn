@@ -4,14 +4,14 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "validator supports minItems and uniqueItems; regression test test/rules/json-schema-subset.test.ts"
+    "note": "validator supports minItems and uniqueItems; regression test test/rules/format-contract.test.ts"
   },
   "created": "2026-11-16",
   "priority": 0,
   "title": "A task created with --stack fails the format contract check",
   "after": [],
   "body": [
-    "Source: lead session 2026-11-16: krn task publish refused (pre-push fast, test/rules/format-contract.test.ts) a task created with --stack typescript: 't-7b72h2y.json.stack: unsupported keyword minItems', 'unsupported keyword uniqueItems'. spec/schema task.v1 declares them for stack, test/rules/json-schema-subset.ts does not know them, so every task with a stack fails CI.\nOutcome: node --test test/rules/json-schema-subset.test.ts exits 0, asserting: a record with stack [\"typescript\"] gives 0 errors; an empty stack and a duplicated stack each give 1 error.\nProof: node --test test/rules/json-schema-subset.test.ts: pass\nFiles: test/rules/json-schema-subset.ts, test/rules/json-schema-subset.test.ts"
+    "Source: lead session 2026-11-16: krn task publish refused (pre-push fast, test/rules/format-contract.test.ts) a task created with --stack typescript: 't-7b72h2y.json.stack: unsupported keyword minItems', 'unsupported keyword uniqueItems'. spec/schema task.v1 declares them for stack, test/rules/json-schema-subset.ts does not know them, so every task with a stack fails CI.\nOutcome: node --test test/rules/format-contract.test.ts exits 0, asserting: a record with stack [\"typescript\"] gives 0 errors; an empty stack and a duplicated stack each give 1 error.\nProof: node --test test/rules/format-contract.test.ts: pass\nFiles: test/rules/json-schema-subset.ts, test/rules/format-contract.test.ts"
   ],
   "kind": "defect",
   "area": "task"
