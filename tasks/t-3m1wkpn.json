@@ -1,0 +1,18 @@
+{
+  "id": "t-3m1wkpn",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "transport test: plain gh call bound 30 s, log bound longer"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A gh call through the app-token wrapper gets a bound a loaded host meets",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16 01:30: `krn pr ship` failed exit 70 `spawnSync gh ETIMEDOUT` three times overnight (S9 lane on #1116 twice, lead follow-up ship once) at host load 90-128. Every gh call goes through scripts/app-bin/gh, which starts node to read the app token; `gh api rate_limit` took 6.0 s at load 116 against GH_CALL_TIMEOUT_MS = 10 s, and four retries did not help.\nOutcome: one gh call has a bound that a loaded host meets (30 s), and the bound still stops a hung gh.\nProof: test/deliver transport test asserts a plain call gets at least 30 s and a log download keeps its longer bound.\nFiles: src/deliver/transport.ts, test/deliver"
+  ],
+  "kind": "defect",
+  "area": "deliver"
+}

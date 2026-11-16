@@ -75,8 +75,12 @@ export class CommandFailure extends Error {
 export const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** GitHub answers in about 1 s but sometimes stalls on connect; cut and retry. */
-export const GH_CALL_TIMEOUT_MS = 10_000;
+/**
+ * GitHub answers in about 1 s but sometimes stalls on connect; cut and retry. The bound covers
+ * the app-token wrapper too, which starts node per call: at host load 116 a plain call took 6 s,
+ * so 10 s cut healthy calls and every retry failed the same way.
+ */
+export const GH_CALL_TIMEOUT_MS = 30_000;
 /** Log download streams a whole job log, so it legitimately runs longer. */
 export const GH_LOG_TIMEOUT_MS = 120_000;
 const ghTimeout = (args: string[]) =>
