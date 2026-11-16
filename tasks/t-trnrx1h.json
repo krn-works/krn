@@ -1,0 +1,18 @@
+{
+  "id": "t-trnrx1h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Stop check matches a reported PR to the lane worktree branch, not the session cwd branch",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: lane t-c6d0jks (PR #1200, merged 7665d9b) ran as a background agent whose session cwd was the main checkout; its Stop check read the branch from the session cwd (`main`) and refused the final report naming PR #1200 whose head is `lane-finish`, so the lane ended on a false BLOCKER.",
+    "Outcome: the Stop check that matches a reported PR to the lane branch resolves the branch from the lane's worktree (the claim record or the worktree the session last shipped from), not from the session cwd, and accepts a report of a PR whose head is that lane branch.",
+    "Why: a correctly shipped lane ends with a false BLOCKER, which costs the lead a verification round per lane.",
+    "Proof: `node --test test/hook/stop.test.ts` gains a case: session cwd on the main checkout, a claim naming worktree branch `lane-x`, a final message naming a PR with head `lane-x`: the Stop check passes; a PR with another head is still refused.",
+    "Files: src/hook/stop.ts"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
