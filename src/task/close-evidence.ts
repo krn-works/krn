@@ -3,6 +3,7 @@
 // the exposure log). A missing claim file, PR or `gh` leaves the matching field null, never an error.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
 import { ghPrViewSync } from '../repo/gh.ts';
 import { mainCheckoutRoot } from './claims.ts';
 import type { TaskId } from './record.ts';
@@ -47,7 +48,9 @@ export function pullEvidence(root: string): {
       number?: unknown;
       statusCheckRollup?: { name?: string; conclusion?: string }[];
     };
-    const check = view.statusCheckRollup?.find((c) => c.name === 'Check');
+    const check = view.statusCheckRollup?.find(
+      (c) => c.name === REQUIRED_CHECK_NAME,
+    );
     const conclusion = check?.conclusion;
     return {
       pr: typeof view.number === 'number' ? view.number : null,
