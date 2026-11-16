@@ -125,6 +125,8 @@ for (const stack of ['ts', 'php', 'python', 'wp-plugin', 'go', 'rust']) {
     assert.match(
       check.stdout,
       stack === 'go' ? /, [01] failed,/u : /, 0 failed,/u,
+      // stderr names each failing standard and its output.
+      check.stderr + check.stdout,
     );
     assert.ok(existsSync(join(root, 'tasks')), 'tracker');
   });

@@ -1,7 +1,11 @@
 {
   "id": "t-nv4v0p8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "s-gate-typecheck-runs failed: under npm run/npm exec the caller's node_modules/.bin is on PATH, so in the uninstalled temp repo 'npm run typecheck' ran a foreign tsc that failed TS2688 (no @types/node). Fix: s-gate-typecheck-runs and s-gate-lint-runs strip foreign node_modules/.bin PATH entries (own ones kept). Proof: regression test red before/green after; npm exec repro 6/6; 21/21 runs under 3 concurrent npm exec workers; npm run fast PASS. Init test failure message now includes stderr naming the standard."
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "init ts flake: name the failing standard and fix its cause",
