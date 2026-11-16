@@ -9,6 +9,7 @@ import {
   gitBranchExists,
 } from './branch-evidence.ts';
 import { branchTicketFindings } from './branch-tickets.ts';
+import { type ClaimPacketSource, storeClauses } from './claim-packet.ts';
 import {
   claimHolder,
   claimNext,
@@ -102,13 +103,16 @@ const verbHelp: Record<string, string> = {
     'krn task check [--base REV [--head REV]] [--quality] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --quality, also refuse an open task without a measurable Outcome, a named Proof or a named file, a body dependency missing from after, or a done close without evidence; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists, or naming a feat/, fix/ or chore/ branch that exists neither locally nor on origin. Example: krn task check --evidence --json',
 };
 
-export async function taskCommand(args: string[]): Promise<void> {
+export async function taskCommand(
+  args: string[],
+  packetSource?: ClaimPacketSource,
+): Promise<void> {
   const json = args.includes('--json');
   try {
     if (args.filter((argument) => argument === '--json').length > 1)
       throw usage('--json may be supplied once');
     const commandArgs = args.filter((argument) => argument !== '--json');
-    const result = await execute(commandArgs, json);
+    const result = await execute(commandArgs, json, packetSource);
     process.stdout.write(
       result.json
         ? `${JSON.stringify({ ok: true, ...result.value }, null, 2)}\n`
@@ -137,7 +141,11 @@ export async function taskCommand(args: string[]): Promise<void> {
   }
 }
 
-async function execute(args: string[], json: boolean): Promise<CommandOutput> {
+async function execute(
+  args: string[],
+  json: boolean,
+  packetSource?: ClaimPacketSource,
+): Promise<CommandOutput> {
   const [command, ...options] = args;
   if (command === undefined || command === 'help' || command === '--help')
     return { text: `${quickstart}\n`, value: {}, json: false };
@@ -155,7 +163,7 @@ async function execute(args: string[], json: boolean): Promise<CommandOutput> {
   if (command === 'close') return close(options, json);
   if (command === 'dep') return dependency(options, json);
   if (command === 'ready') return ready(options, json);
-  if (command === 'claim') return claim(options, json);
+  if (command === 'claim') return claim(options, json, packetSource);
   if (command === 'release') return release(options, json);
   if (command === 'edit') return edit(options, json);
   if (command === 'archive') return archive(options, json);
@@ -404,7 +412,11 @@ async function ready(args: string[], json: boolean): Promise<CommandOutput> {
   );
 }
 
-async function claim(args: string[], json: boolean): Promise<CommandOutput> {
+async function claim(
+  args: string[],
+  json: boolean,
+  packetSource?: ClaimPacketSource,
+): Promise<CommandOutput> {
   let next = false;
   let takeover = false;
   let id: string | undefined;
@@ -461,8 +473,19 @@ async function claim(args: string[], json: boolean): Promise<CommandOutput> {
   if (claimed.previous !== undefined)
     lines.push(`Previous holder: ${claimHolder(claimed.previous)}`);
   lines.push(claimed.id);
+  const packet = packetSource?.(root, claimed.id);
+  if (packet !== undefined) {
+    storeClauses(root, claimed.id, packet);
+    lines.push(packet.text);
+  }
   return result(
-    { claim: inspection.claim ?? null },
+    {
+      claim: inspection.claim ?? null,
+      packet:
+        packet === undefined
+          ? null
+          : { clauses: packet.clauses, precedent: packet.precedent },
+    },
     `${lines.join('\n')}\n`,
     json,
   );
