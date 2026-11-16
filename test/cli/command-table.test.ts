@@ -50,3 +50,11 @@ test('README and CONTEXT name every command and every krn.json field', () => {
       assert.ok(text.includes(`\`${name}\``), `${file} lacks \`${name}\``);
   }
 });
+
+test('the lane usage header names every verb the lane command dispatches', () => {
+  const source = readFileSync(new URL('src/cli/lane.ts', root), 'utf8');
+  const verbs = [...source.matchAll(/verb === '([a-z]+)'/gu)].map((m) => m[1]);
+  const header = (commandHelp(['lane', '--help']) ?? '').split('  ')[0] ?? '';
+  for (const verb of new Set(verbs))
+    assert.match(header, new RegExp(`\\b${verb}\\b`, 'u'), verb);
+});
