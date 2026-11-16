@@ -249,13 +249,13 @@ export function enforcer(root: string, timeoutMs: number): Enforce {
       killSignal: 'SIGKILL',
     });
     if (done.error !== undefined && done.status === null)
-      return {
-        exit: null,
-        detail:
-          (done.error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
-            ? `timed out after ${timeoutMs} ms`
-            : done.error.message,
-      };
+      return (done.error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
+        ? {
+            exit: null,
+            detail: `timed out after ${timeoutMs} ms`,
+            timedOut: true,
+          }
+        : { exit: null, detail: done.error.message };
     if (done.status === null)
       return { exit: null, detail: `killed by ${done.signal}` };
     return {
@@ -384,6 +384,15 @@ export function standardsCheck(
         ],
       };
     const own = evaluated.failures.filter((failure) => failure.id === id);
+    const late = evaluated.report.timedOut.filter((item) => item.id === id);
+    if (own.length === 0 && late.length > 0)
+      return {
+        exitCode: 0,
+        lines: [
+          ...late.map((item) => `${item.id}: ${item.message}`),
+          `PASS standards: record ${id} timed out, not judged`,
+        ],
+      };
     if (own.length === 0)
       return { exitCode: 0, lines: [`PASS standards: record ${id} passes`] };
     return {
@@ -407,12 +416,18 @@ export function standardsCheck(
   const reported = failures.filter((failure) => !blocking.includes(failure));
   const { floor, reflex, finish } = report.tiers;
   const perTier = `floor ${floor.failed}/${floor.enforced}, reflex ${reflex.failed}/${reflex.enforced}, finish ${finish.failed}/${finish.enforced} failed/enforced`;
-  const counts = `${report.enforced} enforced, ${failures.length} failed, ${report.advisory} advisory; ${perTier}`;
+  const late = report.timedOut.length;
+  const counts = `${report.enforced} enforced, ${failures.length} failed${late > 0 ? `, ${late} timed-out` : ''}, ${report.advisory} advisory; ${perTier}`;
   const summary = `${counts}; ${applicable.length} standards apply to ${root} (${inherited.length} of ${records.length} pack, ${project.length} project; stack ${repository.stack ?? 'none'}; krn ${repository.adopted ? 'adopted' : 'not adopted'})`;
-  const notes = reported.map(
-    (failure) =>
-      `${failure.id}: ${failure.message} (${failure.tier === 'reflex' ? 'waived reflex' : 'finish'}, reported only)`,
-  );
+  const notes = [
+    ...reported.map(
+      (failure) =>
+        `${failure.id}: ${failure.message} (${failure.tier === 'reflex' ? 'waived reflex' : 'finish'}, reported only)`,
+    ),
+    ...report.timedOut.map(
+      (item) => `${item.id}: ${item.message} (not judged, never blocking)`,
+    ),
+  ];
   if (blocking.length === 0)
     return { exitCode: 0, lines: [...notes, `PASS standards: ${summary}`] };
   return {

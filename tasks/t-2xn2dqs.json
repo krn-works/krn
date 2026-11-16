@@ -1,7 +1,11 @@
 {
   "id": "t-2xn2dqs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "timed-out verdict: enforcement killed by timeout is reported, never red or blocking; test/cli/standards.test.ts covers check, Stop blockers and a still-red sibling"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A timed-out standards enforcement is reported, never red",

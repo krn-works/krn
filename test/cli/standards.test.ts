@@ -23,7 +23,9 @@ import {
   enforcer,
   readProject,
   repositoryFacts,
+  standardsBlockers,
   standardsCheck,
+  standardsFailures,
 } from '../../src/brain/standards-cli.ts';
 
 // KRN-12: the real `krn standards check` entry on generated foreign repositories; every
@@ -340,7 +342,7 @@ test('standards check fails on an expired project standard and names its dates',
   }
 });
 
-test('an enforcement that outlives its timeout fails with exit none and names the timeout', () => {
+test('an enforcement that outlives its timeout is timed-out: reported, never red, never a Stop blocker', () => {
   const root = repository({
     ...python,
     '.agents/standards.json': JSON.stringify([
@@ -349,14 +351,57 @@ test('an enforcement that outlives its timeout fails with exit none and names th
   });
   try {
     assert.ok(ENFORCEMENT_TIMEOUT_MS >= 10_000);
-    const verdict = standardsCheck(root, '2026-11-13', { timeoutMs: 200 });
-    assert.equal(verdict.exitCode, 1);
+    const verdict = standardsCheck(root, '2026-11-13', {
+      timeoutMs: 200,
+      record: 's-project',
+    });
+    assert.equal(verdict.exitCode, 0, verdict.lines.join('\n'));
     assert.ok(
       verdict.lines.includes(
-        's-project: exit none from sleep 5: timed out after 200 ms',
+        's-project: timed-out: sleep 5: timed out after 200 ms',
       ),
       verdict.lines.join('\n'),
     );
+    assert.equal(
+      verdict.lines.at(-1),
+      'PASS standards: record s-project timed out, not judged',
+    );
+    assert.deepEqual(
+      standardsFailures(root, '2026-11-13', { timeoutMs: 200 }).filter(
+        (failure) => failure.id === 's-project',
+      ),
+      [],
+    );
+    assert.deepEqual(standardsBlockers(root, '2026-11-13', 200), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a completed enforcement that fails stays red and blocks while a sibling times out', () => {
+  const root = repository({
+    ...python,
+    '.agents/standards.json': JSON.stringify([
+      projectRecord({
+        id: 's-slow',
+        enforcement: { kind: 'command', run: 'sleep 5' },
+      }),
+      projectRecord({
+        id: 's-red',
+        enforcement: { kind: 'command', run: 'exit 3' },
+      }),
+    ]),
+  });
+  try {
+    const verdict = standardsCheck(root, '2026-11-13', {
+      timeoutMs: 1_000,
+      record: 's-red',
+    });
+    assert.equal(verdict.exitCode, 1, verdict.lines.join('\n'));
+    assert.ok(verdict.lines.some((line) => line.startsWith('s-red: exit 3')));
+    const blockers = standardsBlockers(root, '2026-11-13', 1_000);
+    assert.equal(blockers.length, 1);
+    assert.match(blockers[0] ?? '', /^s-red /u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

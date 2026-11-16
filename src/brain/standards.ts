@@ -195,8 +195,15 @@ export function toBrainRecord(standard: Standard): BrainRecord {
   };
 }
 
-/** One enforcement run: `exit` is null when the process was killed (timeout) or could not start. */
-export type Outcome = { readonly exit: number | null; readonly detail: string };
+/**
+ * One enforcement run: `exit` is null when the process was killed or could not start;
+ * `timedOut` marks a run killed by its timeout, which proves nothing about the standard.
+ */
+export type Outcome = {
+  readonly exit: number | null;
+  readonly detail: string;
+  readonly timedOut?: true;
+};
 
 /** Runs one enforcement in the repository root. */
 export type Enforce = (
@@ -212,6 +219,9 @@ export type Failure = {
   readonly remedy?: string;
 };
 
+/** An enforcement killed by its timeout: reported, never red, never blocking. */
+export type TimedOut = { readonly id: string; readonly message: string };
+
 /** Enforced and failed standards of one tier. */
 export type TierCount = { readonly enforced: number; readonly failed: number };
 
@@ -219,6 +229,8 @@ export type Report = {
   readonly enforced: number;
   readonly advisory: number;
   readonly failures: readonly Failure[];
+  /** Enforcements killed by their timeout; not in `failures` and never in `blocking`. */
+  readonly timedOut: readonly TimedOut[];
   readonly tiers: Readonly<Record<Tier, TierCount>>;
   /** The failures that stop work: floor, an unwaived reflex, and any failure without a tier. */
   readonly blocking: readonly Failure[];
@@ -248,6 +260,7 @@ export function checkStandards(
 ): Report {
   const failures: Failure[] = [];
   const blocking: Failure[] = [];
+  const timedOut: TimedOut[] = [];
   const tiers = {
     floor: { enforced: 0, failed: 0 },
     reflex: { enforced: 0, failed: 0 },
@@ -273,6 +286,13 @@ export function checkStandards(
     enforced++;
     tiers[tier].enforced++;
     const outcome = options.enforce(enforcement);
+    if (outcome.timedOut === true) {
+      timedOut.push({
+        id,
+        message: `timed-out: ${describe(enforcement)}${outcome.detail === '' ? '' : `: ${outcome.detail}`}`,
+      });
+      continue;
+    }
     if (outcome.exit !== 0) {
       const failure: Failure = {
         id,
@@ -285,7 +305,7 @@ export function checkStandards(
       if (blocks(failure, standard)) blocking.push(failure);
     }
   }
-  return { enforced, advisory, failures, tiers, blocking };
+  return { enforced, advisory, failures, timedOut, tiers, blocking };
 }
 
 /** The shipped pack: exact standards, none of them marked as inherited. */
