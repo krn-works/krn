@@ -4,10 +4,12 @@
 // Shell use: node evals/session-slot.ts run -- <command> [args...] (exit code of the command).
 import { spawn } from 'node:child_process';
 import {
+  linkSync,
   mkdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
@@ -34,28 +36,65 @@ const alive = (pid: number) => {
   }
 };
 
+/** A slot file without an owner pid younger than this is a crashed writer's leftover only after it ages. */
+const UNOWNED_GRACE_MS = 10_000;
+
+const ownerOf = (file: string): number | undefined => {
+  const n = Number(readFileSync(file, 'utf8').trim());
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+};
+
+/** A slot is stale when its owner died, or when it names no owner and has aged past the grace period. */
+function stale(file: string): boolean {
+  const owner = ownerOf(file);
+  if (owner !== undefined) return !alive(owner);
+  return Date.now() - statSync(file).mtimeMs > UNOWNED_GRACE_MS;
+}
+
 function tryTake(dir: string, cap: number): string | undefined {
-  for (let i = 0; i < cap; i++) {
-    const file = join(dir, `slot-${i}`);
-    try {
-      writeFileSync(file, String(process.pid), { flag: 'wx' });
-      return file;
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-    }
-    const owner = Number(readFileSync(file, 'utf8').trim());
-    if (!Number.isInteger(owner) || owner <= 0 || !alive(owner)) {
-      // One reclaimer wins the rename; the others see the slot missing and retry.
+  // The slot appears with its owner pid already inside (hard link of a written file), so no reader ever sees it empty.
+  const mine = join(
+    dir,
+    `.take-${process.pid}-${Math.random().toString(36).slice(2)}`,
+  );
+  writeFileSync(mine, String(process.pid));
+  try {
+    for (let i = 0; i < cap; i++) {
+      const file = join(dir, `slot-${i}`);
       try {
-        renameSync(file, `${file}.stale-${process.pid}`);
-        rmSync(`${file}.stale-${process.pid}`, { force: true });
-      } catch {
-        // Another reclaimer already took it.
+        linkSync(mine, file);
+        return file;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
       }
+      try {
+        if (!stale(file)) continue;
+      } catch {
+        // Released while we looked: retry this slot.
+        i--;
+        continue;
+      }
+      // One reclaimer wins the rename; the others see the slot missing and retry. A slot taken afresh between our
+      // look and the rename goes back to its new owner.
+      const moved = `${file}.stale-${process.pid}`;
+      try {
+        renameSync(file, moved);
+      } catch {
+        i--;
+        continue;
+      }
+      try {
+        if (!stale(moved)) linkSync(moved, file);
+      } catch {
+        // The slot was taken again meanwhile; the moved file is no one's slot now.
+      }
+      rmSync(moved, { force: true });
       i--;
     }
+    return undefined;
+  } finally {
+    rmSync(mine, { force: true });
   }
-  return undefined;
 }
 
 /** Waits for a free slot (printing the wait to stderr) and returns the function that gives it back. */

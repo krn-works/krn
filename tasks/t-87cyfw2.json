@@ -1,7 +1,11 @@
 {
   "id": "t-87cyfw2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slot taken by hard link of a written pid file; fresh ownerless slot is busy; reclaim gives back a retaken slot; regression test test/evals/session-cap.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Session slots never exceed the cap when processes race for a slot",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "node --test test/evals/session-cap.test.ts",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ],
   "kind": "defect",
