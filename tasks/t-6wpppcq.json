@@ -1,7 +1,11 @@
 {
   "id": "t-6wpppcq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "budget skips merged clean lanes inside the prune grace, refusal lists counted lanes with state; test/hook/stop-merged-lane.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Merged clean lane worktrees never fill the lane budget",
