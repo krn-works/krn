@@ -1,7 +1,11 @@
 {
   "id": "t-0p8v557",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evals/d23/grade.ts exec spawns each replay command detached (own process group) and SIGKILLs the group on exit and on timeout; test/evals/d23-grade.test.ts proves no backgrounded child survives either path (red before, green after)."
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Eval replay sessions never outlive their run directory",

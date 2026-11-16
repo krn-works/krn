@@ -27,11 +27,21 @@ export function exec(
   return new Promise((done) => {
     // A nested `node --test` inside a test run would see NODE_TEST_CONTEXT and run nothing.
     const { NODE_TEST_CONTEXT: _inherited, ...env } = process.env;
+    // Its own process group: `node --test` forks workers, and a worker left behind once the
+    // run ended or timed out held a deleted run directory for days.
     const child = spawn(cmd, args, {
       cwd,
       env,
+      detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    const killGroup = () => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        // The group is already gone.
+      }
+    };
     let out = '';
     child.stdout.on('data', (d) => {
       out += d;
@@ -39,7 +49,9 @@ export function exec(
     child.stderr.on('data', (d) => {
       out += d;
     });
-    const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
+    const timer = setTimeout(killGroup, timeoutMs);
+    // A descendant holding the pipes open would keep 'close' from firing: reap the group on exit.
+    child.on('exit', killGroup);
     child.on('close', (code) => {
       clearTimeout(timer);
       done({ code: code ?? 1, out });
