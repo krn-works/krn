@@ -27,6 +27,7 @@ function fixture(root: string) {
   git(clone, 'config', 'user.email', 'a@b.c');
   git(clone, 'config', 'user.name', 'n');
   writeFileSync(join(clone, 'a.txt'), '1');
+  writeFileSync(join(clone, '.gitignore'), 'build/\n');
   git(clone, 'add', '.');
   git(clone, 'commit', '-q', '-m', 'base');
   const base = git(clone, 'rev-parse', 'HEAD');
@@ -52,7 +53,7 @@ function fixture(root: string) {
         spec: 's',
         hidden: { file: 'hidden.txt', dest: 'hidden.check' },
         install: 'true',
-        test: 'test -f fixed.txt',
+        test: 'test -f fixed.txt && test ! -e build',
         committed: id === 't-ccccccc' ? '2026-01-01' : '2026-08-01',
         issue: `https://github.com/o/r/issues/${id.charCodeAt(2)}`,
       }),
@@ -276,6 +277,52 @@ test('--screen records a usage-limited session ungraded and the next run screens
       't-aaaaaaa': true,
       't-bbbbbbb': false,
     });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('--screen grades the session change without the ignored leftovers of its own installs', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units } = fixture(root);
+    // A session that fixes the unit and leaves an ignored install tree behind (pnpm v11: a later
+    // `pnpm install --ignore-scripts` over a plain install's node_modules exits 1 with ERR_PNPM_IGNORED_BUILDS).
+    const messy = join(root, 'messy');
+    writeFileSync(
+      messy,
+      `#!/bin/sh\ncat >/dev/null\ntouch fixed.txt\nmkdir -p build && touch build/poison\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+    );
+    chmodSync(messy, 0o755);
+    const rowsFile = join(root, 'rows.jsonl');
+    const r = spawnSync(
+      'node',
+      [
+        'evals/replay/run.ts',
+        '--screen',
+        '--units-dir',
+        units,
+        '--sources',
+        join(root, 'sources'),
+        '--scratch',
+        join(root, 'scratch'),
+        '--rows',
+        rowsFile,
+      ],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          KRN_EVAL_CLAUDE: messy,
+          KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+        },
+      },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    const rows = parseRows(readFileSync(rowsFile, 'utf8'));
+    assert.equal(rows.length, 2);
+    for (const x of rows) assert.equal(x.pass, true, x.unit);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
