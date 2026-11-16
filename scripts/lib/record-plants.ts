@@ -63,9 +63,18 @@ export function toolProbe(id: string, stack: Stack): string | undefined {
 export const PLANTS: Record<string, Plant> = {
   's-tests-tracked': (c) => ({ write: without(c.files, TEST_FILE) }),
   's-test-command': (c) => {
+    // A declared krn.json test command is the repository's test command, so the plant makes it a placeholder too.
+    const placeholder = {
+      'krn.json': jsonText({
+        ...(c.files.includes('krn.json') ? json(c, 'krn.json') : {}),
+        test: 'echo "Error: no test specified" && exit 1',
+        vacuous: true,
+      }),
+    };
     if (c.stack === 'ts')
       return {
         write: {
+          ...placeholder,
           'package.json': jsonText({
             ...json(c, 'package.json'),
             scripts: { test: 'echo "Error: no test specified" && exit 1' },
@@ -76,12 +85,13 @@ export const PLANTS: Record<string, Plant> = {
       const composer = json(c, 'composer.json');
       return {
         write: {
+          ...placeholder,
           'phpunit.xml': null,
           'composer.json': jsonText({ ...composer, scripts: {} }),
         },
       };
     }
-    return { write: without(c.files, TEST_FILE) };
+    return { write: { ...placeholder, ...without(c.files, TEST_FILE) } };
   },
   's-test-exit-code': () => ({
     write: { Makefile: 'test:\n\ttrue || true\n' },

@@ -1,6 +1,7 @@
 // Which contract gate commands the repository's existing workflows already run: adopt fills only the gaps.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { findContract } from '../repo/contract.ts';
 
 export const GATE_KEYS = ['lint', 'typecheck', 'test'] as const;
 export type GateKey = (typeof GATE_KEYS)[number];
@@ -157,4 +158,23 @@ export function onlyMissing<T extends GateCommands>(
   for (const key of GATE_KEYS)
     if ((gates.runBy[key]?.length ?? 0) > 0) delete next[key];
   return next;
+}
+
+/** The `s-gate-in-ci` verdict: a workflow runs on pull requests and runs every contract gate, directly or through a mise task. */
+export function ciGateProblem(root: string): string | undefined {
+  const workflows = readWorkflows(root);
+  if (!workflows.some(({ text }) => /pull_request|merge_request/u.test(text)))
+    return 'no workflow runs on pull requests';
+  const found = findContract(root);
+  const contract = found?.contract;
+  const gates = workflowGates(root, {
+    lint: contract?.lint,
+    typecheck: contract?.typecheck,
+    test: contract?.vacuous ? undefined : contract?.test,
+  });
+  const missing: string[] = [...gates.missing];
+  if (contract === undefined) missing.unshift('test');
+  return missing.length === 0
+    ? undefined
+    : `CI does not run the contract commands: ${missing.join(', ')}`;
 }

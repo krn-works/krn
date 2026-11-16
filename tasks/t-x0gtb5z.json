@@ -1,0 +1,18 @@
+{
+  "id": "t-x0gtb5z",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "s-test-command and s-gate-in-ci pass on the adopted boilerplate clone; placeholder and no-CI fixtures stay red"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "s-test-command and s-gate-in-ci accept the krn.json test command and a CI that runs it through a mise task",
+  "after": [],
+  "body": [
+    "Source: S29 real adoption of boilerplate-2026 (PR korneliuszburian/boilerplate-rekurencja#4; clone .krn/tmp/s29/real, `krn standards check --root .` log .krn/tmp/s29/std.log). Two gate tasks are false positives:\n1. s-test-command fails although krn.json names `test: node --test tests/` (72 real tests): the check reads only package.json scripts.test (root package.json of an npm-workspaces repo has none). The contract test command in krn.json, when not vacuous, is the declared test command.\n2. s-gate-in-ci fails \"CI does not run the contract commands: test\" although .github/workflows/build.yml runs `mise run check`, whose mise.toml task depends on check:test = `node --test tests/`. #1231 taught src/adopt/workflow-gates.ts to follow mise tasks; the s-gate-in-ci check in standards/records.json is a separate inline script that only substring-matches. One owner: make the record's check reuse the same resolution (a krn subcommand or shared script), not a second parser.\nOutcome: on the boilerplate clone both checks exit 0; a placeholder test command and a workflow that runs neither stay red.\nProof: node --test test/brain (the record-check tests for both ids): pass, with fixtures for the krn.json-only test command and the mise-task CI.\nFiles: standards/records.json, src/adopt/workflow-gates.ts"
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
