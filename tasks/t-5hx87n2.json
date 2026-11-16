@@ -1,0 +1,18 @@
+{
+  "id": "t-5hx87n2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Gate run records treat a toolchain that cannot start, including a version-less mise shim, as left to CI",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16 while shipping S26 (#1113): s-gate-typecheck-runs and s-gate-lint-runs treat only exit 127 as \"tool not installed, CI runs it\". A version-less mise shim (go, cargo) exits 1 with \"mise ERROR No version is set for shim\", so on an operator host with mise shims but no pinned version the finish gate goes red at baseline in an adopted repo. The planted matrix now probes per stack (scripts/lib/record-plants.ts toolProbe), but the record command itself is unchanged.\nOutcome: the gate records treat a toolchain that cannot start (127, or a mise shim with no version) as left to CI, and a real typecheck failure still goes red.\nProof: a test runs the record command with a PATH stub `go` that prints the mise no-version error and exits 1 -> exit 0; a stub that exits 1 with a type error -> exit 1.\nFiles: standards/records.json (s-gate-typecheck-runs, s-gate-lint-runs), test/cli/standards.test.ts"
+  ],
+  "kind": "defect",
+  "area": "standards",
+  "from": {
+    "kind": "task",
+    "ref": "t-reddqmp"
+  }
+}
