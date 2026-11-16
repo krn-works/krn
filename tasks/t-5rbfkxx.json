@@ -1,7 +1,11 @@
 {
   "id": "t-5rbfkxx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane env test asserts CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1 in spawned session; hook entry test writes one from->to line; doctor --hooks reports PostModelSwitch wired; npm run fast PASS"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Headless lanes guard Fable billing and log model fallbacks",

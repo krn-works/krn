@@ -85,6 +85,13 @@ export const events = {
     ],
   },
   'post-tool': { claude: 'PostToolUse', timeout: 10, routes: [gauge] },
+  'model-switch': {
+    claude: 'PostModelSwitch',
+    timeout: 5,
+    routes: [
+      { name: 'model-switch', load: () => import('../hook/model-switch.ts') },
+    ],
+  },
   stop: { claude: 'Stop', timeout: 660, routes: [stop] },
   'subagent-stop': { claude: 'SubagentStop', timeout: 660, routes: [stop] },
 } as const satisfies Record<string, HookEvent>;

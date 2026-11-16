@@ -413,6 +413,7 @@ test('lane run starts the session in the sandbox with only the App credential', 
     assert.doesNotMatch(env, /operator-token/u);
     assert.match(env, /^KRN_APP_CACHE_DIR=.+\.krn\/tmp\/app-cache$/mu);
     assert.match(env, /^PATH=.*scripts\/app-bin:/mu);
+    assert.match(env, /^CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1$/mu);
     assert.match(
       env,
       /^GIT_CONFIG_VALUE_\d+=.*github-app-token\.ts' git-credential$/mu,
@@ -1917,6 +1918,23 @@ test('a lane session mints and helps git for its own origin repository', () => {
   assert.equal(
     sessionEnvironment({ PATH: '/bin' }, '/c', { lane: 'l' })
       .KRN_APP_REPOSITORY,
+    undefined,
+  );
+});
+
+test('a lane session disables the advisor tool unless the brief opts in', () => {
+  const env = { PATH: '/bin' };
+  assert.equal(
+    sessionEnvironment(env, '/c', { lane: 'l' })
+      .CLAUDE_CODE_DISABLE_ADVISOR_TOOL,
+    '1',
+  );
+  assert.equal(
+    sessionEnvironment(
+      { ...env, CLAUDE_CODE_DISABLE_ADVISOR_TOOL: '1' },
+      '/c',
+      { lane: 'l', advisor: true },
+    ).CLAUDE_CODE_DISABLE_ADVISOR_TOOL,
     undefined,
   );
 });

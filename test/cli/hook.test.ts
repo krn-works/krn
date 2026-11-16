@@ -42,6 +42,6 @@ test('krn hook with an unknown hook name exits 64 naming the hooks', () => {
   assert.equal(result.status, 64);
   assert.match(
     result.stderr,
-    /krn hook <user-prompt\|session-start\|pre-tool\|post-tool\|stop\|subagent-stop\|session\|scope\|stash\|edit>/u,
+    /krn hook <user-prompt\|session-start\|pre-tool\|post-tool\|model-switch\|stop\|subagent-stop\|session\|scope\|stash\|edit>/u,
   );
 });
