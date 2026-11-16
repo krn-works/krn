@@ -121,6 +121,21 @@ const TREE_TESTS: ReadonlyArray<readonly [string, RegExp]> = [
  */
 const COVERS = /^\/\/ fast-covers:(.+)$/mu;
 
+/**
+ * A slow test whose result depends only on named inputs declares them in a
+ * `// fast-only: <prefix> [<prefix>...]` comment: fast runs it only when the diff touches one
+ * of them (or the test itself), whatever else imports it. CI still runs it on every change.
+ */
+const FAST_ONLY = /^\/\/ fast-only:(.+)$/mu;
+
+/** The fast-only prefixes a test declares; empty when it has none. */
+export function fastOnlyPrefixes(source: string): string[] {
+  return (FAST_ONLY.exec(source)?.[1] ?? '')
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean);
+}
+
 const CLI_SPAWN = /bin\/krn|cli\/main\.ts|'bin',\s*'krn'|krn\.mjs/u;
 const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?: )/u;
 
@@ -264,6 +279,19 @@ export function selectTests(
         for (const target of transitiveImports(path, source, readSource))
           if (targets.has(target)) picked.add(path);
     }
+  // A fast-only test runs exactly when the diff touches it or one of its declared inputs.
+  for (const [path, source] of tests) {
+    const only = fastOnlyPrefixes(source);
+    if (only.length === 0) continue;
+    if (
+      touched.some(
+        (file) =>
+          file === path || only.some((prefix) => file.startsWith(prefix)),
+      )
+    )
+      picked.add(path);
+    else picked.delete(path);
+  }
   return [...picked].sort();
 }
 

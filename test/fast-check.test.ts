@@ -54,6 +54,26 @@ test('fast check selects changed tests and tests importing a changed module', ()
   assert.deepEqual(selectTests(['docs/x.md'], tests), []);
 });
 
+test('a fast-only test runs only when the diff touches its declared inputs', () => {
+  // planted-records imports src/cli/main.ts, so before fast-only every src change ran its 3-minute matrix.
+  const slow = new Map([
+    [
+      'test/scripts/planted.test.ts',
+      "// fast-only: standards/records.json src/adopt/\nimport { main } from '../../src/cli/main.ts';",
+    ],
+  ]);
+  assert.deepEqual(selectTests(['src/cli/main.ts'], slow), []);
+  assert.deepEqual(selectTests(['src/adopt/init.ts'], slow), [
+    'test/scripts/planted.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['standards/records.json'], slow), [
+    'test/scripts/planted.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['test/scripts/planted.test.ts'], slow), [
+    'test/scripts/planted.test.ts',
+  ]);
+});
+
 test('fast check runs the repository rule tests for any change', () => {
   const withRules = new Map([
     ...tests,
