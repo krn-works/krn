@@ -1,7 +1,11 @@
 {
   "id": "t-qnnemdk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop.test.ts: read-only subagent transcript ends exit 0, editing/claiming one still refused; subagent-model-hook.test.ts: read-only briefs route to krn-reader/krn-research"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Read-only subagents end without the lane commit requirement",

@@ -19,6 +19,17 @@ import { hookStdin } from '../../src/harness/claude.ts';
 // call naming opus or fable runs the lane's pinned model instead, unless its prompt carries a
 // `lane-model: opus|fable` line, the explicit opt-in for a measured probe or a hard lane.
 
+// Read-only briefs: a general-purpose call whose brief says read-only and names no task id or
+// worktree is no lane, so the lane Stop gate (a commit is required) would refuse its end and lose its
+// report. It stays on a read-only type: krn-research when it names a URL, else krn-reader.
+const readOnlyBrief = /\bread[- ]only\b/i;
+const laneMarker = /\bt-[a-z0-9]{7}\b|\bworktree\b|\bkrn lane start\b/i;
+
+export function readOnlyTarget(prompt: string): string | undefined {
+  if (!readOnlyBrief.test(prompt) || laneMarker.test(prompt)) return undefined;
+  return /https?:\/\//i.test(prompt) ? 'krn-research' : 'krn-reader';
+}
+
 const ignoresDefault = new Set(['Explore', 'Plan']);
 const laneAgent = 'krn-lane';
 const aliases = ['haiku', 'sonnet', 'opus', 'fable'] as const;
@@ -83,8 +94,11 @@ export function updatedInput(
   if (fields.model !== undefined)
     return laneModel(fields, type, configured, pinned, brief);
   if (typeof type !== 'string') return undefined;
-  const target = type === 'general-purpose' ? laneAgent : type;
   const prompt = typeof fields.prompt === 'string' ? fields.prompt : '';
+  const target =
+    type === 'general-purpose'
+      ? (readOnlyTarget(`${prompt}\n${brief(prompt)}`) ?? laneAgent)
+      : type;
   const model =
     (target === laneAgent ? optedIn(prompt, brief(prompt)) : undefined) ??
     pinned(target) ??
