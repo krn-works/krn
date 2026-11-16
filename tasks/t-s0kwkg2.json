@@ -1,0 +1,14 @@
+{
+  "id": "t-s0kwkg2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "ship and state check release claims of closed tasks",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: `krn ship` and `krn task close` never released task claims; 31 claims of closed tasks sat in .krn/task-claims and `krn state check` reported each as state-loss until the lead released them by hand.\nOutcome: ship releases the claim of a task once its PR merged with that task closed, and `krn state check` treats a claim of a closed task as stale (released, not state-loss).\nWhy: every session start paid for false state-loss errors.\nProof: a ship test whose merged PR closes a claimed task leaves no claim file; a state test with a claim of a closed task exits 0 and removes it.\nFiles: src/ci/ship.ts, src/state/, src/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

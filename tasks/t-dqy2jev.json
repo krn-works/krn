@@ -1,0 +1,14 @@
+{
+  "id": "t-dqy2jev",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The .krn state directory has one declared layout, a tidy command and an index",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16: \".krn/ jest strasznie messy - nie ma żadnego sposobu na kategoryzacje\". Measured: 69 loose files in the .krn/ root (mostly tmp-*.log: agents in .krn/worktrees/<x> write `../../tmp-x.log`, which lands in the .krn/ root), 16 top-level dirs against the 5 that r-state-paths names, 79 unclassified owners under .krn/runs/ (briefs next to lane-briefs), no retention (sources 3.4G, runs 326M).\nOutcome: (1) one declared layout: a schema file lists every allowed .krn/ top-level entry and every runs/ category (lanes/<slug>, lead, research, evals, pilot, overnight...) with its owner, purpose and retention; (2) `krn state check` reports any entry outside the schema and `krn state tidy` moves strays into .krn/tmp/stray/ and deletes tmp and run data past retention; (3) agents get a per-worktree scratch dir (the worktree's own .krn/tmp, gone with the worktree) named in lanes.md and the lane brief, so `../../` is never needed; (4) a generated .krn/INDEX.md lists each entry with owner, purpose, size and last write, refreshed by tidy and the handoff.\nWhy: the lead and lanes lose time reading an unstructured state dir; strays hide real artefacts; disk grows without bound.\nProof: a state test with a fixture .krn/ holding a root log, an unknown dir and an expired tmp file: check exits 1 naming each, tidy fixes all three and check then exits 0; on the live repo, after tidy, the .krn/ root holds no loose files.\nFiles: src/state/, src/cli/, .agents/skills/delivery-lead/lanes.md, src/adopt/skills/delivery-lead/lanes.md"
+  ],
+  "kind": "debt",
+  "area": "state"
+}

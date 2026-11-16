@@ -1,0 +1,14 @@
+{
+  "id": "t-xpe9zkv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "fast fails in seconds on structure and rule checks before running related tests",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: about ten full `npm run fast` reruns (5-10 min each under load) failed only on structure and rule tests that run late inside the test stage: spec/receivers.json registration, scripts/boundaries.ts binary owners, the wall-clock rule, harness-literals, universal-skills wording, the lanes.md drift copy, weak-tests. Lanes hit turn ceilings while waiting on those reruns.\nOutcome: fast runs a preflight stage first (the contract `guard` tests, boundaries, receiver evidence, drift and weak-tests over the diff) and stops on its first red before any related test starts; the edit hook also runs the static rule checks that apply to an edited file right after the edit and prints the violation.\nWhy: a late red rule test costs a full fast rerun; failing in seconds turns ten minutes into one.\nProof: a fast-check test feeds a diff that breaks a test/rules rule and asserts fast exits non-zero with the rule named before the related-test stage starts (no related test file is run); a hook test edits a file with a wall-clock assertion and gets the violation in the hook output.\nFiles: scripts/fast-check.ts, src/hook/edit-standards.ts, test/fast-check.test.ts"
+  ],
+  "kind": "feature",
+  "area": "ci"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-jd4cp2d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "task records created in the main checkout reach a PR without manual carrying",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: `krn task create` in the main checkout leaves an untracked tasks/<id>.json; three new records had to be handed to the successor as untracked files and carried into some later PR by hand.\nOutcome: `krn task create` run in the main checkout writes the record onto a lead tracker branch (or the open lead worktree) and `krn task publish` ships all pending records in one PR through ship; the main checkout stays clean.\nWhy: tracker records got lost between sessions or rode along in unrelated PRs.\nProof: a task test creates two records from a main checkout fixture: `git status --porcelain` stays empty there and both records are on the tracker branch; publish produces one commit holding both.\nFiles: src/task/, src/cli/"
+  ],
+  "kind": "feature",
+  "area": "task"
+}
