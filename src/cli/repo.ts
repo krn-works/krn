@@ -1,5 +1,6 @@
 // `krn repo contract`: print the repo contract (krn.json merged over detection) as JSON.
 import { resolve } from 'node:path';
+import { ciGateProblem } from '../adopt/workflow-gates.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ContractError, resolveContract } from '../repo/contract.ts';
@@ -53,9 +54,9 @@ async function goldenCommand(verb: string, rest: string[]): Promise<void> {
 export function repoCommand(args: string[]): Promise<void> | void {
   const [verb, ...rest] = args;
   if (verb === 'golden') return goldenCommand(rest[0] ?? '', rest.slice(1));
-  if (verb !== 'contract')
+  if (verb !== 'contract' && verb !== 'ci-gates')
     throw new CliUsageError(
-      `krn repo contract [--root DIR]  print the repo contract as JSON\n${GOLDEN_USAGE}`,
+      `krn repo contract [--root DIR]  print the repo contract as JSON\nkrn repo ci-gates [--root DIR]  exit 1 when no pull request workflow runs every contract gate\n${GOLDEN_USAGE}`,
     );
   let root = process.cwd();
   for (let i = 0; i < rest.length; i++) {
@@ -64,7 +65,15 @@ export function repoCommand(args: string[]): Promise<void> | void {
       root = resolve(
         flagValue(rest, i++, () => new CliUsageError('--root needs DIR')),
       );
-    else throw new CliUsageError(`krn repo contract: unknown flag ${flag}`);
+    else throw new CliUsageError(`krn repo ${verb}: unknown flag ${flag}`);
+  }
+  if (verb === 'ci-gates') {
+    const problem = ciGateProblem(root);
+    if (problem !== undefined) {
+      process.stderr.write(`${problem}\n`);
+      process.exitCode = 1;
+    }
+    return;
   }
   try {
     const resolved = resolveContract(root);

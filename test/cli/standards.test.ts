@@ -1408,3 +1408,58 @@ test('a plugin header makes a repository WordPress, so the WordPress records app
     rmSync(plain, { recursive: true, force: true });
   }
 });
+
+const workspaceRoot = {
+  'package.json': JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+  'packages/app/package.json': JSON.stringify({ name: 'app' }),
+};
+const pullRequestWorkflow = (run: string) =>
+  `on:\n  pull_request:\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${run}\n`;
+
+test('s-test-command accepts the krn.json test command of a repository whose package.json has no test script, and refuses a placeholder', () => {
+  const declared = repository({
+    ...workspaceRoot,
+    'krn.json': JSON.stringify({ test: 'node --test tests/' }),
+  });
+  const placeholder = repository({
+    ...workspaceRoot,
+    'krn.json': JSON.stringify({
+      test: 'echo no test specified',
+      vacuous: true,
+    }),
+  });
+  try {
+    const ok = checkRecord(declared, 's-test-command');
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.equal(checkRecord(placeholder, 's-test-command').status, 1);
+  } finally {
+    rmSync(declared, { recursive: true, force: true });
+    rmSync(placeholder, { recursive: true, force: true });
+  }
+});
+
+test('s-gate-in-ci follows a mise task from the workflow to the krn.json test command, and stays red for a workflow that runs neither', () => {
+  const mise = repository({
+    ...workspaceRoot,
+    'krn.json': JSON.stringify({ test: 'node --test tests/' }),
+    'mise.toml':
+      '[tasks.check]\ndepends = ["check:test"]\n\n[tasks."check:test"]\nrun = "node --test tests/"\n',
+    '.github/workflows/build.yml': pullRequestWorkflow('mise run check'),
+  });
+  const none = repository({
+    ...workspaceRoot,
+    'krn.json': JSON.stringify({ test: 'node --test tests/' }),
+    'mise.toml': '[tasks.check]\nrun = "echo hi"\n',
+    '.github/workflows/build.yml': pullRequestWorkflow('mise run check'),
+  });
+  try {
+    const ok = checkRecord(mise, 's-gate-in-ci');
+    assert.equal(ok.status, 0, ok.stderr);
+    const red = checkRecord(none, 's-gate-in-ci');
+    assert.equal(red.status, 1);
+    assert.match(red.stderr, /CI does not run the contract commands: test/u);
+  } finally {
+    rmSync(mise, { recursive: true, force: true });
+    rmSync(none, { recursive: true, force: true });
+  }
+});

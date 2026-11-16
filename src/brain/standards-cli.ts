@@ -145,6 +145,9 @@ const GIT_LOCATION = [
 function environment(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   for (const name of GIT_LOCATION) delete env[name];
+  // A command enforcement reaches the product CLI (one owner for shared resolution) through these, not through PATH.
+  env.KRN_NODE = process.execPath;
+  env.KRN_MAIN = krnMain;
   return env;
 }
 
