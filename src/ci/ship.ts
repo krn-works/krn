@@ -30,14 +30,18 @@ export function ownsProductRelease(cwd: string): boolean {
 const ghTimeoutMs = 30_000;
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
-/** Tries per idempotent gh call: the first plus two retries after a network-level failure. */
+/** Tries per gh call before the push: the first plus two retries of a failure GitHub never answered. */
 const networkTries = 3;
 const networkBackoffMs = 1000;
-/** gh's stderr for a failure before any HTTP answer; an HTTP status answer never matches. */
-const networkFailure = (stderr: string) =>
-  /TLS handshake timeout|connection reset|i\/o timeout|\bEOF\b|error connecting to /iu.test(
-    stderr,
-  );
+const networkBackoffCapMs = 30_000;
+/** After the push a PR may exist: an unanswered gh call is retried for this long before ship gives up. */
+const networkBudgetMs = 300_000;
+/**
+ * A gh failure GitHub answered: an HTTP status or a GraphQL error. Every other stderr (a timeout, a reset,
+ * a resolver or proxy message nobody has seen yet) never reached an answer, so the call is safe to repeat.
+ */
+export const answeredFailure = (stderr: string) =>
+  /\bHTTP [1-5]\d\d\b|\bGraphQL: |head branch was modified/iu.test(stderr);
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
@@ -165,17 +169,27 @@ export async function shipCommand(
         )
       : runner(command, a, ...rest);
   };
+  let afterPush = false;
   const gh =
     runtime.gh ??
     (async (a) => {
-      // `pr create` is not idempotent: a lost reply could hide a created PR.
-      const attempts = a[0] === 'pr' && a[1] === 'create' ? 1 : networkTries;
+      // `pr create` is not idempotent: a lost reply could hide a created PR, so its caller looks first.
+      const once = a[0] === 'pr' && a[1] === 'create';
+      let waited = 0;
       for (let attempt = 1; ; attempt += 1) {
         const result = scoped('gh', a, cwd, undefined, ghTimeoutMs);
         if (result.code === 0) return result.stdout;
-        if (attempt >= attempts || !networkFailure(result.stderr))
+        const spent = afterPush
+          ? waited >= networkBudgetMs
+          : attempt >= networkTries;
+        if (once || spent || answeredFailure(result.stderr))
           throw new CommandFailure(result);
-        await wait(networkBackoffMs * 2 ** (attempt - 1));
+        const pause = Math.min(
+          networkBackoffMs * 2 ** (attempt - 1),
+          networkBackoffCapMs,
+        );
+        await wait(pause);
+        waited += pause;
       }
     });
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
@@ -287,6 +301,34 @@ main checkout: ${main}`;
   assertNoConflict(cwd, target, runner);
   const changed = git(['diff', '--name-only', `origin/${target}...HEAD`]);
   if (changed === '') {
+    // The branch's PR merged while no ship watched (an earlier ship gave up, the branch was rebased
+    // since): the rerun reports that merge instead of refusing an empty diff.
+    const mergedOfBranch = (
+      await gh([
+        'pr',
+        'list',
+        '--repo',
+        repo,
+        '--head',
+        branch,
+        '--state',
+        'merged',
+        '--json',
+        'number,mergeCommit',
+        '--jq',
+        '.[0] | select(. != null) | "\\(.number) \\(.mergeCommit.oid // "unknown")"',
+      ])
+    ).trim();
+    if (mergedOfBranch !== '') {
+      const [mergedPr, mergedSha] = mergedOfBranch.split(' ');
+      const merged = await viewOf(Number(mergedPr)).catch(() => undefined);
+      recordClose(Number(mergedPr), merged?.statusCheckRollup ?? []);
+      return [
+        `pr: #${mergedPr} ${repo} ${localHead}`,
+        `verdict: merged ${mergedSha}`,
+        cleanup(mergedSha ?? 'unknown'),
+      ].join('\n');
+    }
     // An empty squash commit would merge green; name the PR that carries it.
     const carrier = (
       await gh([
@@ -414,41 +456,62 @@ main checkout: ${main}`;
       { exitCode: 70 },
     );
 
-  const existing = (
-    await gh([
-      'pr',
-      'list',
-      '--repo',
-      repo,
-      '--head',
-      branch,
-      '--state',
-      'open',
-      '--json',
-      'number',
-      '--jq',
-      '.[0].number // empty',
-    ])
-  ).trim();
+  afterPush = true;
+  const openPr = async () =>
+    (
+      await gh([
+        'pr',
+        'list',
+        '--repo',
+        repo,
+        '--head',
+        branch,
+        '--state',
+        'open',
+        '--json',
+        'number',
+        '--jq',
+        '.[0].number // empty',
+      ])
+    ).trim();
+  const existing = await openPr();
   let pr = existing === '' ? NaN : Number(existing);
   if (Number.isNaN(pr)) {
-    const created = await gh([
-      'pr',
-      'create',
-      '--repo',
-      repo,
-      '--head',
-      branch,
-      '--base',
-      target,
-      '--title',
-      title,
-      '--body-file',
-      publishedBody,
-    ]);
-    pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
-    if (!Number.isInteger(pr))
-      throw new Error(`gh pr create printed no PR url: ${created.trim()}`);
+    // An unanswered create may have created the PR: look for it before each new try.
+    for (let waited = 0; Number.isNaN(pr); ) {
+      let created: string;
+      try {
+        created = await gh([
+          'pr',
+          'create',
+          '--repo',
+          repo,
+          '--head',
+          branch,
+          '--base',
+          target,
+          '--title',
+          title,
+          '--body-file',
+          publishedBody,
+        ]);
+      } catch (error) {
+        if (
+          !(error instanceof CommandFailure) ||
+          answeredFailure(error.result.stderr) ||
+          waited >= networkBudgetMs
+        )
+          throw error;
+        await wait(networkBackoffCapMs);
+        waited += networkBackoffCapMs;
+        const found = await openPr();
+        if (found !== '') pr = Number(found);
+        continue;
+      }
+      pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
+      if (!Number.isInteger(pr))
+        throw new Error(`gh pr create printed no PR url: ${created.trim()}`);
+    }
   } else {
     await gh([
       'pr',
