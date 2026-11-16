@@ -23,3 +23,12 @@ export function readDecisions(root: string): UnifiedRecord[] {
     );
   return rows;
 }
+
+/** The ids of the repository's decision, preference and fact records that a packet text names. */
+export function decisionIdsIn(root: string, text: string): string[] {
+  return readDecisions(root)
+    .map((row) => row.id)
+    .filter((id) =>
+      new RegExp(`(^|[^A-Za-z0-9_-])${id}($|[^A-Za-z0-9_-])`, 'u').test(text),
+    );
+}
