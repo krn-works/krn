@@ -27,8 +27,8 @@ const arg = (name: string, fallback: string) => {
   return (i > 0 ? process.argv[i + 1] : undefined) ?? fallback;
 };
 
-/** Arms of the comparison; KT is K plus the test-first Stop rule, exploratory (preregistration.md). */
-export const ARMS = ['K', 'P', 'PB', 'KT'];
+/** Arms of the comparison; PC is P plus the clause section built from the brief alone; KT is K plus the test-first Stop rule, exploratory (preregistration.md). */
+export const ARMS = ['K', 'P', 'PB', 'KT', 'PC'];
 
 /** Environment a session of this arm starts with: only KT turns the test-first Stop rule on. */
 export function armEnv(arm: string): Record<string, string> {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# usage: replay.sh <pr> <K|KT|P|PB>   one arm of one unit, then its measures
-# P is the plain clone, PB the plain clone given the same requirements text K gets, K the KRN product.
+# usage: replay.sh <pr> <K|KT|P|PB|PC>   one arm of one unit, then its measures
+# P is the plain clone, PC the plain clone given the clause section `krn lane brief` builds from the task's own words (no requirements text), PB the plain clone given the same requirements text K gets, K the KRN product.
 # RUN names a repeat: results land in $OUT/run$RUN; work dirs carry it so repeats can run side by side.
 # IFACE: text appended for K and PB; IFACE_BASE (default IFACE): text appended for P.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -17,7 +17,8 @@ OUT=${OUT:-$REPO/.krn/runs/d23-comparison/results}
 mkdir -p $OUT
 n=$1; arm=$2; tag=$n.$arm
 # KT is arm K plus the test-first Stop rule (exploratory arm): every K branch below keys on $kind.
-kind=$arm; if [ $arm = KT ]; then kind=K; export KRN_TEST_FIRST=1; else unset KRN_TEST_FIRST; fi
+kind=$arm; if [ $arm = PC ]; then kind=P; fi
+if [ $arm = KT ]; then kind=K; export KRN_TEST_FIRST=1; else unset KRN_TEST_FIRST; fi
 sha=$(git -C $REPO log --first-parent --format='%H %s' | grep -E "\(#$n\)\$" | cut -d' ' -f1)
 parent=$(git -C $REPO rev-parse $sha^)
 task=$(git -C $REPO log -1 --format=%s $sha | grep -oE 't-[a-z0-9]{7}' | tail -1)
@@ -29,6 +30,7 @@ t=json.load(sys.stdin)
 print("Task %s: %s\n\n%s" % (t["id"],t["title"],"\n".join(t["body"])))' > $OUT/$tag.task.txt
 text=${IFACE:-}; [ $kind = P ] && text=${IFACE_BASE:-${IFACE:-}}
 if [ -n "$text" ] && [ -f "$text/$n.txt" ]; then cat "$text/$n.txt" >> $OUT/$tag.task.txt; fi
+if [ $arm = PC ]; then { echo; node $HERE/clauses.ts $OUT/$tag.task.txt; } >> $OUT/$tag.task.txt; fi
 # Both arms get the whole history up to the parent and nothing after it: the fetch names only the parent.
 cd $D && git init -q . && git fetch -q file://$REPO $parent && git checkout -q FETCH_HEAD && git checkout -q -b replay
 git config user.name replay; git config user.email replay@invalid
@@ -106,9 +108,9 @@ print(min(cap,int((t-now).total_seconds())+60))'
 limit_retry=0
 run_claude
 claude_rc=$?
-kind=$(error_kind)
-if [ -n "$kind" ]; then
-  if [ "$kind" = limit ]; then ${D23_SLEEP:-sleep} "$(limit_wait)"; else ${D23_SLEEP:-sleep} "${D23_API_WAIT:-120}"; fi
+errkind=$(error_kind)
+if [ -n "$errkind" ]; then
+  if [ "$errkind" = limit ]; then ${D23_SLEEP:-sleep} "$(limit_wait)"; else ${D23_SLEEP:-sleep} "${D23_API_WAIT:-120}"; fi
   limit_retry=1
   run_claude
   claude_rc=$?
@@ -125,7 +127,7 @@ echo "outscope: $(grep -E '^(tasks/|docs/program/roadmap.md|\.claude/|\.agents/|
 own=$(grep -E '^test/.*\.test\.' $OUT/$tag.files | grep -v '^$')
 echo "own_tests: $(echo $own)" >> $OUT/$tag.meas
 # gate runs on the commit with stripped harness files restored (arm P deleted them only as an arm treatment)
-[ $kind != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
+[ "$kind" != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
 if [ -n "$own" ]; then node --test --test-concurrency=1 $own > $OUT/$tag.own.log 2>&1; echo "own_exit=$?" >> $OUT/$tag.meas; else echo own_exit=none >> $OUT/$tag.meas; fi
 # no full suite here: runs.ts grades every run on the hidden tests and the full suite; a serialized npm test per run halved throughput
 # noise from transcript

@@ -1,6 +1,10 @@
 // Repeated-run analysis for the D23 comparison: per-unit mean correctness per arm and the paired difference
 // between two arms with a standard error clustered on the unit (the unit is the sampling unit, its repeats are not independent).
 // Pure functions over observations; evals/d23/runs.ts produces the observations.
+// Usage: node evals/d23/analysis.ts --arms P,PC [--observations <json array file>]
+//   prints the report and `clause-arm-delta-pp: <PC - P in percentage points>` with its 95% CI; the default file holds the preregistered clause-arm run.
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export interface Observation {
   unit: string;
@@ -164,4 +168,27 @@ export function report(
     );
   }
   return `${lines.join('\n')}\n`;
+}
+
+/** The clause-arm contrast as the one line a metric row can read: PC minus P in percentage points, with its CI. */
+export function clauseArmLine(obs: Observation[]): string {
+  const r = pairedDifference(obs, 'PC', 'P');
+  const pp = (x: number) => (x * 100).toFixed(1);
+  return `clause-arm-delta-pp: ${pp(r.diff)} (95% CI [${pp(r.ciLow)}, ${pp(r.ciHigh)}], n=${r.units} units)`;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const arg = (name: string, fallback: string) => {
+    const i = process.argv.indexOf(`--${name}`);
+    return (i > 0 ? process.argv[i + 1] : undefined) ?? fallback;
+  };
+  const arms = arg('arms', 'P,PC').split(',');
+  const file = arg(
+    'observations',
+    fileURLToPath(new URL('clause-arm-observations.json', import.meta.url)),
+  );
+  const obs = JSON.parse(readFileSync(file, 'utf8')) as Observation[];
+  process.stdout.write(report(obs, arms));
+  if (arms.includes('PC') && arms.includes('P'))
+    process.stdout.write(`${clauseArmLine(obs)}\n`);
 }
