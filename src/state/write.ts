@@ -190,14 +190,18 @@ export function addCleanup(directory: string, tuple: string): string {
 export function writeRunIndex(repo: string, directory: string): string {
   const { root } = resolveRepositoryRoot(repo);
   const file = join(directory, RUN_INDEX_FILE);
-  const { runs } = runDirectoriesDetailed(root);
-  writeFileSync(file, `${runs.map((run) => run.pointer).join('\n')}\n`);
+  refreshRunIndexFile(root, file);
   const pointer = posixRelative(root, file);
   addCleanup(
     directory,
     `${pointer}; run-index; lead; run index lists every run; CLEANUP_PENDING`,
   );
   return pointer;
+}
+
+function refreshRunIndexFile(root: string, file: string): void {
+  const { runs } = runDirectoriesDetailed(root);
+  writeFileSync(file, `${runs.map((run) => run.pointer).join('\n')}\n`);
 }
 
 function setLine(text: string, label: string, value: string): string {
@@ -412,5 +416,9 @@ export function writeHandoff(
     );
   else if (fresh) text = replaceSection(text, 'Operator requests', '- none');
   writeCapsuleFile(file, text);
+  // A capsule that keeps a run index lists runs created since the last `krn state index`:
+  // refresh it in this write so the next session start reports no orphaned run.
+  const index = join(directory, RUN_INDEX_FILE);
+  if (existsSync(index)) refreshRunIndexFile(root, index);
   return file;
 }
