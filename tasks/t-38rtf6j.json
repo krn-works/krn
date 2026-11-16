@@ -1,0 +1,18 @@
+{
+  "id": "t-38rtf6j",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "heads from branch workflow runs counted; test over PR 1156 capture; live share 86.0 to 82.0 percent, 25 run-only heads"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "First-push-green counts force-pushed heads",
+  "after": [],
+  "body": [
+    "Source: lane report for f46630c (t-azqbx43): `krn ledger --first-push-green` reads PR commits, so a head replaced by force-push is invisible; since 04e6b9e ship rebases and force-pushes when the base moved, and lanes force-push after a 76 rebase, so a red first head can vanish and the share reads high (live 80.0%, 40 of 50).\nOutcome: first-push-green counts every head that got a Check run for the PR (from the workflow runs of the PR branch, `gh run list --branch <head> --json headSha,conclusion,event`), including force-pushed ones, and the ledger prints the count of heads that came only from runs.\nWhy: the primary brain metric must not flatter the brain.\nProof: a test over a verbatim capture of a PR whose first head was force-pushed away counts it as not first-push-green.\nFiles: src/outcome/first-push-green.ts, test/outcome/first-push-green.test.ts, test/fixtures/first-push-green/"
+  ],
+  "kind": "defect",
+  "area": "outcome"
+}
