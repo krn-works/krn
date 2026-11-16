@@ -1,7 +1,11 @@
 {
   "id": "t-cehawrm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship test: pr view fails twice with captured TLS handshake timeout stderr then merges (exit 0); three failures stop; 404 fails at once"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Ship retries gh reads on network failures",

@@ -30,6 +30,12 @@ export function ownsProductRelease(cwd: string): boolean {
 const ghTimeoutMs = 30_000;
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Tries per idempotent gh call: the first plus two retries after a network-level failure. */
+const networkTries = 3;
+const networkBackoffMs = 200;
+/** gh's stderr for a failure before any HTTP answer; an HTTP status answer never matches. */
+const networkFailure = (stderr: string) =>
+  /TLS handshake timeout|connection reset|i\/o timeout|\bEOF\b/iu.test(stderr);
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
@@ -158,9 +164,15 @@ export async function shipCommand(
   const gh =
     runtime.gh ??
     (async (a) => {
-      const result = scoped('gh', a, cwd, undefined, ghTimeoutMs);
-      if (result.code !== 0) throw new CommandFailure(result);
-      return result.stdout;
+      // `pr create` is not idempotent: a lost reply could hide a created PR.
+      const attempts = a[0] === 'pr' && a[1] === 'create' ? 1 : networkTries;
+      for (let attempt = 1; ; attempt += 1) {
+        const result = scoped('gh', a, cwd, undefined, ghTimeoutMs);
+        if (result.code === 0) return result.stdout;
+        if (attempt >= attempts || !networkFailure(result.stderr))
+          throw new CommandFailure(result);
+        await wait(networkBackoffMs * 2 ** (attempt - 1));
+      }
     });
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
 

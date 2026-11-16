@@ -117,6 +117,15 @@
         "file": "pr-1131-merged-view.stdout.json",
         "sha256": "3bd8270640af32b7fe8e7ef6be49ab84ae21d4562d848818ea20e8a3f7e1196e"
       }
+    },
+    {
+      "name": "pr-view-tls-timeout",
+      "command": "krn pr ship (gh pr view --repo krn-works/krn --json ...), stderr as printed by the ship lane that lost its call",
+      "exitCode": 1,
+      "stderr": {
+        "file": "pr-view-tls-timeout.stderr.log",
+        "sha256": "1be04cf997d1a1d1ede0726e2f1d9879b1012c51ab8c0afbfaf3ca4a99b87263"
+      }
     }
   ]
 }
