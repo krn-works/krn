@@ -1,0 +1,18 @@
+{
+  "id": "t-ga0zj7c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "pr ship treats 'Merge already in progress' as a merge in flight, not exit 70",
+  "after": [],
+  "body": [
+    "krn pr ship exits 70 on \"GraphQL: Merge already in progress (mergePullRequest)\" although the PR merges (PR #1264 merged as 1c6071f; log .krn/runs/lead/ship-1264.log).\nOutcome: ship given that gh answer waits for MERGED and exits 0 with its merged verdict line; a regression test with the verbatim message passes.\nProof: the ship test file passes with the verbatim gh message fixture."
+  ],
+  "kind": "defect",
+  "area": "ship",
+  "from": {
+    "kind": "finding",
+    "ref": "pr-1264"
+  }
+}
