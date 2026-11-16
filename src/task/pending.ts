@@ -42,6 +42,14 @@ function gitText(root: string, args: string[], input?: string): string {
   return run.stdout.toString().trim();
 }
 
+/** Whether `branch` exists on origin; false only when origin answers that it does not. */
+export function branchOnOrigin(root: string, branch: string): boolean {
+  return (
+    git(root, ['ls-remote', '--exit-code', '--heads', 'origin', branch])
+      .status !== 2
+  );
+}
+
 /** Whether `root` is the main checkout rather than a linked worktree. */
 export function isMainCheckout(root: string): boolean {
   const run = git(root, [

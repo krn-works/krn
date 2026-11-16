@@ -100,3 +100,37 @@ test('publish refuses with exit 82 before any push when the base deploys on push
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('a publish refused before the push removes its lane so the retry reaches ship again without a lane drop', async () => {
+  const { base, origin, main } = fixture();
+  try {
+    const gh = async (): Promise<string> => '';
+    const refused = (error: Error & { exitCode?: number }) => {
+      assert.equal(error.exitCode, 82, error.message);
+      return true;
+    };
+    await assert.rejects(
+      publishCommand([], { cwd: main, gh, sleep: async () => {} }),
+      refused,
+    );
+    assert.equal(
+      git(main, 'worktree', 'list', '--porcelain').includes('task-records-'),
+      false,
+      'the failed publish removed its worktree',
+    );
+    assert.equal(
+      git(main, 'branch', '--list', 'task-records-*'),
+      '',
+      'the failed publish removed its branch',
+    );
+    // A second attempt starts a lane again (it exited 64 "already exists" before) and is refused by ship, not by the lane.
+    await assert.rejects(
+      publishCommand([], { cwd: main, gh, sleep: async () => {} }),
+      refused,
+    );
+    assert.equal(pendingTaskFiles(main).size, 1, 'the record stays pending');
+    assert.equal(git(origin, 'branch', '--format=%(refname:short)'), 'main');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
