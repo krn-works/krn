@@ -13,6 +13,7 @@ import {
   dirname,
   git,
   idSequence,
+  QUALITY_PARAGRAPHS,
   runCli,
   runCliAsync,
   tempDirectory,
@@ -277,7 +278,10 @@ test('task create reads body paragraphs from a file and stdin', async () => {
   const repo = await tempRepo('body-file-');
   try {
     const bodyFile = join(repo, 'body.txt');
-    await writeFile(bodyFile, 'First paragraph\n\nSecond paragraph\n');
+    await writeFile(
+      bodyFile,
+      `${QUALITY_PARAGRAPHS.join('\n\n')}\n\nSecond paragraph\n`,
+    );
     const fromFile = runCli(repo, [
       'create',
       '--title',
@@ -292,13 +296,16 @@ test('task create reads body paragraphs from a file and stdin', async () => {
         'utf8',
       ),
     ) as TaskRecord;
-    assert.deepEqual(fileRecord.body, ['First paragraph', 'Second paragraph']);
+    assert.deepEqual(fileRecord.body, [
+      ...QUALITY_PARAGRAPHS,
+      'Second paragraph',
+    ]);
 
     const fromStdin = runCli(
       repo,
       ['create', '--title', 'Body from stdin', '--body-file', '-'],
       undefined,
-      'Input paragraph\n',
+      `${QUALITY_PARAGRAPHS.join('\n\n')}\n`,
     );
     assert.equal(fromStdin.status, 0, fromStdin.stderr);
     const stdinRecord = JSON.parse(
@@ -307,7 +314,7 @@ test('task create reads body paragraphs from a file and stdin', async () => {
         'utf8',
       ),
     ) as TaskRecord;
-    assert.deepEqual(stdinRecord.body, ['Input paragraph']);
+    assert.deepEqual(stdinRecord.body, QUALITY_PARAGRAPHS);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

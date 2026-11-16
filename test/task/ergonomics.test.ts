@@ -10,6 +10,7 @@ import {
   TASK_ID_MAX_LENGTH,
   type TaskRecord,
 } from '../../src/task/record.ts';
+import { QUALITY_PARAGRAPHS, withCategories } from './task-fixture.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch =
@@ -68,7 +69,10 @@ test('edit validates changes, appends paragraphs, refuses closed tasks, and reop
   const repo = await fixtureRepo('edit-', [task('T-1')]);
   try {
     const bodyFile = join(repo, 'body.txt');
-    await writeFile(bodyFile, 'Replacement one\n\nReplacement two\n');
+    await writeFile(
+      bodyFile,
+      `${QUALITY_PARAGRAPHS.join('\n\n')}\n\nReplacement two\n`,
+    );
     const edited = runCli(repo, [
       'edit',
       'T-1',
@@ -89,7 +93,7 @@ test('edit validates changes, appends paragraphs, refuses closed tasks, and reop
         ...task('T-1'),
         title: 'Updated title',
         priority: 1,
-        body: ['Replacement one', 'Replacement two', 'Last paragraph'],
+        body: [...QUALITY_PARAGRAPHS, 'Replacement two', 'Last paragraph'],
       },
     });
 
@@ -292,9 +296,9 @@ test('JSON errors retain human stderr and matching exit codes', async () => {
 
 test('text show explains blockers and dependents, while list uses one line per task', async () => {
   const repo = await fixtureRepo('text-output-', [
-    task('T-1'),
-    task('T-2', { after: ['T-1'] }),
-    task('T-3', { after: ['T-2'] }),
+    task('T-1', { body: [] }),
+    task('T-2', { after: ['T-1'], body: [] }),
+    task('T-3', { after: ['T-2'], body: [] }),
   ]);
   try {
     const shown = runCli(repo, ['show', 'T-2']);
@@ -441,7 +445,7 @@ function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
     priority: 2,
     title: `Task ${id}`,
     after: [],
-    body: [],
+    body: QUALITY_PARAGRAPHS,
     ...overrides,
   };
 }
@@ -490,15 +494,19 @@ async function tempRepo(prefix: string): Promise<string> {
 }
 
 function runCli(repo: string, args: string[]) {
-  const result = spawnSync(process.execPath, [cli, 'task', ...args], {
-    cwd: repo,
-    encoding: 'utf8',
-    env: {
-      ...cleanGitEnvironment(),
-      KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'task', ...withCategories(args)],
+    {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...cleanGitEnvironment(),
+        KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
+      },
+      timeout: 10_000,
     },
-    timeout: 10_000,
-  });
+  );
   return {
     status: result.status,
     stdout: result.stdout.toString(),

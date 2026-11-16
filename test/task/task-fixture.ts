@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +21,13 @@ export function useScratch(): void {
   });
 }
 
+/** A body that passes every task-quality rule, for fixtures that are not about the body. */
+export const QUALITY_PARAGRAPHS = [
+  'Outcome: `krn fixture` exits 0 and prints 1 line.',
+  'Files: src/fixture.ts',
+  'Proof: test/fixture.test.ts passes on the output.',
+];
+
 export const validTask: TaskRecord = {
   id: 'T-1',
   status: 'open',
@@ -28,7 +36,7 @@ export const validTask: TaskRecord = {
   priority: 2,
   title: 'Valid task',
   after: [],
-  body: [],
+  body: QUALITY_PARAGRAPHS,
 };
 
 export function rawTask(overrides: Partial<TaskRecord>): string {
@@ -65,11 +73,18 @@ export async function writeTask(
   await writeFile(join(directory, `${record.id}.json`), serializeTask(record));
 }
 
-/** `create` needs a kind and an area; fixtures that are not about categories get plain ones. */
+const qualityBodyFile = join(
+  mkdtempSync(join(tmpdir(), 'krn-task-body-')),
+  'body.md',
+);
+writeFileSync(qualityBodyFile, `${QUALITY_PARAGRAPHS.join('\n\n')}\n`);
+
+/** `create` needs a kind, an area and a body that passes task-quality; fixtures that are not about those get plain ones. */
 export function withCategories(args: string[]): string[] {
-  if (args[0] !== 'create') return args;
+  if (args[0] !== 'create' || args.includes('--help')) return args;
   return [
     ...args,
+    ...(args.includes('--body-file') ? [] : ['--body-file', qualityBodyFile]),
     ...(args.includes('--kind') ? [] : ['--kind', 'chore']),
     ...(args.includes('--area') ? [] : ['--area', 'task']),
   ];

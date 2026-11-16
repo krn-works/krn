@@ -6,6 +6,7 @@ import test from 'node:test';
 import { parseTaskDocument, serializeTask } from '../../src/task/record.ts';
 import {
   cli,
+  QUALITY_PARAGRAPHS,
   runCli,
   tempRepo,
   useScratch,
@@ -16,10 +17,11 @@ useScratch();
 
 // Runs the real CLI without the fixture's default categories.
 function rawCreate(cwd: string, ...args: string[]) {
-  return spawnSync(process.execPath, [cli, 'task', 'create', ...args], {
-    cwd,
-    encoding: 'utf8',
-  });
+  return spawnSync(
+    process.execPath,
+    [cli, 'task', 'create', '--body-file', '-', ...args],
+    { cwd, encoding: 'utf8', input: QUALITY_PARAGRAPHS.join('\n\n') },
+  );
 }
 
 test('task create refuses a missing kind or area and a kind outside the list', async () => {

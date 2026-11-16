@@ -16,7 +16,7 @@ import {
   type TaskId,
   type TaskRecord,
 } from '../../src/task/record.ts';
-import { withCategories } from './task-fixture.ts';
+import { QUALITY_PARAGRAPHS, withCategories } from './task-fixture.ts';
 
 export const cli = fileURLToPath(
   new URL('../../src/cli/main.ts', import.meta.url),
@@ -113,7 +113,7 @@ export function task(
     priority: 2,
     title: `Task ${id}`,
     after: [],
-    body: [],
+    body: QUALITY_PARAGRAPHS,
     ...overrides,
   };
 }
