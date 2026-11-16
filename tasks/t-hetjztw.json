@@ -1,0 +1,14 @@
+{
+  "id": "t-hetjztw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "pre-push Proof commands run the worktree's krn, not the PATH krn",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, PR for t-mm9xe3z: pre-push refused the push with \"Proof command `krn ledger --since 2026-11-09 --limit 700` exited 70\" because the bare `krn` on PATH runs the main checkout's code, not the worktree's fix; the same command via the worktree's bin/krn exits 0.\nOutcome: the pre-push Proof runner resolves a leading `krn` to the worktree's bin/krn, so a Proof that exercises the change under review passes in its own worktree; a test asserts the resolution.\nProof: a test in test/ runs the Proof runner in a fixture worktree whose bin/krn prints a marker and asserts the marker is printed for a `krn ...` Proof.\nFiles: scripts/, src/"
+  ],
+  "kind": "defect",
+  "area": "cli"
+}

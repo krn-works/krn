@@ -1,0 +1,14 @@
+{
+  "id": "t-6ad6wbh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Context-quality gate: verdict per session-peak band with merge-to-session mapping and a Fisher test",
+  "after": [],
+  "body": [
+    "Source: t-v9zxepq decision 2026-11-16 (lead + advisor critique). The step-2 gate (t-1nkf30z) cannot be read today: .krn/runs/lead/context-budget/analyze_peak.py reads a frozen gh snapshot (prs2.json, runs.json) from a session scratchpad, maps only 41 of 654 merged PRs to their lead session (PR URLs in transcripts), and its built-in rule (>= 30 per side at >= 150k) is not the gate's. At n=20 vs 30 a first-push-green difference has a standard error of about 11 points, so a 10-point margin is noise.\nOutcome: one verdict-printing gate command fetches its own inputs (gh, ledger), maps every lead-shipped merge to its authoring session via the ledger's lead attribution (coverage printed, >= 80% of lead-shipped merges), and per session-peak band (<150k, 150-200k, 200-300k, 300k+) prints n, first-push-green and rework, then one `verdict: pass|fail|inconclusive` for a named band against the <150k band by Fisher's exact test (ADR 0021), inconclusive under 100 merges per band.\nProof: the gate command run on this repository prints coverage >= 80% and a verdict line; a unit test feeds a fixed table and asserts pass, fail and inconclusive.\nFiles: src/outcome/ledger.ts, .krn/runs/lead/context-budget/analyze_peak.py"
+  ],
+  "kind": "feature",
+  "area": "outcome"
+}
