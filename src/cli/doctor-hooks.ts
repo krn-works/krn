@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { projectPath } from '../harness/claude.ts';
 
 /** Tool-call dispatch budget in milliseconds. */
 export const budget = { p50: 60, p95: 150 };
@@ -59,6 +60,47 @@ export function hooksReport(times: HookTimes): {
   };
 }
 
+/** The events of the settings file's hooks whose command runs the dispatcher entry of `route`. */
+export function wiredEvents(settings: string, route: string): string[] {
+  const hooks = (
+    JSON.parse(settings) as {
+      hooks?: Record<string, { hooks?: { command?: string }[] }[]>;
+    }
+  ).hooks;
+  return Object.entries(hooks ?? {})
+    .filter(([, groups]) =>
+      groups.some((group) =>
+        group.hooks?.some((hook) =>
+          new RegExp(`main\\.ts"? ${route}$`, 'u').test(
+            hook.command?.trimEnd() ?? '',
+          ),
+        ),
+      ),
+    )
+    .map(([event]) => event);
+}
+
+/** One line naming whether PostModelSwitch runs the model-switch route in the project's settings. */
+export function modelSwitchReport(productRoot: string): {
+  text: string;
+  exitCode: number;
+} {
+  let wired: string[] = [];
+  try {
+    wired = wiredEvents(
+      readFileSync(projectPath(productRoot, 'settings.json'), 'utf8'),
+      'model-switch',
+    );
+  } catch {
+    /* An unreadable settings file is reported as not wired. */
+  }
+  const ok = wired.includes('PostModelSwitch');
+  return {
+    text: `hooks: PostModelSwitch ${ok ? 'wired' : 'NOT wired'} (model-switch log)\n`,
+    exitCode: ok ? 0 : 1,
+  };
+}
+
 /** Runs the entry on Bash tool calls (the event with the most routes), pre and post, and reports. */
 export function measureHooks(productRoot: string): {
   text: string;
@@ -100,7 +142,12 @@ export function measureHooks(productRoot: string): {
           exitCode: 1,
         };
     }
-    return hooksReport(toolCallTimes(readFileSync(log, 'utf8')));
+    const timing = hooksReport(toolCallTimes(readFileSync(log, 'utf8')));
+    const wired = modelSwitchReport(productRoot);
+    return {
+      text: timing.text + wired.text,
+      exitCode: timing.exitCode || wired.exitCode,
+    };
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

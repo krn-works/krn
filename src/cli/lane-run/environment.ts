@@ -65,16 +65,24 @@ export function sessionEnvironment(
     lane: string;
     repository?: string;
     body?: string;
+    /** The brief opts in to the Fable advisor with a line `Advisor: on`. */
+    advisor?: boolean;
   },
 ): NodeJS.ProcessEnv {
   const scrubbed: NodeJS.ProcessEnv = { ...env };
   for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
+  if (identity.advisor === true)
+    delete scrubbed.CLAUDE_CODE_DISABLE_ADVISOR_TOOL;
   const existing = Number(scrubbed.GIT_CONFIG_COUNT);
   const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
   const key = 'credential.https://github.com.helper';
   return {
     ...scrubbed,
     KRN_SESSION_CLASS: 'lane',
+    // An unattended session must not call the Fable advisor (billed without consent in -p) unless the brief says `Advisor: on`.
+    ...(identity.advisor === true
+      ? {}
+      : { CLAUDE_CODE_DISABLE_ADVISOR_TOOL: '1' }),
     // The worker hooks tell a lane from the lead by its task (or, for a goal lane, its slug), never by its name.
     KRN_LANE: identity.lane,
     ...(identity.body === undefined ? {} : { KRN_TASK_BODY: identity.body }),

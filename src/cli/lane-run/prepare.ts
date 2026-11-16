@@ -86,6 +86,7 @@ export async function prepareLane(
     join(main, '.krn', 'tmp', 'app-cache'),
     {
       lane,
+      advisor: /^Advisor: on$/mu.test(prompt.text),
       // Stop reads the clauses the brief states, the same list the proof line counts.
       ...(clauses.length === 0
         ? {}
