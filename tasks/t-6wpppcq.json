@@ -1,0 +1,14 @@
+{
+  "id": "t-6wpppcq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Merged clean lane worktrees never fill the lane budget",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: four lane worktrees whose PRs had merged (#1154 memory-refs-archive, #1155 main-red-hygiene, #1156 memory-pointers, #1157 task-create-quality) stayed live, filled the 8-lane budget, and two fresh lanes exited without work (\"lane budget: 8 live lane worktrees\").\nOutcome: `krn lane start` counts toward KRN_LANE_MAX_LIVE only worktrees whose branch has no merged PR (or drops merged clean ones first), so a merged clean worktree never refuses a new lane; the refusal message lists each live lane with its PR state.\nWhy: a stale merged lane silently costs a whole lane run.\nProof: a lane test with 8 worktrees, 4 of them clean with a merged PR (captured `gh pr list --state all` output), starts a 9th lane with exit 0.\nFiles: src/cli/lane.ts, test/cli/lane.test.ts"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

@@ -75,6 +75,28 @@ export function normalizeText(text: string): string {
     .replace(/[.!]+$/u, '');
 }
 
+/** Days a committed proposal may wait for its disposition before the repository check fails. */
+export const PROPOSAL_REVIEW_DAYS = 14;
+
+/**
+ * Proposals neither disposed by an enforced record nor inside the review window: a retro commits
+ * its proposal with the slice, and the lead has PROPOSAL_REVIEW_DAYS to turn it into a record.
+ */
+export function overdueProposals(
+  proposals: readonly Proposal[],
+  enforcedTexts: ReadonlySet<string>,
+  today: string,
+  reviewDays = PROPOSAL_REVIEW_DAYS,
+): Proposal[] {
+  const now = Date.parse(`${today}T00:00:00Z`);
+  return proposals.filter(
+    (proposal) =>
+      !enforcedTexts.has(normalizeText(proposal.text)) &&
+      now - Date.parse(`${proposal.recorded_at}T00:00:00Z`) >
+        reviewDays * 86_400_000,
+  );
+}
+
 /** The file name of a proposal: a readable slug of its text plus a hash of the normalized text. */
 export function proposalFileName(text: string): string {
   const key = normalizeText(text);

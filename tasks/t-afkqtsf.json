@@ -1,0 +1,14 @@
+{
+  "id": "t-afkqtsf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Ship's moved-head refusal fixture is a real gh capture",
+  "after": [],
+  "body": [
+    "Source: lane report for #1160 (04e6b9e, t-b2xz7gd): test/ci/ship.test.ts matches gh's moved-head refusal as \"Head branch was modified\" from memory; it was never captured from a real `gh pr merge --match-head-commit` refusal (KRN-12).\nOutcome: the moved-head fixture in test/ci/ship.test.ts is a verbatim capture of real gh stderr (file under test/fixtures/ with the gh version), and ship maps it to exit 77.\nWhy: a wrong guess turns a moved head into a generic failure instead of 77, and lanes retry the wrong way.\nProof: the fixture file names the gh version and the command that produced it; the ship test reading it gets exit 77.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts, test/fixtures/"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

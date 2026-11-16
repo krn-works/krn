@@ -1,0 +1,14 @@
+{
+  "id": "t-y8wpj1p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship ignores a cancelled superseded Check run",
+  "after": [],
+  "body": [
+    "Source: lane report for #1158 (d427d32, t-0q7g978): after `gh run rerun --failed` the first Check run (43813499494) stayed cancelled while the rerun (43813694201) went green, and `krn pr ship` exited 74 reading the old cancelled run; two reruns also cancelled each other through workflow concurrency.\nOutcome: ship judges the newest Check run attempt for the PR head only, so a cancelled superseded run never yields exit 74; a cancelled newest run is reported as cancelled (distinct verdict line), not as red.\nWhy: a false 74 sends lanes to read logs of a run that has no failure and to rerun again, which cancels the live run.\nProof: a ship test with captured check-runs output holding a cancelled older run and a green newer run for the same head merges (exit 0).\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

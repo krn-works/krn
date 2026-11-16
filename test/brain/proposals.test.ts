@@ -5,6 +5,7 @@ import {
   harvestCandidates,
   harvestInstructionBullets,
   normalizeText,
+  overdueProposals,
   parseProposal,
   proposalFileName,
   renderHarvest,
@@ -168,4 +169,35 @@ test('harvestInstructionBullets counts a bullet once per repository and ignores 
   assert.equal(one.length, 1);
   assert.equal(one[0]?.repositories, 2);
   assert.deepEqual(one[0]?.sources, ['r/AGENTS.md', 's/AGENTS.md']);
+});
+
+test('a committed proposal waits its review window; only an undisposed overdue one is reported', () => {
+  const fresh = parseProposal({
+    text: 'Fresh lesson from this slice.',
+    kind: 'check',
+    evidence: ['#1'],
+    recorded_at: '2026-11-10',
+  });
+  const stale = parseProposal({
+    text: 'Stale lesson nobody disposed.',
+    kind: 'prose',
+    evidence: ['#2'],
+    recorded_at: '2026-10-01',
+  });
+  const disposed = parseProposal({
+    text: 'Disposed lesson.',
+    kind: 'check',
+    evidence: ['#3'],
+    recorded_at: '2026-09-01',
+  });
+  const enforced = new Set([normalizeText('Disposed lesson.')]);
+  // A retro that commits its proposal the same day passes the repository check.
+  assert.deepEqual(overdueProposals([fresh], enforced, '2026-11-10'), []);
+  assert.deepEqual(overdueProposals([fresh], enforced, '2026-11-24'), []);
+  assert.deepEqual(
+    overdueProposals([fresh, stale, disposed], enforced, '2026-11-25').map(
+      (p) => p.text,
+    ),
+    ['Fresh lesson from this slice.', 'Stale lesson nobody disposed.'],
+  );
 });
