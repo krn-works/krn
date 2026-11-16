@@ -135,7 +135,30 @@ function bashTargets(command: string): string[] {
     /\bsed\s+(?:-\w+\s+)*-i\S*\s+(?:-e\s+)?(?:'[^']*'|"[^"]*"|\S+)\s+(\S+)/gu,
   ))
     found.push(match[1] as string);
+  found.push(...commandTargets(command));
   return found.filter((target) => target !== '/dev/null');
+}
+
+const unquote = (word: string) => word.replace(/^(["'])(.*)\1$/u, '$2');
+
+/** Operands of rm, mv, cp and git add/checkout --/commit; anything else is unknown and allowed. */
+function commandTargets(command: string): string[] {
+  const found: string[] = [];
+  for (const segment of command.split(/&&|\|\||[;|&\n]/u)) {
+    const words = segment.trim().split(/\s+/u).filter(Boolean).map(unquote);
+    const [name, ...rest] = words;
+    const operands = (list: string[]) =>
+      list.filter((word) => !word.startsWith('-'));
+    if (name === 'rm' || name === 'mv') found.push(...operands(rest));
+    else if (name === 'cp') found.push(...operands(rest).slice(-1));
+    else if (name === 'git' && rest[0] === 'add')
+      found.push(...operands(rest.slice(1)));
+    else if (name === 'git' && rest[0] === 'checkout') {
+      const at = rest.indexOf('--');
+      if (at >= 0) found.push(...rest.slice(at + 1));
+    } else if (name === 'git' && rest[0] === 'commit') found.push('.');
+  }
+  return found;
 }
 
 /**
@@ -153,6 +176,19 @@ export function outsideOwnWorktree(root: string, target: string): boolean {
     return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
   };
   return inside(main) && !inside(root) && !inside(join(main, '.krn', 'runs'));
+}
+
+/**
+ * An in-session krn-lane subagent carries the lead's environment, so its root is the main checkout
+ * itself. Any write there outside <main>/.krn (runs, worktrees) belongs in its worktree instead.
+ */
+export function inMainCheckout(root: string, target: string): boolean {
+  if (root.includes(`${sep}.krn${sep}worktrees${sep}`)) return false;
+  const inside = (base: string) => {
+    const rel = relative(base, target);
+    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
+  };
+  return inside(root) && !inside(join(root, '.krn'));
 }
 
 export interface Verdict {
@@ -210,6 +246,25 @@ export function judge(
     return {
       refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (src/hook/scope.ts).`,
     };
+  if (isLaneSubagent(payload)) {
+    const absolute = (target: string) =>
+      isAbsolute(target) ? target : resolve(cwd, target);
+    const main = targets.find((target) =>
+      inMainCheckout(root, absolute(target)),
+    );
+    if (main !== undefined) {
+      const marker = join(root, '.krn', 'worktrees');
+      const own = relative(marker, resolve(cwd));
+      const lane =
+        own.startsWith('..') || isAbsolute(own) || own === ''
+          ? ''
+          : own.split(sep)[0];
+      const where = lane ? join(marker, lane) : join(marker, '<lane>');
+      return {
+        refusal: `Refused: ${main} is in the main checkout, which a lane never writes. Nothing in this call ran. Write under your own worktree (${where}) or .krn/runs/ (src/hook/scope.ts).`,
+      };
+    }
+  }
   if (who.unscoped) return {};
   const notes: string[] = [];
   for (const target of targets) {
