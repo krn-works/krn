@@ -702,7 +702,8 @@ test('a slot whose holder died is reclaimed and the cap comes from KRN_FAST_SLOT
     const ran = await withSlot({ dir, pollMs: 10 }, async () => 'ok');
     assert.equal(ran, 'ok');
     assert.equal(testSlotOptions(dir, { KRN_FAST_SLOTS: '3' }).slots, 3);
-    assert.equal(testSlotOptions(dir, {}).slots, 1);
+    assert.equal(testSlotOptions(dir, {}, 16).slots, 2);
+    assert.equal(testSlotOptions(dir, {}, 4).slots, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

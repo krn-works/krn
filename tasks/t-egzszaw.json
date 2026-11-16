@@ -1,0 +1,18 @@
+{
+  "id": "t-egzszaw",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast takes one host slot for the whole run (nested inTestSlot runs inside it), reports slot-wait apart from guard, KRN_FAST_SLOTS defaults to cores/8 (2 on 16 cores); fast on this change: guard 6555ms, no slot wait"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "npm run fast guard step takes 339s on a 4-file change",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: npm run fast in .krn/worktrees/org-account (4 changed files, 3 tests) printed 'guard 338736ms' and 'got a test slot after 1028.2s'; total 1380s (log: .krn/runs/lead/t-3kpq3tm-fast.log). Host load 25-60 with 3 lanes + S7 verify.\nOutcome: npm run fast on a 4-file change finishes guard in under 30s at the median and the slot wait is bounded (guard runs outside the slot or proportional to the diff).\nProof: a timing test or fast-check log on a 4-file change prints guard < 30000ms.\nFiles: scripts/fast-check.ts, scripts/lib/slot-lock.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
