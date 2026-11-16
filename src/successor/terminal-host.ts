@@ -1,7 +1,10 @@
+import { accessSync, constants } from 'node:fs';
+import { delimiter, join } from 'node:path';
 // The terminal host port: how the successor modules open, watch and close
 // agent sessions without knowing which terminal multiplexer hosts them.
 
 import { sleep } from './command.ts';
+import { hcHost } from './host-hc.ts';
 import { herdrHost } from './host-herdr.ts';
 
 declare const refBrand: unique symbol;
@@ -72,8 +75,16 @@ export function isFailure(value: unknown): value is HostFailure {
   return typeof value === 'object' && value !== null && 'exit' in value;
 }
 
-// The terminal host is the Herdr multiplexer, the pane named by HERDR_PANE_ID.
+// The Herdr desktop app (hc) hosts the terminal named by HC_TERMINAL_ID; the
+// Herdr multiplexer the pane named by HERDR_PANE_ID. A terminal started by hc
+// inherits the core's HERDR_* variables (observed with hc 0.1.20), so
+// HC_TERMINAL_ID wins when both are set. The app is the baseline host: a relay
+// started from the Herdr multiplexer still opens its successor in the app when
+// hc is on PATH; KRN_TERMINAL_HOST=herdr keeps the multiplexer (t-af0fgyh).
 export function selectHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
+  if (env.HC_TERMINAL_ID) return hcHost(env);
+  if (env.KRN_TERMINAL_HOST !== 'herdr' && onPath('hc', env))
+    return hcHost(env);
   return herdrHost(env);
 }
 
@@ -133,4 +144,16 @@ export function parseAnnouncement(
   return match?.[1] && match[2]
     ? { tab: host.tab(match[1]), session: host.session(match[2]) }
     : undefined;
+}
+
+function onPath(program: string, env: NodeJS.ProcessEnv): boolean {
+  return (env.PATH ?? '').split(delimiter).some((dir) => {
+    if (dir === '') return false;
+    try {
+      accessSync(join(dir, program), constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }

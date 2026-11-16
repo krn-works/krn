@@ -34,7 +34,9 @@ const callerSession = JSON.parse(capture('agent-get-idle-claude.reply.jsonl'))
 const newPane = JSON.parse(capture('tab-create.reply.jsonl')).result.root_pane
   .pane_id as string;
 const hostEnvironment = Object.fromEntries(
-  Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
+  Object.entries(process.env).filter(
+    ([name]) => !name.startsWith('HERDR_') && !name.startsWith('HC_'),
+  ),
 );
 
 // The capture `herdr agent get` answers for one pane, with the fields a test is
@@ -203,6 +205,7 @@ function launch(
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: callerPane,
+        KRN_TERMINAL_HOST: 'herdr',
         KRN_SUCCESSOR_AGENT: 'successor-agent',
       },
       encoding: 'utf8',
@@ -396,6 +399,7 @@ test('fallback launch makes no Herdr agent calls and writes no ledger', (t) => {
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: callerPane,
+        KRN_TERMINAL_HOST: 'herdr',
         KRN_SUCCESSOR_AGENT: 'successor-agent',
       },
       encoding: 'utf8',
