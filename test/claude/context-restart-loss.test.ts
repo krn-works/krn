@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const hook = fileURLToPath(
-  new URL('../../scripts/claude/context-restart.ts', import.meta.url),
+  new URL('../../src/dispatch/main.ts', import.meta.url),
 );
 const cli = fileURLToPath(new URL('../../bin/krn', import.meta.url));
 
@@ -53,7 +53,7 @@ function fixture(): string {
 test('session start names each open claim without a capsule or handoff', () => {
   const root = fixture();
   try {
-    const result = spawnSync(process.execPath, [hook], {
+    const result = spawnSync(process.execPath, [hook, 'session-start'], {
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: root,

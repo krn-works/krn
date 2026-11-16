@@ -96,21 +96,28 @@ test('memory-refs and SessionStart report superseded, expired and changed-source
     mkdirSync(join(home, '.claude/projects'), { recursive: true });
     mkdirSync(join(target, '..'), { recursive: true });
     spawnSync('cp', ['-r', memory, target]);
-    const start = spawnSync(process.execPath, [scripts('context-restart')], {
-      env: {
-        ...process.env,
-        HOME: home,
-        CLAUDE_PROJECT_DIR: repo,
-        GIT_CEILING_DIRECTORIES: root,
+    const start = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../../src/dispatch/main.ts', import.meta.url)),
+        'session-start',
+      ],
+      {
+        env: {
+          ...process.env,
+          HOME: home,
+          CLAUDE_PROJECT_DIR: repo,
+          GIT_CEILING_DIRECTORIES: root,
+        },
+        encoding: 'utf8',
+        input: JSON.stringify({
+          session_id: 's',
+          transcript_path: join(repo, 't'),
+          hook_event_name: 'SessionStart',
+          source: 'startup',
+        }),
       },
-      encoding: 'utf8',
-      input: JSON.stringify({
-        session_id: 's',
-        transcript_path: join(repo, 't'),
-        hook_event_name: 'SessionStart',
-        source: 'startup',
-      }),
-    });
+    );
     assert.equal(start.status, 0, start.stderr);
     const context: string = JSON.parse(start.stdout).hookSpecificOutput
       .additionalContext;

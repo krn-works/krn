@@ -1,7 +1,11 @@
 {
   "id": "t-1v46dxv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "settings.json and .codex/hooks.json render from the one table (test/hook/render.test.ts); one dispatcher process per event, gauge route once per event; shims context-gauge, context-restart, unpushed-delete deleted; doctor --hooks PASS"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "One hook process per event inside the latency budget (S23)",

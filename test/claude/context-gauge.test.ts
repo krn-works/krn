@@ -17,17 +17,21 @@ import { fileURLToPath } from 'node:url';
 // message content arrays are elided and cwd is redacted to '.', every other
 // field, including message.usage, is verbatim.
 
-const script = fileURLToPath(
-  new URL('../../scripts/claude/context-gauge.ts', import.meta.url),
-);
 const gaugeModule = fileURLToPath(
   new URL('../../src/context/gauge.ts', import.meta.url),
 );
+// The gauge route alone, the way the dispatcher loads it, without the other routes of its event.
+const gaugeArgs = (...extra: string[]) => [
+  '--input-type=module',
+  '-e',
+  'await (await import(process.argv[1])).main()',
+  gaugeModule,
+  ...extra,
+];
 const fixture = (name: string) =>
   readFileSync(new URL(`fixtures/${name}.jsonl`, import.meta.url), 'utf8');
 
 test('gauge exports a pure last main-chain context reader', async () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const module = await import(gaugeModule);
   assert.equal(typeof module.contextTotal, 'function');
   for (const [name, total] of [
@@ -57,7 +61,7 @@ test('gauge caps its advisories at 150k and 200k of a 400k window', async () => 
     );
     const transcript = join(root, 'transcript.jsonl');
     writeFileSync(transcript, fixture('second'));
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -77,12 +81,11 @@ test('gauge caps its advisories at 150k and 200k of a 400k window', async () => 
 });
 
 test('gauge hook advises once per threshold and re-arms after compaction', () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   const run = (text: string, event = 'PostToolUse') => {
     writeFileSync(transcript, text);
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -135,12 +138,11 @@ test('gauge hook advises once per threshold and re-arms after compaction', () =>
 });
 
 test('gauge hook gives both advisories when one reading passes both thresholds', () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   try {
     writeFileSync(transcript, fixture('second'));
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -162,11 +164,10 @@ test('gauge hook gives both advisories when one reading passes both thresholds',
 });
 
 test('gauge hook fails silently for malformed, missing and sidechain inputs', () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   const run = (input: string) => {
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input,
@@ -198,7 +199,6 @@ test('gauge hook fails silently for malformed, missing and sidechain inputs', ()
 });
 
 test('gauge reads only the final 256 KiB and skips the partial first line', () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   try {
@@ -207,7 +207,7 @@ test('gauge reads only the final 256 KiB and skips the partial first line', () =
       transcript,
       `malformed old line\n${JSON.stringify({ type: 'user', message: { content: 'x'.repeat(270000) } })}\n${fixture('warn')}`,
     );
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -224,7 +224,6 @@ test('gauge reads only the final 256 KiB and skips the partial first line', () =
 });
 
 test('gauge budget follows the project auto-compact window and ignores the measured baseline', () => {
-  assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const transcript = join(root, 'transcript.jsonl');
   const settings = join(root, '.claude/settings.json');
@@ -243,7 +242,7 @@ test('gauge budget follows the project auto-compact window and ignores the measu
   };
   const run = (text: string, session = 'session') => {
     writeFileSync(transcript, text);
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       input: JSON.stringify({
@@ -311,7 +310,7 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     sessionClass = '',
   ) => {
     writeFileSync(transcript, reading(total));
-    const result = spawnSync(process.execPath, [script], {
+    const result = spawnSync(process.execPath, gaugeArgs(), {
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: root,
@@ -437,7 +436,7 @@ test('host gauge serves every project except one that wires its own gauge', asyn
       cache_creation_input_tokens: total - 2,
     };
     writeFileSync(transcript, `${JSON.stringify(entry)}\n`);
-    const result = spawnSync(process.execPath, [script, '--host'], {
+    const result = spawnSync(process.execPath, gaugeArgs('--host'), {
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: project,

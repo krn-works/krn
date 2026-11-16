@@ -11,11 +11,14 @@ test('informational hooks are silent in a worker session and speak for the lead'
     hook_event_name: 'PostToolUse',
     cwd: '/nonexistent',
   });
-  for (const hook of ['context-gauge'])
+  for (const event of ['post-tool'])
     assert.equal(
       execFileSync(
         'node',
-        [new URL(`../../scripts/claude/${hook}.ts`, import.meta.url).pathname],
+        [
+          new URL('../../src/dispatch/main.ts', import.meta.url).pathname,
+          event,
+        ],
         {
           input: payload,
           encoding: 'utf8',
@@ -57,8 +60,8 @@ test('SessionStart injects the matching standards of an adopted repository and l
     spawnSync(
       process.execPath,
       [
-        new URL('../../scripts/claude/context-restart.ts', import.meta.url)
-          .pathname,
+        new URL('../../src/dispatch/main.ts', import.meta.url).pathname,
+        'session-start',
       ],
       {
         cwd: root,
