@@ -1,0 +1,14 @@
+{
+  "id": "t-rajd6vr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A lane reports only its own PR's ship verdict",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: the t-gt33vxe lane reported \"PR #1183 merged 5858a69\" (another lane's PR) as its own ship verdict; its ship log mentioned the standards-own-index worktree, so two lanes wrote and read one shared log path. Its own PR #1186 was open without auto-merge at that moment.\nOutcome: a lane's ship verdict is read from a log path unique to its worktree (or straight from `krn pr ship` stdout), and the lane's final report names the PR number its own branch carries; `lanes.md` says so and a check refuses a lane report whose PR head branch is not the lane's branch.\nWhy: a false merged verdict hides an unshipped PR; the lead only caught it by reading origin/main.\nProof: a test feeds the report check a verdict naming a PR whose headRefName differs from the lane branch and gets a refusal."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

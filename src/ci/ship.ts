@@ -67,7 +67,9 @@ const prView = z.object({
         detailsUrl: z.string().optional(),
       }),
     )
-    .default([]),
+    // gh answers null before any check registers on a fresh head: no checks yet.
+    .nullish()
+    .transform((rollup) => rollup ?? []),
 });
 type PrView = z.infer<typeof prView>;
 /** The aggregate Check, whether its job is named `Check` or `<caller job> / Check`. */

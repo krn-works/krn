@@ -994,6 +994,13 @@ test('a cancelled older run beside a newer green one merges, a cancelled newest 
   });
 });
 
+// Regression: gh answered statusCheckRollup null right after auto-merge was enabled; ship exited 70 while the PR merged.
+test('a pr view whose check rollup is null reads as no checks yet and ship waits through the merge', async () => {
+  const r = receiver({ pulls: [{ ...auto, statusCheckRollup: null }, merged] });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
 test('the captured rollup of a plain-gh PR reads as a successful aggregate Check and waits for the merge', async () => {
   // Verbatim `gh pr view --json headRefOid,statusCheckRollup` of PR 1112; state and autoMergeRequest are the PR's own.
   const real = JSON.parse(
