@@ -1,7 +1,11 @@
 {
   "id": "t-kjbxv9d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "capsule regenerated via krn state set: wc -c state.md = 1370 (<=2048, was 10120); write cap and cleanup-parent coverage tested; inbox strips embedded harness blocks and tags transcript origin, tested with verbatim rows; npm run fast PASS"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Session memory is pointers (S14)",

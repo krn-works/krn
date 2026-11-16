@@ -423,3 +423,65 @@ test('a session started by the launcher leaves its class on the inbox row and in
     rmSync(bin, { recursive: true, force: true });
   }
 });
+
+// Verbatim transcript rows (Claude Code 2.1.316, paths redacted): the auto-continuation row is
+// harness-written (origin.kind), the human row carries the operator's words.
+const autoContinuationRow =
+  '{"parentUuid":"75abe951-9e12-4fe7-a5af-4cbbfbaace3e","isSidechain":false,"promptId":"938b1933-5140-4b65-a7a7-d77a13308959","type":"user","message":{"role":"user","content":"Your claude.ai usage limit has reset. Continue the task you were working on when the limit was reached; do not repeat work that is already complete."},"isMeta":true,"uuid":"29293413-aa64-4285-894d-38c4ed3e37be","timestamp":"2026-11-05T16:11:21.379Z","permissionMode":"auto","origin":{"kind":"auto-continuation"},"promptSource":"system","queueSkipSlashCommands":true,"turnOrigin":"auto_continuation","turnPosition":{"promptIndex":1,"turnIndex":3},"queuePriority":"later","userType":"external","entrypoint":"cli","cwd":"/cap/proj","sessionId":"1afabc1b-a0d7-4a42-b578-beb3979deee3","version":"2.1.316","gitBranch":"main"}';
+const humanRow =
+  '{"parentUuid":"cdb8127a-b387-40c2-8a2f-3bb98abda076","isSidechain":false,"promptId":"148b7b5b-c989-4ad8-8068-ba2307451192","type":"user","message":{"role":"user","content":"Read docs/program/plan.md first. Use the delivery-lead skill. Run the handoff Verify; deliver t-4hg6y8x, then continue the handoff priority list."},"uuid":"9f5d2588-9b4a-47c3-b7b6-811a32088a15","timestamp":"2026-11-16T03:29:26.959Z","permissionMode":"bypassPermissions","origin":{"kind":"human"},"promptSource":"typed","turnOrigin":"human","turnPosition":{"promptIndex":1,"turnIndex":1},"userType":"external","entrypoint":"cli","cwd":"/cap/proj","sessionId":"075c3201-76f7-4eb7-89ac-04c9d53234c3","version":"2.1.316","gitBranch":"main"}';
+
+test('the inbox strips harness blocks inside a prompt and tags agent-origin rows from the transcript', () => {
+  const { root } = fixture();
+  const transcript = join(root, 'session.jsonl');
+  writeFileSync(transcript, `${autoContinuationRow}\n${humanRow}\n`);
+  const submit = (prompt: string, promptId: string) =>
+    spawnSync(process.execPath, [dispatch, 'user-prompt'], {
+      input: JSON.stringify({
+        session_id: sessionId,
+        prompt,
+        cwd: root,
+        prompt_id: promptId,
+        transcript_path: transcript,
+        hook_event_name: 'UserPromptSubmit',
+      }),
+      env: { ...hostEnv, ...interactive, CLAUDE_PROJECT_DIR: root },
+      encoding: 'utf8',
+      timeout: captureTimeoutMs,
+    });
+  try {
+    const reminder = `<system-reminder>\nAs you answer the user's questions, you can use the following context: ${directive}\n</system-reminder>`;
+    const words =
+      'Read docs/program/plan.md first. Use the delivery-lead skill. Run the handoff Verify; deliver t-4hg6y8x, then continue the handoff priority list.';
+    assert.equal(
+      submit(`${words}\n\n${reminder}`, '148b7b5b-c989-4ad8-8068-ba2307451192')
+        .status,
+      0,
+    );
+    assert.equal(
+      submit(
+        'Your claude.ai usage limit has reset. Continue the task you were working on when the limit was reached; do not repeat work that is already complete.',
+        '938b1933-5140-4b65-a7a7-d77a13308959',
+      ).status,
+      0,
+    );
+    assert.equal(submit(reminder, 'none').status, 0);
+    const rows = readFileSync(join(root, '.krn/operator/inbox.jsonl'), 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].text, words);
+    assert.equal(rows[0].origin, undefined);
+    assert.match(rows[1].text, /^Your claude\.ai usage limit has reset/);
+    assert.equal(rows[1].origin, 'auto-continuation');
+    // Only the operator's row can block a handoff.
+    const open = spawnSync(process.execPath, [inbox, 'open', '--root', root], {
+      encoding: 'utf8',
+    });
+    assert.match(open.stdout, /Read docs\/program\/plan\.md/);
+    assert.doesNotMatch(open.stdout, /usage limit/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

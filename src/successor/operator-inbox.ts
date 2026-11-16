@@ -7,6 +7,7 @@ import {
   dispose,
   oneLine,
   openEntries,
+  promptOrigin,
 } from '../memory/operator-inbox-store.ts';
 
 // The operator-inbox command: capture hook input, list open prompts, dispose one, search mentions.
@@ -46,7 +47,13 @@ export function captureHook(stdin: () => string, env: NodeJS.ProcessEnv): void {
       typeof root === 'string' &&
       typeof input.session_id === 'string'
     )
-      capture(root, input.session_id, input.prompt);
+      capture(
+        root,
+        input.session_id,
+        input.prompt,
+        env,
+        promptOrigin(input.transcript_path, input.prompt_id),
+      );
   } catch {
     /* ignored on purpose */
   }

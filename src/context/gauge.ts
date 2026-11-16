@@ -199,8 +199,16 @@ async function capturePrompt(raw: string): Promise<void> {
       typeof root === 'string' &&
       typeof input.session_id === 'string'
     ) {
-      const { capture } = await import('../memory/operator-inbox-store.ts');
-      capture(root, input.session_id, input.prompt);
+      const { capture, promptOrigin } = await import(
+        '../memory/operator-inbox-store.ts'
+      );
+      capture(
+        root,
+        input.session_id,
+        input.prompt,
+        process.env,
+        promptOrigin(input.transcript_path, input.prompt_id),
+      );
     }
   } catch {
     /* capture never blocks the gauge or the prompt */

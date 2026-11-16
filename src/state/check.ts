@@ -663,7 +663,15 @@ export function inspectState(repo: string): CheckReport {
     errors.push({ id: 'runs', rule: 'unreadable-run-inventory', detail });
   if (capsules.length > 0) {
     for (const run of inventory.runs) {
-      if (!listedRunPointers.has(normalizeRunPointer(root, run.pointer)))
+      // A cleanup entry that names a directory above a run (its workflow, or .krn/runs) covers the run.
+      const covered = [
+        run.pointer,
+        join('.krn', 'runs', run.workflow),
+        join('.krn', 'runs'),
+      ].some((pointer) =>
+        listedRunPointers.has(normalizeRunPointer(root, pointer)),
+      );
+      if (!covered)
         errors.push({
           id: run.workflow,
           rule: 'orphaned-run',
