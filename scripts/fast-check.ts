@@ -135,6 +135,28 @@ function importClosure(root: string, entry: string): Set<string> {
   return seen;
 }
 
+/** Every repo path a source reaches through relative imports, any number of hops; `readSource` returns a module's text or undefined when it is not a file. */
+function transitiveImports(
+  path: string,
+  source: string,
+  readSource: (path: string) => string | undefined,
+): Set<string> {
+  const reached = importedPaths(path, source);
+  const visited = new Set<string>();
+  const queue = [...reached];
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    if (visited.has(next)) continue;
+    visited.add(next);
+    const text = readSource(next);
+    if (text === undefined) continue;
+    for (const target of importedPaths(next, text)) {
+      reached.add(target);
+      if (!visited.has(target)) queue.push(target);
+    }
+  }
+  return reached;
+}
+
 /** CLI command name -> src modules its entry in src/cli/index.ts imports, transitively. */
 export function cliCommandModules(root: string): Map<string, Set<string>> {
   const modules = new Map<string, Set<string>>();
@@ -190,7 +212,7 @@ export function evidenceTests(touched: string[], records: string): string[] {
 }
 
 /**
- * Tests to run: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file,
+ * Tests to run: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file directly or through any chain of imported modules,
  * tests that name a changed or removed file by repository path, and the rule tests
  * (prose rule tests only when the diff touches the prose paths they scan).
  * A removed file is also matched by its basename when no surviving file shares it, so
@@ -202,6 +224,7 @@ export function selectTests(
   removed: string[] = [],
   surviving: ReadonlySet<string> = new Set(),
   cliModules: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+  readSource: (path: string) => string | undefined = () => undefined,
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
   const touched = [...changed, ...removed];
@@ -234,7 +257,7 @@ export function selectTests(
       )
         picked.add(path);
       else
-        for (const target of importedPaths(path, source))
+        for (const target of transitiveImports(path, source, readSource))
           if (targets.has(target)) picked.add(path);
     }
   return [...picked].sort();
@@ -651,6 +674,12 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
         removed,
         surviving,
         cliCommandModules(root),
+        (path) => {
+          const file = join(root, path);
+          return existsSync(file) && lstatSync(file).isFile()
+            ? readFileSync(file, 'utf8')
+            : undefined;
+        },
       ),
       ...(tests.has(STANDARDS_TEST) && existsSync(recordsFile)
         ? evidenceTests(
