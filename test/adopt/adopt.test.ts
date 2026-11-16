@@ -172,6 +172,26 @@ test('adopt rerun changes nothing and keeps existing instructions', () => {
   assert.equal(seededTasks(root).length, 2);
 });
 
+test('adopt keeps a site skill the repository already has, byte for byte', () => {
+  const root = scratch();
+  writeFileSync(join(root, 'wp-config.php'), '<?php\n');
+  const own = join(root, '.agents', 'skills', 'wp-runtime');
+  mkdirSync(own, { recursive: true });
+  const mine =
+    '---\nname: wp-runtime\n---\n\nThe repository edited this skill.\n';
+  writeFileSync(join(own, 'SKILL.md'), mine);
+  const result = adopt(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(join(own, 'SKILL.md'), 'utf8'), mine);
+  assert.deepEqual(readdirSync(own), ['SKILL.md']);
+  assert.ok(
+    existsSync(join(root, '.agents', 'skills', 'acf-component', 'SKILL.md')),
+  );
+  assert.ok(
+    existsSync(join(root, '.agents', 'skills', 'delivery-lead', 'SKILL.md')),
+  );
+});
+
 test('adopt refuses a path that is not a git repository and a ref that is not a sha', () => {
   const plain = mkdtempSync(join(tmpdir(), 'krn-adopt-plain-'));
   const notRepo = adopt(plain);

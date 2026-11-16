@@ -1,0 +1,18 @@
+{
+  "id": "t-1ap8rdz",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "S29 rehearsal: adopt kept boilerplate-2026's own site skills; regression test red before, green after"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "krn adopt keeps a repository's own site skills instead of overwriting them with the pinned copy",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16 (krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac, log .krn/tmp/s29/adopt1.log).\nDefect: krn adopt overwrites a repository's own site skill files (.agents/skills/{acf-component,cube-css,plesk-deploy,wp-runtime}) with the installer's pinned copy (src/adopt/site-skills, boilerplate commit 30778b5), deleting 82 lines of newer operator content. writeSkills in src/adopt/adopt.ts writes every file through writeIfChanged.\nOutcome: a site skill the repository already has (its SKILL.md exists) is kept untouched and reported unchanged; core KRN skills still upgrade.\nProof: node --test test/adopt/adopt.test.ts: pass (an existing site skill with local edits survives adopt byte for byte)."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}
