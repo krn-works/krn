@@ -1,7 +1,11 @@
 {
   "id": "t-3kpq3tm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/successor/account-choice.ts + scripts/claude/account-choice.ts: switch only within the active account's organization, else handoff; goal.md step 5 uses it; live cswap: verdict: stay 3"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A session never continues on an account of another organization",
