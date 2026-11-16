@@ -1,4 +1,4 @@
-// The one record schema of the brain: a standard, a convention, a pitfall or a recipe, whether it
+// The one record schema of the brain: a standard, a convention, a pitfall, a recipe, a decision, a preference or a fact, whether it
 // ships in the pack (standards/records.json) or lives in a repository's overlay (.agents/records.json).
 // The plainest hand-written row (id, type, text, three dates, source) is the shortest accepted form;
 // every other field has a default, and `source` is shorthand for provenance.origin.
@@ -9,6 +9,18 @@ export const RECORD_TYPES = [
   'convention',
   'pitfall',
   'recipe',
+  'decision',
+  'preference',
+  'fact',
+] as const;
+/** The types kept in `.agents/decisions.json`: queryable, never served in a packet. */
+export const UNSERVED_TYPES = ['decision', 'preference', 'fact'] as const;
+export const EVIDENCE_KINDS = [
+  'operator-verbatim',
+  'ci',
+  'hidden-test',
+  'review',
+  'agent',
 ] as const;
 export const RECORD_STATUSES = ['trial', 'accepted', 'retired'] as const;
 export const RECORD_AUDIENCES = ['all', 'worker', 'lead', 'adopt'] as const;
@@ -90,6 +102,11 @@ export const RecordSchema = z.preprocess(
       valid_from: date,
       valid_to: date.nullable(),
       supersedes: list,
+      /** The conflict key: a new record with the same subject supersedes the one in force. */
+      subject: words.optional(),
+      evidence_kind: z.enum(EVIDENCE_KINDS).optional(),
+      superseded_by: words.optional(),
+      review_by: date.optional(),
       /** True only for a record that holds in any repository and any stack; the global file renders exactly these. */
       universal: z.literal(true).optional(),
       /** Standards-pack fields: the area word, the layer (`krn-delivery` needs KRN adopted), a reflex waiver and the harvest counts. */

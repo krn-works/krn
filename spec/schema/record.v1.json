@@ -129,6 +129,20 @@
         "type": "string"
       }
     },
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_kind": {
+      "enum": ["operator-verbatim", "ci", "hidden-test", "review", "agent"]
+    },
+    "superseded_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_by": {
+      "type": "string"
+    },
     "universal": {
       "type": "boolean"
     },

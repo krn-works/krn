@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contractConventions } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
+import { isUnservedType, readDecisions } from './decisions.ts';
 import {
   type BrainRecord,
   brainPacket,
@@ -236,6 +237,8 @@ export type Query = {
   readonly stack?: string;
   readonly budget?: number;
   readonly task?: string;
+  /** Keep only records of this type; a decision, preference or fact is read from the decisions file, which no packet serves. */
+  readonly type?: string;
   readonly asOf: string;
 };
 
@@ -287,14 +290,16 @@ export function queryStandards(root: string, query: Query): Hit[] {
     query.stack === undefined ? base : { ...base, stack: query.stack };
   const task = query.task ?? QUERY_TASK;
   const seen = new Set<string>();
-  const pool = [
-    ...readPack(),
-    ...readProject(root),
-    ...conventions(root),
-  ].filter((standard) => {
+  const unserved = query.type !== undefined && isUnservedType(query.type);
+  const pool = (
+    unserved
+      ? readDecisions(root)
+      : [...readPack(), ...readProject(root), ...conventions(root)]
+  ).filter((standard) => {
     if (seen.has(standard.id)) return false;
     seen.add(standard.id);
     return (
+      (query.type === undefined || standard.type === query.type) &&
       standard.audience !== 'lead' &&
       standard.audience !== 'adopt' &&
       inForce(standard, query.asOf) &&
@@ -303,7 +308,7 @@ export function queryStandards(root: string, query: Query): Hit[] {
   });
   const byId = new Map(pool.map((standard) => [standard.id, standard]));
   const records: BrainRecord[] = pool
-    .filter((standard) => !heldOut(task, standard.id))
+    .filter((standard) => unserved || !heldOut(task, standard.id))
     .map(packetRecord);
   const ranked = brainPacket({
     task,

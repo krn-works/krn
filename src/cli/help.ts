@@ -10,8 +10,6 @@ const usage = {
   state:
     'krn state check|resume|set|accept|handoff|retro [--root DIR]  delivery-loop capsule check, resume brief and writers; check exits 1 when divergent',
   lane: 'krn lane start|run|drop|brief [...]  run: start the lane, run one headless claude session on a task, ship the commit (exit 0 only when merged; a failed run keeps its worktree and releases the claim); drop SLUG: remove a dead lane worktree, branch and claim; start: fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; brief: print a lane brief behind the FR-40 brain packet; `krn lane` lists verbs',
-  decide:
-    'krn decide add|list|close [...]  operator decisions: rows with a recommendation, a default and a deadline under .krn/operator/; `list --notify` prints rows not yet announced (for the daily housekeeping run)',
   findings:
     'krn findings validate <file>  check review findings JSON: confirmed needs path:line evidence, a reproduce command and a verifier other than the finder; needs_validation carries no severity; exit 1 on a problem',
   repo: 'krn repo contract [--root DIR]  print the repo contract as JSON: base branch, test, related ({files}) and fast commands, tracker; krn.json fields win over detection (Cargo.toml, go.mod, package.json, pytest markers, Makefile); exit 65 with the fields to write when no test command is found; `krn repo golden record|check --url BASE_URL [--declare PATH]... [--root DIR]` crawls the sitemap of a running site (golden-master/config.json: sitemap path, dbFixture imported with `wp db import`), normalises nonces, timestamps and asset hashes, and record stores the HTML under golden-master/pages while check exits 1 on every page diff not named by --declare',

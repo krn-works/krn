@@ -14,7 +14,7 @@ test('the router and the help text share one command list', async () => {
   assert.equal(isCommand('lane'), true);
   assert.equal(isCommand('review'), false);
   assert.equal(isCommand('toString'), false);
-  assert.ok(commandLines().length >= 14);
+  assert.ok(commandLines().length >= 13);
   assert.equal(await dispatch(['nope']), false);
 });
 
