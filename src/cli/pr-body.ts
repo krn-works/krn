@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { LANE_MARKER } from '../outcome/lane-marker.ts';
 import { titleTaskId } from '../outcome/task-id.ts';
 import { contractBase } from '../repo/contract.ts';
 import { taskLookupRoot } from '../task/claims.ts';
@@ -11,8 +12,7 @@ import { loadTaskIndex, repositoryRoot } from '../task/store.ts';
 export const prBodyUsage =
   'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--lane] [--assumptions TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
 
-/** The body line `krn lane brief` tells a lane to request with `krn pr body --lane`; the ledger reads it as lane authorship. */
-export const LANE_MARKER = 'Lane: krn lane brief';
+export { LANE_MARKER };
 
 export interface BodyInput {
   task: TaskRecord;

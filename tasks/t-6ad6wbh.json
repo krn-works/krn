@@ -1,7 +1,11 @@
 {
   "id": "t-6ad6wbh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gate command 'krn ledger --context-gate' prints coverage 81.1% and a verdict line; unit test asserts pass, fail and inconclusive on fixed tables"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Context-quality gate: verdict per session-peak band with merge-to-session mapping and a Fisher test",

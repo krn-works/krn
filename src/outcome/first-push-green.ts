@@ -132,6 +132,8 @@ export function summarize(prs: PrRounds[]): FirstPushGreen {
 
 export type FirstPushGreenOptions = {
   limit?: number;
+  /** Measure exactly these merged PRs instead of listing the last `limit`. */
+  numbers?: number[];
   repo?: string;
   run?: Run;
 };
@@ -144,22 +146,24 @@ export async function collectFirstPushGreen(
   const repo =
     options.repo ?? string(object(parse(await ghRepoView(run))).nameWithOwner);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('Invalid repository');
-  const merged = array(
-    parse(
-      await gh(run, [
-        'pr',
-        'list',
-        '--repo',
-        repo,
-        '--state',
-        'merged',
-        '--limit',
-        String(options.limit ?? FIRST_PUSH_GREEN_PRS),
-        '--json',
-        'number',
-      ]),
-    ),
-  ).map(object);
+  const merged = options.numbers
+    ? options.numbers.map((n) => ({ number: n }))
+    : array(
+        parse(
+          await gh(run, [
+            'pr',
+            'list',
+            '--repo',
+            repo,
+            '--state',
+            'merged',
+            '--limit',
+            String(options.limit ?? FIRST_PUSH_GREEN_PRS),
+            '--json',
+            'number',
+          ]),
+        ),
+      ).map(object);
   const prs = await mapLimited(merged, CHECK_CONCURRENCY, async (pr) => {
     // One list query with commits exceeds the GraphQL node limit at 50 PRs, so commits are read per PR.
     const view = parse(

@@ -159,6 +159,8 @@ type Session = {
   malformed: boolean;
   /** Text of the first operator-or-launcher prompt, cut to 400 characters; empty when none was read. */
   firstPrompt: string;
+  /** Largest prompt context any turn of the session saw (input, cache read and cache creation); 0 when no turn had usage. */
+  peak: number;
 };
 const unknownTokens = (): Tokens => ({
   input: null,
@@ -166,6 +168,21 @@ const unknownTokens = (): Tokens => ({
   cache_creation: null,
   output: null,
 });
+/**
+ * The prompt context of one turn. A turn that calls the advisor carries
+ * `usage.iterations` and its top-level counters sum both executor calls, so the
+ * context is the last `message` iteration (as the context gauge reads it).
+ */
+function promptContext(usage: ObjectValue): number {
+  const steps = array(usage.iterations).map(object);
+  const last = steps.reverse().find((step) => step.type === 'message');
+  const u = last ?? usage;
+  return (
+    (number(u.input_tokens) ?? 0) +
+    (number(u.cache_read_input_tokens) ?? 0) +
+    (number(u.cache_creation_input_tokens) ?? 0)
+  );
+}
 function prArgument(command: string): number | null {
   const match = /--pr\s+(\d+)\b/.exec(command);
   return match ? Number(match[1]) : null;
@@ -261,6 +278,7 @@ function sessionParser(sidechain = false) {
         turns: [...turns.values()],
         malformed,
         firstPrompt,
+        peak: Math.max(0, ...[...messages.values()].map(promptContext)),
         launchPrs: [...tools.values()].map((t) => t.pr),
         launches: [...tools.values()].map((t) => {
           const r = results.get(t.id);
@@ -289,30 +307,46 @@ export function parseTranscript(lines: Iterable<string>): Session {
   for (const line of lines) parser.line(line);
   return parser.finish();
 }
+/** How often a session's commands name the PR: its task id, `--pr N` or `#N`. */
+export function sessionScore(
+  session: Pick<Session, 'commands'>,
+  pr: { number: number; title: string },
+): number {
+  const task = titleTaskId(pr.title);
+  let score = 0;
+  for (const command of session.commands) {
+    if (task)
+      score += [...command.matchAll(new RegExp(`\\b${task}\\b`, 'g'))].length;
+    score += [
+      ...command.matchAll(
+        new RegExp(`(?:--pr\\s+${pr.number}\\b|#${pr.number}\\b)`, 'g'),
+      ),
+    ].length;
+  }
+  return score;
+}
 export function attributeSession(
   session: Session,
   prs: { number: number; title: string }[],
 ): number | null {
   const scores = prs
-    .map((pr) => {
-      const task = titleTaskId(pr.title);
-      let score = 0;
-      for (const command of session.commands) {
-        if (task)
-          score += [...command.matchAll(new RegExp(`\\b${task}\\b`, 'g'))]
-            .length;
-        score += [
-          ...command.matchAll(
-            new RegExp(`(?:--pr\\s+${pr.number}\\b|#${pr.number}\\b)`, 'g'),
-          ),
-        ].length;
-      }
-      return { number: pr.number, score };
-    })
+    .map((pr) => ({ number: pr.number, score: sessionScore(session, pr) }))
     .sort((a, b) => b.score - a.score);
   return !scores[0]?.score || scores[0].score === scores[1]?.score
     ? null
     : scores[0].number;
+}
+/** The session whose commands name the PR most often; null when none names it or two tie. */
+export function attributePr<S extends Pick<Session, 'commands'>>(
+  pr: { number: number; title: string },
+  candidates: S[],
+): S | null {
+  const scores = candidates
+    .map((session) => ({ session, score: sessionScore(session, pr) }))
+    .sort((a, b) => b.score - a.score);
+  return !scores[0]?.score || scores[0].score === scores[1]?.score
+    ? null
+    : scores[0].session;
 }
 
 export function gateTotals(responses: unknown[]) {
