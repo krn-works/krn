@@ -6,6 +6,7 @@ import {
   lstatSync,
   openSync,
   readdirSync,
+  readFileSync,
   readSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
@@ -164,6 +165,25 @@ export function checkMemory({
   if (!directory?.isDirectory() || directory.isSymbolicLink())
     throw new Error(`memory directory not found: ${memory}`);
   const main = mainCheckout(root);
+  // `krn task archive` moves closed tasks to tasks/archive/<YYYY-MM>.jsonl, one record per line.
+  let archive: Map<string, string> | undefined;
+  const archived = (checkout: string) => {
+    if (archive) return archive;
+    archive = new Map();
+    const dir = join(checkout, 'tasks', 'archive');
+    let names: string[] = [];
+    try {
+      names = readdirSync(dir).filter((name) => name.endsWith('.jsonl'));
+    } catch {
+      /* No archive yet. */
+    }
+    for (const name of names)
+      for (const line of readFileSync(join(dir, name), 'utf8').split('\n')) {
+        const id = /"id":"(t-[a-z0-9]{7})"/u.exec(line)?.[1];
+        if (id) archive.set(id, line);
+      }
+    return archive;
+  };
   const findings: Finding[] = [];
   const keys = new Set<string>();
   const add = (kind: Finding['kind'], file: string, line = 0, target = '') => {
@@ -248,7 +268,9 @@ export function checkMemory({
       for (const match of line.matchAll(/\bt-[a-z0-9]{7}\b/gu)) {
         const id = match[0];
         try {
-          const taskText = read(join(main, 'tasks', `${id}.json`));
+          let taskText = archived(main).get(id);
+          if (taskText === undefined)
+            taskText = read(join(main, 'tasks', `${id}.json`));
           const task: unknown = JSON.parse(taskText ?? '');
           if (typeof task !== 'object' || task === null)
             throw new Error('invalid task');
