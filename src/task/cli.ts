@@ -23,6 +23,7 @@ import {
   releaseClaim,
   taskRecordRoot,
 } from './claims.ts';
+import { type CloseEvidenceSink, closeEvidenceOf } from './close-evidence.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
 import { allTaskQualityFailures } from './quality.ts';
 import {
@@ -96,7 +97,7 @@ const verbHelp: Record<string, string> = {
   release:
     'krn task release ID [--json]\nRelease a task claim. Example: krn task release t-a1b2c3d --json',
   close:
-    'krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note TEXT] [--json]\nClose a task. Example: krn task close t-a1b2c3d --as done --json',
+    'krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note TEXT] [--hidden pass|fail] [--json]\nClose a task; `done` also appends the closing PR, its Check conclusion and the --hidden result to the exposure rows of the clauses stored at claim. Example: krn task close t-a1b2c3d --as done --json',
   dep: 'krn task dep add|rm ID --after ID [--json]\nChange a blocking dependency. Example: krn task dep add t-a1b2c3d --after t-b2c3d4e --json',
   edit: 'krn task edit ID [--title T] [--priority N] [--body-file FILE|-] [--append-body TEXT] [--verify CMD]... [--reopen] [--json]\nEdit task fields; use --reopen for closed tasks. Example: krn task edit t-a1b2c3d --title "Updated task" --json',
   check:
@@ -106,13 +107,14 @@ const verbHelp: Record<string, string> = {
 export async function taskCommand(
   args: string[],
   packetSource?: ClaimPacketSource,
+  evidenceSink?: CloseEvidenceSink,
 ): Promise<void> {
   const json = args.includes('--json');
   try {
     if (args.filter((argument) => argument === '--json').length > 1)
       throw usage('--json may be supplied once');
     const commandArgs = args.filter((argument) => argument !== '--json');
-    const result = await execute(commandArgs, json, packetSource);
+    const result = await execute(commandArgs, json, packetSource, evidenceSink);
     process.stdout.write(
       result.json
         ? `${JSON.stringify({ ok: true, ...result.value }, null, 2)}\n`
@@ -145,6 +147,7 @@ async function execute(
   args: string[],
   json: boolean,
   packetSource?: ClaimPacketSource,
+  evidenceSink?: CloseEvidenceSink,
 ): Promise<CommandOutput> {
   const [command, ...options] = args;
   if (command === undefined || command === 'help' || command === '--help')
@@ -160,7 +163,7 @@ async function execute(
   if (command === 'create') return create(options, json);
   if (command === 'show') return show(options, json);
   if (command === 'list') return list(options, json);
-  if (command === 'close') return close(options, json);
+  if (command === 'close') return close(options, json, evidenceSink);
   if (command === 'dep') return dependency(options, json);
   if (command === 'ready') return ready(options, json);
   if (command === 'claim') return claim(options, json, packetSource);
@@ -522,8 +525,13 @@ function list(args: string[], json: boolean): CommandOutput {
   return result({ tasks: records }, records.map(formatListTask).join(''), json);
 }
 
-function close(args: string[], json: boolean): CommandOutput {
+function close(
+  args: string[],
+  json: boolean,
+  evidenceSink?: CloseEvidenceSink,
+): CommandOutput {
   let id: string | undefined;
+  let hidden: string | undefined;
   let resolutionArg: string | undefined;
   let note: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
@@ -535,12 +543,15 @@ function close(args: string[], json: boolean): CommandOutput {
     } else if (option === '--note') {
       if (note !== undefined) throw usage('--note may be supplied once');
       note = nextValue(args, index++, option);
+    } else if (option === '--hidden') {
+      if (hidden !== undefined) throw usage('--hidden may be supplied once');
+      hidden = nextValue(args, index++, option);
     } else if (id === undefined && !option.startsWith('--')) id = option;
     else throw usage(`unexpected close argument "${option}"`);
   }
   if (id === undefined || resolutionArg === undefined)
     throw usage(
-      'usage: krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note N]',
+      'usage: krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note N] [--hidden pass|fail]',
     );
   const resolution = parseResolution(resolutionArg, note ?? '');
   const cwdRoot = repositoryRoot();
@@ -549,7 +560,12 @@ function close(args: string[], json: boolean): CommandOutput {
     resolution.kind === 'done'
       ? closeRecordRoot(cwdRoot, taskId)
       : taskRecordRoot(cwdRoot, taskId);
+  if (hidden !== undefined && hidden !== 'pass' && hidden !== 'fail')
+    throw usage('--hidden must be pass or fail');
+  const hiddenResult = hidden ?? null;
   const record = closeTask(root, taskId, resolution);
+  if (resolution.kind === 'done' && evidenceSink !== undefined)
+    closeEvidenceOf(root, taskId, hiddenResult, evidenceSink);
   return result({ task: record }, `${record.id}\n`, json);
 }
 

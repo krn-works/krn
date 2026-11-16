@@ -6,7 +6,12 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!tasks", "!test/fixtures/codex-app-server-schema"]
+    "includes": [
+      "**",
+      "!tasks",
+      "!test/fixtures/codex-app-server-schema",
+      "!test/fixtures/gh/pr-1131-number-rollup.stdout.json"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

@@ -57,6 +57,16 @@
     "proof": {
       "type": "string"
     },
+    "evidence": {
+      "type": "object",
+      "required": ["pr", "ci", "hidden"],
+      "additionalProperties": false,
+      "properties": {
+        "pr": { "type": ["integer", "null"] },
+        "ci": { "type": ["string", "null"] },
+        "hidden": { "type": ["string", "null"] }
+      }
+    },
     "schema": {
       "enum": ["krn.exposure/v1"]
     },

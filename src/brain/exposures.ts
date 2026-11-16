@@ -45,6 +45,14 @@ export type Exposure = {
   scope?: string;
   /** The lane's proof line (clauses, red-first, precedent, Stop refusals), when the run ended with one. */
   proof?: string;
+  /** What the closing PR of the task wrote back: its number, the aggregate Check conclusion and the hidden-test result; each null when unknown. */
+  evidence?: CloseEvidence;
+};
+
+export type CloseEvidence = {
+  pr: number | null;
+  ci: string | null;
+  hidden: string | null;
 };
 
 const outcomeOf = (
@@ -74,6 +82,7 @@ export function exposureOf(input: {
   violated?: Readonly<Record<string, boolean | null>>;
   at?: string;
   proof?: string;
+  evidence?: CloseEvidence;
 }): Exposure {
   const violated = Object.fromEntries(
     [...input.served, ...input.withheld].map((id) => [
@@ -95,6 +104,7 @@ export function exposureOf(input: {
     outcome: outcomeOf(input.served, violated),
     lane_ok: input.laneOk,
     ...(input.proof === undefined ? {} : { proof: input.proof }),
+    ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
   };
 }
 
@@ -103,7 +113,8 @@ export function appendExposure(main: string, exposure: Exposure): void {
   if (
     exposure.served.length === 0 &&
     exposure.withheld.length === 0 &&
-    exposure.proof === undefined
+    exposure.proof === undefined &&
+    exposure.evidence === undefined
   )
     return;
   const path = join(main, EXPOSURES_FILE);
@@ -139,6 +150,7 @@ function normalized(row: Partial<Exposure>): Exposure {
     lane_ok: row.lane_ok ?? true,
     ...(row.scope === undefined ? {} : { scope: row.scope }),
     ...(row.proof === undefined ? {} : { proof: row.proof }),
+    ...(row.evidence === undefined ? {} : { evidence: row.evidence }),
   };
 }
 

@@ -1,7 +1,11 @@
 {
   "id": "t-nzbhbtq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node --test test/task/close-evidence.test.ts passes against the real krn task close with a verbatim gh capture"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A closed task writes its outcome back as evidence (S19)",
