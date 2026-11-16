@@ -202,3 +202,17 @@ test('allTaskQualityFailures names a vague open task and passes a measured one (
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('krn task check ignores the quality rules unless --quality is given, and takes it once', () => {
+  const root = tracker({
+    't-redred1': { body: ['Outcome: make it nicer', GOOD[1], GOOD[2]] },
+  });
+  const plain = krn(root, 'task', 'check');
+  assert.equal(plain.status, 0, plain.stdout + plain.stderr);
+  const strict = krn(root, 'task', 'check', '--quality');
+  assert.notEqual(strict.status, 0);
+  assert.match(strict.stderr, /t-redred1: no measurable/u);
+  const twice = krn(root, 'task', 'check', '--quality', '--quality');
+  assert.notEqual(twice.status, 0);
+  assert.match(twice.stderr, /--quality may be supplied once/u);
+});
