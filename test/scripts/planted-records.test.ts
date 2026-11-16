@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { PLANTS } from '../../scripts/lib/record-plants.ts';
 import {
@@ -43,26 +43,34 @@ function run(stack: string): Promise<{ status: number | null; out: string }> {
   });
 }
 
-test('every applicable enforced record bites in each init stack', async () => {
-  const runs = await Promise.all(INIT_STACK_NAMES.map((stack) => run(stack)));
-  for (const [index, done] of runs.entries()) {
-    const stack = INIT_STACK_NAMES[index];
-    assert.equal(done.status, 0, `${stack}: ${done.out}`);
-    const match = /(\d+)\/(\d+) records bite/.exec(done.out);
-    assert.ok(match, `${stack}: no report line in ${done.out}`);
-    assert.equal(match[1], match[2], `${stack}: ${done.out}`);
-    assert.ok(Number(match[1]) >= 30, `${stack}: only ${match[1]} records`);
-  }
+// One test per stack, run side by side: each stack stays well inside the per-test timeout.
+describe('every applicable enforced record bites in each init stack', {
+  concurrency: true,
+}, () => {
+  for (const stack of INIT_STACK_NAMES)
+    test(stack, async () => {
+      const done = await run(stack);
+      assert.equal(done.status, 0, `${stack}: ${done.out}`);
+      const match = /(\d+)\/(\d+) records bite/.exec(done.out);
+      assert.ok(match, `${stack}: no report line in ${done.out}`);
+      assert.equal(match[1], match[2], `${stack}: ${done.out}`);
+      assert.ok(Number(match[1]) >= 30, `${stack}: only ${match[1]} records`);
+    });
 });
 
 test('an enforced record without a plant, and a plant that does not bite, fail the matrix', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'planted-test-'));
   try {
     const { 's-go-vet-run': _removed, ...rest } = PLANTS;
-    const results = plantedMatrix('go', scratch, {
-      ...rest,
-      's-go-wrapped-errors': () => ({}),
-    });
+    const results = plantedMatrix(
+      'go',
+      scratch,
+      {
+        ...rest,
+        's-go-wrapped-errors': () => ({}),
+      },
+      ['s-go-vet-run', 's-go-wrapped-errors', 's-go-sum-committed'],
+    );
     const status = (id: string) => results.find((r) => r.id === id)?.status;
     assert.equal(status('s-go-vet-run'), 'no-plant');
     assert.equal(status('s-go-wrapped-errors'), 'stays-green');

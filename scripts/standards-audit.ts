@@ -33,6 +33,9 @@ import {
 const repoRoot = join(fileURLToPath(import.meta.url), '..', '..');
 const cli = join(repoRoot, 'src/cli/main.ts');
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+// Every adopt and enforcement below spawns `node` on the same TypeScript sources: a shared compile cache
+// makes each spawn after the first skip the parse and compile.
+process.env.NODE_COMPILE_CACHE ??= join(repoRoot, '.krn/cache/node');
 type PackRecord = { id: string; enforcement: { kind: string } };
 
 /** The environment of an adopt run: its registry is a scratch file, never the host's `~/.krn/adopted.json`. */
@@ -207,11 +210,13 @@ function judge(dir: string, record: Standard, asOf: string) {
 /**
  * Every enforced pack record that applies to a fresh project of the stack: plant its violation and
  * require a red verdict naming the record and its remedy, then a green one after the revert.
+ * `only` limits the matrix to those record ids.
  */
 export function plantedMatrix(
   stack: Stack,
   scratch: string,
   plants: Record<string, Plant> = PLANTS,
+  only?: readonly string[],
 ): Bite[] {
   const dir = initProject(stack, scratch);
   const asOf = new Date().toISOString().slice(0, 10);
@@ -219,7 +224,9 @@ export function plantedMatrix(
   const facts = repositoryFacts(dir);
   const records = readPack().filter(
     (record: Standard) =>
-      record.enforcement.kind !== 'advisory' && appliesTo(record, facts),
+      record.enforcement.kind !== 'advisory' &&
+      appliesTo(record, facts) &&
+      (only === undefined || only.includes(record.id)),
   );
   const revert = () => {
     git(dir, ['reset', '--hard', '-q', base]);
