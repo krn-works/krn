@@ -1,7 +1,11 @@
 {
   "id": "t-azqbx43",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger --first-push-green computes share and rounds from a verbatim gh capture; test/outcome/first-push-green.test.ts passes; metric named in spec/metrics.json"
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "First-push-green share is measured per PR",

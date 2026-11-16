@@ -21,6 +21,9 @@
     "durable-stores": {
       "command": "bin/krn standards query --type decision --count-stores"
     },
+    "first-push-green-share": {
+      "command": "bin/krn ledger --first-push-green --share"
+    },
     "hardcoded-tasks-paths": {
       "command": "git grep -lE \"['\\\"\\`]tasks/\" -- src ':!src/task' | wc -l | tr -d ' '"
     },

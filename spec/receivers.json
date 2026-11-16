@@ -129,6 +129,14 @@
       ],
       "test": "test/repo/gh.test.ts"
     },
+    "src/outcome/first-push-green.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/first-push-green/pr-list.json",
+        "test/fixtures/first-push-green/pr-1167-commits.json"
+      ],
+      "test": "test/outcome/first-push-green.test.ts"
+    },
     "src/outcome/ledger.ts": {
       "receivers": ["gh"],
       "capture": [
