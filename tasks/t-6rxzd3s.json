@@ -1,0 +1,23 @@
+{
+  "id": "t-6rxzd3s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Cut src/adopt to 2450 lines after the verify merge",
+  "after": [
+    "t-4hg6y8x"
+  ],
+  "body": [
+    "S28 step 2 merged canary into verify and host-remediation into init but src/adopt is 3008 lines, target 2450. Remaining cuts (file lines now): verify.ts 655, init.ts 766, adopt.ts 711, deploy.ts 195. Candidates: canary step timing and multi-file retry, init skeleton tables, adopt.ts writers. Do not cut workflow-gates.ts or duplicate-ci."
+  ],
+  "acceptance": [
+    {
+      "verify": "test $(find src/adopt -name '*.ts' | xargs cat | wc -l) -le 2450",
+      "passes": false,
+      "exit": null
+    }
+  ],
+  "kind": "debt",
+  "area": "adopt"
+}
