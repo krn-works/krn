@@ -1,0 +1,18 @@
+{
+  "id": "t-zq4t0vf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn task publish ships with the same guards as krn pr ship",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16 review of #1201: src/cli/task-publish.ts calls shipCommand with only baseOf and proofOf, while src/cli/pr.ts also injects deployRefusal, completeClose and releaseClaim; src/ci/ship.ts:367 treats a missing deployRefusal as no refusal.",
+    "Outcome: `krn task publish` ships with the same dependencies as `krn pr ship` (one exported dependency set in src/cli/pr.ts), overriding only proofOf, so a repository that deploys on push to its base is refused with exit 82 exactly as `krn pr ship` refuses it.",
+    "Why: publish will run in adopted repositories; a tasks-only PR must not auto-merge into a deploying base without the acknowledgement.",
+    "Proof: `node --test test/cli/task-publish.test.ts` with a fixture whose base deploys on push and no \"deploy\": \"acknowledged\": publish exits 82 before any push (fake gh records no push).",
+    "Files: src/cli/task-publish.ts, src/cli/pr.ts"
+  ],
+  "kind": "defect",
+  "area": "task"
+}
