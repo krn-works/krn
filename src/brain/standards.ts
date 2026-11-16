@@ -1,7 +1,6 @@
 // The standards pack (ADR 0002 records with enforcement): reviewed, dated delivery rules every
 // adopted project inherits. Pure parsing, selection and planning; running an enforcement belongs
 // to the caller, which owns processes and the filesystem.
-import type { BrainRecord } from './packet.ts';
 import {
   INHERITED_ORIGIN,
   parseUnified,
@@ -23,7 +22,6 @@ export const TIERS = ['floor', 'reflex', 'finish'] as const;
 
 export type Audience = (typeof AUDIENCES)[number];
 export type Layer = (typeof LAYERS)[number];
-export type EnforcementKind = (typeof ENFORCEMENTS)[number];
 export type Need = (typeof NEEDS)[number];
 export type Tier = (typeof TIERS)[number];
 
@@ -180,19 +178,6 @@ export function inForce(standard: Standard, asOf: string): boolean {
     standard.valid_from <= asOf &&
     (standard.valid_to === null || asOf <= standard.valid_to)
   );
-}
-
-/** The ADR 0002 record the lane packet reads. */
-export function toBrainRecord(standard: Standard): BrainRecord {
-  return {
-    id: standard.id,
-    type: standard.area ?? standard.type,
-    text: standard.text,
-    recorded_at: standard.recorded_at,
-    valid_from: standard.valid_from,
-    valid_to: standard.valid_to,
-    source: standard.provenance.evidence.join(', '),
-  };
 }
 
 /**

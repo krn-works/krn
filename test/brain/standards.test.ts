@@ -28,7 +28,6 @@ import {
   type Standard,
   StandardsDataError,
   seedStandards,
-  toBrainRecord,
   upsertStandardsBlock,
 } from '../../src/brain/standards.ts';
 
@@ -253,19 +252,6 @@ test('checkStandards runs enforced standards, counts advisory ones and names eac
       message: 'outside its dates on 2026-11-14 (valid 2026-11-13..2026-11-13)',
     },
   ]);
-});
-
-test('toBrainRecord projects a standard onto the ADR 0002 record', () => {
-  const [record] = parseStandards(JSON.parse(plain));
-  assert.deepEqual(toBrainRecord(record as Standard), {
-    id: 's-example',
-    type: 'tests',
-    text: 'The repository tracks automated tests.',
-    recorded_at: '2026-11-13',
-    valid_from: '2026-11-13',
-    valid_to: null,
-    source: '#12',
-  });
 });
 
 test('the shipped pack holds 15-25 universal standards in both layers, with evidence that resolves in KRN', () => {
