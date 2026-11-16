@@ -1,0 +1,18 @@
+{
+  "id": "t-6sz7s9t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The merged boilerplate adoption counts as a real adopted repository (S29 remainder)",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: boilerplate-rekurencja#4 merged (c38515f) with 0 open gate tasks, but spec/metrics.json real-adopted-repos prints 0: the adoption ran from a clone under .krn/tmp/s29/real, and ~/.krn/adopted.json has no non-scratch entry. The operator checkout /mnt/storage/coding/krn/active/boilerplate-2026 has a live operator session; do not edit it while that session works.\nFiles: ~/.krn/adopted.json, src/brain/adopted-registry.ts\nOutcome: the operator's boilerplate-2026 checkout (on main at or after c38515f) is registered as adopted; real-adopted-repos prints >= 1\nProof: the spec/metrics.json real-adopted-repos command prints 1 or more"
+  ],
+  "kind": "chore",
+  "area": "adopt",
+  "from": {
+    "kind": "task",
+    "ref": "t-bvhfanp"
+  }
+}
