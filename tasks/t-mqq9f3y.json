@@ -1,0 +1,18 @@
+{
+  "id": "t-mqq9f3y",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ownerCheckout maps a removed .krn/worktrees/<name> to its main checkout; runTests returns <run>::error on spawn failure; test/hook/stop.test.ts removed-worktree case red before, green after"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Stop judges a lane whose worktree ship removed at its main checkout",
+  "after": [],
+  "body": [
+    "Outcome: the Stop hook judges a krn-lane subagent whose worktree `krn pr ship` removed at the main checkout that owned it, and a test run that cannot spawn fails as one run instead of crashing on undefined stdout.\nWhy: lane t-vs35jd7 merged #1137 (6b35f9f); its worktree was pruned and Stop crashed at src/hook/stop.ts runTests (run.stdout undefined).\nProof: node --test test/hook/stop.test.ts: pass with the removed-worktree case."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

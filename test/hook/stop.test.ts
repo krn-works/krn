@@ -1619,6 +1619,36 @@ test('a krn-lane subagent payload is held to the Stop check in the lead environm
   }
 });
 
+test('a krn-lane subagent whose worktree ship removed is judged at the main checkout that owned it', () => {
+  // Evidence: lane t-vs35jd7 merged 6b35f9f (#1137); its worktree was pruned and Stop crashed
+  // reading `run.stdout` of a test run spawned in the removed directory.
+  const main = clone();
+  const gone = join(main, '.krn', 'worktrees', 'ship-close-evidence');
+  try {
+    writeFileSync(join(main, 'src/a.ts'), 'export const a = 2;\n');
+    sh(main, 'commit', '-qam', 'merged lane');
+    sh(main, 'checkout', '-q', 'main');
+    sh(main, 'merge', '-q', '--ff-only', 'work');
+    const head = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: main,
+      encoding: 'utf8',
+    }).stdout.trim();
+    const sub = (message: string) => ({
+      ...payload(gone, message),
+      agent_id: 'a1',
+      agent_type: 'krn-lane',
+    });
+    const leadEnv = { CLAUDE_PROJECT_DIR: '/somewhere/else' };
+    assert.equal(
+      judgeStop(sub(`shipped\nverdict: merged ${head}`), leadEnv),
+      undefined,
+    );
+    assert.doesNotThrow(() => judgeStop(sub('finished'), leadEnv));
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+  }
+});
+
 test('a krn-lane subagent whose payload cwd is another worktree is checked at the worktree its transcript edited or claimed', () => {
   const main = clone();
   const own = join(main, '.krn', 'worktrees', 'lane-own');
