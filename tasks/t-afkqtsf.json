@@ -1,7 +1,11 @@
 {
   "id": "t-afkqtsf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "moved-head refusal captured from real gh 2.101.0 (gh pr merge --match-head-commit with a wrong SHA on a scratch PR); ship test reads the capture and gets exit 77"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "Ship's moved-head refusal fixture is a real gh capture",
