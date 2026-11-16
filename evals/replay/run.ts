@@ -1,9 +1,12 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
+// --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
 // One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session.
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadUnits } from '../units/unit.ts';
 import { type Arm, parseArms } from './arms.ts';
+import { screenLive } from './live.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import { readRows, report, type ScreenUnit, screen } from './screen.ts';
 
@@ -37,21 +40,23 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     return i >= 0 ? args[i + 1] : undefined;
   };
   if (args.includes('--screen')) {
-    const units = loadUnits(join(here, '..', 'units')).map(
-      (u) => u.unit as ScreenUnit,
-    );
-    const s = screen(
-      units,
-      readRows(flag('rows') ?? join(here, 'screen-rows.jsonl')),
-    );
+    const loaded = loadUnits(flag('units-dir') ?? join(here, '..', 'units'));
+    const units = loaded.map((u) => u.unit as ScreenUnit);
+    const rowsFile = flag('rows') ?? join(here, 'screen-rows.jsonl');
+    if (!args.includes('--report') && flag('metric') === undefined)
+      await screenLive(loaded, {
+        sources: flag('sources') ?? '.krn/sources/screening',
+        scratch: flag('scratch') ?? join(tmpdir(), 'krn-screen-live'),
+        rowsFile,
+        harness: harnessSha(here),
+        reps: Number(flag('reps') ?? 1),
+      });
+    const s = screen(units, readRows(rowsFile));
     if (flag('metric') === 'screen-a-pass-rate') {
       if (s.passRate === null) process.exit(65);
       console.log(s.passRate.toFixed(3));
-    } else if (args.includes('--report')) {
-      for (const l of report(s)) console.log(l);
     } else {
-      console.error('--screen needs --report; live sessions need the driver');
-      process.exit(69);
+      for (const l of report(s)) console.log(l);
     }
     process.exit(0);
   }

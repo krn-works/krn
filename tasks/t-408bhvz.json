@@ -1,7 +1,11 @@
 {
   "id": "t-408bhvz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stub-claude test: 2 eligible fixture units screened, 2 graded rows, peak sessions <= cap, reps and arm A isolation checked"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "evals/replay/run.ts runs live arm sessions through the host-wide eval slot",
