@@ -1,7 +1,11 @@
 {
   "id": "t-tgnzjyd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "edit of a published record in the main checkout lands on the pending ref, tasks/ unchanged (test/task/pending-records.test.ts)"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "krn task publish ships edits of published records made in the main checkout",

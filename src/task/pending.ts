@@ -90,11 +90,47 @@ function refEntries(root: string): Entry[] {
   return entries;
 }
 
-function stillPending(root: string, base: string | undefined, name: string) {
-  if (existsSync(join(root, 'tasks', name))) return false;
+function stillPending(
+  root: string,
+  base: string | undefined,
+  entry: Entry,
+): boolean {
+  const published =
+    base !== undefined &&
+    git(root, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${base}:tasks/${entry.name}`,
+    ]);
+  if (existsSync(join(root, 'tasks', entry.name))) {
+    // An untracked file is a record taken out of the ref; a tracked one is published, and the
+    // ref holds only an edit of it.
+    if (!isTracked(root, entry.name)) return false;
+    if (published === false || published.status !== 0) return false;
+  }
+  if (published === false || published === undefined) return true;
   return (
-    base === undefined ||
-    git(root, ['cat-file', '-e', `${base}:tasks/${name}`]).status !== 0
+    published.status !== 0 || published.stdout.toString().trim() !== entry.blob
+  );
+}
+
+function isTracked(root: string, name: string): boolean {
+  return (
+    git(root, ['ls-files', '--error-unmatch', '--', `tasks/${name}`]).status ===
+    0
+  );
+}
+
+/**
+ * Whether an edit of `id` made in `root` goes to the pending ref: the main checkout holds a
+ * published (tracked) record, which an in-place edit would leave as a dirty working tree.
+ */
+export function editGoesPending(root: string, id: string): boolean {
+  return (
+    existsSync(join(root, 'tasks', `${id}.json`)) &&
+    pendingApplies(root) &&
+    isTracked(root, `${id}.json`)
   );
 }
 
@@ -102,7 +138,7 @@ function liveEntries(root: string): Entry[] {
   const entries = refEntries(root);
   if (entries.length === 0) return entries;
   const base = baseRef(root);
-  return entries.filter((entry) => stillPending(root, base, entry.name));
+  return entries.filter((entry) => stillPending(root, base, entry));
 }
 
 /** Pending records of the main checkout by id; empty in a linked worktree. */

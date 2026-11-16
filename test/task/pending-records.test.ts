@@ -197,3 +197,42 @@ test('edit of a closed archived record still refuses with exit 65', (t) => {
   assert.equal(edit.status, 65);
   assert.match(edit.stderr, /archived and read-only/u);
 });
+
+test('edit of a published record in the main checkout goes to the pending ref and leaves tasks/ clean', (t) => {
+  const f = fixture(t);
+  const before = readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8');
+  const edit = f.task(
+    f.main,
+    'edit',
+    't-exist01',
+    '--append-body',
+    'Edited here.',
+  );
+  assert.equal(edit.status, 0, edit.stderr);
+  assert.equal(
+    readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8'),
+    before,
+  );
+  assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+  assert.match(
+    f.git(f.main, 'show', `${PENDING_REF}:tasks/t-exist01.json`),
+    /Edited here\./u,
+  );
+  const shown = JSON.parse(
+    f.task(f.main, 'show', 't-exist01', '--json').stdout,
+  );
+  assert.ok(shown.task.body.includes('Edited here.'));
+  // Publish ships the edit: it is among the pending files.
+  assert.ok(pendingTaskFiles(f.main).has('t-exist01'));
+  // Once the base carries the edit it is no longer pending.
+  const lane = join(f.root, 'publish');
+  f.git(f.main, 'worktree', 'add', '-qb', 'publish', lane, 'origin/main');
+  commitPendingRecords(lane, pendingTaskFiles(f.main));
+  f.git(
+    f.main,
+    'update-ref',
+    'refs/remotes/origin/main',
+    f.git(lane, 'rev-parse', 'HEAD'),
+  );
+  assert.equal(pendingTaskFiles(f.main).size, 0);
+});
