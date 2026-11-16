@@ -12,7 +12,11 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { normalizeText, parseProposal } from '../../src/brain/proposals.ts';
+import {
+  normalizeText,
+  overdueProposals,
+  parseProposal,
+} from '../../src/brain/proposals.ts';
 import { standardsCheck } from '../../src/brain/standards-cli.ts';
 
 // KRN-12: the real `krn standards propose` and `krn standards harvest` entries on generated
@@ -325,7 +329,7 @@ test('harvest --repos prints bullets recurring in two of three synthetic reposit
   }
 });
 
-test('every tracked proposal of this repository is disposed by an enforced pack record', () => {
+test('every tracked proposal of this repository is disposed by an enforced pack record or still in review', () => {
   const root = fileURLToPath(new URL('../..', import.meta.url));
   const records = JSON.parse(
     readFileSync(join(root, 'standards/records.json'), 'utf8'),
@@ -336,12 +340,15 @@ test('every tracked proposal of this repository is disposed by an enforced pack 
       .map((record) => normalizeText(record.text)),
   );
   const dir = join(root, proposals);
-  const undisposed = readdirSync(dir)
+  const tracked = readdirSync(dir)
     .filter((name) => name.endsWith('.json'))
     .map((name) =>
       parseProposal(JSON.parse(readFileSync(join(dir, name), 'utf8'))),
-    )
-    .filter((proposal) => !enforced.has(normalizeText(proposal.text)))
-    .map((proposal) => proposal.text);
-  assert.deepEqual(undisposed, []);
+    );
+  const today = new Date().toISOString().slice(0, 10);
+  assert.deepEqual(
+    overdueProposals(tracked, enforced, today).map((p) => p.text),
+    [],
+    'a committed proposal has PROPOSAL_REVIEW_DAYS (14) to become an enforced pack record',
+  );
 });
