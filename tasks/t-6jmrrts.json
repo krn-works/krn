@@ -1,0 +1,22 @@
+{
+  "id": "t-6jmrrts",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regression test: lane subagent Stop check with payload cwd in a foreign repo judges the claimed lane worktree"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A lane Stop check runs in the lead session cwd instead of the lane worktree",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: the lead session cd-ed into .krn/tmp/s29/real (another repository); a background lane's Stop hook (bin/krn hook stop --check) then ran that repository's node --test tests/ instead of the lane worktree session-cap and blocked the lane.\nOutcome: the Stop check of a lane resolves the lane worktree from its claim, never the session cwd; a lane stop with the session cwd in another repository exits 0 when the lane worktree is green.\nProof: a regression test runs the stop check with cwd in a foreign git repository and a lane claim, and asserts it checks the lane worktree."
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "stop-hook-cwd"
+  }
+}

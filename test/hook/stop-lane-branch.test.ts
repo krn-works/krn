@@ -167,3 +167,44 @@ test('the worker Stop gate judges the claimed lane worktree when the shell retur
     rmSync(main, { recursive: true, force: true });
   }
 });
+
+test('a lane subagent Stop check judges the claimed lane worktree when the session cwd sits in a foreign repository', () => {
+  const main = mainCheckout();
+  const foreign = mainCheckout();
+  try {
+    const tree = laneTree(main, 'lane-in-krn');
+    writeFileSync(
+      join(foreign, 'package.json'),
+      JSON.stringify({ scripts: { test: 'exit 1' } }),
+    );
+    git(foreign, 'commit', '-q', '-am', 'foreign test fails');
+    mkdirSync(join(main, '.krn', 'task-claims'), { recursive: true });
+    writeFileSync(
+      join(main, '.krn', 'task-claims', 't-abcdefg.json'),
+      JSON.stringify({
+        id: 't-abcdefg',
+        branch: 'lane-in-krn',
+        worktree: tree,
+      }),
+    );
+    const transcript = join(main, 'agent.jsonl');
+    writeFileSync(transcript, 'lane t-abcdefg started\n');
+    const reason = judgeStop(
+      {
+        cwd: foreign,
+        agent_id: 'a1',
+        agent_type: 'krn-lane',
+        agent_transcript_path: transcript,
+      },
+      laneEnv(main, { KRN_TASK: 't-abcdefg' }),
+      () => [],
+      '',
+      () => [],
+      () => [],
+    );
+    assert.equal(reason, undefined);
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+    rmSync(foreign, { recursive: true, force: true });
+  }
+});
