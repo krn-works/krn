@@ -953,7 +953,13 @@ test('a deleted test is accepted with its deleted source or a Weakens-tests reas
     sh(dir, 'commit', '-q', '-m', 'tests');
     sh(dir, 'checkout', '-q', '-B', 'main');
     sh(dir, 'checkout', '-q', '-b', 'task');
-    for (const path of drop) sh(dir, 'rm', '-q', path);
+    for (const path of drop) {
+      if (path.includes('>')) {
+        const [from, to] = path.split('>') as [string, string];
+        mkdirSync(join(dir, 'test/moved'), { recursive: true });
+        sh(dir, 'mv', from, to);
+      } else sh(dir, 'rm', '-q', path);
+    }
     sh(dir, 'commit', '-q', '-m', message);
     return dir;
   };
@@ -961,6 +967,7 @@ test('a deleted test is accepted with its deleted source or a Weakens-tests reas
     [['src/a.ts', 'test/a.test.ts'], 'drop', true, true],
     [['src/a.ts', 'test/a.test.ts'], 'drop', false, true],
     [['test/a.test.ts'], 'drop', true, false],
+    [['test/a.test.ts>test/moved/a.test.ts'], 'move', true, true],
     [['test/a.test.ts'], 'drop\n\nWeakens-tests: obsolete', true, true],
   ];
   for (const [drop, message, imports, accepted] of cases) {

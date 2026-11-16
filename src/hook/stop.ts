@@ -351,14 +351,14 @@ function deletionExplained(root: string, from: string, path: string): boolean {
 
 export function testEdits(root: string, from: string): TestEdits {
   const edits: TestEdits = { deleted: [], skipped: [], modified: [] };
-  const status = git(root, [
-    'diff',
-    '--name-status',
-    '--no-renames',
-    from,
-  ]).stdout.split('\n');
+  const status = git(root, ['diff', '--name-status', '-M', from]).stdout.split(
+    '\n',
+  );
   for (const line of status) {
-    const [kind, path] = line.split('\t');
+    const [kind, first, second] = line.split('\t');
+    // A rename moves a test: it is kept, and only lines it gains count for skips.
+    const renamed = kind?.startsWith('R') === true && second !== undefined;
+    const path = renamed ? second : first;
     if (!kind || !path || !isTestFile(path)) continue;
     if (kind === 'D') {
       if (!deletionExplained(root, from, path)) edits.deleted.push(path);
@@ -368,7 +368,14 @@ export function testEdits(root: string, from: string): TestEdits {
     const added =
       kind === 'A'
         ? safeRead(join(root, path)).split('\n')
-        : git(root, ['diff', '-U0', '--no-renames', from, '--', path])
+        : git(root, [
+            'diff',
+            '-U0',
+            '-M',
+            from,
+            '--',
+            ...(renamed && first ? [first, path] : [path]),
+          ])
             .stdout.split('\n')
             .filter((row) => row.startsWith('+') && !row.startsWith('+++'));
     if (added.some((row) => SKIP_MARK.test(row))) edits.skipped.push(path);
