@@ -237,7 +237,7 @@ test('a krn-lane subagent in the lead environment is refused a tracker write by 
     agent_id: 'a1b2c3',
     agent_type: 'krn-lane',
   };
-  assert.match(decide(sub, lead) ?? '', /^Refused: tasks\/x\.json/u);
+  assert.match(decide(sub, lead) ?? '', /^Refused: .*tasks\/x\.json/u);
   assert.equal(decide(write(`${root}/tasks/x.json`), lead), undefined);
   assert.equal(
     decide({ ...sub, agent_type: 'Explore' }, lead),
@@ -250,5 +250,64 @@ test('a krn-lane subagent in the lead environment is refused a tracker write by 
     env: { ...process.env, CLAUDE_PROJECT_DIR: root },
   });
   assert.equal(run.status, 2);
-  assert.match(run.stderr, /Refused: tasks\/x\.json/u);
+  assert.match(run.stderr, /Refused: .*tasks\/x\.json/u);
+});
+
+const main = '/r/main';
+const subagent = (tool_name: string, tool_input: object, cwd = main) => ({
+  agent_type: 'krn-lane',
+  agent_id: 'a1',
+  tool_name,
+  cwd,
+  tool_input,
+});
+const lead = { CLAUDE_PROJECT_DIR: main };
+
+test('a lane subagent writing the main checkout is refused naming its worktree; worktree, .krn and lead pass', () => {
+  const edit = subagent('Edit', { file_path: `${main}/src/x.ts` });
+  assert.match(
+    decide(edit, lead) ?? '',
+    /^Refused: \/r\/main\/src\/x\.ts is in the main checkout.*\.krn\/worktrees\/<lane>/u,
+  );
+  const named = subagent(
+    'Edit',
+    { file_path: `${main}/src/x.ts` },
+    `${main}/.krn/worktrees/lane-a`,
+  );
+  assert.match(decide(named, lead) ?? '', /\.krn\/worktrees\/lane-a\)/u);
+  for (const path of [
+    `${main}/.krn/worktrees/lane-a/src/x.ts`,
+    `${main}/.krn/runs/w/n.md`,
+  ])
+    assert.equal(
+      decide(subagent('Edit', { file_path: path }), lead),
+      undefined,
+      path,
+    );
+  const { agent_type, agent_id, ...leadPayload } = edit;
+  assert.equal(decide(leadPayload, lead), undefined);
+});
+
+test('a lane subagent mutating Bash on the main checkout is refused; read-only Bash passes', () => {
+  const run = (command: string) => decide(subagent('Bash', { command }), lead);
+  for (const command of [
+    `sed -i 's/a/b/' ${main}/src/x.ts`,
+    `echo hi > ${main}/src/x.ts`,
+    `rm ${main}/src/x.ts`,
+    `mv ${main}/src/x.ts /tmp/y`,
+    `cp /tmp/y ${main}/src/x.ts`,
+    `git add src/x.ts`,
+    `git checkout -- src/x.ts`,
+    'git commit -m x',
+  ])
+    assert.match(run(command) ?? '', /^Refused/u, command);
+  for (const command of [
+    `cat ${main}/src/x.ts`,
+    `grep -rn a ${main}/src`,
+    'git status',
+    'git log --oneline',
+    `rm ${main}/.krn/tmp/x`,
+    `ls ${main} > ${main}/.krn/runs/out`,
+  ])
+    assert.equal(run(command), undefined, command);
 });
