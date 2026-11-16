@@ -1,7 +1,11 @@
 {
   "id": "t-txxnmrb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship runs scripts/fast-check.ts scoped checks before push; ship test: failing scoped check exits 65, no push call"
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "Ship runs the checks of touched paths before it pushes",

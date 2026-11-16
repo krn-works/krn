@@ -69,6 +69,8 @@ const gitLockAttempts = 5;
 /** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
 const workflowsRejection = /without `?workflows`? permission/u;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
+/** The repository's own scoped check: Biome on changed files, tsc, and the tests the changed paths select. */
+const scopedCheck = 'scripts/fast-check.ts';
 
 function usageError(message: string): Error {
   return Object.assign(new Error(message), { exitCode: 64 });
@@ -297,6 +299,27 @@ main checkout: ${main}`;
       ),
       { exitCode: 65 },
     );
+
+  // The checks `npm run fast` scopes to the changed paths run before the push, so a rule the
+  // repository already enforces fails here and not in a CI round. Biome rewrites files in
+  // place; a rewrite that is not committed would never reach the push, so it refuses too.
+  if (hasFile(cwd, scopedCheck)) {
+    const scoped = runner(
+      'node',
+      [scopedCheck, '--base', `origin/${target}`],
+      cwd,
+    );
+    const rewritten = scoped.code === 0 ? git(['status', '--porcelain']) : '';
+    if (scoped.code !== 0 || rewritten !== '')
+      throw Object.assign(
+        new Error(
+          scoped.code !== 0
+            ? `refused push: the scoped checks (${scopedCheck}) failed\n${(scoped.stdout.trim() || scoped.stderr.trim()).slice(-4000)}`
+            : `refused push: the scoped checks rewrote files; commit them and ship again\n${rewritten}`,
+        ),
+        { exitCode: 65 },
+      );
+  }
 
   // PR_BODY as CI sets it: a check that reads the body (weak-tests' Weakens-tests line) sees
   // the same text before the push as on the PR.
