@@ -3,9 +3,11 @@ import { spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   chmodSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,6 +18,7 @@ import { runJudge } from '../../evals/d23/screen.ts';
 import {
   DEFAULT_MAX_SESSIONS,
   maxSessions,
+  takeSessionSlot,
   withSessionSlot,
 } from '../../evals/session-slot.ts';
 
@@ -140,6 +143,33 @@ test('a slot whose owner died is reclaimed', async () => {
     spawnSync('mkdir', ['-p', slots]);
     // pid 2^22 is above the default pid_max range of every host this runs on.
     appendFileSync(join(slots, 'slot-0'), '4194304');
+    assert.equal(await withSessionSlot(async () => 'ran', env), 'ran');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a fresh slot file naming no owner is a slot being taken, not a dead one', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'session-cap-'));
+  try {
+    const slots = join(dir, 'slots');
+    const env = { KRN_EVAL_MAX_SESSIONS: '1', KRN_EVAL_SLOT_DIR: slots };
+    mkdirSync(slots, { recursive: true });
+    // What a reader saw between the create and the write of the old `wx` take: an empty slot file.
+    writeFileSync(join(slots, 'slot-0'), '');
+    let taken = false;
+    const take = takeSessionSlot(env, 20).then((give) => {
+      taken = true;
+      return give;
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(taken, false, 'an empty fresh slot must not be reclaimed');
+    rmSync(join(slots, 'slot-0'));
+    (await take)();
+    // An empty slot file that aged past the grace period is a crashed writer's leftover.
+    writeFileSync(join(slots, 'slot-0'), '');
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(join(slots, 'slot-0'), old, old);
     assert.equal(await withSessionSlot(async () => 'ran', env), 'ran');
   } finally {
     rmSync(dir, { recursive: true, force: true });
