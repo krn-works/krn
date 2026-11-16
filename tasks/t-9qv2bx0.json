@@ -1,0 +1,14 @@
+{
+  "id": "t-9qv2bx0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn adopt respects the receiver's layout: no CLAUDE.md where the repo forbids it, new skills mirrored into an existing .claude/skills, SHA-pinned actions in the CI it writes",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16, krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac (logs .krn/tmp/s29/adopt2.log, t1.log post-adopt suite, t26.log pristine suite under the pinned Node 26: 62 pass, 2 fail only from an untrusted mise config in a temp dir).\nDefects on the real receiver (boilerplate tests that turned red only after adopt): (1) adopt creates CLAUDE.md -> AGENTS.md although the repo asserts CLAUDE.md is absent (tests/agents.test.mjs:41; check how it feeds Claude); (2) .claude/skills is a per-skill mirror directory, adopt adds 4 core skills to .agents/skills only ('.claude/skills mirrors .agents/skills'); (3) the ci.yml adopt writes uses actions/checkout@v4 and setup-node@v4, refused by 'every action ... pinned by a full commit SHA'; adopt also adds that CI although build.yml already runs 'mise run check' (includes the test command).\nOutcome: adopting boilerplate-2026 leaves its own suite as green as before.\nProof: node --test test/adopt/adopt.test.ts: pass (fixtures for each of the three receiver layouts)."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

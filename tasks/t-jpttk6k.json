@@ -1,0 +1,14 @@
+{
+  "id": "t-jpttk6k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Test command detection picks a vacuous npm workspaces command and ignores mise tasks",
+  "after": [],
+  "body": [
+    "Source: S29 rehearsal 2026-11-16, krn adopt on a scratch clone of boilerplate-2026 main 2fb16ac (logs .krn/tmp/s29/adopt2.log, t1.log post-adopt suite, t26.log pristine suite under the pinned Node 26: 62 pass, 2 fail only from an untrusted mise config in a temp dir).\nDetection named 'npm test --workspaces --if-present' for boilerplate-2026, but no workspace has a test script (vacuous); its real test task is mise.toml [tasks.\"check:test\"] (node --test tests/), run in CI via 'mise run check'.\nOutcome: a workspaces command with no workspace test script is not a test command; a mise check:test/test task is detected as 'mise run <task>'.\nProof: node --test test/adopt/init.test.ts (or the detection test file): pass."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}
