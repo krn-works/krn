@@ -12,7 +12,7 @@ import { atomicWrite } from './staged-write.ts';
 export const ARCHIVE_DIR = 'archive';
 
 /** A task is archived once it has been closed for this many days (the age is measured from `created`). */
-export const ARCHIVE_AFTER_DAYS = 14;
+export const ARCHIVE_AFTER_DAYS = 1;
 
 const DAY_MS = 86_400_000;
 

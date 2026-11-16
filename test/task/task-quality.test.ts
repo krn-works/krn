@@ -134,6 +134,18 @@ test('a dependency declared in after is green, and an unknown after id is red', 
   );
 });
 
+test('an after id that lives only in the task archive is not unknown', () => {
+  const root = tracker({
+    't-main001': { body: [...GOOD, 'After: t-arch001'], after: ['t-arch001'] },
+  });
+  mkdirSync(join(root, 'tasks', 'archive'));
+  writeFileSync(
+    join(root, 'tasks', 'archive', '2026-11.jsonl'),
+    `${JSON.stringify({ id: 't-arch001', status: 'closed', resolution: { kind: 'done', ref: null, note: '' }, created: '2026-11-01', priority: 2, title: 'T', after: [], body: GOOD })}\n`,
+  );
+  assert.deepEqual(taskQualityFailures(root, 'declared-dependencies'), []);
+});
+
 test('KRN own tasks pass every task rule: zero false-red', () => {
   assert.deepEqual(allTaskQualityFailures(own), []);
   const run = krn(own, 'task', 'check', '--quality');
