@@ -1,0 +1,14 @@
+{
+  "id": "t-3kpq3tm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A session never continues on an account of another organization",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16, verbatim: \"Musimy znaleźć sposób jak to ogarnąć: Claude can't use thinking from another organization. Claude's earlier thinking was written while you were signed in to another organization, so Claude can't use it now.\" Observed in the lead session: cswap accounts 1, 2, 3, 5 are organization \"Fundacja pat15.net\", account 4 is \"krnijuu@gmail.com's Organization\"; the session began on account 2 and continued on account 4.\nOutcome: a running session is never continued on an account of another organization: the account choice (goal.md step 5, successor launch, any auto-switch) picks only accounts of the session's organization, and a cross-organization move happens only through a handoff to a fresh successor session.\nWhy: after a cross-organization switch the session loses its preserved thinking and rereads itself, slower and at more tokens, on the account that was chosen to save quota.\nProof: a test feeds a captured `cswap list` output with two organizations to the account chooser and gets only same-organization candidates; with none left it returns the handoff verdict.\nFiles: scripts/claude/successor-launch.ts, .krn/runs/overnight/goal.md"
+  ],
+  "kind": "defect",
+  "area": "harness"
+}

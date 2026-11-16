@@ -43,12 +43,18 @@ function run(stack: string): Promise<{ status: number | null; out: string }> {
   });
 }
 
-// One test per stack, run side by side: each stack stays well inside the per-test timeout.
+// The slow step is the stack's real dependency install inside `krn adopt --init` (venv and pip, npm ci,
+// composer install): the receiver itself, so it stays. One stack takes 13-18 s on an idle host and 68-84 s
+// with six side by side at host load 56 (adopt alone 44-45 s), past the runner's 60 s ceiling. A matrix
+// that runs a whole stack therefore carries its own ceiling, about three times the loaded measurement.
+const stackTimeoutMs = 240_000;
+
+// One test per stack, run side by side.
 describe('every applicable enforced record bites in each init stack', {
   concurrency: true,
 }, () => {
   for (const stack of INIT_STACK_NAMES)
-    test(stack, async () => {
+    test(stack, { timeout: stackTimeoutMs }, async () => {
       const done = await run(stack);
       assert.equal(done.status, 0, `${stack}: ${done.out}`);
       const match = /(\d+)\/(\d+) records bite/.exec(done.out);
@@ -59,7 +65,9 @@ describe('every applicable enforced record bites in each init stack', {
 });
 
 // The npm run that starts the suite puts this repository's node_modules/.bin on PATH; a fixture must not see it.
-test('a node_modules/.bin compiler on PATH never judges the init fixture', () => {
+test('a node_modules/.bin compiler on PATH never judges the init fixture', {
+  timeout: stackTimeoutMs,
+}, () => {
   const scratch = mkdtempSync(join(tmpdir(), 'planted-path-'));
   try {
     const bin = join(scratch, 'node_modules', '.bin');

@@ -1,0 +1,18 @@
+{
+  "id": "t-9fbvy44",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Slow step named: the stack dependency install inside krn adopt --init (44-45 s of 68-84 s per stack at host load 56; 13-18 s idle). The stack matrices carry a 240 s ceiling, allowlisted in test-hygiene; the file passes 11/11 at load 64 under the 60 s runner ceiling (wp-plugin 63 s). The step time itself is unchanged: it is the real receiver."
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Planted-records init stacks finish within their timeout under load",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: test/scripts/planted-records.test.ts \"every applicable enforced record bites in each init stack\" (subtests ts, python, php, wp-plugin) hit its 60 s timeout three times today under host load ~40: ship pre-push of #1184, the t-jgent6a lane fast, and the lead fast of branch slop-prune-dead; each passed alone.\nOutcome: the test finishes well under its timeout at load 40 (each stack measured and the slow step named), or it leaves fast for CI only, with the reason in the test file.\nWhy: a load-only red fast blocks every lane at fast and at ship pre-push.\nProof: 5 consecutive npm run fast runs under 2 concurrent lanes pass; the PR names the slowest step and its time before and after.\nFiles: test/scripts/planted-records.test.ts, scripts/lib/record-plants.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

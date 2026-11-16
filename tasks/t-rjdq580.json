@@ -1,0 +1,14 @@
+{
+  "id": "t-rjdq580",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "The planted-records matrix runs in fast only when its inputs change",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16, measured while fixing t-9fbvy44: test/scripts/planted-records.test.ts takes 193 s as a file at host load 64 (six stacks 29-63 s each, the PATH test reruns the whole ts matrix for 58 s, the go init 20 s, the Rust layouts 38 s); `krn adopt --init` is 44-45 s of a stack because it installs real dependencies (venv and pip 6.7 s idle, npm ci plus lock 3.3 s, composer install plus update 3.1 s).\nOutcome: a fast run that changes none of the matrix inputs (standards/records.json, scripts/lib/record-plants.ts, scripts/standards-audit.ts, src/adopt, src/brain standards code) does not run the six-stack matrix, or the matrix reuses one initialised project per stack keyed by a hash of those inputs; the PATH test judges only the typecheck gate instead of rerunning all 37 ts records.\nWhy: the file is selected by its import graph for most src changes and costs every lane up to three minutes of fast under load.\nProof: `npm run fast` on a diff touching only src/task prints no planted-records stack test; on a diff touching scripts/lib/record-plants.ts it runs all six stacks; the file's wall time at load 40 is in the PR body before and after.\nFiles: scripts/fast-check.ts, test/scripts/planted-records.test.ts, scripts/standards-audit.ts"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}
