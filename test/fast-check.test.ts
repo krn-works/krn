@@ -758,3 +758,17 @@ test('selectTests selects test/claude/context-replay.test.ts for src/context/gau
   );
   assert.ok(picked.includes('test/claude/context-replay.test.ts'));
 });
+
+test('fast check runs the CI rule coverage test when a test/rules file is added or renamed', () => {
+  const coverage = 'test/brain/ci-rule-coverage.test.ts';
+  const tests = new Map([
+    [coverage, ''],
+    ['test/rules/json-schema-subset.test.ts', ''],
+    ['test/other.test.ts', ''],
+  ]);
+  const added = selectTests(['test/rules/json-schema-subset.test.ts'], tests);
+  assert.ok(added.includes(coverage));
+  const renamed = selectTests([], tests, ['test/rules/old-name.test.ts']);
+  assert.ok(renamed.includes(coverage));
+  assert.ok(!selectTests(['test/other.test.ts'], tests).includes(coverage));
+});
