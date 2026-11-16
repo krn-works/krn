@@ -54,6 +54,7 @@ const prView = z.object({
     .array(
       z.object({
         name: z.string().optional(),
+        startedAt: z.string().optional(),
         status: z.string().optional(),
         conclusion: z.string().nullish(),
         detailsUrl: z.string().optional(),
@@ -64,6 +65,25 @@ const prView = z.object({
 type PrView = z.infer<typeof prView>;
 /** The aggregate Check, whether its job is named `Check` or `<caller job> / Check`. */
 const aggregateCheck = /(?:^|\/ )Check$/u;
+
+/**
+ * The newest aggregate Check of the head: a rerun or a superseded run leaves older runs in the
+ * rollup, and only the latest one speaks for the head. Ordered by start time, later entry on a tie.
+ */
+function newestCheck(
+  rollup: PrView['statusCheckRollup'],
+): PrView['statusCheckRollup'][number] | undefined {
+  let newest: PrView['statusCheckRollup'][number] | undefined;
+  for (const run of rollup) {
+    if (!aggregateCheck.test(run.name ?? '')) continue;
+    if (
+      newest === undefined ||
+      (run.startedAt ?? '') >= (newest.startedAt ?? '')
+    )
+      newest = run;
+  }
+  return newest;
+}
 
 const gitLockAttempts = 5;
 /** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
@@ -193,9 +213,7 @@ main checkout: ${main}`;
       !Number.isInteger(pr)
     )
       return;
-    const conclusion = rollup.find(
-      (c) => c.name !== undefined && aggregateCheck.test(c.name),
-    )?.conclusion;
+    const conclusion = newestCheck(rollup)?.conclusion;
     try {
       runtime.completeClose(main, {
         task,
@@ -572,9 +590,7 @@ async function waitForMerge(options: {
         76,
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
-    const check = pull.statusCheckRollup.find((run) =>
-      aggregateCheck.test(run.name ?? ''),
-    );
+    const check = newestCheck(pull.statusCheckRollup);
     const conclusion = concluded.safeParse(check?.conclusion).data;
     if (
       check?.status === 'COMPLETED' &&
@@ -586,6 +602,11 @@ async function waitForMerge(options: {
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
         74,
+        ...(conclusion === 'CANCELLED'
+          ? [
+              `verdict: cancelled: the newest ${check.name} run was cancelled, not failed; rerun it or push a fresh head`,
+            ]
+          : []),
         `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }

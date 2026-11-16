@@ -83,6 +83,15 @@
       }
     },
     {
+      "name": "pr-1158-superseded-rollup",
+      "command": "gh pr view 1158 --repo krn-works/krn --json headRefOid,statusCheckRollup",
+      "exitCode": 0,
+      "stdout": {
+        "file": "pr-1158-superseded-rollup.stdout.json",
+        "sha256": "c50a60f57084907326ff221435bbabbad6d8e262a1e549a7e11d4d4b5d6ace74"
+      }
+    },
+    {
       "name": "pr-1112-head-rollup",
       "command": "gh pr view 1112 --repo krn-works/krn --json headRefOid,statusCheckRollup",
       "exitCode": 0,
