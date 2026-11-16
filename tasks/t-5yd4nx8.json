@@ -1,0 +1,18 @@
+{
+  "id": "t-5yd4nx8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "krn pr body writes Ticket: when every commit carries Refs:",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: PR #1249 commits carry 'Refs: t-1p7dmw9' (task stays open) but the generated body says 'Ticket: t-1p7dmw9'.\nFiles: src/ship/ (krn pr body)\nOutcome: krn pr body prints Refs: <id> when the task stays open (no close in the diff or --refs), Ticket: only when the PR closes it\nProof: a regression test generates a body for a worktree whose commits carry Refs: and asserts the body has Refs: and no Ticket:"
+  ],
+  "kind": "defect",
+  "area": "ship",
+  "from": {
+    "kind": "finding",
+    "ref": "pr-body-refs"
+  }
+}

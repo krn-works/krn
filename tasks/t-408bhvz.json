@@ -1,0 +1,18 @@
+{
+  "id": "t-408bhvz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "evals/replay/run.ts runs live arm sessions through the host-wide eval slot",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: node evals/replay/run.ts prints 'live sessions need the session driver (lane run); use --dry'; #1242 added evals/session-slot.ts but replay has no live call site. S7 screen of arm A (t-1p7dmw9) needs it.\nOutcome: node evals/replay/run.ts --screen runs arm A sessions on the units under evals/units with at most KRN_EVAL_MAX_SESSIONS concurrent claude sessions and writes graded rows\nProof: a test with a stub claude runs the screen on 2 units and asserts 2 graded rows and peak concurrency <= the cap"
+  ],
+  "kind": "feature",
+  "area": "evals",
+  "from": {
+    "kind": "finding",
+    "ref": "replay-live-driver"
+  }
+}
