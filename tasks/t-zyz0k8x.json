@@ -1,0 +1,14 @@
+{
+  "id": "t-zyz0k8x",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Every rule CI enforces is a scoped brain record",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16: \"agenci nie znają reguł z repozytorium\" — tonight most PRs needed 2-4 CI rounds on rules the repo already enforces (biome on JSON, task-quality, spec/receivers.json, shard weights, standards-proposals test, Proof `cmd: verdict`, weak-tests line).\nOutcome: every check that npm run lint, npm run check and the CI test jobs run maps to one enforced standards record with its path scope, served by the edit-time moment; a test fails when a CI check has no record.\nProof: `node --test test/brain/ci-rule-coverage.test.ts` passes with 0 unmapped checks.\nFiles: .agents/records.json, src/brain/standards.ts"
+  ],
+  "kind": "feature",
+  "area": "brain"
+}
