@@ -236,3 +236,20 @@ test('edit of a published record in the main checkout goes to the pending ref an
   );
   assert.equal(pendingTaskFiles(f.main).size, 0);
 });
+
+test('closing a pending record keeps the closed record on the pending ref and publish lists it', (t) => {
+  const f = fixture(t);
+  const id = f.create(f.main, 'Pending to close');
+  const closed = f.task(f.main, 'close', id, '--as', 'done', '--note', 'done');
+  assert.equal(closed.status, 0, closed.stderr);
+  assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+  assert.equal(existsSync(join(f.main, 'tasks', `${id}.json`)), false);
+  assert.match(
+    f.git(f.main, 'show', `${PENDING_REF}:tasks/${id}.json`),
+    /"status": "closed"/u,
+  );
+  const dry = f.task(f.main, 'publish', '--dry-run');
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.ok(dry.stdout.includes(id), dry.stdout);
+  assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+});

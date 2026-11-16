@@ -453,6 +453,18 @@ export function closeTask(
   const record = getTask(root, id);
   if (record.status === 'closed')
     throw new TaskDataError([`tasks/${id}.json: task is already closed`]);
+  // A record waiting on the pending ref is closed there, so publish ships the closed record
+  // and the main checkout stays clean.
+  const pending = pendingTaskFiles(root).has(id);
+  const write = (task: TaskRecord) =>
+    pending
+      ? addPendingTask(root, id, serializeTask(task))
+      : atomicWrite(
+          root,
+          join(root, 'tasks', `${id}.json`),
+          serializeTask(task),
+          true,
+        );
   if (
     (resolution.kind === 'duplicate' || resolution.kind === 'superseded') &&
     (resolution.ref === null || !hasTask(root, resolution.ref))
@@ -470,12 +482,7 @@ export function closeTask(
     });
     const failed = acceptance.filter((entry) => !entry.passes);
     if (failed.length > 0) {
-      atomicWrite(
-        root,
-        join(root, 'tasks', `${id}.json`),
-        serializeTask({ ...record, acceptance }),
-        true,
-      );
+      write({ ...record, acceptance });
       throw new TaskCommandError(
         `tasks/${id}.json: acceptance failed, task stays open:\n${failed
           .map((entry) => `  exit ${entry.exit}: ${entry.verify}`)
@@ -490,12 +497,7 @@ export function closeTask(
     status: 'closed',
     resolution,
   };
-  atomicWrite(
-    root,
-    join(root, 'tasks', `${id}.json`),
-    serializeTask(closed),
-    true,
-  );
+  write(closed);
   return closed;
 }
 
