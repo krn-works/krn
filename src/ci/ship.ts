@@ -18,7 +18,7 @@ import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -407,28 +407,74 @@ main checkout: ${main}`;
       publishedBody,
     ]);
   }
-  try {
-    await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
-  } catch (error) {
-    // A base with no required check or no protection rule: GitHub refuses auto-merge there (clean status, or no branch rules), so merge now. A repository whose settings disallow auto-merge is merged directly too; gh then refuses the merge itself while a required check is unmet.
-    if (
-      !(
-        error instanceof CommandFailure &&
-        /is in clean status|Protected branch rules not configured|Auto merge is not allowed for this repository/u.test(
-          error.result.stderr,
-        )
-      )
-    )
-      throw error;
-    await gh(['pr', 'merge', String(pr), '--repo', repo, '--squash']);
-  }
-
   const head = git(['rev-parse', 'HEAD']);
   const lines = [`pr: #${pr} ${repo} ${head}`];
   const view = () => viewOf(pr);
+  // Auto-merge fires on the first green Check, whatever the base did meanwhile, so ship merges
+  // explicitly: only a head that contains the current base tip, pinned by --match-head-commit.
+  const mergeCurrent = async (at: string): Promise<string | undefined> => {
+    await fetchTarget();
+    const onto = `origin/${target}`;
+    const contains = runner(
+      'git',
+      ['merge-base', '--is-ancestor', onto, 'HEAD'],
+      cwd,
+    );
+    if (contains.code > 1) checked(contains);
+    if (contains.code === 1) {
+      const rebased = runner('git', ['rebase', onto], cwd);
+      if (rebased.code !== 0) {
+        runner('git', ['rebase', '--abort'], cwd);
+        throw Object.assign(
+          new Error(
+            `verdict: conflict: ${onto} moved and the branch no longer rebases onto it; rebase by hand and rerun with --force\n${rebased.stderr.trim()}`,
+          ),
+          { exitCode: 76 },
+        );
+      }
+      const pushed = runner(
+        'git',
+        ['push', '--force-with-lease', 'origin', branch],
+        cwd,
+      );
+      if (pushed.code !== 0)
+        throw Object.assign(new Error(`push failed: ${pushed.stderr.trim()}`), {
+          exitCode: 70,
+        });
+      const updated = git(['rev-parse', 'HEAD']);
+      lines.push(`updated: ${onto} moved; rebased onto it, now ${updated}`);
+      return updated;
+    }
+    try {
+      await gh([
+        'pr',
+        'merge',
+        String(pr),
+        '--repo',
+        repo,
+        '--squash',
+        '--match-head-commit',
+        at,
+      ]);
+    } catch (error) {
+      if (
+        error instanceof CommandFailure &&
+        /head branch was modified|match-head-commit/iu.test(error.result.stderr)
+      )
+        throw Object.assign(
+          new Error(
+            `verdict: head moved: PR #${pr} no longer ends at ${at}: ${error.result.stderr.trim()}`,
+          ),
+          { exitCode: 77 },
+        );
+      throw error;
+    }
+    return undefined;
+  };
   const outcome = await waitForMerge({
     view,
     head,
+    mergeCurrent,
     pr,
     sleep: wait,
     now: runtime.now ?? Date.now,
@@ -479,12 +525,14 @@ async function replied(
 
 /**
  * Polls the PR until it merges or stops: a red or never-started Check (74, 69), a conflict (76),
- * a moved head (77), no auto-merge (78), a closed PR (79), an open PR no rule releases (80), a
+ * a moved head (77), a closed PR (79), an open PR no rule releases (80), a
  * Check still pending at the bound (75).
  */
 async function waitForMerge(options: {
   view: () => Promise<PrView>;
   head: string;
+  /** Called once per head after a green Check: merges it, or returns the new head after updating the branch to the base. */
+  mergeCurrent: (head: string) => Promise<string | undefined>;
   pr: number;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
@@ -492,8 +540,12 @@ async function waitForMerge(options: {
   | { merged: string; lines: string[] }
   | { merged?: undefined; exitCode: number; lines: string[] }
 > {
-  const start = options.now();
+  let start = options.now();
+  let head = options.head;
   let mergeBy: number | undefined;
+  let requested = false;
+  // The head before a branch update: the PR may keep reporting it until GitHub sees the push.
+  let replaced: string | undefined;
   for (;;) {
     const pull = await options.view();
     const stop = (exitCode: number, ...lines: string[]) => ({
@@ -510,10 +562,20 @@ async function waitForMerge(options: {
         'merge: PR closed without merging',
         `verdict: closed unmerged PR #${options.pr}`,
       );
-    if (pull.headRefOid !== options.head)
+    if (replaced !== undefined && pull.headRefOid === replaced) {
+      if (options.now() - start >= startTimeoutMs)
+        return stop(
+          69,
+          `gate: PR #${options.pr} still shows ${replaced} ${startTimeoutMs / 1000}s after the branch update to ${head}`,
+        );
+      await options.sleep(pollMs);
+      continue;
+    }
+    if (pull.headRefOid === head) replaced = undefined;
+    if (pull.headRefOid !== head)
       return stop(
         77,
-        `verdict: head moved: PR #${options.pr} is at ${pull.headRefOid}, not ${options.head}`,
+        `verdict: head moved: PR #${options.pr} is at ${pull.headRefOid}, not ${head}`,
       );
     if (pull.mergeable === 'CONFLICTING')
       return stop(
@@ -534,14 +596,28 @@ async function waitForMerge(options: {
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
         74,
-        `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${options.head}${run === undefined ? '' : ` in run ${run}; logs: bin/krn ci logs --run ${run}; rerun: gh run rerun ${run} --failed`}`,
+        `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: bin/krn ci logs --run ${run}; rerun: gh run rerun ${run} --failed`}`,
       );
     }
-    if (pull.autoMergeRequest === null || pull.autoMergeRequest === undefined)
-      return stop(
-        78,
-        `verdict: not merging: auto-merge is not enabled on PR #${options.pr}; run gh pr merge ${options.pr} --auto --squash`,
-      );
+    if (
+      !requested &&
+      check?.status === 'COMPLETED' &&
+      (conclusion === 'SUCCESS' ||
+        conclusion === 'NEUTRAL' ||
+        conclusion === 'SKIPPED')
+    ) {
+      const updated = await options.mergeCurrent(head);
+      if (updated === undefined) requested = true;
+      else {
+        // A fresh head needs a fresh Check.
+        replaced = head;
+        head = updated;
+        start = options.now();
+        mergeBy = undefined;
+        await options.sleep(pollMs);
+        continue;
+      }
+    }
     const elapsed = options.now() - start;
     if (check?.status === 'COMPLETED' && conclusion !== undefined) {
       mergeBy ??= options.now() + mergeTimeoutMs;
@@ -549,17 +625,17 @@ async function waitForMerge(options: {
         return stop(
           80,
           `merge: not observed within ${mergeTimeoutMs / 1000}s; after it merges run scripts/product-release.sh`,
-          `verdict: open: auto-merge enabled but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
+          `verdict: open: merge requested but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
         );
     } else if (check === undefined && elapsed >= startTimeoutMs)
       return stop(
         69,
-        `gate: the Check never started on ${options.head} within ${startTimeoutMs / 1000}s`,
+        `gate: the Check never started on ${head} within ${startTimeoutMs / 1000}s`,
       );
     else if (elapsed >= gateTimeoutMs)
       return stop(
         75,
-        `gate: the Check had not concluded on ${options.head} after ${gateTimeoutMs / 1000}s`,
+        `gate: the Check had not concluded on ${head} after ${gateTimeoutMs / 1000}s`,
       );
     await options.sleep(pollMs);
   }

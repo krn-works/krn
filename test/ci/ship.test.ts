@@ -17,6 +17,7 @@ import { capture } from '../receivers/capture.ts';
 const head = 'a'.repeat(40);
 const base = 'b'.repeat(40);
 const merge = 'c'.repeat(40);
+const newHead = 'e'.repeat(40);
 const title = 'feat(ci): ship a PR in one call (t-3ag9eqn)';
 const args = ['--title', title, '--body-file', 'body.md', '--repo', 'o/r'];
 type Failure = Error & { exitCode?: number };
@@ -39,10 +40,15 @@ function receiver(options: {
   carrier?: string;
   proofExit?: number;
   lateConflict?: string;
-  autoRefusal?: string;
+  mergeRefusal?: string;
   common?: string;
+  /** Fetches after which origin/<base> is ahead of the head: each moves the base once, the rebase catches up. */
+  baseMoves?: number;
+  rebaseExit?: number;
 }) {
   let time = 0;
+  let behind = options.baseMoves ?? 0;
+  let rebased = 0;
   const calls: string[] = [];
   const dirs: string[] = [];
   const pulls = [...options.pulls];
@@ -61,16 +67,11 @@ function receiver(options: {
       });
     if (a[0] === 'pr' && a[1] === 'create')
       return 'https://github.com/o/r/pull/7\n';
-    if (
-      a[0] === 'pr' &&
-      a[1] === 'merge' &&
-      a.includes('--auto') &&
-      options.autoRefusal
-    )
+    if (a[0] === 'pr' && a[1] === 'merge' && options.mergeRefusal)
       throw new CommandFailure({
         code: 1,
         stdout: '',
-        stderr: options.autoRefusal,
+        stderr: options.mergeRefusal,
       });
     if (a[0] === 'pr' && a[1] !== 'view') return '';
     if (a[0] === 'pr' && a[1] === 'view') {
@@ -108,13 +109,31 @@ function receiver(options: {
       return out(`${options.branch ?? 'feat-x'}\n`);
     if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
     if (a[0] === 'status') return out(options.dirty ? ' M f\n' : '');
-    if (line === 'rev-parse HEAD') return out(`${head}\n`);
+    if (line === 'rev-parse HEAD')
+      return out(`${rebased > 0 ? newHead : head}\n`);
     if (line === `rev-parse origin/${options.target ?? 'main'}`)
       return out(`${base}\n`);
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
     if (a.includes('--git-common-dir'))
       return out(`${options.common ?? '/r'}/.git\n`);
+    if (a[0] === 'merge-base') {
+      // git merge-base --is-ancestor exits 1 while the head lacks the base tip.
+      if (behind > 0) {
+        behind -= 1;
+        return { code: 1, stdout: '', stderr: '' };
+      }
+      return out('');
+    }
+    if (a[0] === 'rebase' && a[1] === '--abort') return out('');
+    if (a[0] === 'rebase') {
+      rebased += 1;
+      return {
+        code: options.rebaseExit ?? 0,
+        stdout: '',
+        stderr: 'CONFLICT\n',
+      };
+    }
     if (a[0] === 'merge-tree') {
       // The pre-push trial merges clean; the trial after the PR turned dirty conflicts, shaped
       // like git merge-tree --write-tree --name-only: exit 1, tree id, paths, blank line.
@@ -150,7 +169,7 @@ function receiver(options: {
 const auto = { autoMergeRequest: { mergeMethod: 'SQUASH' }, state: 'OPEN' };
 const merged = { state: 'MERGED', mergeCommit: { oid: merge } };
 
-test('ship pushes, creates, auto-merges, waits through the merge and leaves the lane in place', async () => {
+test('ship pushes, creates, merges explicitly, waits through the merge and leaves the lane in place', async () => {
   const r = receiver({ pulls: [auto, merged] });
   const out = await shipCommand(args, {
     ...r,
@@ -168,7 +187,7 @@ test('ship pushes, creates, auto-merges, waits through the merge and leaves the 
     'push origin feat-x',
     'gh pr list',
     'gh pr create',
-    'gh pr merge 7 --repo o/r --auto --squash',
+    `gh pr merge 7 --repo o/r --squash --match-head-commit ${head}`,
   ];
   let at = -1;
   for (const step of order) {
@@ -346,7 +365,7 @@ test('a fetch that hits a ref lock is retried, a real fetch failure is not', asy
       return inner(command, a, at);
     },
   });
-  assert.equal(tries, 3);
+  assert.equal(tries, 4);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 
   const broken = receiver({ pulls: [auto, merged] });
@@ -370,7 +389,6 @@ test('a fetch that hits a ref lock is retried, a real fetch failure is not', asy
 
 test('exit 0 means merged: each unmerged verdict exits with its own code and keeps the worktree', async () => {
   const cases: Array<[Record<string, unknown>[], number, RegExp]> = [
-    [[{ state: 'OPEN' }], 78, /^verdict: not merging/mu],
     [[auto, { state: 'CLOSED' }], 79, /^verdict: closed unmerged PR #7$/mu],
   ];
   for (const [pulls, code, verdict] of cases) {
@@ -671,52 +689,63 @@ for (const declared of [true, false]) {
   });
 }
 
-test('a base without a required check merges the clean PR directly when auto-merge is refused', async () => {
+test('a base that moved after the Check passed is merged only after the update and a fresh green Check', async () => {
+  const stale = { ...auto };
+  const fresh = { ...auto, headRefOid: newHead };
   const r = receiver({
-    pulls: [merged],
-    autoRefusal:
-      'GraphQL: Pull request Pull request is in clean status (enablePullRequestAutoMerge)',
+    // The PR keeps its old head and old green Check for one poll after the push.
+    pulls: [stale, stale, fresh, merged],
+    baseMoves: 1,
   });
-  const out = await shipCommand(args, {
-    ...r,
-    completeClose: completeCloseExposure,
-  });
+  const out = await shipCommand(args, r);
+  assert.match(
+    out,
+    new RegExp(`^updated: origin/main moved; .*${newHead}$`, 'mu'),
+  );
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+  const order = [
+    'push origin feat-x',
+    'git rebase origin/main',
+    'git push --force-with-lease origin feat-x',
+    `gh pr merge 7 --repo o/r --squash --match-head-commit ${newHead}`,
+  ];
+  let at = -1;
+  for (const step of order) {
+    const found = r.calls.findIndex((c, i) => i > at && c.includes(step));
+    assert.ok(found > at, `${step} out of order in ${r.calls.join('\n')}`);
+    at = found;
+  }
+  // The stale head is never merged, and exactly one merge is requested.
+  const merges = r.calls.filter((c) => c.startsWith('gh pr merge'));
+  assert.equal(merges.length, 1);
+  assert.ok(!merges[0]?.includes(head));
 });
 
-test('a base with no branch protection rule merges the PR directly when auto-merge is refused', async () => {
-  const r = receiver({
-    pulls: [merged],
-    autoRefusal:
-      'GraphQL: Pull request Protected branch rules not configured for this branch (enablePullRequestAutoMerge)',
+test('a base that moved and no longer rebases exits 76 without merging', async () => {
+  const r = receiver({ pulls: [auto], baseMoves: 1, rebaseExit: 1 });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 76);
+    return true;
   });
-  const out = await shipCommand(args, {
-    ...r,
-    completeClose: completeCloseExposure,
-  });
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+  assert.ok(r.calls.includes('git rebase --abort'));
+  assert.ok(!r.calls.some((c) => c.startsWith('gh pr merge')));
 });
 
-test('clause 5 and clause 8: a repository that disallows auto-merge gets a direct merge (verbatim 1115i refusal)', async () => {
+test('a head that moved between the Check and the pinned merge exits 77', async () => {
   const r = receiver({
-    pulls: [merged],
-    autoRefusal:
-      'GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)',
+    pulls: [auto],
+    mergeRefusal:
+      'GraphQL: Head branch was modified. Review and try the merge again. (mergePullRequest)',
   });
-  const out = await shipCommand(args, {
-    ...r,
-    completeClose: completeCloseExposure,
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 77);
+    return true;
   });
-  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
 
-test('any other auto-merge refusal still fails the ship', async () => {
-  const r = receiver({ pulls: [merged], autoRefusal: 'GraphQL: not allowed' });
+test('any other merge refusal still fails the ship', async () => {
+  const r = receiver({ pulls: [auto], mergeRefusal: 'GraphQL: not allowed' });
   await assert.rejects(shipCommand(args, r), /not allowed/u);
-  assert.ok(!r.calls.includes('gh pr merge 7 --repo o/r --squash'));
 });
 
 // The checkout that owns the release script: the receiver's fake toplevel is this repository.
