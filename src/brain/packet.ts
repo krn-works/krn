@@ -22,6 +22,8 @@ export type BrainRecord = {
   readonly enforced?: true;
   /** Status `retired`: never enters a packet. */
   readonly retired?: true;
+  /** The record's retrieval terms (`applies.terms`): words a task may use that the text does not, matched like the text itself. */
+  readonly terms?: readonly string[];
 };
 
 export type Audience = 'lead' | 'worker' | 'adopt';
@@ -68,6 +70,7 @@ export function packetRecord(r: UnifiedRecord): BrainRecord {
     ...(r.audience === 'all' ? {} : { audience: r.audience }),
     ...(r.enforcement.kind === 'advisory' ? {} : { enforced: true as const }),
     ...(r.universal === true ? { universal: true as const } : {}),
+    ...(r.applies.terms.length === 0 ? {} : { terms: r.applies.terms }),
     ...(r.status === 'retired' ? { retired: true as const } : {}),
   };
 }
@@ -131,7 +134,9 @@ export function brainPacket(input: {
   const bags = new Map(
     pool.map((record) => [
       record.id,
-      terms(`${record.text} ${input.matchText?.(record) ?? ''}`),
+      terms(
+        `${record.text} ${(record.terms ?? []).join(' ')} ${input.matchText?.(record) ?? ''}`,
+      ),
     ]),
   );
   const frequency = new Map<string, number>();
