@@ -1,0 +1,14 @@
+{
+  "id": "t-4gezbg6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Decision: limit concurrent relay chains across the operator's projects",
+  "after": [],
+  "body": [
+    "Source: t-ahsmyfp measurement 2026-11-16 (.krn/runs/lead/usage/report-before-v3.md): relay-chain links are 48% of 7-day usage (2,616 of 5,414 USD-eq), 564 of 657 outside KRN, started by hand in the operator's projects (~11 live at once at 14:00). KRN cannot cap these without a refusing global hook, which t-ahsmyfp forbids.\nOutcome: the operator picks one: (a) a global soft limit: the context-relay launcher (rekurencja-skills relay.sh) refuses a new chain when N chains are live host-wide (default 6), relays inside a chain stay allowed; (b) an advisory only (warn at N); (c) nothing, the chains are the intended workload. Recommendation: (b) first with N=8, measured one week with measure.ts, then (a) if the peak stays above 8.\nProof: krn task show of this task records the operator's verbatim choice, and the chosen variant ships in rekurencja-skills.\nFiles: rekurencja-skills/context-relay/scripts/relay.sh"
+  ],
+  "kind": "research",
+  "area": "harness"
+}

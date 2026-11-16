@@ -1,0 +1,14 @@
+{
+  "id": "t-g20m5s1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The Stop check resolves a lane's branch to another worktree",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: a krn-lane subagent that shipped two PRs from two worktrees (pending-edit-archived #1218, pending-edit-published #1222) had its final report refused by the Stop check, which named branch outdated-instructions (the lead's own worktree) as the lane branch; two other lanes reported the Stop hook 'checked the main repository' and saw no commit.\nOutcome: the Stop check resolves a subagent lane's branches from the worktrees that lane started (its krn lane start records), accepts a report naming any of them, and never resolves to another lane's or the lead's worktree; a test covers a lane with two worktrees.\nProof: node --test test/hook/stop-lane-branch.test.ts: pass\nFiles: src/hook/, scripts/claude/"
+  ],
+  "kind": "defect",
+  "area": "harness"
+}

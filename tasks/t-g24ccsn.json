@@ -1,0 +1,14 @@
+{
+  "id": "t-g24ccsn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Concurrent npm run fast across lanes has no host-wide test budget",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: three krn-lane subagents and the lead each ran npm run fast at once; load average reached 103 (uptime 15:07), one lane's fast ran over 15 minutes and reported BLOCKER, the lead's fast exceeded 600 s.\nOutcome: npm run fast and the related-test runner take a host-wide slot (a lock-file semaphore under ~/.cache/krn or the main checkout .krn/tmp) sized to CPU count / test concurrency, so concurrent lanes queue instead of thrashing; the wait is printed.\nProof: node --test test/scripts/fast-slots.test.ts: pass (two concurrent fast runs with slots=1 run one after the other).\nFiles: scripts/fast-check.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
