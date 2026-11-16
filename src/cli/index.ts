@@ -61,8 +61,6 @@ const commands: Record<CommandName, Handler> = {
       ? (await import('./lane-run-verb.ts')).laneRunVerb(options.slice(1))
       : (await import('./lane.ts')).laneCommand(options),
   state: async (options) => (await import('./state.ts')).stateCommand(options),
-  decide: async (options) =>
-    (await import('./decide.ts')).decideCommand(options),
   findings: async (options) =>
     (await import('./findings.ts')).findingsCommand(options),
   plan: async (options) => (await import('./plan.ts')).planCommand(options),

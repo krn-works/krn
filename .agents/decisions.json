@@ -1,0 +1,1465 @@
+[
+  {
+    "id": "dec-d1",
+    "type": "decision",
+    "text": "KRN is the software delivery layer above agent harnesses, never a harness; an agent is a model plus its harness.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d1",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d2",
+    "type": "decision",
+    "text": "KRN is the product for fast, low-noise software creation with agents; measure its delivery by merges per lane-hour, review rounds, conflicts, and flaky stalls.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d2",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d3",
+    "type": "decision",
+    "text": "Work on one thing at a time, avoid scattered functionality, and finish each thing properly.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d3",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d4",
+    "type": "decision",
+    "text": "Keep one repository as the target: Product is home, and GLOBAL folds in when ADR 0013's measured trigger fires.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d4",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d5",
+    "type": "decision",
+    "text": "Name work by role and purpose, never phase, slice, ticket, round, date, or version; use deep modules with small interfaces and substantial work.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d5",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d6",
+    "type": "decision",
+    "text": "Keep `AGENTS.md` as the sole instruction source, make every `CLAUDE.md` its symlink, and keep Codex standards and paths under `.agents/skills`.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d6",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d7",
+    "type": "decision",
+    "text": "Keep global `AGENTS.md` to about 16 universal safety and collaboration lines; KRN process lives only in repositories that explicitly adopt KRN, and non-adopters get no KRN context, onboarding, CLI, or tracker calls.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d7",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d8",
+    "type": "decision",
+    "text": "Replace Paperclip, the legacy Git-ref `krn task` queue, and host-SQLite `krn work` with one Git-backed in-repository `krn task` tracker using JSONL/files, a rebuildable local index, dependencies, ready, and claim; import records, then...",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d8",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d9",
+    "type": "decision",
+    "text": "Remove the `krn_pretooluse.py` and `destructive_guard.py` parser guard; use Codex sandbox/approvals, Claude Code sandbox/permissions, and server-side branch protection as safety boundaries.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d9",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d10",
+    "type": "decision",
+    "text": "Deterministic checks block; parallel LLM judges return all findings in one pass, with `BLOCKING` only for material defects and a reproduction preferred; allow at most two rounds, then the lead decides.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d10",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d11",
+    "type": "decision",
+    "text": "Run cheap preflight (types, lint, documentation-reading tests, test-impact review, and contracts) before review; after review Product runs `gate:local`, GLOBAL does not run a full local gate, and CI runs the same steps.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d11",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d12",
+    "type": "decision",
+    "text": "Fix flaky tests instead of retrying; permit one recorded retry only for untouched files while a fix is pending.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d12",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d13",
+    "type": "decision",
+    "text": "Workers fork and flush: each fix round uses a fresh session and one-page handoff; `--resume` is only for interrupted runs and is refused above 500k tokens.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d13",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d14",
+    "type": "decision",
+    "text": "Put lessons where executors read them: mechanical checks first, repository `AGENTS.md` second, and lead memory only for operator preferences and decisions.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d14",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d15",
+    "type": "decision",
+    "text": "Turn regressions into expected behavior or mechanical rules for code invariants; do not add lint that pins implementation technique.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d15",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d16",
+    "type": "decision",
+    "text": "Keep backups temporary: back up, edit, verify, and delete in the same step; host migrations may keep one during the observation window.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d16",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d17",
+    "type": "decision",
+    "text": "Keep repositories private, all rights reserved, and unpublished.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d17",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d18",
+    "type": "decision",
+    "text": "Route models with luna as default, sol for hard refactors, Claude Haiku/Sonnet/Opus subagents by task type, and two or three Opus lenses for program decisions.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d18",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d19",
+    "type": "decision",
+    "text": "Keep only the minimal true documentation set; delete outdated docs because Git history is the archive, and let current code plus passing tests outrank stale instructions.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d19",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d20",
+    "type": "decision",
+    "text": "Use FR-40 instead of the underpowered Wizard-of-Oz set, which leaked the exemplar SHA; retain that set only as a harness pilot.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d20",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d21",
+    "type": "decision",
+    "text": "Use GitHub Team and server-side rulesets on main in both repositories; merges go through GitHub auto-merge on the required Check, with no bypass.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d21",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d22",
+    "type": "decision",
+    "text": "Replace two of the three Codex judges with `codex review` and Claude Code `/code-review`; keep the red-first changed-test check and exact-head record.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d22",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d23",
+    "type": "decision",
+    "text": "Run a two-week proof of full KRN versus a plain harness, plus a market review, measured by operator minutes per merge, lead time p50/p90, review rounds and noise, escaped defects, and cost per PR; run it in parallel with FR-40.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d23",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d24",
+    "type": "decision",
+    "text": "Freeze `krn eval` to plan, snapshot, mask, checks, and the arm session; FR-40 runs Codex only.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d24",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d25",
+    "type": "decision",
+    "text": "Paperclip is legacy: it is never a fallback and its data is never imported.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d25",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d26",
+    "type": "decision",
+    "text": "KRN's tracker is `krn task`.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d26",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d27",
+    "type": "decision",
+    "text": "Applying D14, KRN tooling stops enforcing or creating the standalone `docs/research/workflow-lessons.md` page.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d27",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d28",
+    "type": "decision",
+    "text": "Host lead policy (Claude hooks, lead skills, the codex-worker wrapper, and lead scripts) moves into GLOBAL and is installed by a sealed release; untracked host copies are removed.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d28",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d29",
+    "type": "decision",
+    "text": "As an exception to D23, `krn task` gets comments.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d29",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d30",
+    "type": "decision",
+    "text": "The full Product gate is required CI on the exact HEAD (`npm run gate`).",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d30",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d31",
+    "type": "decision",
+    "text": "ADR 0002 (durable temporal brain v2) is the accepted KRN memory target, status “Accepted target, unbuilt”; Product is its home (D4).",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d31",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d32",
+    "type": "decision",
+    "text": "Shadow packets are permitted beside the current memory: a deterministic, task-scoped brain packet may be computed for a slice and stored as agent state under `.krn/` (KRN-08), together with its source revision, as-of date and record...",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d32",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d33",
+    "type": "decision",
+    "text": "The GLOBAL `krn memory` v1 store (`~/.local/share/krn/memory` and its GLOBAL CLI) is frozen: neither migrated, ported, extended nor retired.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d33",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "dec-d34",
+    "type": "decision",
+    "text": "KRN must work in any repository and stack after `krn adopt`: skills, rules and docs are universal, not bound to this repository; dogfooding KRN on KRN stays, but evidence from KRN alone is in-sample.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d34",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d35",
+    "type": "decision",
+    "text": "Correctness comes first: fix KRN until its behavior is right before cost work, and measure with hidden tests rather than conformance; a cost verdict without a correctness floor proves nothing.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d35",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d36",
+    "type": "decision",
+    "text": "The lead decides program and direction calls itself on evidence and reports after; it asks only for what no grant covers (host credentials, other repositories).",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d36",
+    "evidence_kind": "operator-verbatim"
+  },
+  {
+    "id": "dec-d37",
+    "type": "decision",
+    "text": "Do not spend quota on large confirmatory evals while known weak spots are unfixed: prove levers on the smallest set that answers the question, then confirm.",
+    "why": "",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "ADR 0014",
+      "evidence": ["docs/adr/0014-operator-decisions-2026-10-23.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "adr-0014-d37",
+    "evidence_kind": "agent"
+  },
+  {
+    "id": "d-0b6c73",
+    "type": "decision",
+    "text": "Install a host-wide context gauge and ceiling (needs hook-trust grant)?",
+    "why": "recommendation: Grant hook trust and install the gauge; default: Do not install; per-repository gauge only",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-0b6c73",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-0cbc99",
+    "type": "decision",
+    "text": "Who resolves the design-studio judge merge (6 conflicting hunks)?",
+    "why": "recommendation: The design-studio owner resolves it; default: Leave unmerged",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-0cbc99",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-13a3db",
+    "type": "decision",
+    "text": "Grant the delivery GitHub App (15368) the Workflows write permission? Outside bases and adopted repos get no .github/workflows from KRN, so they have no required Check (outside acceptance 792f529 finding 1; t-mmyjfjn; ship exits 83 on workflow edits).",
+    "why": "recommendation: Grant Workflows: write on App 15368 in the krn-works org settings (credential/permission change, operator only).; default: No workflows from KRN; adopted repos without CI merge on the ungated path ship now handles; t-mmyjfjn stays blocked.",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-13a3db",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-174575",
+    "type": "decision",
+    "text": "t-d19z692 (KRN unattended in outside repos) needs 3 private repos under krn-works; the delivery App cannot create repos (createRepository 403, task t-nhz6nn6). Create krn-works/outside-php, outside-npm, outside-py empty, or allow the lead to create them with your gh login?",
+    "why": "recommendation: Create the three empty private repos yourself (gh repo create krn-works/outside-{php,npm,py} --private); the App is already installed org-wide, scratch copies are ready in /mnt/storage/tmp/krn-outside; default: acceptance stays blocked; lead continues other tasks; decided by operator: Created private krn-works/outside-php, outside-npm, outside-py; private rows may push operator scratch copies only to these repos, never to krn-works/krn (grant 2026-11-15)",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": "2026-11-15",
+    "supersedes": [],
+    "subject": "d-174575",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-15"
+  },
+  {
+    "id": "d-1982f6",
+    "type": "decision",
+    "text": "ADR 0002: may KRN promote standards to trial automatically and retire records with no measured effect (>=30 exposures, 10% holdout), with your veto, instead of you promoting each? (t-b0rfqra)",
+    "why": "recommendation: yes: auto trial + auto retire via generated PR, operator veto; default: yes; decided by Fable (operator grant 2026-11-14): yes: auto trial + auto retire via generated PR, operator veto (t-b0rfqra unblocked)",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": "2026-11-14",
+    "supersedes": [],
+    "subject": "d-1982f6",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-200280",
+    "type": "decision",
+    "text": "Push the unpushed Opus-pin (ekologus, 3d-wkladki) and skill branches, then delete token-audit/global-skills-backup?",
+    "why": "recommendation: Push and merge the branches, then delete the backup; default: Push branches; keep the backup until merged",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-200280",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-20e2a4",
+    "type": "decision",
+    "text": "Use cswap auto, given an account hit 100% (needs install grant)?",
+    "why": "recommendation: No cswap auto; pin lanes per account; default: No cswap auto",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-20e2a4",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-4fb9fa",
+    "type": "decision",
+    "text": "Bitwarden vault locked and bw-serve.service (transient, 10h RuntimeMax) timed out at 2026-11-14 22:06; no App token, so no push/ship. Unlock and restart bw serve, ideally with a runtime covering an overnight run?",
+    "why": "recommendation: Unlock bw and restart: systemd-run --user --unit bw-serve -p RuntimeMaxSec=24h ~/.local/bin/bw serve --hostname localhost --port 8087; then the lead reruns ship for lane-t-p3g11pg and scripts/outside-acceptance.ts.; default: All shipping stays blocked; lanes only commit locally.; decided by operator: vault unlocked and bw serve restarted 2026-11-15",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": "2026-11-14",
+    "supersedes": [],
+    "subject": "d-4fb9fa",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-15"
+  },
+  {
+    "id": "d-60d4be",
+    "type": "decision",
+    "text": "Which global skills stay global versus project-only?",
+    "why": "recommendation: Only universal standards stay global; domain skills stay off globally; default: Keep the current minimal global set",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-60d4be",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-add76a",
+    "type": "decision",
+    "text": "Install the Herdr desktop app (herdr-app + hc) on this host so KRN can capture hc replies and prove the relay (t-f3sdx0f)?",
+    "why": "recommendation: yes, when you switch; KRN builds the TerminalHost port (t-8d0sn15) first so hc is one adapter; default: wait for operator install",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-add76a",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-be28a6",
+    "type": "decision",
+    "text": "Delete the dormant host store ~/.local/share/krn/memory (v1, dormant since 2026-10-06)? Irreversible.",
+    "why": "recommendation: Delete after a final listing; default: Keep",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-be28a6",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-fd1379",
+    "type": "decision",
+    "text": "What are the weekly limit and plan tier of the Claude account (sets points per dollar by model)?",
+    "why": "recommendation: Operator states tier and weekly limit; record it in the cost model; default: Assume the current tier; keep the rejected-now points-per-dollar row",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "d-fd1379",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-21"
+  },
+  {
+    "id": "d-fe0823",
+    "type": "decision",
+    "text": "Operator code reached the PUBLIC repo krn-works/krn: outside acceptance pushed scratch copies of the Hasmed client plugin (lightweight-rekurencja-antyspam, SOURCE.md names the production server path), Tallystick and krn-search-lab as orphan branches; the branches are deleted but refs/pull/868,871,872,874,875,878 (+ c6f42f7 row PR) still serve the code. Make krn-works/krn private, or ask GitHub Support to purge those PR refs (or both)?",
+    "why": "recommendation: Make krn-works/krn private now (Settings > Danger zone; check Actions minutes for private), then ask GitHub Support to purge the PR refs and cached views; rotate anything secret if found in those trees; default: no action by KRN; outside rows are frozen and the script refuses non-public sources on a public remote; decided by fable: (b) stay public; GitHub Support purge of PR refs 868/871/872/874/875/878 (draft .krn/runs/lead/operator-grant-1115/github-support-purge-draft.md; agent-browser has no GitHub login, operator submits); regex secret scan of the six trees found only test fixtures and the searxng placeholder; no self-hosted runner; go private only if a secret is found or Support refuses",
+    "audience": "all",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn decide",
+      "evidence": [],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": "2026-11-15",
+    "supersedes": [],
+    "subject": "d-fe0823",
+    "evidence_kind": "agent",
+    "review_by": "2026-11-16"
+  }
+]

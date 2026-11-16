@@ -412,27 +412,18 @@ test('a push refused for a workflow file names the App permission, not a rebase'
     command === 'git' && a[0] === 'push'
       ? { code: 1, stdout: '', stderr: refused }
       : inner(command, a, at);
-  const decided: string[][] = [];
-  const decideWorkflowRefusal = (_main: string, files: string[]) => {
-    decided.push(files);
-    return 'd-abc123';
-  };
-  await assert.rejects(
-    shipCommand(args, { ...r, run, decideWorkflowRefusal }),
-    (e: Failure) => {
-      assert.equal(e.exitCode, 83);
-      assert.match(e.message, /decision d-abc123 records this/u);
-      assert.match(
-        e.message,
-        /token lacks workflows write for \.github\/workflows\/ci\.yml(?!,)/u,
-      );
-      assert.match(e.message, /Workflows \(write\) permission/u);
-      assert.match(e.message, /workflow scope/u);
-      assert.doesNotMatch(e.message, /rebase/u);
-      return true;
-    },
-  );
-  assert.deepEqual(decided, [['.github/workflows/ci.yml']]);
+  await assert.rejects(shipCommand(args, { ...r, run }), (e: Failure) => {
+    assert.equal(e.exitCode, 83);
+    assert.match(e.message, /the operator owns this grant/u);
+    assert.match(
+      e.message,
+      /token lacks workflows write for \.github\/workflows\/ci\.yml(?!,)/u,
+    );
+    assert.match(e.message, /Workflows \(write\) permission/u);
+    assert.match(e.message, /workflow scope/u);
+    assert.doesNotMatch(e.message, /rebase/u);
+    return true;
+  });
 });
 
 test('an empty diff against the base refuses the push and names the PR that carries the change', async () => {

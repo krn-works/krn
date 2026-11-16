@@ -55,7 +55,6 @@ test('lane and state readers accept captured files and reject look-alikes', asyn
   const { redCheckSchema, testSummarySchema } = await import(
     '../src/cli/lane-run/red-check.ts'
   );
-  const { decisionSchema } = await import('../src/cli/decide.ts');
   const { claimIdSchema, taskStatusSchema } = await import(
     '../src/state/loss.ts'
   );
@@ -89,10 +88,6 @@ test('lane and state readers accept captured files and reject look-alikes', asyn
     true,
   );
   assert.throws(() => redCheckSchema.parse('x'), /red-check record/);
-  const row =
-    '{"id":"d1","question":"q","recommendation":"r","default":"d","deadline":"2026-11-20","opened":"2026-11-14","status":"open"}';
-  assert.equal(decisionSchema.parse(JSON.parse(row)).status, 'open');
-  assert.throws(() => decisionSchema.parse('x'), /decision row/);
   const pkg = manifestSchema.parse(
     JSON.parse('{"name":"x","scripts":{"build":"tsc"},"license":"MIT"}'),
   );

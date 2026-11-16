@@ -24,6 +24,7 @@ import {
   detectStack,
 } from '../repo/contract.ts';
 import { pruneRegistry, registryPath } from './adopted-registry.ts';
+import { isUnservedType } from './decisions.ts';
 import {
   appendExposure,
   effectRows,
@@ -77,7 +78,7 @@ import {
 import { NO_MATCH, queryStandards, renderHit } from './worker-packet.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--overlap] [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--json] [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--overlap] [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--type TYPE] [--json] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -564,7 +565,13 @@ function taskQualityCommand(rest: readonly string[]): void {
   process.exitCode = failures.length === 0 ? 0 : 1;
 }
 
-const QUERY_SINGLE = new Set(['--root', '--stack', '--budget', '--task']);
+const QUERY_SINGLE = new Set([
+  '--root',
+  '--stack',
+  '--budget',
+  '--task',
+  '--type',
+]);
 
 /** The main checkout of a repository (a worktree logs to its main), where the exposure log lives. */
 function mainCheckout(root: string): string {
@@ -599,7 +606,9 @@ function queryCommand(rest: readonly string[]): void {
   );
   const stack = values.get('--stack')?.[0];
   const task = values.get('--task')?.[0];
+  const type = values.get('--type')?.[0];
   const hits = queryStandards(root, {
+    ...(type === undefined ? {} : { type }),
     text,
     files: values.get('--file') ?? [],
     asOf: new Date().toISOString().slice(0, 10),
@@ -607,7 +616,7 @@ function queryCommand(rest: readonly string[]): void {
     ...(task === undefined ? {} : { task }),
     ...(budget === undefined ? {} : { budget }),
   });
-  if (hits.length > 0)
+  if (hits.length > 0 && !(type !== undefined && isUnservedType(type)))
     try {
       appendExposure(
         mainCheckout(root),

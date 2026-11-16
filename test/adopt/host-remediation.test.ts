@@ -13,7 +13,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { adoptionGaps } from '../../src/adopt/gaps.ts';
 import { remediateHost } from '../../src/adopt/host-remediation.ts';
-import { listDecisions, openDecisionOnce } from '../../src/cli/decide.ts';
 
 function repo(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'krn-host-remediation-'));
@@ -124,27 +123,6 @@ test('adopt gaps: an npm repository with neither workflow nor lockfile ends with
       !gaps.tasks.some((title) =>
         /s-gate-in-ci|s-lockfile-committed/u.test(title),
       ),
-    );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test('a refused workflow push opens one decision row, however many times it is refused', () => {
-  const root = mkdtempSync(join(tmpdir(), 'krn-decide-once-'));
-  try {
-    const fields = {
-      question: 'q',
-      recommendation: 'r',
-      default: 'd',
-      deadline: '2026-11-22',
-    };
-    const first = openDecisionOnce(root, fields, '2026-11-15');
-    const second = openDecisionOnce(root, fields, '2026-11-16');
-    assert.equal(first.id, second.id);
-    assert.equal(
-      listDecisions(root, { today: '2026-11-16' }).split('\n  q\n').length,
-      2,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

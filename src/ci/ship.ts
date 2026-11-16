@@ -53,8 +53,6 @@ export async function shipCommand(
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
-    /** Records the operator decision a workflow push refused for its token needs; the cli supplies one `krn decide` row under `main`. */
-    decideWorkflowRefusal?: (main: string, files: string[]) => string;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -243,13 +241,9 @@ main checkout: ${main}`;
     const files = changed
       .split('\n')
       .filter((file) => file.startsWith('.github/workflows/'));
-    const decision = (runtime.decideWorkflowRefusal ?? (() => 'none opened'))(
-      main,
-      files,
-    );
     throw Object.assign(
       new Error(
-        `refused push: the token lacks workflows write for ${files.join(', ')}\n${pushRemedy(pushed.stderr, force)}\ndecision ${decision} records this for the operator; the lane is done, not blocked`,
+        `refused push: the token lacks workflows write for ${files.join(', ')}\n${pushRemedy(pushed.stderr, force)}\nthe operator owns this grant; the lane is done, not blocked`,
       ),
       { exitCode: 83 },
     );

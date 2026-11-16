@@ -6,7 +6,7 @@
 - **Agent:** a model running through a harness.
 - **KRN:** the product for fast, low-noise software creation with agents. It is a software delivery layer above agent harnesses and is never called a harness. KRN measures its own delivery by merges per lane-hour, review rounds, conflicts, and flaky stalls.
 - **Host:** owns model sessions, tool execution, and host permissions.
-- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version` and the commands `ledger`, `ci`, `pr`, `task`, `lane`, `state`, `decide`, `findings`, `plan`, `repo`, `hook`, `adopt`, `doctor`, and `standards`; `krn <command> --help` prints the flags of each. `krn.json` fields: `base`, `install`, `test`, `related`, `fast`, `lint`, `typecheck`, `guard`, `conventions`, `tracker`, `laneBudgetUsd`, `deploy`, `vacuous`, `arms`, `formats`. Unknown commands exit 64 under KRN-06; Product does not implement merge.
+- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version` and the commands `ledger`, `ci`, `pr`, `task`, `lane`, `state`, `findings`, `plan`, `repo`, `hook`, `adopt`, `doctor`, and `standards`; `krn <command> --help` prints the flags of each. `krn.json` fields: `base`, `install`, `test`, `related`, `fast`, `lint`, `typecheck`, `guard`, `conventions`, `tracker`, `laneBudgetUsd`, `deploy`, `vacuous`, `arms`, `formats`. Unknown commands exit 64 under KRN-06; Product does not implement merge.
 
 ## Current control plane
 
