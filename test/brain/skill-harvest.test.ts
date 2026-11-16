@@ -324,7 +324,11 @@ test('the shipped pack holds every harvested rule with its scope and evidence', 
     assert.ok(held, `${record.id} is in standards/records.json`);
     assert.equal(held.text, record.text);
     assert.equal(held.status, 'accepted');
-    assert.deepEqual(held.applies, record.applies);
+    // The shipped record also carries retrieval terms; the scope is what the harvest fixes.
+    assert.deepEqual(
+      { ...held.applies, terms: [] },
+      { ...record.applies, terms: [] },
+    );
     assert.deepEqual(held.provenance.origin, record.provenance.origin);
     assert.equal(held.provenance.evidence.length, 1);
     assert.match(held.provenance.evidence[0] ?? '', /^[0-9a-f]{40}$/u);

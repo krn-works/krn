@@ -2140,12 +2140,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [
-        "**/*.php",
-        "**/acf-json/*.json",
-        "web/app/themes/**",
-        "acf-json/**"
-      ],
+      "paths": ["**/*.php", "**/acf-json/*.json", "web/app/themes/**"],
       "terms": [
         "skill",
         "acf",
@@ -2190,7 +2185,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress", "frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "skill",
         "cube",
@@ -2293,13 +2288,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [
-        ".github/workflows/*.yml",
-        "deploy/**",
-        "composer.json",
-        ".github/workflows/**",
-        "**/*.sh"
-      ],
+      "paths": [".github/workflows/*.yml", "deploy/**", "composer.json"],
       "terms": [
         "skill",
         "plesk",
@@ -4182,7 +4171,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "define",
@@ -4225,7 +4214,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "args",
@@ -4268,7 +4257,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "layout",
@@ -4311,7 +4300,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "content",
@@ -4354,7 +4343,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "modified",
@@ -4397,7 +4386,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "empty",
@@ -4440,7 +4429,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": ["**/*.php", "**/acf-json/*.json", "acf-json/**"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
       "terms": [
         "acf",
         "keep",
@@ -4526,7 +4515,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "token",
@@ -4569,7 +4558,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "no",
@@ -4612,7 +4601,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "specificity",
@@ -4655,7 +4644,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "data",
@@ -4698,7 +4687,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "no",
@@ -4741,7 +4730,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "already",
@@ -4784,7 +4773,7 @@
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
-      "paths": ["**/*.css", "web/app/themes/**", "**/*.scss"],
+      "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
         "layer",
@@ -4879,8 +4868,7 @@
         "**/*.css",
         "web/app/themes/**",
         "**/*.php",
-        "**/acf-json/*.json",
-        "**/*.scss"
+        "**/acf-json/*.json"
       ],
       "terms": [
         "design",
@@ -4924,13 +4912,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [
-        ".github/workflows/*.yml",
-        "deploy/**",
-        "config/release.php",
-        ".github/workflows/**",
-        "**/*.sh"
-      ],
+      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
       "terms": [
         "deploy",
         "tooling",
@@ -4973,13 +4955,7 @@
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
-      "paths": [
-        ".github/workflows/*.yml",
-        "deploy/**",
-        "config/release.php",
-        ".github/workflows/**",
-        "**/*.sh"
-      ],
+      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
       "terms": [
         "deploy",
         "wpcli",
@@ -5065,14 +5041,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "annotate",
@@ -5115,14 +5084,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "parse",
@@ -5165,14 +5127,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "discriminated",
@@ -5215,14 +5170,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "isolate",
@@ -5265,14 +5213,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "narrow",
@@ -5315,14 +5256,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "simple",
@@ -5365,14 +5299,7 @@
     "applies": {
       "stacks": ["node"],
       "needs": [],
-      "paths": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts",
-        "**/*.js",
-        "**/*.mjs"
-      ],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "terms": [
         "ts",
         "prove",
