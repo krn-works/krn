@@ -1,0 +1,14 @@
+{
+  "id": "t-tgnzjyd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn task publish ships edits of published records made in the main checkout",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: after `krn task publish` shipped t-1nkf30z and t-ahsmyfp, `krn task edit` in the main checkout modified tasks/<id>.json in place, and `krn task publish` then printed \"no pending task records\"; the edits needed a manual lane worktree and PR (38c46db).\nOutcome: an edit of a published record made in the main checkout goes to the pending ref like a new record, and `krn task publish` ships it; the main checkout's tasks/ stays clean.\nProof: a test in test/task/ edits a published record in a main-checkout fixture and asserts the pending ref holds the edit and the worktree file is unchanged.\nFiles: src/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}
