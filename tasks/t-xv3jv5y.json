@@ -1,0 +1,22 @@
+{
+  "id": "t-xv3jv5y",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gauge reads the last message iteration of usage.iterations; verbatim advisor-turn capture reads 66451 (was 131420)"
+  },
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "The context gauge reads the last executor iteration, not the advisor-turn sum",
+  "after": [],
+  "body": [
+    "Source: operator report 2026-11-16 from boilerplate-2026: PostToolUse gauge asked for a handoff at '162k of 400k' while the real context was ~82k. Capture .krn/runs/lead/advisor-usage.jsonl (this repo's lead transcript): a turn that calls the advisor carries usage.iterations [message, advisor_message, message]; the top-level input/cache counters are the sum of both executor iterations (cache_read 62311+64967=127278), so gaugeReading in src/context/gauge.ts reports ~131k for a ~66k context.\nOutcome: gaugeReading takes the prompt size from the last usage.iterations entry of type message when iterations are present (top-level counters otherwise); on the capture it reports 66451, not 131420.\nWhy: a doubled reading forces handoffs at half the budget in every adopted repository; leads do almost nothing per session.\nProof: node --test test/context/gauge.test.ts with the verbatim capture line.\nFiles: src/context/gauge.ts"
+  ],
+  "kind": "defect",
+  "area": "context",
+  "from": {
+    "kind": "finding",
+    "ref": "operator-boilerplate-gauge"
+  }
+}
