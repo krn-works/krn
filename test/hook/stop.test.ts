@@ -19,6 +19,7 @@ import {
   changedSinceBase,
   clausesOn,
   failuresIn,
+  foreignPr,
   inspect,
   judgeStop,
   linkPackageModules,
@@ -1806,6 +1807,47 @@ test('a krn-lane subagent whose ship merged ends at the main checkout; an unmerg
       ),
       undefined,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a lane report naming a PR whose head branch is not the lane branch is refused', () => {
+  // Evidence: the t-gt33vxe lane ended "#1183 merged 5858a69", the t-00pkj04 lane's PR, while its own #1186 was open (t-rajd6vr).
+  const heads = new Map([
+    [1183, 'lane-other'],
+    [1186, 'lane-mine'],
+  ]);
+  const headOf = (pr: number) => heads.get(pr);
+  const own = ['lane-mine'];
+  assert.match(
+    foreignPr('#1183 merged 5858a69', own, headOf) ?? '',
+    /PR #1183[\s\S]*lane-other[\s\S]*lane-mine/u,
+  );
+  assert.match(
+    foreignPr('pr: #1183 org/repo abc\nverdict: merged 5858a69', own, headOf) ??
+      '',
+    /#1183/u,
+  );
+  assert.equal(foreignPr('#1186 merged 5858a69', own, headOf), undefined);
+  assert.equal(foreignPr('see #1183 for context', own, headOf), undefined);
+  assert.equal(
+    foreignPr('#1183 merged', own, () => undefined),
+    undefined,
+  );
+  const dir = clone();
+  try {
+    const refused = judgeStop(
+      payload(dir, '#1183 merged 5858a69'),
+      { KRN_ROLE: 'worker' },
+      () => [],
+      'lane-mine',
+      undefined,
+      undefined,
+      undefined,
+      (_root, pr) => headOf(pr),
+    );
+    assert.match(refused ?? '', /whose head branch is lane-other/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
