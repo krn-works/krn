@@ -13,10 +13,16 @@ import { hookStdin } from '../../src/harness/claude.ts';
 // turns were $167 of $216 (.krn/runs/subagent-spend/report.md). The built-in agent has no
 // turn limit, so a general-purpose call without a model is routed to krn-lane, the same worker
 // with maxTurns in .claude/agents/krn-lane.md.
+//
+// Lane model: 18 krn-lane calls in one week named `model: opus` and 10 of them had no
+// instruction asking for it (.krn/runs/lead/usage/report-before-v3.md, t-ahsmyfp). A lane
+// call naming opus or fable runs the lane's pinned model instead, unless its prompt carries a
+// `lane-model: opus|fable` line, the explicit opt-in for a measured probe or a hard lane.
 
 const ignoresDefault = new Set(['Explore', 'Plan']);
 const laneAgent = 'krn-lane';
 const aliases = ['haiku', 'sonnet', 'opus', 'fable'] as const;
+const costly = new Set(['opus', 'fable']);
 
 export function alias(value: string | undefined) {
   const lower = value?.toLowerCase() ?? '';
@@ -49,8 +55,9 @@ export function updatedInput(
   const input = (payload as { tool_input?: unknown } | null)?.tool_input;
   if (typeof input !== 'object' || input === null) return undefined;
   const fields = input as Record<string, unknown>;
-  if (fields.model !== undefined) return undefined;
   const type = fields.subagent_type;
+  if (fields.model !== undefined)
+    return laneModel(fields, type, configured, pinned);
   if (typeof type !== 'string') return undefined;
   const target = type === 'general-purpose' ? laneAgent : type;
   const model =
@@ -62,6 +69,24 @@ export function updatedInput(
     subagent_type: target,
     ...(model ? { model } : {}),
   };
+}
+
+// An explicit opus or fable on a lane call gives way to the lane's pinned model unless the
+// prompt opts in with `lane-model: <alias>`; every other explicit model stays untouched.
+function laneModel(
+  fields: Record<string, unknown>,
+  type: unknown,
+  configured: string | undefined,
+  pinned: (type: string) => string | undefined,
+): Record<string, unknown> | undefined {
+  if (type !== laneAgent && type !== 'general-purpose') return undefined;
+  const asked = alias(String(fields.model));
+  if (!asked || !costly.has(asked)) return undefined;
+  const prompt = typeof fields.prompt === 'string' ? fields.prompt : '';
+  if (new RegExp(`^lane-model:\\s*${asked}\\b`, 'mi').test(prompt))
+    return undefined;
+  const model = pinned(laneAgent) ?? alias(configured) ?? 'sonnet';
+  return { ...fields, subagent_type: laneAgent, model };
 }
 
 export function main() {

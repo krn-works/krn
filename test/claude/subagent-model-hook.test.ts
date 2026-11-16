@@ -96,9 +96,9 @@ test('general-purpose lanes are routed to krn-lane, which carries a turn ceiling
   assert.ok(!/^tools:/m.test(agent), 'krn-lane keeps the full tool set');
 });
 
-test('a call with an explicit model is never rerouted or changed', () => {
+test('a non-lane call with an explicit model is never rerouted or changed', () => {
   const pinned = () => 'haiku';
-  for (const subagent_type of ['general-purpose', 'krn-reader', 'Explore'])
+  for (const subagent_type of ['krn-reader', 'Explore', 'fork'])
     assert.equal(
       updatedInput(
         call({ subagent_type, model: 'opus', prompt: 'p' }),
@@ -147,5 +147,43 @@ test('the hook fills the model from agent frontmatter when the call has none', (
   assert.equal(
     JSON.parse(run.stdout).hookSpecificOutput.updatedInput.model,
     'haiku',
+  );
+});
+
+test('a lane call naming opus or fable runs the pinned lane model unless the prompt opts in', () => {
+  const pinned = (type: string) => (type === 'krn-lane' ? 'sonnet' : undefined);
+  for (const subagent_type of ['krn-lane', 'general-purpose'])
+    for (const model of ['opus', 'claude-fable-5-2'])
+      assert.deepEqual(
+        updatedInput(
+          call({ subagent_type, model, prompt: 'p' }),
+          undefined,
+          pinned,
+        ),
+        { subagent_type: 'krn-lane', model: 'sonnet', prompt: 'p' },
+      );
+  const optIn = 'Brief\nlane-model: opus\nrest';
+  assert.equal(
+    updatedInput(
+      call({ subagent_type: 'krn-lane', model: 'opus', prompt: optIn }),
+      undefined,
+      pinned,
+    ),
+    undefined,
+  );
+  assert.equal(
+    updatedInput(
+      call({ subagent_type: 'krn-lane', model: 'haiku', prompt: 'p' }),
+      undefined,
+      pinned,
+    ),
+    undefined,
+  );
+  assert.deepEqual(
+    updatedInput(
+      call({ subagent_type: 'krn-lane', model: 'fable', prompt: optIn }),
+      'claude-sonnet-5-5',
+    ),
+    { subagent_type: 'krn-lane', model: 'sonnet', prompt: optIn },
   );
 });

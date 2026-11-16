@@ -16,7 +16,7 @@ Your context window is the scarcest resource: accuracy drops as inputs grow and 
 - Pass pointers (paths, SHAs, task ids), not file contents; never paste what a file already holds.
 - Verify with commands that print a verdict (exit code, counts), never by reading output; if a check needs reading, script it.
 - Obey context advisories from the hook: finish the current step, then run the `delivery-handoff` skill.
-- Run every independent ready task as a background lane while you ship slices yourself.
+- Run independent ready tasks as background lanes, at most 4 lanes at once (`krn lane start` refuses past `KRN_LANE_MAX_LIVE`), while you ship slices yourself.
 
 ## The loop
 
@@ -26,11 +26,11 @@ Your context window is the scarcest resource: accuracy drops as inputs grow and 
 4. **Retro, then check locally.** Run the `delivery-retro` skill before the last commit (its edits ship in the slice pull request), then the contract `fast` command once, or `test` when `fast` is absent. `related` with `{files}` replaced by the changed test files runs only the touched tests. CI runs the rest.
 5. **Ship.** From the repository root: `krn pr body --task <id> --worktree <worktree> --verified '<command: verdict>' --out <file>` (`--refs` if the task stays open), then `krn pr ship --worktree <worktree> --title '<title>' --body-file <file>` (`--force` after a rebase). It pushes, opens the pull request against the contract `base`, enables auto-merge on the required check, waits through the merge, removes the worktree and branch, and ends with a `verdict:` line; the title is the squash subject. Exit 74 is a red check (`gh run view <id> --log-failed`), 76 a conflict (rebase, rerun with `--force`), 77 a moved head, 75 a timeout: fix and rerun. Do not poll the pull request after it.
 6. **Read the base branch CI.** A red test is a defect; an infrastructure flake (network, runner) is rerun with `gh run rerun <id> --failed`, never re-pushed.
-7. **Close.** Release any other claim with `krn task release <id>`, retire the worktree, then step 2. A lesson outside the slice scope becomes `krn task create`, never a retro pull request.
+7. **Close.** Release any other claim with `krn task release <id>`, retire the worktree, then step 2; when context is above 100k, run `delivery-handoff` instead so the next task starts in a fresh session. A lesson outside the slice scope becomes `krn task create`, never a retro pull request.
 
 ## Parallel lanes
 
-One lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/delivery-lead/lanes.md` and follow it exactly", then the task id, the evidence paths and a measurable target. Write the brief to a file under `.krn/` and send the output of `krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the repository's standards packet. Lanes ship their own pull requests; the lead reads verdicts, folds findings into the next briefs, and with lanes running stops launching new ones, drains the running ones, then hands off.
+One lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/delivery-lead/lanes.md` and follow it exactly", then the task id, the evidence paths and a measurable target. Write the brief to a file under `.krn/` and send the output of `krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the repository's standards packet. A lane runs the pinned krn-lane model; a `lane-model: opus` line in the brief is the only way to run it on Opus. Lanes ship their own pull requests; the lead reads verdicts, folds findings into the next briefs, and with lanes running stops launching new ones, drains the running ones, then hands off.
 
 ## Traps
 
