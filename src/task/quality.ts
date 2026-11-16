@@ -179,6 +179,30 @@ export function taskQualityFailures(root: string, rule: TaskRule): string[] {
     .flatMap((t) => openFailure(rule, t, ids));
 }
 
+/** The failures of one in-memory open record against every open-task rule; `ids` are the known task ids. */
+export function recordQualityFailures(
+  record: {
+    readonly id: string;
+    readonly after: readonly string[];
+    readonly body: readonly string[];
+    readonly acceptance?: readonly unknown[];
+  },
+  ids: Iterable<string>,
+): string[] {
+  const t: Raw = {
+    id: record.id,
+    status: 'open',
+    created: '',
+    after: record.after,
+    text: record.body.join('\n'),
+    acceptance: record.acceptance?.length ?? 0,
+    resolution: null,
+  };
+  const known = new Set(ids);
+  known.add(record.id);
+  return TASK_RULES.flatMap((rule) => openFailure(rule, t, known));
+}
+
 /** Every task-quality failure in the repository at `root`, all rules. */
 export function allTaskQualityFailures(root: string): string[] {
   return TASK_RULES.flatMap((rule) => taskQualityFailures(root, rule));

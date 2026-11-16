@@ -60,6 +60,8 @@ interface EditTask {
 interface TaskStoreOptions {
   makeId?: () => TaskId;
   uniquenessRoots?: string[];
+  /** Findings for a record about to be written; any finding refuses the write. */
+  refuse?: (record: TaskRecord, index: Map<string, TaskRecord>) => string[];
 }
 
 export function repositoryRoot(cwd = process.cwd()): string {
@@ -370,6 +372,8 @@ export function createTask(
         : { stack: [...new Set(input.stack)].sort() }),
       ...(input.from === undefined ? {} : { from: input.from }),
     };
+    const refusal = options.refuse?.(record, index) ?? [];
+    if (refusal.length > 0) throw new TaskDataError(refusal);
     try {
       atomicWrite(root, path, serializeTask(record));
       return record;
@@ -466,6 +470,7 @@ export function editTask(
   root: string,
   id: TaskId,
   input: EditTask,
+  options: Pick<TaskStoreOptions, 'refuse'> = {},
 ): TaskRecord {
   const record = getTask(root, id);
   if (!existsSync(join(root, 'tasks', `${id}.json`)))
@@ -514,6 +519,11 @@ export function editTask(
       ? { status: 'open' as const, resolution: null }
       : {}),
   };
+  const refusal =
+    updated.status === 'open'
+      ? (options.refuse?.(updated, loadTaskIndex(root)) ?? [])
+      : [];
+  if (refusal.length > 0) throw new TaskDataError(refusal);
   atomicWrite(
     root,
     join(root, 'tasks', `${id}.json`),

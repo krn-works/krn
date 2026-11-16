@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createTask } from '../../src/task/store.ts';
-import { withCategories } from './task-fixture.ts';
+import { QUALITY_PARAGRAPHS, withCategories } from './task-fixture.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 function fixture(t: { after(fn: () => void): void }) {
@@ -32,8 +32,16 @@ function fixture(t: { after(fn: () => void): void }) {
   git(main, 'config', 'user.name', 'Fixture');
   git(main, 'config', 'user.email', 'fixture@example.invalid');
   writeFileSync(join(main, '.gitignore'), '.krn/\n');
-  createTask(main, { title: 'Subject' }, { makeId: () => 'T-1' });
-  createTask(main, { title: 'Dependency' }, { makeId: () => 'T-2' });
+  createTask(
+    main,
+    { title: 'Subject', body: QUALITY_PARAGRAPHS },
+    { makeId: () => 'T-1' },
+  );
+  createTask(
+    main,
+    { title: 'Dependency', body: QUALITY_PARAGRAPHS },
+    { makeId: () => 'T-2' },
+  );
   git(main, 'add', '.');
   git(main, 'commit', '-qm', 'fixture');
   git(main, 'update-ref', 'refs/remotes/origin/main', 'HEAD');

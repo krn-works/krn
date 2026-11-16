@@ -25,7 +25,7 @@ import {
 } from './claims.ts';
 import { type CloseEvidenceSink, closeEvidenceOf } from './close-evidence.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
-import { allTaskQualityFailures } from './quality.ts';
+import { allTaskQualityFailures, recordQualityFailures } from './quality.ts';
 import {
   isTaskCategory,
   isTaskId,
@@ -296,9 +296,20 @@ function create(args: string[], json: boolean): CommandOutput {
       ...(from === undefined ? {} : { from }),
       ...(priority === undefined ? {} : { priority }),
     },
-    { uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot] },
+    {
+      uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot],
+      refuse: refuseLowQuality,
+    },
   );
   return result({ task: record }, `${record.id}\n`, json);
+}
+
+// The same rules `krn task check --quality` runs in CI, applied before a record is written.
+function refuseLowQuality(
+  record: Parameters<typeof recordQualityFailures>[0],
+  index: ReadonlyMap<string, unknown>,
+): string[] {
+  return recordQualityFailures(record, index.keys());
 }
 
 function parseKind(value: string): TaskCategory {
@@ -644,14 +655,19 @@ function edit(args: string[], json: boolean): CommandOutput {
       `tasks/${taskId}.json: task is closed; use --reopen to edit it`,
     ]);
   const body = bodyFile === undefined ? undefined : readBody(bodyFile);
-  const record = editTask(root, taskId, {
-    ...(title === undefined ? {} : { title }),
-    ...(priority === undefined ? {} : { priority }),
-    ...(body === undefined ? {} : { body }),
-    ...(appendBody === undefined ? {} : { appendBody }),
-    ...(verify.length === 0 ? {} : { verify }),
-    ...(reopen ? { reopen: true } : {}),
-  });
+  const record = editTask(
+    root,
+    taskId,
+    {
+      ...(title === undefined ? {} : { title }),
+      ...(priority === undefined ? {} : { priority }),
+      ...(body === undefined ? {} : { body }),
+      ...(appendBody === undefined ? {} : { appendBody }),
+      ...(verify.length === 0 ? {} : { verify }),
+      ...(reopen ? { reopen: true } : {}),
+    },
+    { refuse: refuseLowQuality },
+  );
   return result({ task: record }, `${record.id}\n`, json);
 }
 

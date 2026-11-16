@@ -1,7 +1,11 @@
 {
   "id": "t-gvnwxbh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task create/edit exit 65 on quality failure and write nothing; test/task/task-quality.test.ts covers create red/green and edit red"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "Task create refuses a record that task-quality would fail in CI",

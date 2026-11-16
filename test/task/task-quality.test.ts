@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -227,4 +228,64 @@ test('krn task check ignores the quality rules unless --quality is given, and ta
   const twice = krn(root, 'task', 'check', '--quality', '--quality');
   assert.notEqual(twice.status, 0);
   assert.match(twice.stderr, /--quality may be supplied once/u);
+});
+
+function taskFiles(root: string): string[] {
+  return readdirSync(join(root, 'tasks')).filter((n) => n.endsWith('.json'));
+}
+
+function create(root: string, body: string[]) {
+  return spawnSync(
+    process.execPath,
+    [
+      cli,
+      'task',
+      'create',
+      '--title',
+      'T',
+      '--kind',
+      'feature',
+      '--area',
+      'task',
+      '--body-file',
+      '-',
+    ],
+    { cwd: root, encoding: 'utf8', input: body.join('\n\n') },
+  );
+}
+
+test('krn task create refuses a record task-quality would fail, writes nothing, and still accepts a valid one', () => {
+  const root = tracker({});
+  const red = create(root, [
+    'Outcome: make it nicer',
+    GOOD[1] ?? '',
+    GOOD[2] ?? '',
+  ]);
+  assert.equal(red.status, 65, red.stdout + red.stderr);
+  assert.match(red.stderr, /no measurable "Outcome:"/u);
+  assert.deepEqual(taskFiles(root), []);
+  const green = create(root, GOOD);
+  assert.equal(green.status, 0, green.stdout + green.stderr);
+  assert.equal(taskFiles(root).length, 1);
+});
+
+test('krn task edit refuses a change that breaks task-quality and leaves the record untouched', () => {
+  const root = tracker({ 't-editedd': {} });
+  const path = join(root, 'tasks', 't-editedd.json');
+  const before = readFileSync(path, 'utf8');
+  const bad = spawnSync(
+    process.execPath,
+    [cli, 'task', 'edit', 't-editedd', '--body-file', '-'],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      input:
+        'Outcome: make it nicer\n\nFiles: src/foo.ts\n\nProof: test/foo.test.ts passes here.',
+    },
+  );
+  assert.equal(bad.status, 65, bad.stdout + bad.stderr);
+  assert.match(bad.stderr, /no measurable "Outcome:"/u);
+  assert.equal(readFileSync(path, 'utf8'), before);
+  const ok = krn(root, 'task', 'edit', 't-editedd', '--title', 'Renamed');
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
 });
