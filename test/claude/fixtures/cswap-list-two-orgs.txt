@@ -1,0 +1,26 @@
+Accounts:
+  1: user@example.test [Team Org] · Team
+     ├ 5h:     90%   resets 21:50         in 1h 24m
+     ├ 7d:     30%   resets Nov 20 19:00  in 3d 22h
+     └ Fable:   4%   resets Nov 20 18:59  in 3d 22h
+
+  2: user@example.test [Team Org] · Team
+     ├ 5h:      0%
+     ├ 7d:     48%   resets Nov 21 14:59  in 4d 18h  (ahead of pace)
+     └ Fable:  58%   resets Nov 21 14:59  in 4d 18h  (ahead of pace) · 4m ago
+
+  3: user@example.test [Team Org] (active) · Team
+     ├ 5h:      8%   resets Nov 17 01:10  in 4h 44m
+     ├ 7d:     16%   resets Nov 23 13:00  in 6d 16h
+     └ Fable:   0%   resets Nov 23 13:00  in 6d 16h
+
+  4: user@example.test [Personal Org] · Pro
+     ├ 5h:      0%
+     ├ 7d:     38%   resets Nov 21 12:59  in 4d 16h
+     └ Fable:  33%   resets Nov 21 12:59  in 4d 16h
+
+  5: user@example.test [Team Org] · Team
+     ├ 5h:      0%
+     ├ 7d:     99%   resets Nov 19 07:00  in 2d 10h  (ahead of pace)
+     └ Fable:  49%   resets Nov 19 07:00  in 2d 10h · 3m ago
+
