@@ -524,7 +524,7 @@ test('concurrent lane starts in one repository all succeed', async () => {
   // Seen on the pilot: two parallel starts raced on `git fetch origin main` ("cannot lock ref", exit 64).
   const { base, repo } = fixture();
   try {
-    const slugs = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+    const slugs = ['p1', 'p2', 'p3', 'p4']; // the default lane budget (KRN_LANE_MAX_LIVE 4)
     const results = await Promise.all(
       slugs.map((slug) => laneAsync(repo, 'start', slug)),
     );
