@@ -160,6 +160,43 @@ test('adopt adds only the gates no existing workflow runs, and no call when ever
   );
 });
 
+test('the adopt block of a repository with 20+ applicable records names the query command and stays under 2 KB', () => {
+  const root = scratch();
+  const run = adopt(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  const records = JSON.parse(
+    readFileSync(join(root, '.agents/standards.json'), 'utf8'),
+  ) as unknown[];
+  assert.ok(records.length >= 20, `${records.length} records`);
+  const rules = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  assert.ok(
+    Buffer.byteLength(rules) < 2048,
+    `${Buffer.byteLength(rules)} bytes`,
+  );
+  assert.match(rules, /krn standards query/u);
+  assert.doesNotMatch(rules, /\*\*s-/u);
+});
+
+test('adopt leaves AGENTS.md alone when a test of the repository caps its size below the rules block', () => {
+  const root = scratch();
+  mkdirSync(join(root, 'tests'));
+  const own = '# Contract\nCanary: moon\n';
+  writeFileSync(join(root, 'AGENTS.md'), own);
+  writeFileSync(
+    join(root, 'tests/agents.test.mjs'),
+    "test('small', () => { assert.ok(statSync(agentsPath).size <= 3072); });\nconst agentsPath = 'AGENTS.md';\n",
+  );
+  writeFileSync(join(root, 'AGENTS.md'), own + 'x'.repeat(3060 - own.length));
+  const before = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const run = adopt(root);
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(readFileSync(join(root, 'AGENTS.md'), 'utf8'), before);
+  assert.match(
+    run.stdout,
+    /AGENTS\.md \(a test of the repository caps it at 3072 bytes/u,
+  );
+});
+
 test('adopt rerun changes nothing and keeps existing instructions', () => {
   const root = scratch();
   spawnSync('sh', ['-c', `printf '# Mine\\n' > "${root}/AGENTS.md"`]);

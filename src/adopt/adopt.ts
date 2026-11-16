@@ -258,18 +258,43 @@ function upsertRules(current: string): string {
   return current === '' ? block : `${current.replace(/\n*$/u, '\n')}\n${block}`;
 }
 
+/**
+ * The byte cap a test of the repository puts on an instruction file (`statSync(...).size <= 3072`
+ * beside a mention of the file), or null when no test caps it.
+ */
+function sizeCap(root: string, relative: string): number | null {
+  const cap = /\.(?:size|length)\s*<=?\s*(\d[\d_]*)/u;
+  for (const dir of ['test', 'tests', '__tests__']) {
+    const base = join(root, dir);
+    if (!existsSync(base)) continue;
+    for (const file of filesUnder(base)) {
+      if (!/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file)) continue;
+      const text = readFileSync(join(base, file), 'utf8');
+      const match = text.includes(relative) ? cap.exec(text) : null;
+      if (match?.[1] !== undefined) return Number(match[1].replace(/_/gu, ''));
+    }
+  }
+  return null;
+}
+
 function writeRuleFile(
   root: string,
   relative: string,
-  standards: readonly Standard[],
   report: AdoptionReport,
 ): void {
   const path = join(root, relative);
   const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
   const next = upsertStandardsBlock(
     upsertRules(current),
-    renderStandardsBlock(standards),
+    renderStandardsBlock(),
   );
+  const cap = sizeCap(root, relative);
+  if (next !== current && cap !== null && Buffer.byteLength(next) > cap) {
+    report.skipped.push(
+      `${relative} (a test of the repository caps it at ${cap} bytes; the rules block needs ${Buffer.byteLength(next)}; the standards skill and hooks carry the rules)`,
+    );
+    return;
+  }
   if (next === current) report.unchanged.push(relative);
   else {
     writeFileSync(path, next);
@@ -296,16 +321,11 @@ function forbidsClaudeFile(root: string): boolean {
 }
 
 /** Rules and standards go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the blocks too. A repository whose tests forbid CLAUDE.md gets none. */
-function writeRules(
-  root: string,
-  standards: readonly Standard[],
-  report: AdoptionReport,
-): void {
-  writeRuleFile(root, 'AGENTS.md', standards, report);
+function writeRules(root: string, report: AdoptionReport): void {
+  writeRuleFile(root, 'AGENTS.md', report);
   const link = join(root, 'CLAUDE.md');
   if (isSymlink(link)) report.unchanged.push('CLAUDE.md');
-  else if (existsSync(link))
-    writeRuleFile(root, 'CLAUDE.md', standards, report);
+  else if (existsSync(link)) writeRuleFile(root, 'CLAUDE.md', report);
   else if (forbidsClaudeFile(root))
     report.skipped.push(
       'CLAUDE.md (a test of the repository asserts it is absent)',
@@ -752,7 +772,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   writeHooks(root, settings, report);
   writeSkills(root, report, options.refresh === true);
   writeIfChanged(root, PROJECT_STANDARDS, formatStandards(standards), report);
-  writeRules(root, standards, report);
+  writeRules(root, report);
   ignoreAgentState(root, report);
   const seeded = seedConventions(root, new Date().toISOString().slice(0, 10));
   if (seeded) report.written.push(seeded);

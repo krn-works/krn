@@ -33,6 +33,8 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md): the 2,000-token packet budget is 
    | Before Stop | Stop hook | nothing on pass; only the violated records on refusal | 0 / ≤ 250 tokens |
    | Any time | `krn standards query "<what I am doing>"` | ranked, scoped answer; at most 5 hits | ≤ 400 tokens |
 
+   `krn adopt` honours the first row (ADR 0023, north-star item 2: the brain serves records at the moment of need): the block it writes into AGENTS.md holds the delivery rules and names the `standards` skill and `krn standards query`, never the record list, and it is left out when a test of the repository caps the file below the block.
+
 2. **The query is the task, or nothing is injected.**
    - Session and lane packets build their query from the claimed task's title, Outcome, Files, `stack`, `area` and touched paths.
    - With no claimed task, no standards block is sent.

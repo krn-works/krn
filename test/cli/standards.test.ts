@@ -637,12 +637,8 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
 
       const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
       assert.equal(agents.split('<!-- krn-standards:start -->').length, 2);
-      assert.match(
-        agents,
-        /^- \*\*s-tests-tracked\*\* The repository tracks automated tests.* _\(checked by `krn standards check`: `git ls-files /mu,
-      );
-      assert.doesNotMatch(agents, /advisory, not checked/u);
-      assert.doesNotMatch(agents, /\*\*s-plainest-input\*\*/u);
+      assert.match(agents, /krn standards query/u);
+      assert.doesNotMatch(agents, /\*\*s-tests-tracked\*\*/u);
       // The generated block does not leak into the conventions the lane packet reads.
       const conventions = join(root, '.krn/conventions.json');
       if (existsSync(conventions))
@@ -664,7 +660,7 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
   });
 }
 
-test('adopt keeps a hand-written project record beside the inherited ones and renders it in AGENTS.md', () => {
+test('adopt keeps a hand-written project record beside the inherited ones and leaves the record list out of AGENTS.md', () => {
   const plainFile = `[
   {
     "id": "s-changelog",
@@ -699,10 +695,9 @@ test('adopt keeps a hand-written project record beside the inherited ones and re
     assert.equal(records.at(-1)?.id, 's-changelog');
     assert.equal(records.at(-1)?.provenance.origin, 'project');
     assert.ok(records.length > 1);
-    assert.match(
-      readFileSync(join(root, 'AGENTS.md'), 'utf8'),
-      /^- \*\*s-changelog\*\* Every change adds a line to CHANGELOG\.md\. _\(checked by `krn standards check`: `test -f CHANGELOG\.md`\)_$/mu,
-    );
+    const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    assert.doesNotMatch(agents, /s-changelog/u);
+    assert.match(agents, /krn standards query/u);
     const done = check(root);
     assert.equal(done.status, 0, `${done.stderr}${done.stdout}`);
     assert.match(done.stdout, /, 1 project; stack python; krn adopted\)$/mu);

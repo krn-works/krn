@@ -388,30 +388,21 @@ test('seedStandards copies the universal pack records that apply, marks them inh
   );
 });
 
-test('the standards block renders statement and enforcement and is replaced in place, never duplicated', () => {
-  const checked = parsed({ id: 's-checked' });
-  const advisory = parsed({
-    id: 's-advisory',
-    text: 'Name by role.',
-    enforcement: { kind: 'advisory' },
-  });
-  const block = renderStandardsBlock([checked, advisory]);
+test('the standards block names the query command, not the records, and is replaced in place, never duplicated', () => {
+  const block = renderStandardsBlock();
   assert.ok(block.startsWith(`${BLOCK_START}\n`));
   assert.ok(block.endsWith(`${BLOCK_END}\n`));
-  assert.match(
-    block,
-    /^- \*\*s-checked\*\* The repository tracks automated tests\. _\(checked by `krn standards check`: `test -d tests`\)_$/mu,
-  );
-  assert.match(
-    block,
-    /^- \*\*s-advisory\*\* Name by role\. _\(advisory, not checked\)_$/mu,
-  );
+  assert.match(block, /krn standards query/u);
+  assert.doesNotMatch(block, /\*\*s-/u);
   const first = upsertStandardsBlock('# Project\n\nOwn text.\n', block);
   assert.equal(first, `# Project\n\nOwn text.\n\n${block}`);
   assert.equal(upsertStandardsBlock(first, block), first);
-  const shorter = renderStandardsBlock([checked]);
-  const replaced = upsertStandardsBlock(`${first}Tail.\n`, shorter);
-  assert.equal(replaced, `# Project\n\nOwn text.\n\n${shorter}Tail.\n`);
+  const other = `${BLOCK_START}\n- old inlined record\n${BLOCK_END}\n`;
+  const replaced = upsertStandardsBlock(
+    `${upsertStandardsBlock('# Project\n', other)}Tail.\n`,
+    block,
+  );
+  assert.equal(replaced, `# Project\n\n${block}Tail.\n`);
   assert.equal(replaced.split(BLOCK_START).length, 2);
   assert.equal(upsertStandardsBlock('', block), block);
 });
