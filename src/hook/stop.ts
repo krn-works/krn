@@ -327,7 +327,7 @@ const stemOfFile = (path: string) =>
 
 /**
  * A deleted test is explained when a branch commit carries a `Weakens-tests:` reason, or when the branch
- * also deleted the source it imported (or, with no local import, the source sharing its name).
+ * also deleted at least one source it imported (or, with no local import, the source sharing its name).
  */
 function deletionExplained(root: string, from: string, path: string): boolean {
   const log = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
@@ -341,7 +341,7 @@ function deletionExplained(root: string, from: string, path: string): boolean {
     git(root, ['cat-file', '-e', `${from}:${target}`]).status === 0;
   const present = (target: string) => existsSync(join(root, target));
   const sources = imported.filter(existed);
-  if (sources.length > 0) return sources.every((target) => !present(target));
+  if (sources.length > 0) return sources.some((target) => !present(target));
   const stem = stemOfFile(path);
   const named = git(root, ['ls-tree', '-r', '--name-only', from])
     .stdout.split('\n')

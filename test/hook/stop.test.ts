@@ -986,6 +986,62 @@ test('a deleted test is accepted with its deleted source or a Weakens-tests reas
   }
 });
 
+test('a deleted test is accepted when it imports a source the branch deletes, whatever the stem', () => {
+  const green = () => [];
+  // [deleted paths, test path, test imports, accepted]; the first row is 706c874's exact pair.
+  const cases: [string[], string, string[], boolean][] = [
+    [
+      ['src/adopt/unused.ts', 'test/adopt/prune-unused.test.ts'],
+      'test/adopt/prune-unused.test.ts',
+      ['../../src/adopt/unused.ts'],
+      true,
+    ],
+    [
+      ['src/adopt/unused.ts', 'test/adopt/prune-unused.test.ts'],
+      'test/adopt/prune-unused.test.ts',
+      ['../../src/adopt/unused.ts', '../../src/adopt/kept.ts'],
+      true,
+    ],
+    [
+      ['test/adopt/prune-unused.test.ts'],
+      'test/adopt/prune-unused.test.ts',
+      ['../../src/adopt/kept.ts'],
+      false,
+    ],
+  ];
+  for (const [drop, test, imports, accepted] of cases) {
+    const dir = clone();
+    try {
+      mkdirSync(join(dir, 'src/adopt'), { recursive: true });
+      mkdirSync(join(dir, 'test/adopt'), { recursive: true });
+      for (const file of ['unused', 'kept'])
+        writeFileSync(
+          join(dir, `src/adopt/${file}.ts`),
+          `export const ${file} = 1;\n`,
+        );
+      writeFileSync(
+        join(dir, test),
+        `${imports.map((from) => `import '${from}';`).join('\n')}\n`,
+      );
+      sh(dir, 'add', '.');
+      sh(dir, 'commit', '-q', '-m', 'tests');
+      sh(dir, 'checkout', '-q', '-B', 'main');
+      sh(dir, 'checkout', '-q', '-b', 'task');
+      for (const path of drop) sh(dir, 'rm', '-q', path);
+      sh(dir, 'commit', '-q', '-m', 'drop');
+      const reason = judgeStop(payload(dir), lane(dir), green);
+      if (accepted) assert.equal(reason, undefined);
+      else
+        assert.match(
+          reason ?? '',
+          /deleted test file\(s\): test\/adopt\/prune-unused\.test\.ts/u,
+        );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('an added skip or xfail refuses, in a changed and in a new test file', () => {
   const dir = clone();
   try {
