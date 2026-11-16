@@ -1,7 +1,11 @@
 {
   "id": "t-4xqmw9w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt skips scratch/tmp paths, --register forces, host-registry prune drops them; test/brain/adopted-registry.test.ts red on origin/main, green now; rehearsed on boilerplate clone"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Scratch adoptions pollute the host registry of adopted repositories",

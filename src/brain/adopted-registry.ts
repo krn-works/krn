@@ -40,7 +40,10 @@ export function pruneRegistry(file: string): {
   pruned: number;
 } {
   const listed = readRegistry(file);
-  const roots = listed.filter((root) => existsSync(root));
+  const hostFile = file === join(homedir(), '.krn', 'adopted.json');
+  const roots = listed.filter(
+    (root) => existsSync(root) && !(hostFile && isScratch(root)),
+  );
   const pruned = listed.length - roots.length;
   if (pruned > 0) writeRegistry(file, roots);
   return { roots, pruned };
@@ -58,16 +61,25 @@ const inside = (child: string, parent: string) => {
   return path !== '' && !path.startsWith('..') && !path.includes(`${sep}..`);
 };
 
+/** A scratch path: under the system temp directory or any `tmp` directory (KRN's `.krn/tmp`, `/mnt/storage/tmp`). */
+export function isScratch(path: string): boolean {
+  const real = existsSync(path) ? realpathSync(path) : path;
+  return (
+    inside(real, realpathSync(tmpdir())) || real.split(sep).includes('tmp')
+  );
+}
+
 /**
  * Appends `root` to the registry once. A repository under the system temp directory is
- * skipped unless the registry was named explicitly, so scratch adoptions never reach the host.
+ * skipped unless the registry was named explicitly or `force` is set, so scratch adoptions never reach the host.
  */
 export function registerAdopted(
   root: string,
   env: NodeJS.ProcessEnv = process.env,
+  force = false,
 ): boolean {
   const real = realpathSync(root);
-  if (!env[REGISTRY_ENV] && inside(real, realpathSync(tmpdir()))) return false;
+  if (!force && !env[REGISTRY_ENV] && isScratch(real)) return false;
   const file = registryPath(env);
   const known = readRegistry(file);
   if (known.includes(real)) return false;
