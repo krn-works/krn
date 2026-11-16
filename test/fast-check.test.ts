@@ -793,3 +793,28 @@ test('fast check runs the CI rule coverage test when a test/rules file is added 
   assert.ok(renamed.includes(coverage));
   assert.ok(!selectTests(['test/other.test.ts'], tests).includes(coverage));
 });
+
+test('fast prints a FAIL verdict naming the stage when a stage crashes', async () => {
+  const { main } = await import('../scripts/fast-check.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'fast-verdict-'));
+  try {
+    const lines: string[] = [];
+    const write = (text: string): void => {
+      lines.push(text);
+    };
+    spawnSync('git', ['init', '-q'], { cwd: dir });
+    mkdirSync(join(dir, 'standards'));
+    writeFileSync(join(dir, 'standards', 'records.json'), '{bad');
+    spawnSync('git', ['add', '.'], { cwd: dir });
+    spawnSync(
+      'git',
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'x'],
+      { cwd: dir },
+    );
+    // The standards index refresh throws on the broken pack: the crash still ends in a verdict.
+    assert.equal(await main(dir, [], write), 1);
+    assert.match(lines.join(''), /^fast FAIL \(index\): crashed: /mu);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
