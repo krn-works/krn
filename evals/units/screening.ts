@@ -340,7 +340,9 @@ async function verify(
       writeFileSync(log, `${row.repo} ${row.issue}\n`);
       try {
         git(clone, 'fetch', '-q', 'origin', row.fix);
-      } catch {}
+      } catch (e) {
+        appendFileSync(log, `fetch skipped: ${String(e)}\n`);
+      }
       let v: Verification;
       try {
         const b = await gradeAt(clone, unit.base, unit, ud, scratch, log);
