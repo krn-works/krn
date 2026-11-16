@@ -1,7 +1,11 @@
 {
   "id": "t-mnk9rkb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "planted-records test 55s to 36s: per-stack concurrent tests (each <=21s), compile cache for spawned node, test 2 limited to the 3 records it asserts"
+  },
   "created": "2026-11-16",
   "priority": 2,
   "title": "planted-records init-stack test holds under parallel lane load",
