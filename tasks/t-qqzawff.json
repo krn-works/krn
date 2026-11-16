@@ -1,0 +1,18 @@
+{
+  "id": "t-qqzawff",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Root cause: syncLockfile ran npm install --package-lock-only once with no retry against the registry and shared npm cache; one transient failure left no package-lock.json (init warning on stderr, s-lockfile-committed red), only under load. Could not reproduce in 80 concurrent runs (loop .krn/tmp/loop.sh: 5x4, 4x12, 5x4 of the ts test, all exit 0). Hardened: 3 attempts and --prefer-offline; regression tests at syncLockfile with a failing-then-passing npm; 20 of 20 under 4-way concurrency exit 0 after."
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "init ts standards test passes under parallel load",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: test/adopt/init.test.ts \"--init ts … leaves zero failing standards\" failed once in a lane's `npm run fast` under load and passed alone (handoff priority 1d).\nOutcome: the root cause is named in the close note (which standard failed and why load changes it), and the test passes 20 of 20 runs of `node --test test/adopt/init.test.ts` while 4 parallel copies run (exit 0 each).\nWhy: a flaky gate costs every lane fast reruns, as the node_modules/.bin PATH leak did before #1151.\nProof: a loop script runs the test 20 times with 4 concurrent copies; all exit 0; a regression test pins the root cause at the lowest layer (KRN-14).\nFiles: test/adopt/init.test.ts, src/adopt/"
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

@@ -438,9 +438,24 @@ function writeCi(root: string): { file: string } | { reason: string } {
   return { file };
 }
 
+/** Attempts at npm's lockfile-only install: the registry and the shared npm cache fail transiently under load. */
+const LOCKFILE_ATTEMPTS = 3;
+
 /** Runs npm's lockfile-only install in `root`, so the lockfile follows package.json; throws npm's last line on failure. */
 export function syncLockfile(root: string): void {
-  const locked = spawnSync(
+  let locked = runLockfileInstall(root);
+  for (let attempt = 1; attempt < LOCKFILE_ATTEMPTS; attempt++) {
+    if (locked.status === 0) break;
+    locked = runLockfileInstall(root);
+  }
+  if (locked.status !== 0)
+    throw new Error(
+      `npm install --package-lock-only exited ${locked.status ?? 'without a status'}: ${(locked.stderr || locked.stdout).trim().split('\n').pop()}`,
+    );
+}
+
+function runLockfileInstall(root: string) {
+  return spawnSync(
     'npm',
     [
       'install',
@@ -448,13 +463,10 @@ export function syncLockfile(root: string): void {
       '--ignore-scripts',
       '--no-audit',
       '--no-fund',
+      '--prefer-offline',
     ],
     { cwd: root, encoding: 'utf8' },
   );
-  if (locked.status !== 0)
-    throw new Error(
-      `npm install --package-lock-only exited ${locked.status ?? 'without a status'}: ${(locked.stderr || locked.stdout).trim().split('\n').pop()}`,
-    );
 }
 
 function writeLockfile(root: string): string | undefined {
