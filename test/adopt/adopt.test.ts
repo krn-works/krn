@@ -127,6 +127,38 @@ test('adopt keeps an existing ci.yml and admission policy and calls the shared C
   assert.doesNotMatch(again.stdout, /^wrote /mu);
 });
 
+test('adopt adds only the gates no existing workflow runs, and no call when every gate runs', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.github/workflows'), { recursive: true });
+  // The repository's own CI already runs the tests.
+  const own =
+    'name: CI\non:\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n';
+  writeFileSync(join(root, '.github/workflows/ci.yml'), own);
+  const run = adopt(root, '--test', 'npm test', '--lint', 'npm run lint');
+  assert.equal(run.status, 0, run.stderr);
+  const call = readFileSync(join(root, '.github/workflows/krn-ci.yml'), 'utf8');
+  assert.match(call, /^ {6}lint: "npm run lint"$/mu);
+  assert.doesNotMatch(call, /^ {6}test:/mu);
+  const again = adopt(root, '--test', 'npm test', '--lint', 'npm run lint');
+  assert.equal(again.status, 0, again.stderr);
+  assert.doesNotMatch(again.stdout, /^wrote /mu);
+
+  const covered = scratch();
+  mkdirSync(join(covered, '.github/workflows'), { recursive: true });
+  writeFileSync(join(covered, '.github/workflows/ci.yml'), own);
+  const skipped = adopt(covered, '--test', 'npm test');
+  assert.equal(skipped.status, 0, skipped.stderr);
+  assert.equal(
+    existsSync(join(covered, '.github/workflows/krn-ci.yml')),
+    false,
+  );
+  assert.equal(existsSync(join(covered, 'spec/ci-admission.json')), false);
+  assert.match(
+    skipped.stdout,
+    /krn-ci\.yml \(every contract gate already runs in \.github\/workflows\/ci\.yml\)/u,
+  );
+});
+
 test('adopt rerun changes nothing and keeps existing instructions', () => {
   const root = scratch();
   spawnSync('sh', ['-c', `printf '# Mine\\n' > "${root}/AGENTS.md"`]);

@@ -1,7 +1,11 @@
 {
   "id": "t-8bv3z0k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt reads existing workflows: the CI call and host CI carry only contract gates no workflow runs (none when all run); verify prints duplicate-ci: N (pilot: duplicate-ci: 0); gate tasks carry kind, area, stack and tier priority"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Adopt fills gaps and files categorised gate tasks (S27)",

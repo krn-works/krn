@@ -1,0 +1,14 @@
+{
+  "id": "t-q2x4mc5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Install the KRN App on the pilot repository so adopt --verify reads it",
+  "after": [],
+  "body": [
+    "Outcome: the KRN GitHub App (krn-works-delivery) is installed on krn-works/seo-audit-harness so `krn adopt /mnt/storage/tmp/krn/pilot/lead --verify` reads the required check and auto-merge instead of exiting 67 \"GitHub App not installed\".\nWhy: S27 proof run 2026-11-16 printed duplicate-ci: 0 and then exit 67; the pilot's remote verdict cannot be read. Installing an App is an operator grant (credentials), not lead work.\nAlso: the pilot's .agents/standards.json uses an old record type and adopt cannot compare it; after the App install run `krn adopt <pilot> --refresh` or migrate the records.\nProof: `bin/krn adopt /mnt/storage/tmp/krn/pilot/lead --verify` exits 0 or 1 naming gaps, never 67."
+  ],
+  "kind": "chore",
+  "area": "adopt"
+}

@@ -2,9 +2,14 @@
 import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
 import { REQUIRED_CHECK_APP_ID } from '../repo/ci-admission-contract.ts';
-import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
+import {
+  contractBase,
+  contractDeployAcknowledged,
+  findContract,
+} from '../repo/contract.ts';
 import { ghApiSync } from '../repo/gh.ts';
 import { deployRemedy, deployWorkflows } from './deploy.ts';
+import { GATE_KEYS, type GateKey, workflowGates } from './workflow-gates.ts';
 
 const repoSchema = z.object({
   default_branch: z.string().min(1),
@@ -181,4 +186,39 @@ export function verifyRepository(root: string): VerifyReport {
   if (deploying.length > 0 && !contractDeployAcknowledged(root))
     gaps.push(deployRemedy(deploying, deployBase));
   return { ok: gaps.length === 0, gaps };
+}
+
+/** One contract gate command that two or more workflows run, and the files that run it. */
+export interface DuplicateCi {
+  gate: GateKey;
+  command: string;
+  files: string[];
+}
+
+/**
+ * The contract gate commands (lint, typecheck, test) that more than one workflow runs: adopt fills
+ * gaps and never adds a second runner, so an adopted repository reports none. A repository without a
+ * readable contract has no gate commands to compare and reports none.
+ */
+export function duplicateCi(root: string): DuplicateCi[] {
+  let contract: ReturnType<typeof findContract>;
+  try {
+    contract = findContract(root);
+  } catch {
+    return [];
+  }
+  if (contract === undefined) return [];
+  const commands = {
+    lint: contract.contract.lint,
+    typecheck: contract.contract.typecheck,
+    test: contract.contract.vacuous ? undefined : contract.contract.test,
+  };
+  const gates = workflowGates(root, commands);
+  return GATE_KEYS.filter((gate) => gates.duplicated.includes(gate)).map(
+    (gate) => ({
+      gate,
+      command: commands[gate] ?? '',
+      files: gates.runBy[gate] ?? [],
+    }),
+  );
 }

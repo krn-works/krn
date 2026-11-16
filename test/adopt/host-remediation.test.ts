@@ -65,6 +65,43 @@ test('a python repository gets the unittest workflow and an existing ci.yml is k
   }
 });
 
+test('the host CI adds only the contract gates the existing workflow does not run, and nothing when all run', () => {
+  const own =
+    'name: own\non:\n  push:\njobs:\n  t:\n    steps:\n      - run: npm test\n';
+  const root = repo({
+    'package.json': '{"name":"x","scripts":{"test":"node --test"}}\n',
+    'package-lock.json': '{}\n',
+    'krn.json': '{"test":"npm test","lint":"npm run lint"}\n',
+    '.github/workflows/ci.yml': own,
+  });
+  try {
+    const done = remediateHost(root, [fail('s-gate-in-ci')]);
+    assert.deepEqual(done.written, ['.github/workflows/krn-ci.yml']);
+    const text = readFileSync(
+      join(root, '.github/workflows/krn-ci.yml'),
+      'utf8',
+    );
+    assert.match(text, /- run: npm run lint/u);
+    assert.doesNotMatch(text, /- run: npm test/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  const covered = repo({
+    'package.json': '{"name":"x","scripts":{"test":"node --test"}}\n',
+    'krn.json': '{"test":"npm test"}\n',
+    '.github/workflows/ci.yml': own,
+  });
+  try {
+    const done = remediateHost(covered, [fail('s-gate-in-ci')]);
+    assert.deepEqual(done.written, []);
+    assert.deepEqual(done.unfixed, [
+      's-gate-in-ci: every contract gate already runs in .github/workflows/ci.yml',
+    ]);
+  } finally {
+    rmSync(covered, { recursive: true, force: true });
+  }
+});
+
 test('a failing lockfile standard writes and stages package-lock.json with the real npm', () => {
   const root = repo({
     'package.json': '{"name":"lockme","version":"1.0.0"}\n',
