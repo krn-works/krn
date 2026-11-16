@@ -1,0 +1,22 @@
+{
+  "id": "t-s7xdvqp",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regression test in test/task/pending-records.test.ts fails on base, passes with fix; closing a pending record keeps it on the pending ref, publish --dry-run lists it, git status empty"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Closing a pending task leaves an untracked record that publish skips",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: t-wtzyamw was created with krn task create (held on refs/krn/pending-tasks); krn task close t-wtzyamw in the main checkout then wrote an untracked tasks/t-wtzyamw.json and removed it from the pending set, so krn task publish (aa89551) did not ship it.\nOutcome: closing a pending task keeps the closed record in the pending set; publish ships it; the main checkout stays clean (git status prints nothing).\nProof: a regression test creates, closes and publishes --dry-run one task and asserts the id is listed and git status is empty."
+  ],
+  "kind": "defect",
+  "area": "task",
+  "from": {
+    "kind": "finding",
+    "ref": "close-pending-untracked"
+  }
+}
