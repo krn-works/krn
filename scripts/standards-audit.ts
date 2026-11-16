@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   appliesTo,
@@ -36,6 +36,13 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 // Every adopt and enforcement below spawns `node` on the same TypeScript sources: a shared compile cache
 // makes each spawn after the first skip the parse and compile.
 process.env.NODE_COMPILE_CACHE ??= join(repoRoot, '.krn/cache/node');
+// A fixture is judged by the tools a fresh checkout has. `npm run` puts this repository's node_modules/.bin on
+// PATH, so a fixture's `tsc` would resolve to KRN's own compiler and fail on the types it never installed
+// ("error TS2688: Cannot find type definition file for 'node'"): drop every such entry.
+process.env.PATH = (process.env.PATH ?? '')
+  .split(delimiter)
+  .filter((entry) => !/(^|[\\/])node_modules[\\/]\.bin[\\/]?$/u.test(entry))
+  .join(delimiter);
 type PackRecord = { id: string; enforcement: { kind: string } };
 
 /** The environment of an adopt run: its registry is a scratch file, never the host's `~/.krn/adopted.json`. */
