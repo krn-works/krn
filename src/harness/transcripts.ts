@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join, sep } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -38,27 +38,6 @@ export async function transcriptFiles(
   directories: string[],
 ): Promise<TranscriptFile[]> {
   return (await Promise.all(directories.map(jsonlFiles))).flat().map(idOf);
-}
-
-/** The `count` most recently written top-level transcripts of the directories, newest first. */
-export async function recentTranscriptFiles(
-  directories: string[],
-  count: number,
-): Promise<TranscriptFile[]> {
-  const files = await transcriptFiles(directories);
-  const stamped = await Promise.all(
-    files.map(async (file) => ({
-      file,
-      at: await stat(file.path).then(
-        (s) => s.mtimeMs,
-        () => 0,
-      ),
-    })),
-  );
-  return stamped
-    .sort((a, b) => b.at - a.at || a.file.id.localeCompare(b.file.id))
-    .slice(0, count)
-    .map((entry) => entry.file);
 }
 
 /** A lead transcript's subagent transcripts, each with its raw metadata text. */
