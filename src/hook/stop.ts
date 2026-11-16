@@ -319,6 +319,36 @@ function safeRead(path: string): string {
   }
 }
 
+const WEAKENS_REASON = /^\s*Weakens-tests:\s*\S+/imu;
+const LOCAL_IMPORT =
+  /(?:\bfrom\s+|\bimport\s*\(?\s*|\brequire\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/gu;
+const stemOfFile = (path: string) =>
+  (path.split('/').pop() ?? '').replace(/\.test\.\w+$|\.\w+$/u, '');
+
+/**
+ * A deleted test is explained when a branch commit carries a `Weakens-tests:` reason, or when the branch
+ * also deleted the source it imported (or, with no local import, the source sharing its name).
+ */
+function deletionExplained(root: string, from: string, path: string): boolean {
+  const log = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
+  if (WEAKENS_REASON.test(log)) return true;
+  const text = git(root, ['show', `${from}:${path}`]).stdout;
+  const dir = path.split('/').slice(0, -1);
+  const imported = [...text.matchAll(LOCAL_IMPORT)]
+    .map((match) => posix.join(...dir, match[1] ?? ''))
+    .filter((target) => !isTestFile(target));
+  const existed = (target: string) =>
+    git(root, ['cat-file', '-e', `${from}:${target}`]).status === 0;
+  const present = (target: string) => existsSync(join(root, target));
+  const sources = imported.filter(existed);
+  if (sources.length > 0) return sources.every((target) => !present(target));
+  const stem = stemOfFile(path);
+  const named = git(root, ['ls-tree', '-r', '--name-only', from])
+    .stdout.split('\n')
+    .filter((file) => file && !isTestFile(file) && stemOfFile(file) === stem);
+  return named.length > 0 && named.every((file) => !present(file));
+}
+
 export function testEdits(root: string, from: string): TestEdits {
   const edits: TestEdits = { deleted: [], skipped: [], modified: [] };
   const status = git(root, [
@@ -331,7 +361,7 @@ export function testEdits(root: string, from: string): TestEdits {
     const [kind, path] = line.split('\t');
     if (!kind || !path || !isTestFile(path)) continue;
     if (kind === 'D') {
-      edits.deleted.push(path);
+      if (!deletionExplained(root, from, path)) edits.deleted.push(path);
       continue;
     }
     if (kind === 'M') edits.modified.push(path);

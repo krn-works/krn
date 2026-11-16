@@ -941,6 +941,44 @@ test('a deleted test file refuses unless the task record names it', () => {
   }
 });
 
+test('a deleted test is accepted with its deleted source or a Weakens-tests reason, refused with its source kept', () => {
+  const green = () => [];
+  const branch = (drop: string[], message: string, imports: boolean) => {
+    const dir = clone();
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      imports ? "import { a } from '../src/a.ts';\n" : '',
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'tests');
+    sh(dir, 'checkout', '-q', '-B', 'main');
+    sh(dir, 'checkout', '-q', '-b', 'task');
+    for (const path of drop) sh(dir, 'rm', '-q', path);
+    sh(dir, 'commit', '-q', '-m', message);
+    return dir;
+  };
+  const cases: [string[], string, boolean, boolean][] = [
+    [['src/a.ts', 'test/a.test.ts'], 'drop', true, true],
+    [['src/a.ts', 'test/a.test.ts'], 'drop', false, true],
+    [['test/a.test.ts'], 'drop', true, false],
+    [['test/a.test.ts'], 'drop\n\nWeakens-tests: obsolete', true, true],
+  ];
+  for (const [drop, message, imports, accepted] of cases) {
+    const dir = branch(drop, message, imports);
+    try {
+      const reason = judgeStop(payload(dir), lane(dir), green);
+      if (accepted) assert.equal(reason, undefined);
+      else
+        assert.match(
+          reason ?? '',
+          /deleted test file\(s\): test\/a\.test\.ts/u,
+        );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('an added skip or xfail refuses, in a changed and in a new test file', () => {
   const dir = clone();
   try {
