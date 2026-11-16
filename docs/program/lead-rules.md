@@ -18,7 +18,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 
 ## Scope and delivery
 
-- For work spanning sessions, PRs, or modules, maintain a living plan using [`PLAN.md`](PLAN.md#working-plans). Read it back before a handoff.
+- For work spanning sessions, PRs, or modules, keep its slice line in [`plan.md`](plan.md) and the task's status current. Read it back before a handoff.
 - Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
 - Before accepting, rerun a lane's cited command.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
