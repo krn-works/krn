@@ -602,3 +602,37 @@ test('fast check selects the readers of a changed data file on the real reposito
     ),
   );
 });
+
+test('two fast-check test phases against one slot lock run one after the other', async () => {
+  const { withSlot } = await import('../scripts/lib/slot-lock.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'slots-'));
+  try {
+    const events: string[] = [];
+    const phase = (name: string) =>
+      withSlot({ dir, slots: 1, pollMs: 10 }, async () => {
+        events.push(`${name}:start`);
+        await new Promise((r) => setTimeout(r, 80));
+        events.push(`${name}:end`);
+      });
+    await Promise.all([phase('a'), phase('b')]);
+    assert.deepEqual(events, ['a:start', 'a:end', 'b:start', 'b:end']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a slot whose holder died is reclaimed and the cap comes from KRN_FAST_SLOTS', async () => {
+  const { withSlot } = await import('../scripts/lib/slot-lock.ts');
+  const { testSlotOptions } = await import('../scripts/fast-check.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'slots-'));
+  try {
+    mkdirSync(join(dir, 'slot-0'));
+    writeFileSync(join(dir, 'slot-0', 'pid'), '999999999');
+    const ran = await withSlot({ dir, pollMs: 10 }, async () => 'ok');
+    assert.equal(ran, 'ok');
+    assert.equal(testSlotOptions(dir, { KRN_FAST_SLOTS: '3' }).slots, 3);
+    assert.equal(testSlotOptions(dir, {}).slots, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

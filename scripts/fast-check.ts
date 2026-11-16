@@ -13,6 +13,7 @@ import {
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
+import { withSlot } from './lib/slot-lock.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
@@ -380,6 +381,24 @@ export function toolBin(root: string): string | undefined {
   return existsSync(join(main, 'tsc')) ? main : undefined;
 }
 
+/** The main checkout shared by every worktree, else the root itself. */
+function sharedRoot(root: string): string {
+  const common = probe(root, ['rev-parse', '--git-common-dir']);
+  return common ? dirname(resolve(root, common)) : root;
+}
+
+/** Slot lock options: one lock under the shared checkout's .krn/tmp, KRN_FAST_SLOTS holders at once. */
+export function testSlotOptions(
+  root: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { dir: string; slots: number } {
+  const slots = Number(env.KRN_FAST_SLOTS);
+  return {
+    dir: join(sharedRoot(root), '.krn/tmp/fast-slots'),
+    slots: Number.isInteger(slots) && slots > 0 ? slots : 1,
+  };
+}
+
 type Step = { name: string; ok: boolean; seconds: number; output: string };
 
 function run(
@@ -546,20 +565,22 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
       ]),
       ...(related.length > 0
         ? [
-            run(
-              root,
-              'test',
-              process.execPath,
-              testRunnerArgs(related),
-              // Tests start Node children (CLIs under test); like the suite
-              // runner, they share its compile cache instead of recompiling
-              // unchanged sources in every child.
-              {
-                ...process.env,
-                NODE_COMPILE_CACHE:
-                  process.env.NODE_COMPILE_CACHE ??
-                  join(root, '.krn/tmp/node-compile-cache'),
-              },
+            withSlot(testSlotOptions(root), () =>
+              run(
+                root,
+                'test',
+                process.execPath,
+                testRunnerArgs(related),
+                // Tests start Node children (CLIs under test); like the suite
+                // runner, they share its compile cache instead of recompiling
+                // unchanged sources in every child.
+                {
+                  ...process.env,
+                  NODE_COMPILE_CACHE:
+                    process.env.NODE_COMPILE_CACHE ??
+                    join(root, '.krn/tmp/node-compile-cache'),
+                },
+              ),
             ),
           ]
         : []),
