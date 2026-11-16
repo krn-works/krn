@@ -36,6 +36,9 @@ function receiver(options: {
   cwd?: string;
   createRefusal?: string;
   rule?: { code: number; stderr: string };
+  scoped?: { code: number; stdout: string };
+  /** The porcelain status after the scoped checks ran (Biome rewrote files). */
+  rewritten?: string;
   diff?: string;
   carrier?: string;
   proofExit?: number;
@@ -97,6 +100,13 @@ function receiver(options: {
     calls.push(`${command} ${a.join(' ')}`);
     dirs.push(`${at} ${command} ${a[0]}`);
     const out = (stdout: string) => ({ code: 0, stdout, stderr: '' });
+    if (command === 'node' && a[0] === 'scripts/fast-check.ts') {
+      assert.equal(
+        line0(a),
+        `scripts/fast-check.ts --base origin/${options.target ?? 'main'}`,
+      );
+      return { code: 0, stderr: '', stdout: '', ...options.scoped };
+    }
     if (command === 'node') {
       assert.equal(line0(a), '--test test/rules/instruction-bytes.test.ts');
       return { code: 0, stdout: '', stderr: '', ...options.rule };
@@ -108,7 +118,13 @@ function receiver(options: {
     if (line === 'rev-parse --abbrev-ref HEAD')
       return out(`${options.branch ?? 'feat-x'}\n`);
     if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
-    if (a[0] === 'status') return out(options.dirty ? ' M f\n' : '');
+    if (a[0] === 'status') {
+      const afterScoped = calls.some((call) =>
+        call.includes('node scripts/fast'),
+      );
+      if (afterScoped && options.rewritten) return out(options.rewritten);
+      return out(options.dirty ? ' M f\n' : '');
+    }
     if (line === 'rev-parse HEAD')
       return out(`${rebased > 0 ? newHead : head}\n`);
     if (line === `rev-parse origin/${options.target ?? 'main'}`)
@@ -482,10 +498,35 @@ test('an empty diff with no matching merged PR still refuses', async () => {
   });
 });
 
+test('a failing scoped check refuses the push with exit 65 and records no push call', async () => {
+  const r = receiver({
+    pulls: [auto],
+    scoped: { code: 1, stdout: '--- biome ---\nspec/receivers.json format' },
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 65);
+    assert.match(e.message, /scoped checks .* failed/u);
+    assert.ok(e.message.includes('spec/receivers.json format'));
+    return true;
+  });
+  assert.ok(r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
+  assert.ok(!r.calls.some((c) => c.includes('git push')));
+});
+
+test('a scoped check that rewrote files refuses the push', async () => {
+  const r = receiver({ pulls: [auto], rewritten: ' M src/x.ts\n' });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 65);
+    assert.match(e.message, /rewrote files/u);
+    return true;
+  });
+  assert.ok(!r.calls.some((c) => c.includes('git push')));
+});
+
 test('an adopted repository without the instruction-bytes rule ships without running it', async () => {
   const r = receiver({ pulls: [auto, merged], hasRule: false });
   await shipCommand(args, { ...r, completeClose: completeCloseExposure });
-  assert.ok(!r.calls.some((c) => c.startsWith('node --test')));
+  assert.ok(!r.calls.some((c) => c.startsWith('node ')));
   assert.ok(r.calls.some((c) => c.includes('push')));
 });
 
