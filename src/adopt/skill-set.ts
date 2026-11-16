@@ -4,7 +4,7 @@
 // Site skills come whole from one pinned commit of the boilerplate repository (site-skills/source.json).
 // Only skills that exist in the installer source are named.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type FirstTestStack, firstTestStack } from '../brain/first-test.ts';
 
@@ -63,4 +63,35 @@ export function filesUnder(dir: string): string[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => relative(dir, join(entry.parentPath, entry.name)));
+}
+
+/**
+ * True when `root` is the repository the pinned site skills come from (source.json names it and its renames):
+ * its own skills are the newer copy, so an adoption never writes the pin over them. Read from the directory
+ * name, the package name and the origin URL.
+ */
+export function isSiteSkillSource(root: string): boolean {
+  const pin = JSON.parse(
+    readFileSync(join(SITE_SKILLS_DIR, 'source.json'), 'utf8'),
+  ) as { repository: string; aliases?: string[] };
+  const names = new Set([pin.repository, ...(pin.aliases ?? [])]);
+  const held = [basename(root)];
+  const manifest = join(root, 'package.json');
+  if (existsSync(manifest)) {
+    try {
+      const name = (
+        JSON.parse(readFileSync(manifest, 'utf8')) as { name?: unknown }
+      ).name;
+      if (typeof name === 'string') held.push(name);
+    } catch {
+      // an unreadable manifest names nothing
+    }
+  }
+  const config = join(root, '.git', 'config');
+  if (existsSync(config)) {
+    const url = /^\s*url\s*=\s*(\S+)\s*$/mu.exec(readFileSync(config, 'utf8'));
+    if (url?.[1] !== undefined)
+      held.push(basename(url[1].replace(/\/+$/u, '')).replace(/\.git$/u, ''));
+  }
+  return held.some((name) => names.has(name));
 }

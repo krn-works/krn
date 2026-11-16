@@ -43,6 +43,7 @@ import {
 } from './journal.ts';
 import {
   filesUnder,
+  isSiteSkillSource,
   SITE_SKILLS_DIR,
   siteSkillNames,
   skillSet,
@@ -66,6 +67,8 @@ export interface AdoptOptions {
   test?: string;
   /** Only the KRN-owned adoption files: krn.json, tasks/, the CI call and the admission policy are left alone. */
   refresh?: boolean;
+  /** With `refresh`: also overwrite a site skill file that was edited in this repository. */
+  force?: boolean;
 }
 
 export interface AdoptionReport {
@@ -77,6 +80,8 @@ export interface AdoptionReport {
   rollback: () => void;
   /** Paths (relative to the root) that did not exist before this run wrote them. */
   created: ReadonlySet<string>;
+  /** Site skill files left as the repository has them although they differ from the pin (a refresh without `force`). */
+  held?: string[];
 }
 
 const sharedWorkflow = 'krn-works/krn/.github/workflows/project-ci.yml';
@@ -560,8 +565,10 @@ function writeSkills(
   root: string,
   report: AdoptionReport,
   refresh: boolean,
+  force: boolean,
 ): void {
   const sites = new Set(siteSkillNames());
+  const source = isSiteSkillSource(root);
   const installed = skillSet(root, [...universalSkills(), ...sites]);
   for (const name of installed) {
     const own = join('.agents', 'skills', name);
@@ -573,14 +580,30 @@ function writeSkills(
       report.unchanged.push(own);
       continue;
     }
-    const from = join(sites.has(name) ? SITE_SKILLS_DIR : skillsSource, name);
-    for (const file of filesUnder(from).sort())
-      writeIfChanged(
-        root,
-        join('.agents', 'skills', name, file),
-        readFileSync(join(from, file), 'utf8'),
-        report,
-      );
+    const site = sites.has(name);
+    if (site && source) {
+      // The repository the pin was taken from owns newer copies of these skills.
+      report.unchanged.push(own);
+      continue;
+    }
+    const from = join(site ? SITE_SKILLS_DIR : skillsSource, name);
+    for (const file of filesUnder(from).sort()) {
+      const target = join('.agents', 'skills', name, file);
+      const content = readFileSync(join(from, file), 'utf8');
+      const path = join(root, target);
+      if (
+        site &&
+        refresh &&
+        !force &&
+        existsSync(path) &&
+        readFileSync(path, 'utf8') !== content
+      ) {
+        report.held = [...(report.held ?? []), target];
+        report.unchanged.push(target);
+        continue;
+      }
+      writeIfChanged(root, target, content, report);
+    }
   }
   const link = projectPath(root, 'skills');
   if (!existsSync(link) && !isSymlink(link)) {
@@ -749,7 +772,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   // The product checkout holds the pack and its own conventions and hooks: it adopts itself by
   // installing the same skill files an adopted repository gets, and nothing else.
   if (options.refresh === true && isProductCheckout(root)) {
-    writeSkills(root, report, true);
+    writeSkills(root, report, true, options.force === true);
     return report;
   }
   // Everything that can refuse runs before the first write.
@@ -770,7 +793,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
       ? undefined
       : ciWorkflow(root, { ...options, ref: options.ref }, report);
   writeHooks(root, settings, report);
-  writeSkills(root, report, options.refresh === true);
+  writeSkills(root, report, options.refresh === true, options.force === true);
   writeIfChanged(root, PROJECT_STANDARDS, formatStandards(standards), report);
   writeRules(root, report);
   ignoreAgentState(root, report);

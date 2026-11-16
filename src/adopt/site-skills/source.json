@@ -1,5 +1,6 @@
 {
   "repository": "boilerplate-2026",
+  "aliases": ["boilerplate-rekurencja"],
   "path": ".agents/skills",
   "commit": "30778b573ee937efbe777bf8d44db03781b87f1f"
 }
