@@ -44,6 +44,8 @@ export interface Verification {
   baseFailure: 'assertion' | 'compile' | 'none';
   installFix: number;
   testFix: number;
+  /** Hidden-test exit with the reference fix applied in the screen's own isolated checkout; non-zero means the screen cannot grade the unit. */
+  gold?: number;
 }
 
 export interface ManifestRow {
@@ -79,7 +81,8 @@ export function verified(v: Verification | undefined): boolean {
     v.installFix === 0 &&
     v.baseFailure === 'assertion' &&
     v.testBase !== 0 &&
-    v.testFix === 0
+    v.testFix === 0 &&
+    (v.gold === undefined || v.gold === 0)
   );
 }
 
