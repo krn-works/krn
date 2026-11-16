@@ -1,0 +1,14 @@
+{
+  "id": "t-s8pe5sa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "The model-switch hook reads a captured PostModelSwitch payload",
+  "after": [],
+  "body": [
+    "Source: #1193 (b085196, t-5rbfkxx) built the PostModelSwitch hook test from guessed payload fields (from_model/to_model plus aliases); the research file names no fields and no live capture exists (KRN-12 gap).\nOutcome: a real PostModelSwitch payload is captured verbatim under test/fixtures/ (with the Claude Code version) and src/hook/model-switch.ts reads its real field names; the guessed aliases go.\nProof: the hook test reads the captured fixture and writes one log line naming both models.\nFiles: src/hook/model-switch.ts, test/hook/, test/fixtures/"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

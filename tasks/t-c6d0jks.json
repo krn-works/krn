@@ -1,0 +1,14 @@
+{
+  "id": "t-c6d0jks",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "krn lane finish ships a pushed lane branch that hit its turn ceiling",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: a lane hit its turn ceiling after pushing its branch but before shipping (slop-prune-dead); the lead had to rebuild the body, the Weakens-tests line and the ship call by hand.\nOutcome: `krn lane finish <slug>` ships a pushed lane branch from its worktree with the lane's recorded body inputs (task, refs or ticket from the commit trailer, assumptions and weakens-tests notes the lane wrote to its worktree state), and lanes.md tells a lane near its ceiling to write those notes before it stops.\nWhy: an unshipped lane branch costs a lead several turns and context.\nProof: a lane test with a pushed fixture branch and recorded notes runs finish against a fake gh and gets `verdict: merged`; without notes it derives the trailer and still ships.\nFiles: src/cli/lane.ts, .agents/skills/delivery-lead/lanes.md, src/adopt/skills/delivery-lead/lanes.md"
+  ],
+  "kind": "feature",
+  "area": "lane"
+}

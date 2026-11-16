@@ -1,0 +1,14 @@
+{
+  "id": "t-qx683vt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "ship never gives up on a transient gh failure after push and resumes an existing PR",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: ship exited 70 on three different transient gh failures (TLS timeout, null statusCheckRollup, \"error connecting to api.github.com\"), each fixed one string at a time (#1182, #1188, #1189); one PR merged unattended after ship gave up, and rerunning ship then refused with 66 (empty diff) instead of reporting the merge.\nOutcome: once ship has pushed, its watch and merge phases retry every gh failure that carries no HTTP status (any stderr without an HTTP 4xx/5xx answer) with backoff for up to 5 minutes instead of an allowlist of strings; a rerun on a branch whose PR is open adopts it (enables auto-merge, waits), and on a branch whose PR already merged prints `verdict: merged <sha>` and exits 0.\nWhy: every transient blip became a manual re-ship and a false failure.\nProof: ship tests with a fake gh that fails pr view with an unseen network message four times then answers -> merged; that answers HTTP 404 -> fails at once; a rerun against an already merged PR of the branch -> `verdict: merged` exit 0; against an open PR without auto-merge -> auto-merge enabled and merged.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
