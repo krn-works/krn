@@ -285,3 +285,27 @@ test('a lane brief with lane-model: opus, inline or behind a pointer file, runs 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a read-only general-purpose brief stays on a read-only type, a lane brief goes to krn-lane', () => {
+  const route = (prompt: string) =>
+    (
+      updatedInput(
+        call({ subagent_type: 'general-purpose', prompt }),
+        'claude-sonnet-5-5',
+      ) as { subagent_type: string }
+    ).subagent_type;
+  assert.equal(
+    route('Read-only research of the docs; report findings.'),
+    'krn-reader',
+  );
+  assert.equal(
+    route('Read-only: summarise https://example.com/page'),
+    'krn-research',
+  );
+  assert.equal(
+    route('Read-only check, then fix it in your worktree'),
+    'krn-lane',
+  );
+  assert.equal(route('Task t-abc1234, read-only part first'), 'krn-lane');
+  assert.equal(route('Implement the parser'), 'krn-lane');
+});

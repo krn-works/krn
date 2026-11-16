@@ -1172,6 +1172,54 @@ function logViolations(
 }
 
 /**
+ * Whether a subagent's own transcript shows no edit and no lane claim: it only read, so the commit
+ * requirement has nothing to check and refusing its end would lose its report. An unreadable or
+ * missing transcript is not read-only.
+ */
+export function readOnlySession(payload: unknown): boolean {
+  const path = (payload as { agent_transcript_path?: unknown } | null)
+    ?.agent_transcript_path;
+  if (typeof path !== 'string') return false;
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return false;
+  }
+  const claims =
+    /\bkrn lane start\b|\bkrn task claim\b|\bgit (?:commit|add|push)\b|\bkrn pr (?:ship|body)\b|\.krn\/task-claims\//u;
+  for (const line of text.split('\n')) {
+    let entry: unknown;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    // A bare `input` naming a file is a recorded file write of an unnamed tool.
+    const bare = (entry as { input?: { file_path?: unknown } } | null)?.input;
+    if (typeof bare?.file_path === 'string') return false;
+    const content = (entry as { message?: { content?: unknown } } | null)
+      ?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content as {
+      type?: unknown;
+      name?: unknown;
+      input?: { command?: unknown };
+    }[]) {
+      if (part?.type !== 'tool_use') continue;
+      if (
+        typeof part.name === 'string' &&
+        /^(?:Edit|Write|MultiEdit|NotebookEdit)$/u.test(part.name)
+      )
+        return false;
+      const command = part.input?.command;
+      if (typeof command === 'string' && claims.test(command)) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * A krn-lane subagent shares the lead's session cwd, so the payload cwd may sit in the lead's worktree
  * or the main checkout. Its own worktree is the one under `<main>/.krn/worktrees` that its transcript last
  * edited a file in, else the worktree of the first live task claim its transcript names.
@@ -1448,6 +1496,7 @@ export function judgeStop(
   const root = ownerCheckout(start);
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
+  if (subagent && readOnlySession(payload)) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
   const lane = start.split(`${sep}.krn${sep}worktrees${sep}`)[1]?.split(sep)[0];

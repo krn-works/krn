@@ -2218,3 +2218,56 @@ test('a contract with arms off turns the red-first and clause arms off, an expli
   assert.equal(clausesOn({ KRN_ACCEPTANCE_CLAUSES: '1' }, off), true);
   assert.equal(testFirstOn({}, { ...real, arms: { clauses: false } }), true);
 });
+
+function subagentTranscript(dir: string, tools: unknown[]): string {
+  const path = join(dir, 'agent.jsonl');
+  const lines = [
+    { type: 'user', message: { role: 'user', content: 'research, read-only' } },
+    ...tools.map((tool) => ({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', ...(tool as object) }],
+      },
+    })),
+  ];
+  writeFileSync(
+    path,
+    `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+  );
+  return path;
+}
+
+test('a read-only krn-lane subagent with no edit and no claim ends with exit 0, an editing one is refused', () => {
+  const dir = clone();
+  try {
+    const sub = (path: string) => ({
+      ...payload(dir),
+      agent_type: 'krn-lane',
+      agent_id: 'a1',
+      agent_transcript_path: path,
+    });
+    const env = {
+      CLAUDE_PROJECT_DIR: dir,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_TASK: 't-abc1234',
+    };
+    const readOnly = subagentTranscript(dir, [
+      { name: 'Read', input: { file_path: join(dir, 'src/a.ts') } },
+      { name: 'Bash', input: { command: 'git log --oneline' } },
+    ]);
+    const stopped = stopHook(JSON.stringify(sub(readOnly)), env, 'work');
+    assert.deepEqual(stopped, { code: 0, stderr: '' });
+    for (const edit of [
+      { name: 'Edit', input: { file_path: join(dir, 'src/a.ts') } },
+      { name: 'Bash', input: { command: 'krn lane start x --task t-abc1234' } },
+    ]) {
+      const path = subagentTranscript(dir, [edit]);
+      const refused = stopHook(JSON.stringify(sub(path)), env, 'work');
+      assert.equal(refused.code, 2);
+      assert.match(refused.stderr, /no commit/u);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
