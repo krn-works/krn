@@ -73,15 +73,7 @@ const commands: Record<CommandName, Handler> = {
   adopt: async (options) => (await import('./adopt.ts')).adoptCommand(options),
   doctor,
   standards: async (options) =>
-    options[0] === 'harvest' && options.includes('--from-ledger')
-      ? (await import('./standards-ledger.ts')).harvestLedgerCommand(
-          options.slice(1),
-        )
-      : options[0] === 'check' && options.includes('--tasks')
-        ? (await import('./standards-tasks.ts')).checkWithTasks(
-            options.slice(1),
-          )
-        : (await import('../brain/standards-cli.ts')).standardsCommand(options),
+    (await import('./standards-router.ts')).standardsCommand(options),
 };
 
 export async function dispatch(args: string[]): Promise<boolean> {

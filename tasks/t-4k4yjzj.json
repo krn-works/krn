@@ -1,7 +1,11 @@
 {
   "id": "t-4k4yjzj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "every krn standards verb dispatches through one router over one verb table; --help and unknown-verb (64) tests run bin/krn; scripts/claude/memory-refs.ts stays: it checks the operator MEMORY.md notes, which the store query cannot replace"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The record store finishes S13: decisions.md migrated, one standards router, packets carry no decision ids",

@@ -3,11 +3,11 @@
 import { resolve } from 'node:path';
 import { trackFailures } from '../adopt/failure-tasks.ts';
 import {
+  checkCommand,
   repositoryRoot,
-  standardsCommand,
   standardsFailures,
-  usage,
 } from '../brain/standards-cli.ts';
+import { usage } from '../brain/standards-verbs.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 export function checkWithTasks(rest: readonly string[]): void {
@@ -25,5 +25,5 @@ export function checkWithTasks(rest: readonly string[]): void {
     true,
   ))
     process.stderr.write(`task: ${title}\n`);
-  standardsCommand(['check', ...args]);
+  checkCommand(args);
 }
