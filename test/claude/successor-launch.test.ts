@@ -1120,6 +1120,8 @@ test('the launcher script refuses an unattended launch when the doctor fails', (
       env: {
         PATH: process.env.PATH ?? '',
         HOME: tmpdir(),
+        // A host running bw serve on the default port would pass the doctor; name a port nothing listens on.
+        KRN_BW_SERVE: 'http://127.0.0.1:1/',
         KRN_TERMINAL_HOST: 'herdr',
       },
     },
