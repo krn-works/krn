@@ -1,0 +1,18 @@
+{
+  "id": "t-v04qp3y",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "guard allows squash-merged tips (patch-id of the unpushed range on a remote) and reads the claim worktree's task copy; test/claude/unpushed-delete-hook.test.ts red before, green after"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Unpushed-delete guard accepts squash-merged tips and the claim worktree's record",
+  "after": [],
+  "body": [
+    "Outcome: the unpushed-delete PreToolUse guard (src/hook/unpushed-delete.ts) allows removing a branch or worktree whose tip is already on the base by patch-id (squash merge), and it finds the 'Unpushed work:' record that `krn task edit --append-body` writes into the claiming worktree's tasks/<id>.json, not only the root copy.\nWhy: 2026-11-16 lead: removing the merged S28 step-1 worktree (377742e, squash 706c874, same patch-id) was refused; the suggested `krn task edit --append-body` wrote into the claimed worktree's task file, so the guard still refused until the claim was released.\nProof: node --test test/hook/unpushed-delete.test.ts: pass with cases for a squash-merged tip and a record in the claim worktree."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
