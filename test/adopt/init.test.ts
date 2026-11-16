@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { syncLockfile } from '../../src/adopt/init.ts';
 
 // KRN-12: runs the real `krn adopt --init` and `krn standards check` entries on scratch directories.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -185,4 +187,42 @@ test('--init go writes a module, a Go test file and a CI job with the Go toolcha
   const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
   assert.match(ci, /actions\/setup-go@v5/u);
   assert.match(ci, /go test \.\/\.\.\./u);
+});
+
+test('the lockfile install survives a transient npm failure and still writes package-lock.json', () => {
+  const root = dir();
+  const bin = dir();
+  // A receiver stand-in: the first call fails as a busy registry or npm cache does under load.
+  const fake = join(bin, 'npm');
+  writeFileSync(
+    fake,
+    `#!/bin/sh
+if [ ! -e "${bin}/called" ]; then : > "${bin}/called"; echo 'npm error network ECONNRESET' >&2; exit 1; fi
+echo '{}' > package-lock.json
+`,
+  );
+  chmodSync(fake, 0o755);
+  const before = process.env.PATH;
+  process.env.PATH = `${bin}:${before}`;
+  try {
+    syncLockfile(root);
+  } finally {
+    process.env.PATH = before;
+  }
+  assert.ok(existsSync(join(root, 'package-lock.json')));
+});
+
+test('a lockfile install that keeps failing throws npm last line', () => {
+  const root = dir();
+  const bin = dir();
+  const fake = join(bin, 'npm');
+  writeFileSync(fake, "#!/bin/sh\necho 'npm error offline' >&2\nexit 1\n");
+  chmodSync(fake, 0o755);
+  const before = process.env.PATH;
+  process.env.PATH = `${bin}:${before}`;
+  try {
+    assert.throws(() => syncLockfile(root), /npm error offline/u);
+  } finally {
+    process.env.PATH = before;
+  }
 });
