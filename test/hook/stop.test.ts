@@ -1853,6 +1853,37 @@ test('a lane report naming a PR whose head branch is not the lane branch is refu
   }
 });
 
+test('a lane whose session cwd is the main checkout reports the PR of its claimed branch and no other', () => {
+  const dir = clone();
+  try {
+    sh(dir, 'checkout', '-q', 'main');
+    mkdirSync(join(dir, '.krn/task-claims'), { recursive: true });
+    writeFileSync(
+      join(dir, '.krn/task-claims/t-abc1234.json'),
+      JSON.stringify({ id: 't-abc1234', branch: 'lane-x' }),
+    );
+    const heads = new Map([
+      [7, 'lane-x'],
+      [8, 'lane-y'],
+    ]);
+    const stop = (message: string) =>
+      judgeStop(
+        payload(dir, message),
+        { KRN_ROLE: 'worker', KRN_TASK: 't-abc1234' },
+        () => [],
+        '',
+        undefined,
+        undefined,
+        undefined,
+        (_root, pr) => heads.get(pr),
+      );
+    assert.doesNotMatch(stop('#7 merged abc1234') ?? '', /head branch/u);
+    assert.match(stop('#8 merged abc1234') ?? '', /head branch is lane-y/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 const redRecord = (id: string, run: string) => ({
   id,
   type: 'standard',
