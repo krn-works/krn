@@ -1089,6 +1089,56 @@ function logViolations(
   }
 }
 
+/**
+ * A krn-lane subagent shares the lead's session cwd, so the payload cwd may sit in the lead's worktree
+ * or the main checkout. Its own worktree is the one under `<main>/.krn/worktrees` that its transcript last
+ * edited a file in, else the worktree of the first live task claim its transcript names.
+ * Returns the payload cwd when the transcript shows neither.
+ */
+export function laneWorktree(cwd: string, payload: unknown): string {
+  const path = (payload as { agent_transcript_path?: unknown } | null)
+    ?.agent_transcript_path;
+  if (typeof path !== 'string') return cwd;
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return cwd;
+  }
+  const common = git(cwd, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (common.status !== 0) return cwd;
+  const main = dirname(common.stdout);
+  const marker = join(main, '.krn', 'worktrees') + sep;
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const edited = [
+    ...text.matchAll(
+      new RegExp(
+        `"(?:file_path|notebook_path)"\\s*:\\s*"${escaped}([^/"]+)`,
+        'gu',
+      ),
+    ),
+  ].at(-1)?.[1];
+  if (edited !== undefined && existsSync(join(marker, edited)))
+    return join(marker, edited);
+  for (const id of text.match(/(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/gu) ??
+    []) {
+    try {
+      const claim = JSON.parse(
+        readFileSync(join(main, '.krn', 'task-claims', `${id}.json`), 'utf8'),
+      ) as { worktree?: unknown };
+      if (typeof claim.worktree === 'string' && existsSync(claim.worktree))
+        return claim.worktree;
+    } catch {
+      /* No claim for this id. */
+    }
+  }
+  return cwd;
+}
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -1108,7 +1158,7 @@ export function judgeStop(
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
   const root = resolve(
     subagent
-      ? (fields?.cwd as string)
+      ? laneWorktree(fields?.cwd as string, payload)
       : (env.CLAUDE_PROJECT_DIR ??
           (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
   );

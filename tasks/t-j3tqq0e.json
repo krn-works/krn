@@ -1,7 +1,11 @@
 {
   "id": "t-j3tqq0e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop.test.ts: SubagentStop with another worktree cwd is judged at the transcript-edited or claimed lane worktree (76 pass)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Lane Stop hook checks the lane worktree, not the lead cwd",

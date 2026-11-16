@@ -1518,6 +1518,61 @@ test('a krn-lane subagent payload is held to the Stop check in the lead environm
   }
 });
 
+test('a krn-lane subagent whose payload cwd is another worktree is checked at the worktree its transcript edited or claimed', () => {
+  const main = clone();
+  const own = join(main, '.krn', 'worktrees', 'lane-own');
+  const lead = join(main, '.krn', 'worktrees', 'lead-wt');
+  try {
+    sh(main, 'worktree', 'add', '-q', '-b', 'lane-own', own, 'main');
+    sh(main, 'worktree', 'add', '-q', '-b', 'lead-wt', lead, 'main');
+    writeFileSync(join(own, 'src/a.ts'), 'export const a = 2;\n');
+    sh(own, 'add', '.');
+    sh(own, 'commit', '-q', '-m', 'lane change');
+    const leadEnv = { CLAUDE_PROJECT_DIR: '/somewhere/else' };
+    const transcript = (line: string) => {
+      const file = join(main, 'agent.jsonl');
+      writeFileSync(file, `${line}\n`);
+      return file;
+    };
+    const sub = (agent_transcript_path: string) => ({
+      ...payload(lead),
+      agent_id: 'a1',
+      agent_type: 'krn-lane',
+      agent_transcript_path,
+    });
+    // Last edited path: the lane worktree holds the commit, the lead cwd does not.
+    const edited = transcript(
+      JSON.stringify({ input: { file_path: join(own, 'src/a.ts') } }),
+    );
+    assert.equal(
+      judgeStop(sub(edited), leadEnv, () => []),
+      undefined,
+    );
+    // Without a transcript the payload cwd (the lead worktree) is judged: no commit there.
+    assert.match(
+      judgeStop(
+        { ...payload(lead), agent_id: 'a1', agent_type: 'krn-lane' },
+        leadEnv,
+        () => [],
+      ) ?? '',
+      /no commit/u,
+    );
+    // A lane claim names the worktree when nothing was edited yet.
+    mkdirSync(join(main, '.krn', 'task-claims'), { recursive: true });
+    writeFileSync(
+      join(main, '.krn', 'task-claims', 't-abcdefg.json'),
+      JSON.stringify({ id: 't-abcdefg', worktree: own }),
+    );
+    const claimed = transcript(JSON.stringify({ text: 'Task id: t-abcdefg' }));
+    assert.equal(
+      judgeStop(sub(claimed), leadEnv, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+  }
+});
+
 test('the Stop hook import graph names only node builtins, relative files and zod, so a clone without node_modules needs just the link the harness lays', () => {
   const seen = new Set<string>();
   const bare = new Set<string>();
