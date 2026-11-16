@@ -9,7 +9,11 @@ import {
 } from '../../src/brain/close-exposure.ts';
 import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
 import { CommandFailure, run } from '../../src/ci/command.ts';
-import { ownsProductRelease, shipCommand } from '../../src/ci/ship.ts';
+import {
+  ownsProductRelease,
+  proofEnvironment,
+  shipCommand,
+} from '../../src/ci/ship.ts';
 import { capture } from '../receivers/capture.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
@@ -639,8 +643,10 @@ test('ship runs the task Proof commands, records command and exit in the PR body
   );
   assert.match(out, /^verdict: merged /mu);
   assert.ok(
-    r.calls.includes(
-      'env PR_BODY=## Problem\n\nx\n sh -c node --test test/x.test.ts',
+    r.calls.some(
+      (c) =>
+        c.startsWith('env PR_BODY=## Problem\n\nx\n ') &&
+        c.endsWith(' sh -c node --test test/x.test.ts'),
     ),
   );
   assert.match(published, /^## Problem/mu);
@@ -1143,4 +1149,40 @@ test('the captured rollup of a plain-gh PR reads as a successful aggregate Check
         : inner(command, a, at),
   });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('a Proof command that starts with krn runs the worktree bin/krn, not the one on PATH', () => {
+  const root = mkdtempSync(join(tmpdir(), 'ship-proof-krn-'));
+  const worktree = join(root, 'worktree');
+  const own = join(worktree, 'bin');
+  const other = join(root, 'path');
+  mkdirSync(own, { recursive: true });
+  mkdirSync(other);
+  for (const [dir, marker] of [
+    [own, 'worktree-krn'],
+    [other, 'path-krn'],
+  ] as const) {
+    writeFileSync(join(dir, 'krn'), `#!/bin/sh\necho ${marker}\n`, {
+      mode: 0o755,
+    });
+  }
+  const saved = process.env.PATH;
+  process.env.PATH = `${other}:${saved}`;
+  try {
+    const proof = run(
+      'env',
+      [...proofEnvironment(worktree, ''), 'sh', '-c', 'krn ledger --limit 1'],
+      worktree,
+    );
+    assert.equal(proof.code, 0);
+    assert.equal(proof.stdout.trim(), 'worktree-krn');
+    const bare = run(
+      'env',
+      [...proofEnvironment(other, ''), 'sh', '-c', 'krn ledger'],
+      other,
+    );
+    assert.equal(bare.stdout.trim(), 'path-krn');
+  } finally {
+    process.env.PATH = saved;
+  }
 });
