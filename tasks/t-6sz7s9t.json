@@ -1,7 +1,11 @@
 {
   "id": "t-6sz7s9t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "registerAdopted(/mnt/storage/coding/krn/active/boilerplate-2026) on main 1ef3fdd (contains c38515f); spec/metrics.json real-adopted-repos prints 1"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "The merged boilerplate adoption counts as a real adopted repository (S29 remainder)",
