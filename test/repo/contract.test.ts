@@ -458,3 +458,32 @@ test('krn.json arms switch the red-first and clauses Stop arms, each on unless s
 });
 
 const base = { base: 'main', test: 'npm test', tracker: 'krn' } as const;
+
+test('a mise check:test or test task is the test command and beats a vacuous workspace command', () => {
+  const vacuousWs = {
+    'package.json': '{"private":true,"workspaces":["packages/*"]}',
+    'packages/a/package.json': '{"name":"a"}',
+  };
+  const check = fixture({
+    ...vacuousWs,
+    'mise.toml':
+      '[tools]\nnode = "26"\n\n[tasks."check:test"]\nrun = "node --test tests/"\n',
+  });
+  const found = resolveContract(check).contract;
+  assert.equal(found.test, 'mise run check:test');
+  assert.equal(found.vacuous, undefined);
+  const plain = fixture({
+    'mise.toml': '[tasks.test]\nrun = "node --test"\n',
+  });
+  assert.equal(resolveContract(plain).contract.test, 'mise run test');
+  const real = fixture({
+    'package.json': '{"scripts":{"test":"node --test"}}',
+    'mise.toml': '[tasks.test]\nrun = "x"\n',
+  });
+  assert.equal(resolveContract(real).contract.test, 'npm test');
+  const none = fixture({
+    ...vacuousWs,
+    'mise.toml': '[tasks.build]\nrun = "x"\n',
+  });
+  assert.equal(resolveContract(none).contract.vacuous, true);
+});
