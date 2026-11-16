@@ -1,0 +1,18 @@
+{
+  "id": "t-86v5dek",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "npm run fast always ends with a verdict line",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16 worktree publish-guards: the first `npm run fast` exited 1 printing only the npm banner, no 'fast PASS/FAIL' line; an immediate rerun on the same tree printed 'fast PASS'. Log lost (overwritten).\nOutcome: every exit of scripts/fast-check.ts prints a verdict line naming the failing stage, including crashes before the first stage.\nWhy: an exit 1 with no verdict forces a blind rerun and hides a flake.\nProof: a test that makes the first stage throw sees a 'fast FAIL' line with the stage name.\nFiles: scripts/fast-check.ts"
+  ],
+  "kind": "defect",
+  "area": "ci",
+  "from": {
+    "kind": "finding",
+    "ref": "lead-2026-11-16"
+  }
+}

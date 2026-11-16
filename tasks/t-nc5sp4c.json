@@ -1,0 +1,18 @@
+{
+  "id": "t-nc5sp4c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "The adopt canary finishes on a repository with a slow build",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16 S29 probe on a fresh clone of krn-works/seo-audit-harness (contract test: npm --prefix packages/seo run build && npm --prefix packages/seo test), host load 60/16 cores: krn adopt . --tracker failed twice on the canary and rolled everything back: 180 s default (step 'Stop gate on the broken test' 164 s) and KRN_CANARY_TIMEOUT_MS=900000 (step 'Stop gate on the clean tree' 466 s; total 905 s). Logs: .krn/runs/lead/s29/adopt.log, .krn/runs/lead/s29/adopt-canary-900s.log.\nOutcome: krn adopt on that pilot clone exits 0 within 300 s at the same load, because the canary's Stop-gate steps run only the related tests of the planted change (not the full build+test per step) or reuse one measured baseline run; a canary timeout keeps what adopt wrote and reports the canary as pending instead of rolling back.\nWhy: every outside repo with a slow build cannot be adopted at all; S29 is blocked on it.\nProof: an adopt test whose fixture test command sleeps 60 s finishes the canary under 3x that, and the pilot clone adopt exits 0.\nFiles: src/adopt/verify.ts"
+  ],
+  "kind": "defect",
+  "area": "adopt",
+  "from": {
+    "kind": "finding",
+    "ref": "s29-pilot-probe"
+  }
+}

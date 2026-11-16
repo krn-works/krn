@@ -1,0 +1,18 @@
+{
+  "id": "t-4z7czaq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The worker Stop gate judges the lane branch, not the main checkout the shell returned to",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, lane t-jgent6a (#1206 merged fccb000): the worker's final reply had to end in BLOCKER because the Stop hook judged the branch from the main checkout (cwd resets to the repository root after each Bash call) and saw main, not the lane branch slop-prune-dead whose PR merged.\nOutcome: the worker Stop gate resolves the lane from the session's recorded worktree (claim file or lane start record), so a lane whose PR merged ends with exit 0 and no BLOCKER line; a test drives the stop check with cwd at the main checkout and a claim pointing at a merged lane branch.\nWhy: false BLOCKERs make the lead re-verify merged lanes by hand and hide real blockers.\nProof: node --test test/hook/stop.test.ts covers cwd=main with a merged lane claim.\nFiles: src/hook/stop.ts"
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "lane-t-jgent6a"
+  }
+}

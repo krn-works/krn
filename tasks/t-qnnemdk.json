@@ -1,0 +1,18 @@
+{
+  "id": "t-qnnemdk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Read-only subagents end without the lane commit requirement",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: a read-only general-purpose research subagent (Agent tool, routed to krn-lane by the Agent hook) was refused its end by the Stop gate twice ('no commit') and had to end on 'BLOCKER: read-only task'; its real report sat in an earlier message the lead never receives, so the report was lost twice.\nOutcome: a subagent whose brief is read-only (no worktree, no task id, or the krn-reader/Explore/research types) ends without the commit requirement: the Stop gate exits 0 for a session with no edits and no lane claim, and the Agent routing hook leaves read-only briefs on a read-only type.\nWhy: lost research reports cost a full rerun and push leads to read files themselves, against KRN-13.\nProof: node --test test/hook/stop.test.ts: a session transcript with no Edit/Write and no claim ends with exit 0.\nFiles: src/hook/stop.ts, the Agent routing hook"
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "lead-research-lost"
+  }
+}
