@@ -67,7 +67,7 @@ fi
 echo $base > $OUT/$tag.base
 start=$(date +%s)
 run_claude() {
-  CLAUDE_CODE_SESSION_ATTENDED=0 timeout 1500 claude -p --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions --max-budget-usd 6 --output-format json "$prompt" > $OUT/$tag.claude.json 2> $OUT/$tag.claude.err
+  CLAUDE_CODE_SESSION_ATTENDED=0 timeout 1500 node $HERE/../session-slot.ts run -- claude -p --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions --max-budget-usd 6 --output-format json "$prompt" > $OUT/$tag.claude.json 2> $OUT/$tag.claude.err
 }
 # An error claude reports (usage limit, auth, API or overload failure) is infrastructure, never a graded outcome; text a successful arm wrote may quote one.
 # Prints the kind: limit (waits for the reset) or api (short wait); prints nothing for a normal end.

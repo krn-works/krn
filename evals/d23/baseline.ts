@@ -35,6 +35,30 @@ export function baselineTests(
   ).filter((f) => parentTests.has(f));
 }
 
+/**
+ * True when `node --test files` exits 0 inside `dir`. A run past `timeoutMs` fails and its whole
+ * process tree dies with it: spawnSync's own timeout signals only the direct child, and the test
+ * workers it forked outlived the run for days. GNU timeout owns a process group and kills all of it.
+ */
+export function testsPass(dir: string, files: string[], timeoutMs = 600_000) {
+  const run = spawnSync(
+    'timeout',
+    [
+      '--signal=KILL',
+      `${Math.max(timeoutMs / 1000, 0.001)}s`,
+      process.execPath,
+      '--test',
+      ...files,
+    ],
+    {
+      cwd: dir,
+      env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+      stdio: 'ignore',
+    },
+  );
+  return run.status === 0;
+}
+
 /** True when the related tests at `parent` fail; a parent with no related test is green. */
 export function redAtParent(repo: string, parent: string, merge: string) {
   const changed = lines(git(repo, 'diff', '--name-only', parent, merge));
@@ -52,17 +76,13 @@ export function redAtParent(repo: string, parent: string, merge: string) {
       if (isTestFile(f)) tests.set(f, readFileSync(join(dir, f), 'utf8'));
     const files = baselineTests(changed, tests);
     if (files.length === 0) return false;
-    const run = spawnSync(process.execPath, ['--test', ...files], {
-      cwd: dir,
-      env: { ...process.env, NODE_TEST_CONTEXT: undefined },
-      stdio: 'ignore',
-      timeout: 600_000,
-    });
-    return run.status !== 0;
+    return !testsPass(dir, files);
   } finally {
     try {
       git(repo, 'worktree', 'remove', '--force', dir);
-    } catch {}
+    } catch {
+      // The worktree is already gone.
+    }
     rmSync(dir, { recursive: true, force: true });
     git(repo, 'worktree', 'prune');
   }

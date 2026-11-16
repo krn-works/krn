@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join, posix, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { redAtParent } from '../../evals/d23/baseline.ts';
+import { redAtParent, testsPass } from '../../evals/d23/baseline.ts';
 import {
   harnessPlan,
   importClosure,
@@ -305,6 +305,35 @@ test('a unit whose parent already fails the tests its change selects is red at b
     const two = git('rev-parse', 'HEAD');
     assert.equal(redAtParent(dir, green, one), false);
     assert.equal(redAtParent(dir, red, two), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a hidden-test run that times out leaves no node --test process behind', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'd23-orphan-'));
+  try {
+    const pidFile = join(dir, 'grandchild.pid');
+    // A hung test worker that ignores SIGTERM: killing only the direct child of the run orphans it.
+    writeFileSync(
+      join(dir, 'slow.test.js'),
+      `process.on('SIGTERM', () => {});
+require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+setTimeout(() => {}, 300000);
+`,
+    );
+    assert.equal(testsPass(dir, ['slow.test.js'], 2000), false);
+    const pid = Number(readFileSync(pidFile, 'utf8'));
+    let alive = true;
+    for (let i = 0; i < 20 && alive; i++) {
+      try {
+        process.kill(pid, 0);
+        await new Promise((r) => setTimeout(r, 100));
+      } catch {
+        alive = false;
+      }
+    }
+    assert.equal(alive, false, `node --test child ${pid} survived the timeout`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

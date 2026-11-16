@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withSessionSlot } from '../session-slot.ts';
 
 export type DerivClass = 'D' | 'P' | 'N';
 export interface Screen {
@@ -135,6 +136,14 @@ export function gatherInput(
 }
 
 export function runJudge(
+  claude: string,
+  prompt: string,
+  cwd: string,
+): Promise<string> {
+  return withSessionSlot(() => runJudgeSession(claude, prompt, cwd));
+}
+
+function runJudgeSession(
   claude: string,
   prompt: string,
   cwd: string,

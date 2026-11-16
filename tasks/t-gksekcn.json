@@ -1,7 +1,11 @@
 {
   "id": "t-gksekcn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node --test test/evals/session-cap.test.ts: pass; N=2 stub claude peak 2, shell wrapper shares cap, wait printed"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Eval runners cap concurrent headless sessions",
