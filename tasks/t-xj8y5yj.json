@@ -1,0 +1,18 @@
+{
+  "id": "t-xj8y5yj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop.test.ts: deleted test with deleted source or Weakens-tests accepted, source kept refused; 77 pass"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "The Stop hook accepts a deleted test whose source the branch also deletes",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-16: S23 (#1121) and S22 step 2 (#1128) lanes both ended BLOCKED by the Stop hook: it counts deleted test files as weakened tests even when the same branch deletes the code they covered and the PR body carries a `Weakens-tests:` line that src/ci/ship.ts and scripts/weak-tests.mjs accept. The slop-cut program (S2, S22, S23, S24, S31) deletes many such pairs, so every deletion lane will hit it.\nOutcome: the Stop hook accepts a deleted test file when the branch deletes the source it imported, or when the branch commit messages carry a `Weakens-tests:` reason, and still refuses a deleted test whose source stays.\nProof: a test builds a branch that deletes src/x.ts and test/x.test.ts (pass), and one that deletes only test/x.test.ts (refused).\nFiles: src/hook/stop.ts or its src/dispatch route, scripts/weak-tests.mjs"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

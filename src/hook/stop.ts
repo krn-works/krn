@@ -319,26 +319,63 @@ function safeRead(path: string): string {
   }
 }
 
+const WEAKENS_REASON = /^\s*Weakens-tests:\s*\S+/imu;
+const LOCAL_IMPORT =
+  /(?:\bfrom\s+|\bimport\s*\(?\s*|\brequire\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/gu;
+const stemOfFile = (path: string) =>
+  (path.split('/').pop() ?? '').replace(/\.test\.\w+$|\.\w+$/u, '');
+
+/**
+ * A deleted test is explained when a branch commit carries a `Weakens-tests:` reason, or when the branch
+ * also deleted the source it imported (or, with no local import, the source sharing its name).
+ */
+function deletionExplained(root: string, from: string, path: string): boolean {
+  const log = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
+  if (WEAKENS_REASON.test(log)) return true;
+  const text = git(root, ['show', `${from}:${path}`]).stdout;
+  const dir = path.split('/').slice(0, -1);
+  const imported = [...text.matchAll(LOCAL_IMPORT)]
+    .map((match) => posix.join(...dir, match[1] ?? ''))
+    .filter((target) => !isTestFile(target));
+  const existed = (target: string) =>
+    git(root, ['cat-file', '-e', `${from}:${target}`]).status === 0;
+  const present = (target: string) => existsSync(join(root, target));
+  const sources = imported.filter(existed);
+  if (sources.length > 0) return sources.every((target) => !present(target));
+  const stem = stemOfFile(path);
+  const named = git(root, ['ls-tree', '-r', '--name-only', from])
+    .stdout.split('\n')
+    .filter((file) => file && !isTestFile(file) && stemOfFile(file) === stem);
+  return named.length > 0 && named.every((file) => !present(file));
+}
+
 export function testEdits(root: string, from: string): TestEdits {
   const edits: TestEdits = { deleted: [], skipped: [], modified: [] };
-  const status = git(root, [
-    'diff',
-    '--name-status',
-    '--no-renames',
-    from,
-  ]).stdout.split('\n');
+  const status = git(root, ['diff', '--name-status', '-M', from]).stdout.split(
+    '\n',
+  );
   for (const line of status) {
-    const [kind, path] = line.split('\t');
+    const [kind, first, second] = line.split('\t');
+    // A rename moves a test: it is kept, and only lines it gains count for skips.
+    const renamed = kind?.startsWith('R') === true && second !== undefined;
+    const path = renamed ? second : first;
     if (!kind || !path || !isTestFile(path)) continue;
     if (kind === 'D') {
-      edits.deleted.push(path);
+      if (!deletionExplained(root, from, path)) edits.deleted.push(path);
       continue;
     }
     if (kind === 'M') edits.modified.push(path);
     const added =
       kind === 'A'
         ? safeRead(join(root, path)).split('\n')
-        : git(root, ['diff', '-U0', '--no-renames', from, '--', path])
+        : git(root, [
+            'diff',
+            '-U0',
+            '-M',
+            from,
+            '--',
+            ...(renamed && first ? [first, path] : [path]),
+          ])
             .stdout.split('\n')
             .filter((row) => row.startsWith('+') && !row.startsWith('+++'));
     if (added.some((row) => SKIP_MARK.test(row))) edits.skipped.push(path);
