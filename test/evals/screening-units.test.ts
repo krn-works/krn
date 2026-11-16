@@ -58,6 +58,9 @@ test('a unit counts as verified only when the hidden test is red by assertion on
   assert.equal(verified({ ...good, testBase: 0, baseFailure: 'none' }), false);
   assert.equal(verified({ ...good, baseFailure: 'compile' }), false);
   assert.equal(verified({ ...good, installFix: 1 }), false);
+  assert.equal(verified({ ...good, gold: 0 }), true);
+  // The reference fix failing in the screen's isolated checkout leaves the unit ungradable.
+  assert.equal(verified({ ...good, gold: 1 }), false);
 });
 
 test('a unit id keeps the task id shape and differs per issue', () => {
