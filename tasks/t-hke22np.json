@@ -1,0 +1,17 @@
+{
+  "id": "t-hke22np",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Frontend records scope visual-lab to profiles with a Figma section",
+  "after": [],
+  "body": [
+    "Outcome: a defect report for the host visual-lab skill states that `visual-lab.mjs` crashes with \"BLOCKED: Cannot read properties of undefined (reading 'cache')\" (exit 2) on a profile without a `figma` section, and that boilerplate-2026's mise task `vlab` calls absent scripts/vlab.mjs (exit 2); KRN's frontend records do not recommend visual-lab for projects without a Figma export until fixed.\nProof: a records test or standards text shows visual-lab is conditional on a profile with `figma.cache`; the report path .krn/runs/research/frontend-stack/report.md section \"boilerplate-2026\" holds the commands and exit codes."
+  ],
+  "kind": "defect",
+  "area": "standards",
+  "stack": [
+    "frontend"
+  ]
+}
