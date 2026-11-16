@@ -158,6 +158,8 @@ test('the overlay carries every file a worker hook imports, computed from the im
   const walk = (file: string, seen: Set<string>) => {
     if (seen.has(file)) return;
     seen.add(file);
+    // The overlay lists HEAD; a file deleted in the working tree but not yet committed has nothing to read.
+    if (!existsSync(join(repo, file))) return;
     for (const spec of relativeImports(
       readFileSync(join(repo, file), 'utf8'),
     )) {
