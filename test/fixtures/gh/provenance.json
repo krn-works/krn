@@ -126,6 +126,15 @@
         "file": "pr-view-tls-timeout.stderr.log",
         "sha256": "1be04cf997d1a1d1ede0726e2f1d9879b1012c51ab8c0afbfaf3ca4a99b87263"
       }
+    },
+    {
+      "name": "gh-error-connecting",
+      "command": "krn pr ship (gh, App token) for PR #1188, stderr as the lead's ship printed it twice on 2026-11-16 while curl to api.github.com answered 200",
+      "exitCode": 1,
+      "stderr": {
+        "file": "gh-error-connecting.stderr.log",
+        "sha256": "eed65211f0fcee1b82c2661764250c1adaebcb36f0cb78a702d59632f056c439"
+      }
     }
   ]
 }

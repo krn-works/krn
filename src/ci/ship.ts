@@ -32,10 +32,12 @@ const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Tries per idempotent gh call: the first plus two retries after a network-level failure. */
 const networkTries = 3;
-const networkBackoffMs = 200;
+const networkBackoffMs = 1000;
 /** gh's stderr for a failure before any HTTP answer; an HTTP status answer never matches. */
 const networkFailure = (stderr: string) =>
-  /TLS handshake timeout|connection reset|i\/o timeout|\bEOF\b/iu.test(stderr);
+  /TLS handshake timeout|connection reset|i\/o timeout|\bEOF\b|error connecting to /iu.test(
+    stderr,
+  );
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
