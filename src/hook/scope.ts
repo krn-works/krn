@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { harnessPaths, hookProjectDir } from '../harness/claude.ts';
+import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { TASKS_DIR } from '../task/paths.ts';
 
 // PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
@@ -95,15 +95,23 @@ export function isLaneSubagent(payload: unknown): boolean {
   );
 }
 
+/** True for a call of a lane or worker session, the only calls the Scope judges. */
+function workerCall(env: NodeJS.ProcessEnv, payload: unknown): boolean {
+  return (
+    env.KRN_SESSION_CLASS === 'lane' ||
+    env.KRN_ROLE === 'worker' ||
+    isLaneSubagent(payload)
+  );
+}
+
 export function worker(
   env: NodeJS.ProcessEnv,
   root: string,
   branch = '',
   payload?: unknown,
 ): Worker | undefined {
+  if (!workerCall(env, payload)) return undefined;
   const lane = env.KRN_SESSION_CLASS === 'lane';
-  if (!lane && env.KRN_ROLE !== 'worker' && !isLaneSubagent(payload))
-    return undefined;
   if (env.KRN_SCOPE !== undefined) return { scope: parseScope(env.KRN_SCOPE) };
   const id = env.KRN_TASK ?? taskId(branch) ?? taskId(root);
   const scope = id === undefined ? undefined : taskScope(root, id);
@@ -226,17 +234,20 @@ export function judge(
       };
 }
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }
-  const branch = spawnSync('git', ['branch', '--show-current'], {
-    cwd: hookProjectDir(),
-    encoding: 'utf8',
-  }).stdout;
+  // The branch names the task of a worker; a lead's call needs no git process.
+  const branch = workerCall(process.env, payload)
+    ? spawnSync('git', ['branch', '--show-current'], {
+        cwd: hookProjectDir(),
+        encoding: 'utf8',
+      }).stdout
+    : '';
   const { refusal, note } = judge(payload, process.env, branch);
   if (refusal !== undefined) {
     process.stderr.write(`${refusal}\n`);

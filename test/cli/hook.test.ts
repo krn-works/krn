@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-// The receiver is the product binary itself: `bin/krn hook <name> [args]` runs src/hook/<name>.ts.
+// The receiver is the product binary itself: `bin/krn hook <name> [args]` runs the hook dispatcher.
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const krn = fileURLToPath(new URL('../../bin/krn', import.meta.url));
 
@@ -40,5 +40,8 @@ test('krn hook scope refuses a worker write to tracker state outside its Scope',
 test('krn hook with an unknown hook name exits 64 naming the hooks', () => {
   const result = hook(['nope'], '');
   assert.equal(result.status, 64);
-  assert.match(result.stderr, /krn hook <stop\|session\|scope\|stash\|edit>/u);
+  assert.match(
+    result.stderr,
+    /krn hook <user-prompt\|session-start\|pre-tool\|post-tool\|stop\|subagent-stop\|session\|scope\|stash\|edit>/u,
+  );
 });

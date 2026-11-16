@@ -2,16 +2,12 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { z } from 'zod';
-import { readJson } from '../repo/json-text.ts';
 
 // PreToolUse hook for Bash: refuses `git branch -D` and `git worktree remove` when the
 // branch tip is on no remote, names an open task in a `Ticket:` or `Refs:` trailer, and
 // that task's file does not record the tip SHA. A lead once deleted the only copy of
 // t-9ser2tw's implementation this way; it survived only as a dangling commit.
 // Anything it cannot classify is allowed.
-
-const taskStatus = z.object({ status: z.unknown() });
 
 type Target = { kind: 'branch' | 'worktree'; name: string };
 
@@ -84,7 +80,8 @@ export function decide(payload: unknown): string | undefined {
         git(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
       );
       const task = readFileSync(join(root, 'tasks', `${id}.json`), 'utf8');
-      if (taskStatus.parse(readJson(task)).status !== 'open') continue;
+      if ((JSON.parse(task) as { status?: unknown }).status !== 'open')
+        continue;
       if (task.includes(tip.slice(0, 7))) continue;
       return `Refused: ${target.kind} ${target.name} holds unpushed commit ${tip.slice(0, 12)} of open task ${id}, and tasks/${id}.json does not record it. Push the branch, or record the SHA first: \`krn task edit ${id} --append-body "Unpushed work: ${tip}"\` (scripts/claude/unpushed-delete.ts).`;
     } catch {

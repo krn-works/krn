@@ -28,6 +28,7 @@ import {
 } from '../brain/acceptance-clauses.ts';
 import { appendExposure, violatedExposure } from '../brain/exposures.ts';
 import { standardsBlockers } from '../brain/standards-cli.ts';
+import { hookStdin } from '../harness/claude.ts';
 import {
   armOn,
   ContractError,
@@ -1195,7 +1196,7 @@ export function stopHook(
   }
 }
 
-function main() {
+export function main() {
   const mode = process.argv[2];
   const root = resolve(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
   if (mode === '--related') {
@@ -1222,7 +1223,7 @@ function main() {
   }
   let input = '';
   try {
-    input = readFileSync(0, 'utf8');
+    input = hookStdin();
   } catch (error) {
     // No stdin attached (closed or a terminal with no data) is an empty payload.
     const code = (error as NodeJS.ErrnoException).code;

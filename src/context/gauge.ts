@@ -13,6 +13,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import {
   emitContext,
   hookInput,
+  hookStdin,
   projectPath,
   promptCounters,
 } from '../harness/claude.ts';
@@ -220,14 +221,14 @@ export async function main(): Promise<void> {
   if (isWorkerSession()) return;
   try {
     const host = process.argv.includes('--host');
-    const raw = readFileSync(0, 'utf8');
+    const raw = hookStdin();
     // One process serves both prompt-time duties: record the prompt, then gauge.
     if (!host && raw.includes('"UserPromptSubmit"')) await capturePrompt(raw);
     const input = hookInput(
       ['UserPromptSubmit', 'PostToolUse', 'PreToolUse'],
       raw,
     );
-    if (host && wiresOwnGauge(input.project)) process.exit(0);
+    if (host && wiresOwnGauge(input.project)) return;
     const handoff = host
       ? 'hand off with the context-relay skill'
       : 'run delivery-handoff';
@@ -276,7 +277,7 @@ export async function main(): Promise<void> {
             },
           }),
         );
-      process.exit(0);
+      return;
     }
     // Host mode keeps its state out of the projects it gauges.
     const directory = host

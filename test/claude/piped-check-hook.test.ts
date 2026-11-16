@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { events } from '../../src/dispatch/table.ts';
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/piped-check.ts', import.meta.url),
@@ -93,15 +94,16 @@ test('piped check hook allows everything it does not classify', () => {
   assert.equal(run('').status, 0);
 });
 
-test('repository settings wire the piped check hook to Bash', () => {
-  const hooks = JSON.parse(readFileSync(settings, 'utf8')).hooks.PreToolUse as {
-    matcher: string;
-    hooks: { command: string }[];
-  }[];
-  const entry = hooks.find((hook) => hook.matcher === 'Bash');
+test('the hook table serves the piped check guard on every Bash call', () => {
+  const route = events['pre-tool'].routes.find(
+    (candidate) => candidate.name === 'bash-guards',
+  );
+  assert.equal(route?.tools, 'Bash');
   assert.ok(
-    entry?.hooks.some((hook) =>
-      hook.command.includes('scripts/claude/bash-guards.ts'),
+    JSON.parse(
+      readFileSync(settings, 'utf8'),
+    ).hooks.PreToolUse[0].hooks[0].command.endsWith(
+      'src/dispatch/main.ts" pre-tool',
     ),
   );
 });
@@ -169,15 +171,16 @@ test('ci poll hook allows krn ci wait, single gh calls and loops not touching gh
   );
 });
 
-test('repository settings wire the ci poll hook to Bash', () => {
-  const hooks = JSON.parse(readFileSync(settings, 'utf8')).hooks.PreToolUse as {
-    matcher: string;
-    hooks: { command: string }[];
-  }[];
-  const entry = hooks.find((hook) => hook.matcher === 'Bash');
+test('the hook table serves the ci poll guard on every Bash call', () => {
+  const route = events['pre-tool'].routes.find(
+    (candidate) => candidate.name === 'bash-guards',
+  );
+  assert.equal(route?.tools, 'Bash');
   assert.ok(
-    entry?.hooks.some((hook) =>
-      hook.command.includes('scripts/claude/bash-guards.ts'),
+    JSON.parse(
+      readFileSync(settings, 'utf8'),
+    ).hooks.PreToolUse[0].hooks[0].command.endsWith(
+      'src/dispatch/main.ts" pre-tool',
     ),
   );
 });

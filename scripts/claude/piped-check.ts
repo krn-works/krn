@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { hookStdin } from '../../src/harness/claude.ts';
 
 // PreToolUse hook for Bash: a test, typecheck or lint run piped into a text filter loses its
 // exit code to the filter's (a piped `npm test` once printed `fail 0` while CI had 20
@@ -45,10 +45,10 @@ export function judge(payload: unknown): Verdict {
   return undefined;
 }
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

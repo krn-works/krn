@@ -7,7 +7,7 @@
 // Edit, so a Bash command that names a repository file of a kind counts as touching that kind. Any failure
 // leaves the edit untouched.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import {
   appendExposure,
@@ -22,7 +22,8 @@ import {
   heldOut,
   withinBudget,
 } from '../brain/worker-packet.ts';
-import { emitContext, hookInput } from '../harness/claude.ts';
+import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
+import { PATH_WORD } from './edit-route.ts';
 
 /** The exposure channel of the edit moment. */
 export const EDIT_CHANNEL = 'edit';
@@ -43,9 +44,6 @@ export function editedFile(
     return undefined;
   return inside.split(sep).join('/');
 }
-
-/** Path-like words of a shell command: a name with an extension, optionally behind directories. */
-const PATH_WORD = /[\w@.+-]*(?:\/[\w@.+-]+)*\.[A-Za-z0-9]+/gu;
 
 function isFile(path: string): boolean {
   try {
@@ -159,7 +157,7 @@ function mainCheckout(project: string): string {
 
 export function main(): void {
   try {
-    const raw = readFileSync(0, 'utf8');
+    const raw = hookStdin();
     const input = hookInput(['PreToolUse'], raw);
     const payload = JSON.parse(raw) as Record<string, unknown>;
     const edited = editedFile(input.project, payload);

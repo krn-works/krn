@@ -1,12 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { decide as leadRead } from '../../src/hook/lead-file-read.ts';
+import { hookStdin } from '../../src/harness/claude.ts';
 import { decide as stashGuard } from '../../src/hook/stash.ts';
 import { decide as unpushedDelete } from '../../src/hook/unpushed-delete.ts';
 import { decide as pollGuard } from './ci-poll.ts';
 import { judge as pipedCheck } from './piped-check.ts';
 
-// One PreToolUse entry for Bash: the five command guards run in one process instead of
-// five. Each guard stays its own module with its own tests and still runs standalone.
+// One PreToolUse entry for Bash: the four command guards run in one process instead of
+// four. Each guard stays its own module with its own tests and still runs standalone.
 // A refusal (exit 2) wins over the piped-check rewrite, which is emitted only when no
 // guard refuses; guards judge the command as the agent wrote it, as when they were
 // separate entries.
@@ -16,15 +15,14 @@ const refusals = [
     return verdict && 'refuse' in verdict ? verdict.refuse : undefined;
   },
   unpushedDelete,
-  leadRead,
   pollGuard,
   stashGuard,
 ];
 
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

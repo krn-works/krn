@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { hookStdin } from '../../src/harness/claude.ts';
 import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import { indexBudget, indexLineBudget } from '../../src/memory/memory-refs.ts';
 
@@ -47,10 +48,10 @@ export function decide(payload: unknown, root: string): string | undefined {
     return undefined;
   return `MEMORY.md would be ${next.bytes} bytes and ${next.lines} lines; the index budget is ${indexBudget} bytes and ${indexLineBudget} lines (INDEX-SIZE, scripts/claude/memory-refs.ts). Consolidate or retire entries first, then write.`;
 }
-function main() {
+export function main() {
   let payload: unknown;
   try {
-    payload = JSON.parse(readFileSync(0, 'utf8'));
+    payload = JSON.parse(hookStdin());
   } catch {
     return;
   }

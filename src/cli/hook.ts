@@ -1,31 +1,12 @@
-// `krn hook <name> [args]`: the Claude Code hook entries `krn adopt` installs; each runs the product's own
-// hook module under src/hook/ with the remaining arguments (`krn hook stop --check|--related`).
-import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+// `krn hook <event> [args]`: the Claude Code hook entries. Each event runs its routes in this process
+// (src/dispatch/dispatch.ts, table in src/dispatch/table.ts); `krn hook stop --check|--related` forwards the flag to the Stop gate.
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { eventNames, runHook } from '../dispatch/dispatch.ts';
 
-const scripts: Readonly<Record<string, string>> = {
-  stop: 'src/hook/stop.ts',
-  session: 'src/hook/session-start.ts',
-  scope: 'src/hook/scope.ts',
-  stash: 'src/hook/stash.ts',
-  edit: 'src/hook/edit-standards.ts',
-};
-
-/** Runs the hook script with this process's stdin, environment and exit status. */
-export function hookCommand(args: string[], productRoot: string): void {
+export async function hookCommand(args: string[]): Promise<void> {
   const [name, ...rest] = args;
-  const script = name === undefined ? undefined : scripts[name];
-  if (script === undefined)
+  if (!(await runHook(name, rest)))
     throw new CliUsageError(
-      `krn hook <${Object.keys(scripts).join('|')}> [args]  run a Claude Code hook`,
+      `krn hook <${eventNames().join('|')}> [args]  run a Claude Code hook`,
     );
-  const run = spawnSync(
-    process.execPath,
-    [join(productRoot, script), ...rest],
-    {
-      stdio: 'inherit',
-    },
-  );
-  process.exitCode = run.status ?? 2;
 }
