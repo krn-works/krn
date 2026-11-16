@@ -198,3 +198,33 @@ test('clause 16: the standards help names the query verb', () => {
     /query TEXT \[--file PATH\]/,
   );
 });
+
+test('query --stale-research prints a row per stale candidate and 0 once triaged', () => {
+  const root = fixture({}, []);
+  const candidate = {
+    schema: 'krn.candidate/v1',
+    id: 'c-old',
+    source: { url: 'https://example.com/p' },
+    pillar: 'brain',
+    claim: 'An old claim.',
+    motivated_by: 'review finding',
+    build_because: 'nothing existing fits',
+    recorded_at: '2026-01-01',
+  };
+  mkdirSync(join(root, '.agents/research-candidates'), { recursive: true });
+  const file = join(root, '.agents/research-candidates/c-old.json');
+  const run = () =>
+    spawnSync(krn, ['standards', 'query', '--stale-research', '--root', root], {
+      encoding: 'utf8',
+    });
+  writeFileSync(file, JSON.stringify(candidate));
+  const open = run();
+  assert.equal(open.status, 0);
+  assert.match(open.stdout, /^c-old\t2026-01-01\tAn old claim\.$/mu);
+  assert.match(open.stdout, /stale-research: 1/u);
+  writeFileSync(file, JSON.stringify({ ...candidate, retire: 'superseded' }));
+  const triaged = run();
+  assert.equal(triaged.status, 0);
+  assert.equal(triaged.stdout, 'stale-research: 0\n');
+  rmSync(root, { recursive: true, force: true });
+});

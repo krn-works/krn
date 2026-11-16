@@ -1,7 +1,11 @@
 {
   "id": "t-2y3gh63",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "candidate parser rejects missing reuse/build_because/motivated_by; staleResearch and query --stale-research tested; stale listing 0 rows"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Research reaches code: every adopted finding names the existing implementation it reuses",

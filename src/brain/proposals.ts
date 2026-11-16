@@ -344,3 +344,134 @@ export function ledgerProposals(
     })),
   );
 }
+
+/** Where a repository keeps its research candidates (`krn.candidate/v1` files), tracked, one per file. */
+export const RESEARCH_DIR = '.agents/research-candidates';
+
+/** Days a research candidate may wait for a merged PR or a retire verdict before it is listed as stale. */
+export const RESEARCH_STALE_DAYS = 7;
+
+export type ResearchCandidate = {
+  readonly schema: 'krn.candidate/v1';
+  readonly id: string;
+  readonly source: Readonly<Record<string, string>>;
+  readonly pillar: string;
+  readonly claim: string;
+  /** The failing recall-eval case, hidden test or review finding that pulled this research in. */
+  readonly motivated_by: string;
+  /** An existing OSS tool, library or skill to adopt, with its https URL. */
+  readonly reuse?: string;
+  /** Why nothing existing fits; present exactly when `reuse` is absent. */
+  readonly build_because?: string;
+  readonly recorded_at: string;
+  /** `#<PR>` of the merged change that adopted the candidate. */
+  readonly merged_pr?: string;
+  /** Why the candidate was dropped. */
+  readonly retire?: string;
+};
+
+const CANDIDATE_REQUIRED = [
+  'schema',
+  'id',
+  'source',
+  'pillar',
+  'claim',
+  'motivated_by',
+  'recorded_at',
+];
+const CANDIDATE_OPTIONAL = [
+  'reuse',
+  'build_because',
+  'merged_pr',
+  'retire',
+  'record_draft',
+  'experiment',
+  'expires',
+];
+
+function field(
+  where: string,
+  object: Record<string, unknown>,
+  key: string,
+): string {
+  const value = object[key];
+  if (typeof value !== 'string' || value.trim() === '')
+    fail(`${where}.${key}`, 'expected a non-empty string');
+  return value.trim();
+}
+
+/** Refuses a candidate that names no reuse and no reason to build, or no motivating failure. */
+export function parseResearchCandidate(
+  value: unknown,
+  where = 'candidate',
+): ResearchCandidate {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    fail(where, 'expected an object');
+  const c = value as Record<string, unknown>;
+  for (const key of CANDIDATE_REQUIRED)
+    if (!(key in c)) fail(`${where}.${key}`, 'is required');
+  for (const key of Object.keys(c))
+    if (!CANDIDATE_REQUIRED.includes(key) && !CANDIDATE_OPTIONAL.includes(key))
+      fail(`${where}.${key}`, 'is not a candidate field');
+  if (c.schema !== 'krn.candidate/v1')
+    fail(`${where}.schema`, 'expected "krn.candidate/v1"');
+  const source = c.source;
+  if (typeof source !== 'object' || source === null || Array.isArray(source))
+    fail(`${where}.source`, 'expected an object');
+  const s = source as Record<string, unknown>;
+  if (typeof s.url !== 'string' && typeof s.arxiv_id !== 'string')
+    fail(`${where}.source`, 'expected a url or an arxiv_id');
+  const sourceText = Object.fromEntries(
+    ['url', 'arxiv_id', 'quote', 'sha256'].flatMap((key) =>
+      typeof s[key] === 'string' ? [[key, s[key] as string]] : [],
+    ),
+  );
+  const reuse = c.reuse === undefined ? undefined : field(where, c, 'reuse');
+  const because =
+    c.build_because === undefined
+      ? undefined
+      : field(where, c, 'build_because');
+  if ((reuse === undefined) === (because === undefined))
+    fail(
+      where,
+      'name exactly one of reuse (an existing tool with its https URL) or build_because',
+    );
+  if (reuse !== undefined && !/https:\/\/\S+/u.test(reuse))
+    fail(`${where}.reuse`, 'expected the https URL of the existing tool');
+  const recordedAt = field(where, c, 'recorded_at');
+  if (
+    !DATE.test(recordedAt) ||
+    Number.isNaN(Date.parse(`${recordedAt}T00:00:00Z`))
+  )
+    fail(`${where}.recorded_at`, 'expected a YYYY-MM-DD date');
+  if (c.merged_pr !== undefined && !/^#\d+$/u.test(String(c.merged_pr)))
+    fail(`${where}.merged_pr`, 'expected #<PR>');
+  return {
+    schema: 'krn.candidate/v1',
+    id: field(where, c, 'id'),
+    source: sourceText,
+    pillar: field(where, c, 'pillar'),
+    claim: field(where, c, 'claim'),
+    motivated_by: field(where, c, 'motivated_by'),
+    ...(reuse === undefined ? {} : { reuse }),
+    ...(because === undefined ? {} : { build_because: because }),
+    recorded_at: recordedAt,
+    ...(c.merged_pr === undefined ? {} : { merged_pr: String(c.merged_pr) }),
+    ...(c.retire === undefined ? {} : { retire: field(where, c, 'retire') }),
+  };
+}
+
+/** Candidates older than `days` with neither a merged PR nor a retire verdict. */
+export function staleResearch(
+  candidates: readonly ResearchCandidate[],
+  today: string,
+  days = RESEARCH_STALE_DAYS,
+): ResearchCandidate[] {
+  const now = Date.parse(`${today}T00:00:00Z`);
+  return candidates.filter(
+    (c) =>
+      c.merged_pr === undefined &&
+      c.retire === undefined &&
+      now - Date.parse(`${c.recorded_at}T00:00:00Z`) > days * 86_400_000,
+  );
+}

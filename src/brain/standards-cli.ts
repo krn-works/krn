@@ -45,10 +45,13 @@ import {
   PROPOSALS_DIR,
   type ProposalKind,
   parseProposal,
+  parseResearchCandidate,
   proposalFileName,
+  RESEARCH_DIR,
   renderBulletHarvest,
   renderHarvest,
   type Sourced,
+  staleResearch,
 } from './proposals.ts';
 import { recordsInForce, retirable, retireInFile } from './retire.ts';
 import { harvestRules, harvestSkills } from './skill-harvest.ts';
@@ -552,6 +555,43 @@ export function reviewCommand(rest: readonly string[]): void {
   process.exitCode = review.violations.length === 0 ? 0 : 1;
 }
 
+/** `krn standards query --stale-research [--root DIR]`: research candidates past their window with no merged PR and no retire verdict; one row each, then a count. */
+function staleResearchCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(
+    rest.filter((arg) => arg !== '--stale-research'),
+    new Set(),
+    ROOT,
+  );
+  if (positional.length > 0) throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const dir = join(root, RESEARCH_DIR);
+  const names = existsSync(dir)
+    ? readdirSync(dir)
+        .filter((name) => name.endsWith('.json'))
+        .sort()
+    : [];
+  const stale = staleResearch(
+    names.map((name) => {
+      const file = join(dir, name);
+      let value: unknown;
+      try {
+        value = JSON.parse(readFileSync(file, 'utf8'));
+      } catch (error) {
+        throw new StandardsDataError(
+          `${file}: not JSON (${(error as Error).message})`,
+        );
+      }
+      return parseResearchCandidate(value, file);
+    }),
+    new Date().toISOString().slice(0, 10),
+  );
+  for (const c of stale)
+    process.stdout.write(`${c.id}\t${c.recorded_at}\t${c.claim}\n`);
+  process.stdout.write(`stale-research: ${stale.length}\n`);
+}
+
 const QUERY_SINGLE = new Set([
   '--root',
   '--stack',
@@ -577,6 +617,10 @@ function mainCheckout(root: string): string {
 
 /** `krn standards query TEXT`: the ranked records that apply to what the session is doing now; each shown record is logged as a "query" exposure. */
 export function queryCommand(rest: readonly string[]): void {
+  if (rest.includes('--stale-research')) {
+    staleResearchCommand(rest);
+    return;
+  }
   const json = rest.includes('--json');
   const { values, positional } = flags(
     rest.filter((arg) => arg !== '--json'),
