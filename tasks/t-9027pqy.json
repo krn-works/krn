@@ -1,7 +1,11 @@
 {
   "id": "t-9027pqy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "bin/krn adopt --refresh . --dry-run: no drift; fresh --init --stack ts repo carries byte-equal standards skill, adopt --verify exit 0; typescript prose skill harvested to 11 existing plus 2 new records"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "One standards skill routes every repo to the query tool (S11)",

@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -86,6 +87,7 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
     'delivery-handoff',
     'delivery-lead',
     'delivery-retro',
+    'standards',
   ]);
   assert.equal(
     readFileSync(join(installed, 'delivery-lead', 'lanes.md'), 'utf8'),
@@ -156,6 +158,7 @@ test('the core skills carry the full procedure with no KRN-only or operator text
       'delivery-handoff',
       'delivery-lead',
       'delivery-retro',
+      'standards',
     ].filter((name) => !universalSkills().includes(name)),
     [],
   );
@@ -193,4 +196,84 @@ test('every skill a hook or successor prompt names is an installable universal s
   for (const name of UNIVERSAL_SKILLS)
     assert.ok(installable.has(name), `${name} is installable`);
   assert.deepEqual([...UNIVERSAL_SKILLS], ['architecture']);
+});
+
+test('the standards skill is one file: the installer source, this repository and a fresh --init repository carry the same bytes', () => {
+  const ours = readFileSync(join(source, 'standards', 'SKILL.md'), 'utf8');
+  assert.equal(
+    readFileSync(
+      join(repo, '.agents', 'skills', 'standards', 'SKILL.md'),
+      'utf8',
+    ),
+    ours,
+  );
+  assert.equal(
+    existsSync(join(repo, '.agents', 'skills', 'typescript')),
+    false,
+    'a language has records, not a prose skill',
+  );
+  assert.match(ours, /krn standards query/u);
+  const root = mkdtempSync(join(tmpdir(), 'krn-standards-skill-'));
+  try {
+    const init = spawnSync(
+      process.execPath,
+      [cli, 'adopt', root, '--init', '--stack', 'ts', '--no-canary'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(init.status, 0, init.stderr);
+    assert.equal(
+      readFileSync(
+        join(root, '.agents', 'skills', 'standards', 'SKILL.md'),
+        'utf8',
+      ),
+      ours,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('adopt --refresh --dry-run prints no drift on this repository and writes nothing', () => {
+  const run = spawnSync(
+    process.execPath,
+    [cli, 'adopt', repo, '--refresh', '--dry-run'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.equal(run.stdout, 'no drift\n');
+});
+
+test('adopt --refresh --dry-run names a drifted skill, exits 1 and leaves the file as it was', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-dry-run-'));
+  try {
+    const init = spawnSync(
+      process.execPath,
+      [cli, 'adopt', root, '--init', '--stack', 'ts', '--no-canary'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(init.status, 0, init.stderr);
+    const file = join(root, '.agents', 'skills', 'standards', 'SKILL.md');
+    writeFileSync(file, 'edited by hand\n');
+    const dry = spawnSync(
+      process.execPath,
+      [cli, 'adopt', root, '--refresh', '--dry-run'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(dry.status, 1, dry.stderr);
+    assert.match(
+      dry.stdout,
+      /^drift \.agents\/skills\/standards\/SKILL\.md$/mu,
+    );
+    assert.equal(readFileSync(file, 'utf8'), 'edited by hand\n');
+    const bare = spawnSync(
+      process.execPath,
+      [cli, 'adopt', root, '--dry-run'],
+      {
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(bare.status, 64, 'a dry run needs --refresh');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

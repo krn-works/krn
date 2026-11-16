@@ -9,7 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { type FirstTestStack, firstTestStack } from '../brain/first-test.ts';
 
 /** Skills every adopted repository gets, whatever its stack. */
-const CORE = ['delivery-lead', 'delivery-handoff', 'delivery-retro'] as const;
+const CORE = [
+  'standards',
+  'delivery-lead',
+  'delivery-handoff',
+  'delivery-retro',
+] as const;
 
 const FRONTEND = ['cube-css', 'cube-review', 'design-to-build'] as const;
 

@@ -1,0 +1,16 @@
+{
+  "id": "t-7ydp3pk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Measure the standards pull rule after two weeks",
+  "after": [
+    "t-9027pqy"
+  ],
+  "body": [
+    "Outcome: query calls per interactive session is printed as a number from the session records on or after 2026-11-30 (two weeks after the standards skill ships); below 0.2 stops all pull work (no MCP server, no skill tuning) per ADR 0020.\nProof: `bin/krn standards effect: query-calls-per-session printed as a number`\nFiles: docs/adr/0020-retrieval-moments-and-token-budgets.md, src/adopt/skills/standards/SKILL.md"
+  ],
+  "kind": "research",
+  "area": "brain"
+}

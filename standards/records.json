@@ -2449,9 +2449,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        ".claude/skills/typescript/SKILL.md#No `any`, no unsafe casts."
-      ],
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
       "proposals": []
     },
     "status": "accepted",
@@ -2496,7 +2494,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [".claude/skills/typescript/SKILL.md#@ts-expect-error"],
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
       "proposals": []
     },
     "status": "accepted",
@@ -2541,7 +2539,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [".claude/skills/typescript/SKILL.md#Do not use `export *`"],
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
       "proposals": []
     },
     "status": "accepted",
@@ -2679,7 +2677,7 @@
     "provenance": {
       "origin": "krn pack",
       "evidence": [
-        ".claude/skills/typescript/SKILL.md",
+        "e59229c08e932e3e3fcd981050a37cb344288cd9",
         "test/cli/standards-coverage.test.ts#s-ts-no-floating-promises"
       ],
       "proposals": []
@@ -5160,5 +5158,83 @@
       "origins": ["php", "npm", "py"],
       "occurrences": 3
     }
+  },
+  {
+    "id": "s-ts-erasable-syntax",
+    "type": "standard",
+    "text": "Write only erasable TypeScript where node runs .ts files directly: no enum, namespace, parameter properties or import-equals; import with the real .ts extension and use import type for type-only imports.",
+    "why": "Node type stripping has no transpile step, so syntax that emits code fails at run time and a missing extension fails to resolve.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.mts", "**/*.cts", "tsconfig*.json"],
+      "terms": [
+        "ts",
+        "erasable",
+        "syntax",
+        "enum",
+        "namespace",
+        "import",
+        "extension",
+        "type",
+        "stripping",
+        "node",
+        "tsconfig"
+      ]
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:12",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-strict-optional",
+    "type": "standard",
+    "text": "Under noUncheckedIndexedAccess and exactOptionalPropertyTypes, treat an indexed read as possibly undefined and never assign undefined to an optional property.",
+    "why": "The strict flags make the compiler reject both, so narrow the read or omit the property instead of silencing it.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.mts", "**/*.cts", "tsconfig*.json"],
+      "terms": [
+        "ts",
+        "strict",
+        "optional",
+        "undefined",
+        "index",
+        "indexed",
+        "noUncheckedIndexedAccess",
+        "exactOptionalPropertyTypes",
+        "tsconfig"
+      ]
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:14",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
   }
 ]
