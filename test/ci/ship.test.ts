@@ -125,6 +125,7 @@ function receiver(options: {
       if (afterScoped && options.rewritten) return out(options.rewritten);
       return out(options.dirty ? ' M f\n' : '');
     }
+    if (line === 'rev-parse HEAD^{tree}') return out(`${'7'.repeat(40)}\n`);
     if (line === 'rev-parse HEAD')
       return out(`${rebased > 0 ? newHead : head}\n`);
     if (line === `rev-parse origin/${options.target ?? 'main'}`)
@@ -496,6 +497,57 @@ test('an empty diff with no matching merged PR still refuses', async () => {
     assert.doesNotMatch(error.message, /already carries/u);
     return true;
   });
+});
+
+const headTree = '7'.repeat(40);
+
+async function shipCapturingStdout(
+  r: ReturnType<typeof receiver>,
+  fastPass: string | undefined,
+): Promise<string> {
+  const write = process.stdout.write;
+  let printed = '';
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    printed += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    await shipCommand(args, {
+      ...r,
+      fastPass: () => fastPass,
+      completeClose: completeCloseExposure,
+    });
+  } catch (error) {
+    printed += `${(error as Error).message}\n`;
+  } finally {
+    process.stdout.write = write;
+  }
+  return printed;
+}
+
+test('a fast PASS record for the HEAD tree skips the scoped check and pushes', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const printed = await shipCapturingStdout(r, headTree);
+  assert.match(
+    printed,
+    new RegExp(`^pre-push: fast PASS reused for tree ${headTree}$`, 'mu'),
+  );
+  assert.ok(!r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
+  assert.ok(r.calls.some((c) => c.includes('git push')));
+});
+
+test('a fast PASS record for another tree runs the scoped check', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const printed = await shipCapturingStdout(r, 'b'.repeat(40));
+  assert.doesNotMatch(printed, /fast PASS reused/u);
+  assert.ok(r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
+});
+
+test('a dirty worktree never reuses a fast PASS record', async () => {
+  const r = receiver({ pulls: [auto, merged], dirty: true });
+  const printed = await shipCapturingStdout(r, headTree);
+  assert.doesNotMatch(printed, /fast PASS reused/u);
+  assert.ok(!r.calls.some((c) => c.includes('git push')));
 });
 
 test('a failing scoped check refuses the push with exit 65 and records no push call', async () => {

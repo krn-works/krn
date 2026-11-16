@@ -1,0 +1,18 @@
+{
+  "id": "t-qgjzbrd",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship reuses a clean fast PASS keyed by HEAD tree; explicit --base resolves to merge-base; tests in test/ci/ship.test.ts and test/fast-check.test.ts"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Ship reuses a fast PASS for the same tree",
+  "after": [],
+  "body": [
+    "Source: lane report for #1170 (d9525dc, t-txxnmrb): `krn pr ship` now runs scripts/fast-check.ts before the push, and lanes already ran `npm run fast` before the commit; with one shared fast slot one run took 562 s, so each PR pays the wait twice.\nOutcome: fast-check writes a PASS record keyed by the git tree hash of the checked worktree; ship skips its pre-push run when a PASS record for the HEAD tree exists, and prints \"pre-push: fast PASS reused for tree <hash>\".\nWhy: the pre-push gate must not double the slowest step of every lane.\nProof: a ship test with a PASS record for the HEAD tree records no fast-check call and pushes; with a record for another tree it runs fast-check.\nFiles: scripts/fast-check.ts, src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}
