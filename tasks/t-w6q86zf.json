@@ -1,0 +1,18 @@
+{
+  "id": "t-w6q86zf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "The own standards index has room for a new CI rule record",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, #1205: adding s-ci-ship-runtime for test/rules/ship-runtime.test.ts failed: render-standards-index throws 'the own standards index is 5998 bytes, over its 5800 byte budget' (index already 5776 bytes), so the rule test moved to test/cli/ to avoid test/brain/ci-rule-coverage.test.ts.\nOutcome: `node scripts/render-standards-index.ts --write` exits 0 after adding one 200-byte CI rule record, because the index lines are shortened, retired records leave, or the budget is re-derived from what readers load.\nWhy: a full budget silently pushes guard tests out of test/rules, so CI-rule coverage erodes.\nProof: a fixture test adds a 200-byte record and the render exits 0 under the budget.\nFiles: src/brain/standards-index.ts, .agents/standards.json"
+  ],
+  "kind": "debt",
+  "area": "brain",
+  "from": {
+    "kind": "finding",
+    "ref": "lead-2026-11-16"
+  }
+}

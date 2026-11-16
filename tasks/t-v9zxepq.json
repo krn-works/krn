@@ -1,0 +1,18 @@
+{
+  "id": "t-v9zxepq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "One global context budget sized for the 1M window",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-16 ('czemu tak mało, skoro opus ma 1m context window?', 'zrobić jeden globalny setup'); research .krn/runs/lead/context-research.md: Opus 5.5 has a native 1M window (no [1m] suffix needed per code.claude.com model-config); the budget is our own: ~/.claude/settings.json and .claude/settings.json autoCompactWindow 400000, host fallback 400000 in src/context/gauge.ts, advisories capped at 150k/200k (advisoriesOf); a fresh boilerplate-2026 session starts at 38-46k. The context-usage.py relay allowlist entry in src/context/gauge.ts (relayCommand regex) is now dead (skill dropped it in Rekurencja/rekurencja-skills#17).\nOutcome: one global source for the context budget: the gauge window comes from ~/.claude/settings.json autoCompactWindow (repo override only when set), the advisory caps are re-derived from measured outcomes on the corrected gauge (t-xv3jv5y) and documented with their evidence, krn/.claude/settings.json drops its duplicate, and the context-usage.py allowlist entry is gone; `node --test test/claude/context-gauge.test.ts` passes with a 600k global window yielding advisories from the new rule.\nWhy: leads hand off with most of the window unused; two budgets in two places disagree.\nProof: node --test test/claude/context-gauge.test.ts\nFiles: src/context/gauge.ts, ~/.claude/settings.json, .claude/settings.json"
+  ],
+  "kind": "feature",
+  "area": "context",
+  "from": {
+    "kind": "finding",
+    "ref": "operator-context-budget"
+  }
+}

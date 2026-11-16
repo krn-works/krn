@@ -1,0 +1,18 @@
+{
+  "id": "t-4agp5p2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Stop check accepts the lane branch from its ship record after the claim is released",
+  "after": [],
+  "body": [
+    "Source: lane t-trnrx1h (PR #1204, merged) ended on a false Stop BLOCKER again: once its task closed, the ship released the claim, so the new claim-based branch lookup in src/hook/stop.ts found no claim and fell back to the session cwd branch `main`.",
+    "Outcome: the Stop check that matches a reported PR to the lane branch also accepts the branch from the session's ship record (the record `krn pr ship` writes for the merge) when no live claim remains.",
+    "Why: every lane that ships and closes its task from a main-checkout cwd still ends on a false BLOCKER.",
+    "Proof: `node --test test/hook/stop.test.ts` gains a case: cwd main checkout, no claim, a ship record naming branch `lane-x`, final message naming a merged PR with head `lane-x`: pass; another head: refused.",
+    "Files: src/hook/stop.ts"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
