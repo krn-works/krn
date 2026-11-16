@@ -60,8 +60,8 @@ export function proofShell(span: string): string {
     ? `[ "$(${command})" = "${verdict}" ]`
     : command;
 }
-// `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd).
-const placeholder = /<[A-Za-z][^<>]*>/u;
+// `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd); a bare `...` stands for arguments the same way.
+const placeholder = /<[A-Za-z][^<>]*>|(?:^|\s)\.\.\.(?:\s|$)/u;
 
 /** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and name no `<placeholder>`. */
 export function proofCommands(task: TaskRecord): string[] {

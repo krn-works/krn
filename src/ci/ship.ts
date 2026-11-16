@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
@@ -109,6 +109,20 @@ const scopedCheck = 'scripts/fast-check.ts';
 
 function usageError(message: string): Error {
   return Object.assign(new Error(message), { exitCode: 64 });
+}
+
+/**
+ * The environment a Proof command runs in: PR_BODY as CI sets it, and the worktree's bin/ first on
+ * PATH so a leading `krn` runs the code under review, not the main checkout's.
+ */
+export function proofEnvironment(cwd: string, prBody: string): string[] {
+  const own = join(cwd, 'bin');
+  return [
+    `PR_BODY=${prBody}`,
+    ...(existsSync(join(own, 'krn'))
+      ? [`PATH=${own}${delimiter}${process.env.PATH ?? ''}`]
+      : []),
+  ];
 }
 
 export async function shipCommand(
@@ -420,7 +434,11 @@ main checkout: ${main}`;
   const prBody = proofCommands.length === 0 ? '' : readFileSync(body, 'utf8');
   const proofs = proofCommands.map((command) => ({
     command,
-    result: runner('env', [`PR_BODY=${prBody}`, 'sh', '-c', command], cwd),
+    result: runner(
+      'env',
+      [...proofEnvironment(cwd, prBody), 'sh', '-c', command],
+      cwd,
+    ),
   }));
   const failedProof = proofs.find(({ result }) => result.code !== 0);
   if (failedProof !== undefined)

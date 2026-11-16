@@ -1,7 +1,11 @@
 {
   "id": "t-hetjztw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship.test.ts: proofEnvironment puts worktree bin/ first on PATH; fixture worktree bin/krn marker printed for a krn Proof, PATH krn for a bare dir"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "pre-push Proof commands run the worktree's krn, not the PATH krn",
