@@ -5264,5 +5264,93 @@
     "supersedes": [],
     "area": "node",
     "review_by": "2026-12-15"
+  },
+  {
+    "id": "s-frontend-verify-agent-browser",
+    "type": "standard",
+    "text": "Verify a frontend change in the browser with agent-browser snapshot -i, console and a screenshot before it is done.",
+    "why": "Probe on one fixture page: agent-browser opens real Chrome, returns a three-line interactive snapshot, the console error and a screenshot (exit 0) with a stable snapshot across three runs; a green build says nothing about the rendered page.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": ["frontend"],
+      "needs": [],
+      "paths": [],
+      "terms": [
+        "verify",
+        "frontend",
+        "change",
+        "browser",
+        "agent",
+        "rendered",
+        "page",
+        "snapshot",
+        "console",
+        "screenshot",
+        "render",
+        "check"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "command -v agent-browser >/dev/null"
+    },
+    "provenance": {
+      "origin": "frontend verification stack research, t-y0n0115",
+      "evidence": [".krn/runs/research/frontend-stack/report.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend",
+    "review_by": "2026-12-16"
+  },
+  {
+    "id": "s-frontend-browser-gate-axe",
+    "type": "standard",
+    "text": "Gate rendered pages in CI with Playwright and axe-core: no console errors, overflow or serious axe violations.",
+    "why": "Probe on one fixture page: Playwright 1.64 with axe-core 4.14 found a critical button-name and a serious color-contrast violation and the console error in about 1.1 s, and screenshots rerun byte-identical while a CSS change differs, so the gate is deterministic.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": ["frontend"],
+      "needs": [],
+      "paths": [],
+      "terms": [
+        "verify",
+        "frontend",
+        "change",
+        "browser",
+        "playwright",
+        "axe",
+        "accessibility",
+        "a11y",
+        "visual",
+        "diff",
+        "lcp",
+        "gate",
+        "ci",
+        "render"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "grep -q '\"playwright\"' package.json && grep -q '\"axe-core\"' package.json"
+    },
+    "provenance": {
+      "origin": "frontend verification stack research, t-y0n0115",
+      "evidence": [".krn/runs/research/frontend-stack/report.md"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-16",
+    "valid_from": "2026-11-16",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend",
+    "review_by": "2026-12-16"
   }
 ]

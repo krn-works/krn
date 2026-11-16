@@ -82,3 +82,5 @@ s-rust-tests-present [**/*.rs+1]: A Rust crate tracks tests: a tests/ integratio
 s-gate-lint-runs [krn.json+1]: The lint command named in krn.json exits 0 on the base branch (a tool that is not installed in this checkout is left to CI)
 s-gate-typecheck-runs [krn.json+1]: The typecheck command named in krn.json exits 0 on the base branch (a tool that is not installed in this checkout is left to CI)
 s-gate-in-ci [krn.json+1]: A workflow that runs on pull requests invokes every test, lint and typecheck command the contract in krn.json names
+s-frontend-verify-agent-browser: Verify a frontend change in the browser with agent-browser snapshot -i, console and a screenshot before it is done
+s-frontend-browser-gate-axe: Gate rendered pages in CI with Playwright and axe-core: no console errors, overflow or serious axe violations

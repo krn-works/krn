@@ -1,0 +1,17 @@
+{
+  "id": "t-egv6s4j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "boilerplate-2026: install agent-browser verification path in design-to-build",
+  "after": [],
+  "body": [
+    "Outcome: design-to-build skill in boilerplate-2026 names the agent-browser steps (open, snapshot -i, console, screenshot at 390 and 1280); grep finds agent-browser in the skill, exit 0.\nProof: grep -q agent-browser .agents/skills/design-to-build/SKILL.md exits 0.\nFiles: .agents/skills/design-to-build/SKILL.md\nSource: t-y0n0115 report pass 2 (record s-frontend-verify-agent-browser)."
+  ],
+  "kind": "chore",
+  "area": "frontend",
+  "stack": [
+    "frontend"
+  ]
+}

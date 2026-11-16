@@ -1,0 +1,17 @@
+{
+  "id": "t-c2r73yv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "boilerplate-2026: Playwright plus axe check:browser gate and vlab task path fix",
+  "after": [],
+  "body": [
+    "Outcome: mise vlab task points at a script the visual-lab skill ships (scripts/visual-lab.mjs), so `mise run vlab` no longer fails MODULE_NOT_FOUND (exit 0 on help); check:browser keeps Playwright plus axe.\nProof: mise run vlab exits 0 and check:browser exits 0 in boilerplate-2026.\nFiles: mise.toml, tools/browser-check.mjs\nSource: t-y0n0115 report pass 2 (record s-frontend-browser-gate-axe)."
+  ],
+  "kind": "defect",
+  "area": "frontend",
+  "stack": [
+    "frontend"
+  ]
+}
