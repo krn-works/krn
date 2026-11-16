@@ -41,7 +41,12 @@ import {
   symlinkSync,
   writeFileSync,
 } from './journal.ts';
-import { SITE_SKILLS_DIR, siteSkillNames, skillSet } from './skill-set.ts';
+import {
+  filesUnder,
+  SITE_SKILLS_DIR,
+  siteSkillNames,
+  skillSet,
+} from './skill-set.ts';
 import {
   legacyStopCommand,
   preToolGuards,
@@ -385,28 +390,28 @@ function seedTasks(
     return;
   }
   noteWrite(join(root, 'tasks'));
-  if (seed.ci)
-    createTask(root, {
+  const wanted = [
+    seed.ci && {
       title: 'Require the ci / Check status on the default branch',
-      priority: 1,
       body: [
         'Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.',
         'Why: the adopted delivery rules treat that Check as the only gate.',
         'Files: .github/workflows/ci.yml and the repository branch settings.',
         'Proof: a pull request with a red Check stays unmerged.',
       ],
-    });
-  if (seed.test)
-    createTask(root, {
+    },
+    seed.test && {
       title: BOOTSTRAP_TASK_TITLE,
-      priority: 1,
       body: [
         'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',
         'Why: adoption found no test command or one that runs zero tests, and the Stop gate and lane run refuse a vacuous command as green.',
         'Files: krn.json and the new test file.',
         'Proof: the test command exits 0 and runs at least one test.',
       ],
-    });
+    },
+  ];
+  for (const task of wanted)
+    if (task) createTask(root, { ...task, priority: 1 });
   report.written.push('tasks');
 }
 
@@ -497,16 +502,6 @@ export function universalSkills(): string[] {
   return readdirSync(skillsSource).sort();
 }
 
-/** Every file under a directory, as paths relative to it. */
-function filesUnder(dir: string, prefix = ''): string[] {
-  return readdirSync(join(dir, prefix), { withFileTypes: true }).flatMap(
-    (entry) =>
-      entry.isDirectory()
-        ? filesUnder(dir, join(prefix, entry.name))
-        : [join(prefix, entry.name)],
-  );
-}
-
 /** Installs the skill set of this repository's stack, every file of each skill directory, under .agents/skills, linking .claude/skills to it when neither exists. */
 function writeSkills(root: string, report: AdoptionReport): void {
   const sites = new Set(siteSkillNames());
@@ -590,42 +585,34 @@ function writeHooks(
 ): void {
   const relative = projectRelative('settings.json');
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
-  const stop = Array.isArray(hooks.Stop) ? (hooks.Stop as HookEntry[]) : [];
+  const entries = (event: string) =>
+    Array.isArray(hooks[event]) ? (hooks[event] as HookEntry[]) : [];
+  const installed = (list: HookEntry[], command: string) =>
+    list.find((entry) => entry.hooks?.some((hook) => hook.command === command));
+  const stop = entries('Stop');
   // An earlier adoption's bare command exits 127 without krn on PATH, which does not block.
   for (const entry of stop)
     for (const hook of entry.hooks ?? [])
       if (hook.command === legacyStopCommand) hook.command = stopCommand;
-  if (
-    !stop.some((entry) =>
-      entry.hooks?.some((hook) => hook.command === stopCommand),
-    )
-  )
-    stop.push({ hooks: [{ type: 'command', command: stopCommand }] });
-  const pre = Array.isArray(hooks.PreToolUse)
-    ? (hooks.PreToolUse as HookEntry[])
-    : [];
+  const pre = entries('PreToolUse');
   for (const guard of preToolGuards) {
-    const installed = pre.find((entry) =>
-      entry.hooks?.some((hook) => hook.command === guard.command),
-    );
+    const found = installed(pre, guard.command);
     // An earlier adoption's entry for a lone guard takes the current matcher (the edit hook widened to Bash).
-    if (installed !== undefined && installed.hooks?.length === 1)
-      installed.matcher = guard.matcher;
-    if (installed === undefined)
+    if (found !== undefined && found.hooks?.length === 1)
+      found.matcher = guard.matcher;
+    if (found === undefined)
       pre.push({
         matcher: guard.matcher,
         hooks: [{ type: 'command', command: guard.command }],
       });
   }
-  const start = Array.isArray(hooks.SessionStart)
-    ? (hooks.SessionStart as HookEntry[])
-    : [];
-  if (
-    !start.some((entry) =>
-      entry.hooks?.some((hook) => hook.command === sessionCommand),
-    )
-  )
-    start.push({ hooks: [{ type: 'command', command: sessionCommand }] });
+  const start = entries('SessionStart');
+  for (const [list, command] of [
+    [stop, stopCommand],
+    [start, sessionCommand],
+  ] as const)
+    if (installed(list, command) === undefined)
+      list.push({ hooks: [{ type: 'command', command }] });
   settings.hooks = {
     ...hooks,
     SessionStart: start,
