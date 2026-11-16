@@ -1,7 +1,11 @@
 {
   "id": "t-x2fk23k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Not reproducible on origin/main 8fa1783: bin/krn --help, task list, task show, task check run in a lane worktree left git status clean (exit 0); only krn task archive writes tasks/ (sole archiveClosedTasks caller). test/task/archive-readonly.test.ts pins this."
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A read-only krn command archives closed tasks inside a lane worktree",
