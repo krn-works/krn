@@ -1,0 +1,14 @@
+{
+  "id": "t-6mve9gw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn pr ship refuses a Check that is queued, not missing, after 300 s",
+  "after": [],
+  "body": [
+    "Source: 2026-11-16 lead session: three krn pr ship runs (#1226 e57a1b5, #1228 05e0e8b, #1229 bc9f84d) exited 69 \"the Check never started within 300s\" while GitHub queued the pull_request run for 5-6 minutes under parallel lanes; the run then started and passed. Each exit costs a manual reship (lanes stop without a verdict).\nOutcome: ship waits for the Check to start as long as GitHub shows the run queued for the head (gh run list --commit <head> status queued/pending), and exits 69 only when no run for the head exists after the start timeout; a test drives the queued case.\nProof: node --test test/ci/ship.test.ts: pass (a run queued past 300 s is awaited, not refused).\nFiles: src/ci/ship.ts:47, :755"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
