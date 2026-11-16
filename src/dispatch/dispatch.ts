@@ -178,7 +178,7 @@ export async function runRoutes(
       if (outcome.code !== 0)
         return {
           result: {
-            stdout: '',
+            stdout: outcome.stdout,
             stderr: errors.length > 0 ? `${errors.join('\n')}\n` : '',
             code: outcome.code,
           },
