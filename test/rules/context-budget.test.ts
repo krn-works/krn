@@ -12,7 +12,8 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   const path = new URL('.claude/settings.json', root);
   assert.ok(existsSync(path), 'project settings exist');
   const settings = JSON.parse(readFileSync(path, 'utf8'));
-  assert.equal(settings.autoCompactWindow, 400000);
+  // The window is one global user setting; the project never duplicates it.
+  assert.equal(settings.autoCompactWindow, undefined);
   // KRN uses no claude.ai connector and no rss_news tool; both stay off for
   // every checkout of this project, worktrees included.
   assert.equal(settings.disableClaudeAiConnectors, true);
