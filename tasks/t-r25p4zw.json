@@ -1,7 +1,11 @@
 {
   "id": "t-r25p4zw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "selectTests follows imports transitively; tests assert gauge.ts selects context-replay.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "npm run fast selects tests that import a changed module transitively",

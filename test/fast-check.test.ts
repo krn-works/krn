@@ -707,3 +707,54 @@ test('a slot whose holder died is reclaimed and the cap comes from KRN_FAST_SLOT
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('selectTests picks a test that imports a changed module through two import hops', () => {
+  const sources = new Map([
+    ['src/context/replay.ts', "import { gauge } from './gauge.ts';"],
+    ['src/context/gauge.ts', 'export const gauge = 1;'],
+  ]);
+  const suite = new Map([
+    [
+      'test/claude/context-replay.test.ts',
+      "import { replay } from '../../src/context/replay.ts';",
+    ],
+    ['test/unrelated.test.ts', "import x from '../src/other.ts';"],
+  ]);
+  assert.deepEqual(
+    selectTests(
+      ['src/context/gauge.ts'],
+      suite,
+      [],
+      new Set(),
+      new Map(),
+      (path) => sources.get(path),
+    ),
+    ['test/claude/context-replay.test.ts'],
+  );
+});
+
+test('selectTests selects test/claude/context-replay.test.ts for src/context/gauge.ts in this repository', () => {
+  const root = join(import.meta.dirname, '..');
+  const suite = new Map<string, string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(rel);
+      else if (/\.test\.ts$/u.test(entry.name))
+        suite.set(rel, readFileSync(join(root, rel), 'utf8'));
+    }
+  };
+  walk('test');
+  const picked = selectTests(
+    ['src/context/gauge.ts'],
+    suite,
+    [],
+    new Set(),
+    new Map(),
+    (path) =>
+      existsSync(join(root, path))
+        ? readFileSync(join(root, path), 'utf8')
+        : undefined,
+  );
+  assert.ok(picked.includes('test/claude/context-replay.test.ts'));
+});
