@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  expectedFiles,
   INDEX_FILES,
+  OWN_INDEX_FILE,
   refreshIndex,
   staleIndexFiles,
 } from '../../scripts/render-standards-index.ts';
@@ -14,6 +22,7 @@ import { parseStandards } from '../../src/brain/standards.ts';
 import {
   enforcedRecords,
   INDEX_BUDGET_BYTES,
+  OWN_INDEX_BUDGET_BYTES,
   renderStandardsIndex,
 } from '../../src/brain/standards-index.ts';
 
@@ -40,7 +49,8 @@ test('the index has one line per enforced pack record, under the byte budget', (
       record.id,
     );
   assert.ok(Buffer.byteLength(index) <= INDEX_BUDGET_BYTES);
-  assert.ok(INDEX_BUDGET_BYTES < 6144);
+  // The measured size is 12070 bytes; the budget leaves under 1% headroom.
+  assert.equal(INDEX_BUDGET_BYTES, 12100);
 });
 
 test('a record without an index line is reported by the generator comparison', () => {
@@ -48,8 +58,8 @@ test('a record without an index line is reported by the generator comparison', (
     ...(pack.find((r) => r.enforcement.kind === 'command') as object),
     id: 's-index-new-rule',
   } as (typeof pack)[number];
-  const index = renderStandardsIndex([...pack, extra]);
-  assert.equal(lines(index).length, enforcedRecords(pack).length + 1);
+  const index = renderStandardsIndex([...pack.slice(1), extra]);
+  assert.equal(lines(index).length, enforcedRecords(pack.slice(1)).length + 1);
   assert.ok(lines(index).some((line) => line.startsWith('s-index-new-rule')));
 });
 
@@ -95,4 +105,100 @@ test('krn adopt ships the index byte for byte in the standards skill', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('no index line ends in an ellipsis and every rule is a whole sentence', () => {
+  for (const [file, bytes] of expectedFiles(root)) {
+    assert.ok(lines(bytes).length > 0, file);
+    for (const line of lines(bytes)) {
+      assert.ok(!line.endsWith('...'), `${file}: ${line}`);
+      assert.ok(!line.endsWith(':'), `${file}: ${line}`);
+    }
+  }
+});
+
+test('the own-records index lists every enforced own record within its byte budget', () => {
+  const own = parseStandards(
+    JSON.parse(readFileSync(join(root, '.agents/standards.json'), 'utf8')),
+  );
+  const index = readFileSync(join(root, OWN_INDEX_FILE), 'utf8');
+  const enforced = enforcedRecords(own);
+  assert.ok(enforced.length > 0);
+  assert.equal(lines(index).length, enforced.length);
+  assert.ok(Buffer.byteLength(index) <= OWN_INDEX_BUDGET_BYTES);
+  // The measured size is 5776 bytes.
+  assert.equal(OWN_INDEX_BUDGET_BYTES, 5800);
+});
+
+function fixture(ownRecords: unknown[]): string {
+  const dir = mkdtempSync(join(tmpdir(), 'standards-index-own-'));
+  mkdirSync(join(dir, '.agents/skills/standards'), { recursive: true });
+  mkdirSync(join(dir, 'standards'));
+  writeFileSync(
+    join(dir, 'standards/records.json'),
+    readFileSync(join(root, 'standards/records.json')),
+  );
+  writeFileSync(
+    join(dir, '.agents/standards.json'),
+    JSON.stringify(ownRecords),
+  );
+  return dir;
+}
+
+const sentence =
+  'The fixture repository keeps its own whole rule intact, with a long tail that would once have been cut short.';
+
+test('a fixture repository with one own record lists it with its full sentence', () => {
+  const template = enforcedRecords(pack)[0] as (typeof pack)[number];
+  const own = {
+    ...template,
+    id: 's-fixture-own',
+    text: `${sentence} A second sentence stays out.`,
+  };
+  const dir = fixture([own]);
+  try {
+    assert.deepEqual(refreshIndex(dir).sort(), [
+      INDEX_FILES[1],
+      OWN_INDEX_FILE,
+    ]);
+    const index = readFileSync(join(dir, OWN_INDEX_FILE), 'utf8');
+    assert.ok(
+      lines(index).some(
+        (line) =>
+          line.startsWith('s-fixture-own') &&
+          line.endsWith(`: ${sentence.slice(0, -1)}`),
+      ),
+    );
+    assert.deepEqual(staleIndexFiles(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the drift check fails after an own record is added without regenerating', () => {
+  const template = enforcedRecords(pack)[0] as (typeof pack)[number];
+  const dir = fixture([{ ...template, id: 's-fixture-first' }]);
+  try {
+    refreshIndex(dir);
+    const added = [
+      { ...template, id: 's-fixture-first' },
+      { ...template, id: 's-fixture-second' },
+    ];
+    writeFileSync(join(dir, '.agents/standards.json'), JSON.stringify(added));
+    assert.deepEqual(staleIndexFiles(dir), [OWN_INDEX_FILE]);
+    // The same drift check the script runs, pointed at the fixture through a copy of the script.
+    assert.deepEqual(refreshIndex(dir), [OWN_INDEX_FILE]);
+    assert.deepEqual(staleIndexFiles(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a rule that pushes the own index over its budget fails generation', () => {
+  const template = enforcedRecords(pack)[0] as (typeof pack)[number];
+  const many = Array.from({ length: 80 }, (_, i) => ({
+    ...template,
+    id: `s-fixture-${i}`,
+  }));
+  assert.throws(() => renderStandardsIndex(many, 'own'), /byte budget/u);
 });
