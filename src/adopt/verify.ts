@@ -181,29 +181,29 @@ function gh(root: string, path: string): string {
 /** Reads the repository of `root` through gh; changes no setting. */
 export function verifyRepository(root: string): VerifyReport {
   const origin = originUrl(root);
-  if (!hasGithubHost(origin)) {
-    const gaps: string[] = [];
-    const deployBase = contractBase(root);
-    const deploying = deployWorkflows(root, deployBase);
-    if (deploying.length > 0 && !contractDeployAcknowledged(root))
-      gaps.push(deployRemedy(deploying, deployBase));
-    return {
-      ok: gaps.length === 0,
-      gaps,
-      skipped: `no GitHub host (origin ${origin ?? 'none'}): the required check and auto-merge were not checked`,
-    };
+  const github = hasGithubHost(origin);
+  let gaps: string[] = [];
+  if (github) {
+    const repoBody = gh(root, 'repos/{owner}/{repo}');
+    const branch = defaultBranch(repoBody);
+    gaps = verifyGaps(
+      repoBody,
+      gh(root, `repos/{owner}/{repo}/branches/${branch}`),
+      gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`),
+    );
   }
-  const repoBody = gh(root, 'repos/{owner}/{repo}');
-  const branch = defaultBranch(repoBody);
-  const branchBody = gh(root, `repos/{owner}/{repo}/branches/${branch}`);
-  const rulesBody = gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`);
-  const gaps = verifyGaps(repoBody, branchBody, rulesBody);
   // krn.json `base` wins over the repository default, as for lanes.
-  const deployBase = contractBase(root);
-  const deploying = deployWorkflows(root, deployBase);
+  const base = contractBase(root);
+  const deploying = deployWorkflows(root, base);
   if (deploying.length > 0 && !contractDeployAcknowledged(root))
-    gaps.push(deployRemedy(deploying, deployBase));
-  return { ok: gaps.length === 0, gaps };
+    gaps.push(deployRemedy(deploying, base));
+  return github
+    ? { ok: gaps.length === 0, gaps }
+    : {
+        ok: gaps.length === 0,
+        gaps,
+        skipped: `no GitHub host (origin ${origin ?? 'none'}): the required check and auto-merge were not checked`,
+      };
 }
 
 /** One contract gate command that two or more workflows run, and the files that run it. */
@@ -272,12 +272,9 @@ class CanaryTimeout extends Error {}
 let deadline = Number.POSITIVE_INFINITY;
 /** The step the canary is in (install, test command, Stop gate) and when it began, so a timeout names the slow one. */
 let step = { name: 'setup', since: Date.now() };
-const steps: { name: string; ms: number }[] = [];
 
 function enter(name: string): void {
-  const now = Date.now();
-  steps.push({ name: step.name, ms: now - step.since });
-  step = { name, since: now };
+  step = { name, since: Date.now() };
 }
 
 function remaining(): number {
@@ -395,19 +392,17 @@ function testFiles(root: string, contract: RepoContract): string[] {
   return tests.sort((x, y) => rank(x) - rank(y));
 }
 
-function breakage(file: string): string | undefined {
-  if (/\.py$/u.test(file)) return '\nassert False, "krn canary"\n';
-  // `?>` ends PHP mode when the file is still in it and is plain text when it is not.
-  if (/\.php$/u.test(file))
-    return '\n?>\n<?php throw new Exception("krn canary");\n';
-  if (/\.go$/u.test(file))
-    return '\nfunc TestKrnCanary(t *testing.T) { t.Fatal("krn canary") }\n';
-  if (/\.rs$/u.test(file))
-    return '\n#[test]\nfn krn_canary() {\n    panic!("krn canary");\n}\n';
-  if (/\.[cm]?[jt]sx?$/u.test(file))
-    return '\nthrow new Error("krn canary");\n';
-  return undefined;
-}
+/** What one broken test appends, by file kind; PHP's `?>` ends PHP mode when the file is still in it and is plain text when not. */
+const BREAKAGE: [RegExp, string][] = [
+  [/\.py$/u, '\nassert False, "krn canary"\n'],
+  [/\.php$/u, '\n?>\n<?php throw new Exception("krn canary");\n'],
+  [/\.go$/u, '\nfunc TestKrnCanary(t *testing.T) { t.Fatal("krn canary") }\n'],
+  [/\.rs$/u, '\n#[test]\nfn krn_canary() {\n    panic!("krn canary");\n}\n'],
+  [/\.[cm]?[jt]sx?$/u, '\nthrow new Error("krn canary");\n'],
+];
+
+const breakage = (file: string): string | undefined =>
+  BREAKAGE.find(([kind]) => kind.test(file))?.[1];
 
 /** Dependencies for the temp worktree: link the clone's node_modules, else run the contract install. */
 function prepare(
@@ -442,13 +437,7 @@ function prepare(
   return undefined;
 }
 
-/** A Stop entry that runs the gate module by path: KRN's own (src/hook/stop.ts) or the legacy worker-stop script. */
-const OWN_STOP = /src\/hook\/stop\.ts|worker-stop/u;
-
-function stop(tree: string, commands: string[]) {
-  const command =
-    commands.find((c) => isKrnStopCommand(c)) ??
-    commands.find((c) => OWN_STOP.test(c));
+function stop(tree: string) {
   const env = {
     CLAUDE_PROJECT_DIR: tree,
     KRN_SESSION_CLASS: 'lane',
@@ -464,10 +453,11 @@ function stop(tree: string, commands: string[]) {
     timeout: remaining(),
     killSignal: 'SIGKILL',
   } as const;
-  const result =
-    isKrnStopCommand(command) || command === undefined
-      ? spawnSync(process.execPath, [productCli, 'hook', 'stop'], limits)
-      : spawnSync('sh', ['-c', command], limits);
+  const result = spawnSync(
+    process.execPath,
+    [productCli, 'hook', 'stop'],
+    limits,
+  );
   if (timedOut(result)) throw new CanaryTimeout();
   return { status: result.status, stderr: result.stderr };
 }
@@ -480,18 +470,13 @@ export function runCanary(
 ): CanaryResult {
   deadline = Date.now() + timeoutMs;
   step = { name: 'setup', since: Date.now() };
-  steps.length = 0;
   try {
     return canary(root);
   } catch (error) {
     if (!(error instanceof CanaryTimeout)) throw error;
-    const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
-    const done = steps
-      .filter((s) => s.ms >= 100)
-      .map((s) => `${s.name} ${seconds(s.ms)}`);
     return {
       outcome: 'timeout',
-      message: `the canary did not finish within ${Math.round(timeoutMs / 1000)}s: step "${step.name}" exceeded it after ${seconds(Date.now() - step.since)}${done.length > 0 ? ` (earlier steps: ${done.join(', ')})` : ''}; raise KRN_CANARY_TIMEOUT_MS, or pass --no-canary to decline`,
+      message: `the canary did not finish within ${Math.round(timeoutMs / 1000)}s: step "${step.name}" exceeded it after ${((Date.now() - step.since) / 1000).toFixed(1)}s; raise KRN_CANARY_TIMEOUT_MS, or pass --no-canary to decline`,
     };
   } finally {
     deadline = Number.POSITIVE_INFINITY;
@@ -516,14 +501,13 @@ function canary(root: string): CanaryResult {
   if (found === undefined)
     return skipped('no test command in the repo contract');
   const { contract } = found;
-  const commands = stopCommands(root);
-  if (!commands.some((c) => isKrnStopCommand(c) || OWN_STOP.test(c)))
+  if (!stopCommands(root).some(isKrnStopCommand))
     return fail(
       'the Stop hook is not installed: .claude/settings.json has no Stop entry calling `krn hook stop`, so a broken test would not be refused',
     );
   // A vacuous contract carries a command that fails on purpose: the gate must refuse it until one real test exists.
   if (contract.vacuous === true) {
-    const gate = stop(root, commands);
+    const gate = stop(root);
     if (gate.status !== 2)
       return fail(
         `the Stop gate did not refuse the vacuous contract: expected exit 2, got ${gate.status}. ${gate.stderr.slice(-300)}`,
@@ -595,7 +579,7 @@ function canary(root: string): CanaryResult {
       enter('Stop gate on the broken test');
       appendFileSync(join(tree, file), breakage(file) as string);
       gitIn(tree, 'commit', '-qm', 'canary: break one test', '--', file);
-      last = stop(tree, commands);
+      last = stop(tree);
       tried.push(file);
       if (last.status === 2) {
         refusedFile = file;
@@ -615,7 +599,7 @@ function canary(root: string): CanaryResult {
     appendFileSync(join(tree, file), '\n');
     gitIn(tree, 'commit', '-qm', 'canary: clean tree', '--', file);
     enter('Stop gate on the clean tree');
-    const clean = stop(tree, commands);
+    const clean = stop(tree);
     // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
     // is not a gate defect: name the command. The gate ignores failures the base already had, so the touched
     // test is also run by the command the gate selects for it, never the whole suite when a related one exists.

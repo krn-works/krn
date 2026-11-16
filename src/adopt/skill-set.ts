@@ -4,7 +4,7 @@
 // Site skills come whole from one pinned commit of the boilerplate repository (site-skills/source.json).
 // Only skills that exist in the installer source are named.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type FirstTestStack, firstTestStack } from '../brain/first-test.ts';
 
@@ -51,4 +51,11 @@ export function skillSet(root: string, available: readonly string[]): string[] {
   const wanted: string[] = [...CORE, ...site];
   if (site.length > 0 && deploysToPlesk(root)) wanted.push(PLESK_SKILL);
   return wanted.filter((name) => available.includes(name));
+}
+
+/** Every file under a directory, as paths relative to it. */
+export function filesUnder(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(dir, join(entry.parentPath, entry.name)));
 }

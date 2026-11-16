@@ -8,8 +8,10 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Failure } from '../brain/standards.ts';
+import { filesUnder } from './skill-set.ts';
 import { GATE_KEYS, workflowGates } from './workflow-gates.ts';
 
 export const INIT_STACKS = [
@@ -68,166 +70,8 @@ function hasPluginHeader(root: string): boolean {
   }
 }
 
-function pluginFile(name: string): string {
-  return [
-    '<?php',
-    '/**',
-    ` * Plugin Name: ${name}`,
-    ' * Version: 0.1.0',
-    ` * Text Domain: ${name}`,
-    ' */',
-    '',
-    "if ( ! defined( 'ABSPATH' ) ) {",
-    '    exit;',
-    '}',
-    '',
-  ].join('\n');
-}
-
-function pluginReadme(name: string): string {
-  return `=== ${name} ===\nStable tag: 0.1.0\n\n== Description ==\n${name}.\n`;
-}
-
-const smokeGo = [
-  'package project',
-  '',
-  'import "testing"',
-  '',
-  'func TestAddSumsTwoNumbers(t *testing.T) {',
-  '\tif Add(1, 1) != 2 {',
-  '\t\tt.Fatal("Add is broken")',
-  '\t}',
-  '}',
-  '',
-].join('\n');
-
-const libGo = [
-  'package project',
-  '',
-  '// Add returns the sum of two numbers.',
-  'func Add(a, b int) int {',
-  '\treturn a + b',
-  '}',
-  '',
-].join('\n');
-
-const smokeRust = (crate: string) =>
-  [
-    `use ${crate}::add;`,
-    '',
-    '#[test]',
-    'fn add_sums_two_numbers() {',
-    '    assert_eq!(add(1, 1), 2);',
-    '}',
-    '',
-  ].join('\n');
-
-const libRust = [
-  '/// The sum of two numbers.',
-  'pub fn add(a: i32, b: i32) -> i32 {',
-  '    a + b',
-  '}',
-  '',
-].join('\n');
-
-const libTs = [
-  '/** The sum of two numbers. */',
-  'export function add(a: number, b: number): number {',
-  '  return a + b;',
-  '}',
-  '',
-].join('\n');
-
-const smokeTs = [
-  "import assert from 'node:assert/strict';",
-  "import test from 'node:test';",
-  "import { add } from '../src/index.ts';",
-  '',
-  "test('add sums two numbers', () => {",
-  '  assert.equal(add(1, 1), 2);',
-  '});',
-  '',
-].join('\n');
-
-const libPython = [
-  'def add(a: int, b: int) -> int:',
-  '    """The sum of two numbers."""',
-  '    return a + b',
-  '',
-].join('\n');
-
-const smokePython = [
-  'import unittest',
-  '',
-  'from app import add',
-  '',
-  '',
-  'class AddTest(unittest.TestCase):',
-  '    def test_add_sums_two_numbers(self) -> None:',
-  '        self.assertEqual(add(1, 1), 2)',
-  '',
-  '',
-  "if __name__ == '__main__':",
-  '    unittest.main()',
-  '',
-].join('\n');
-
-const libPhp = [
-  '<?php',
-  '',
-  'declare(strict_types=1);',
-  '',
-  'namespace Project;',
-  '',
-  'final class Math',
-  '{',
-  '    public static function add(int $a, int $b): int',
-  '    {',
-  '        return $a + $b;',
-  '    }',
-  '}',
-  '',
-].join('\n');
-
-const smokePhp = [
-  '<?php',
-  '',
-  'declare(strict_types=1);',
-  '',
-  'use PHPUnit\\Framework\\TestCase;',
-  'use Project\\Math;',
-  '',
-  'final class SmokeTest extends TestCase',
-  '{',
-  '    public function testAddSumsTwoNumbers(): void',
-  '    {',
-  '        $this->assertSame(2, Math::add(1, 1));',
-  '    }',
-  '}',
-  '',
-].join('\n');
-
-const phpunitXml = [
-  '<?xml version="1.0" encoding="UTF-8"?>',
-  '<phpunit colors="false" bootstrap="vendor/autoload.php">',
-  '  <testsuites>',
-  '    <testsuite name="project">',
-  '      <directory>tests</directory>',
-  '    </testsuite>',
-  '  </testsuites>',
-  '</phpunit>',
-  '',
-].join('\n');
-
-const phpstanNeon =
-  'parameters:\n  level: 6\n  paths:\n    - src\n    - tests\n';
-
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function readme(name: string, command: string): string {
-  return `# ${name}\n\nRun the tests with \`${command}\`.\n`;
 }
 
 function workflow(setup: string[], runs: string[]): string {
@@ -330,50 +174,47 @@ export function ciWorkflow(
     omit.includes(key) ? undefined : run;
   const lint = kept('lint', commands.lint ?? own?.lint);
   const typecheck = kept('typecheck', commands.typecheck ?? own?.typecheck);
-  const test = kept('test', commands.test ?? own?.test ?? defaultTest(stack));
+  const test = kept('test', commands.test ?? own?.test ?? DEFAULT_TEST[stack]);
   const runs = [install, lint, typecheck, test].filter(
     (run): run is string => run !== undefined,
   );
-  if (stack === 'ts')
-    return workflow(
-      [
-        '      - uses: actions/setup-node@v4',
-        '        with:',
-        '          node-version: 24',
-      ],
-      runs,
-    );
-  if (stack === 'php' || stack === 'wp-plugin') return workflow([], runs);
-  if (stack === 'go')
-    return workflow(
-      [
-        '      - uses: actions/setup-go@v5',
-        '        with:',
-        '          go-version-file: go.mod',
-      ],
-      runs,
-    );
-  if (stack === 'rust') return workflow([], runs);
-  return workflow(
-    [
-      '      - uses: actions/setup-python@v5',
-      '        with:',
-      "          python-version: '3.12'",
-    ],
-    runs,
-  );
+  return workflow(CI_SETUP[stack], runs);
 }
 
-function defaultTest(stack: InitStack): string {
-  if (stack === 'ts') return 'npm test';
-  if (stack === 'php' || stack === 'wp-plugin')
-    return 'composer install --no-interaction && make test';
-  if (stack === 'go') return 'go test ./...';
-  if (stack === 'rust')
-    return 'cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test';
-  return 'python -m unittest discover -s tests';
-}
+/** The toolchain setup steps a stack's CI workflow needs before its commands. */
+const CI_SETUP: Record<InitStack, string[]> = {
+  ts: [
+    '      - uses: actions/setup-node@v4',
+    '        with:',
+    '          node-version: 24',
+  ],
+  go: [
+    '      - uses: actions/setup-go@v5',
+    '        with:',
+    '          go-version-file: go.mod',
+  ],
+  python: [
+    '      - uses: actions/setup-python@v5',
+    '        with:',
+    "          python-version: '3.12'",
+  ],
+  rust: [],
+  php: [],
+  'wp-plugin': [],
+};
 
+const DEFAULT_TEST: Record<InitStack, string> = {
+  ts: 'npm test',
+  php: 'composer install --no-interaction && make test',
+  'wp-plugin': 'composer install --no-interaction && make test',
+  go: 'go test ./...',
+  rust: 'cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test',
+  python: 'python -m unittest discover -s tests',
+};
+
+const SKELETONS = fileURLToPath(new URL('skeleton/', import.meta.url));
+
+/** The skeleton of a stack: its template files (`skeleton/<stack>/**.tpl`, a plugin adds to the php ones) and its CI workflow. */
 function skeleton(root: string, stack: InitStack): Record<string, string> {
   const name =
     root
@@ -382,124 +223,20 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       .pop()
       ?.toLowerCase()
       .replace(/[^a-z0-9-]/gu, '-') || 'project';
-  const ci = '.github/workflows/ci.yml';
-  const workflowText = ciWorkflow(stack, {}, true);
-  if (stack === 'ts')
-    return {
-      'package.json': json({
-        name,
-        private: true,
-        type: 'module',
-        scripts: {
-          test: 'node --test',
-          lint: 'biome check .',
-          typecheck: 'tsc --noEmit',
-        },
-        devDependencies: {
-          '@biomejs/biome': '2.6.8',
-          '@types/node': '24.6.2',
-          typescript: '7.0.2',
-        },
-      }),
-      'tsconfig.json': json({
-        compilerOptions: {
-          target: 'es2022',
-          module: 'nodenext',
-          moduleResolution: 'nodenext',
-          strict: true,
-          noEmit: true,
-          allowImportingTsExtensions: true,
-          skipLibCheck: true,
-          types: ['node'],
-        },
-        include: ['src', 'test'],
-      }).replace(
-        /\[\s+((?:"[^"]*",?\s+)+)\]/gu,
-        (_, items: string) => `[${items.trim().replace(/,\s+/gu, ', ')}]`,
-      ),
-      'biome.json': json({
-        files: {
-          includes: [
-            '**',
-            '!package-lock.json',
-            '!.agents',
-            '!.claude',
-            '!.krn',
-            '!tasks',
-            '!krn.json',
-          ],
-        },
-        formatter: { indentStyle: 'space' },
-        javascript: { formatter: { quoteStyle: 'single' } },
-        linter: { rules: { nursery: { noFloatingPromises: 'error' } } },
-      }),
-      '.gitignore': 'node_modules/\n',
-      'README.md': readme(name, 'npm test'),
-      'src/index.ts': libTs,
-      'test/smoke.test.ts': smokeTs,
-      [ci]: workflowText,
-    };
-  if (stack === 'go')
-    return {
-      'go.mod': `module example.com/${name}\n\ngo 1.22\n`,
-      'project.go': libGo,
-      [`${name}_test.go`]: smokeGo,
-      '.golangci.yml': 'version: "2"\n',
-      '.gitignore': 'bin/\n',
-      'README.md': readme(name, 'go test ./...'),
-      [ci]: workflowText,
-    };
-  if (stack === 'rust') {
-    const crate = name.replace(/-/gu, '_');
-    return {
-      'Cargo.toml': `[package]\nname = "${name}"\nversion = "0.1.0"\nedition = "2021"\nrust-version = "1.74"\n`,
-      // The lockfile of a package with no dependencies, written by hand: cargo needs no toolchain here.
-      'Cargo.lock': `# This file is automatically @generated by Cargo.\n# It is not intended for manual editing.\nversion = 3\n\n[[package]]\nname = "${name}"\nversion = "0.1.0"\n`,
-      'src/lib.rs': libRust,
-      'tests/smoke.rs': smokeRust(crate),
-      '.gitignore': 'target/\n',
-      'README.md': readme(name, 'cargo test'),
-      [ci]: workflowText,
-    };
-  }
-  if (stack === 'php' || stack === 'wp-plugin')
-    return {
-      ...(stack === 'wp-plugin'
-        ? {
-            [`${name}.php`]: pluginFile(name),
-            'readme.txt': pluginReadme(name),
-          }
-        : {}),
-      'composer.json': json({
-        name: `project/${name}`,
-        autoload: { 'psr-4': { 'Project\\': 'src/' } },
-        'require-dev': { 'phpunit/phpunit': '^11', 'phpstan/phpstan': '^2' },
-        scripts: {
-          test: 'vendor/bin/phpunit',
-          lint: "find src tests -name '*.php' -print0 | xargs -0 -n1 php -l",
-          typecheck: 'vendor/bin/phpstan analyse --no-progress',
-        },
-      }),
-      'phpunit.xml': phpunitXml,
-      'phpstan.neon': phpstanNeon,
-      '.gitignore': 'vendor/\n',
-      'README.md': readme(name, 'make test'),
-      Makefile: 'test:\n\tvendor/bin/phpunit\n',
-      'src/Math.php': libPhp,
-      'tests/SmokeTest.php': smokePhp,
-      [ci]: workflowText,
-    };
-  return {
-    'app.py': libPython,
-    'tests/__init__.py': '',
-    'tests/test_smoke.py': smokePython,
-    'requirements.txt': '# runtime dependencies, one per line\n',
-    'requirements-dev.txt': 'mypy==1.16.0\nruff==0.12.0\n',
-    'pyproject.toml': `[tool.ruff]\nline-length = 100\n\n[tool.mypy]\nstrict = true\n`,
-    '.gitignore': '__pycache__/\n.venv/\nvenv/\n.mypy_cache/\n.ruff_cache/\n',
-    'README.md': readme(name, GATES.python.test),
-    [ci]: workflowText,
-  };
+  const fill = (text: string) =>
+    text
+      .replaceAll('{{name}}', name)
+      .replaceAll('{{crate}}', name.replaceAll('-', '_'));
+  const files: Record<string, string> = {};
+  for (const dir of stack === 'wp-plugin' ? ['php', stack] : [stack])
+    for (const file of filesUnder(join(SKELETONS, dir)))
+      files[fill(file.replace(/\.tpl$/u, ''))] = fill(
+        readFileSync(join(SKELETONS, dir, file), 'utf8'),
+      );
+  // An empty template would be an empty tracked file here, which the sandbox-placeholder rule rejects.
+  if (stack === 'python') files['tests/__init__.py'] = '';
+  files['.github/workflows/ci.yml'] = ciWorkflow(stack, {}, true);
+  return files;
 }
 
 /** The test command the adoption contract records for a skeleton that detection cannot name. */
@@ -575,22 +312,14 @@ export function initDirectory(root: string, named?: string): InitReport {
       );
   }
   if (stack === 'ts' && !existsSync(join(root, 'package-lock.json'))) {
-    const locked = spawnSync(
-      'npm',
-      [
-        'install',
-        '--package-lock-only',
-        '--ignore-scripts',
-        '--no-audit',
-        '--no-fund',
-      ],
-      { cwd: root, encoding: 'utf8' },
-    );
-    if (locked.status === 0) written.push('package-lock.json');
-    else
+    try {
+      syncLockfile(root);
+      written.push('package-lock.json');
+    } catch (error) {
       warnings.push(
-        `package-lock.json not written (npm exited ${locked.status ?? 'without a status'}): run \`npm install\` and commit it`,
+        `package-lock.json not written (${(error as Error).message}): run \`npm install\` and commit it`,
       );
+    }
   }
   const configured = git(root, ['config', 'user.name']).stdout.trim() !== '';
   const identity = configured

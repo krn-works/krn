@@ -6,13 +6,11 @@
  */
 export function guardCommand(name: string): string {
   const what =
-    name === 'stop'
-      ? 'Stop hook cannot check this tree'
-      : name === 'session'
-        ? 'SessionStart hook cannot serve the standards'
-        : name === 'edit'
-          ? 'edit hook cannot serve the standards for this file'
-          : `${name} guard cannot check this call`;
+    {
+      stop: 'Stop hook cannot check this tree',
+      session: 'SessionStart hook cannot serve the standards',
+      edit: 'edit hook cannot serve the standards for this file',
+    }[name] ?? `${name} guard cannot check this call`;
   return `command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN ${what}; put krn on PATH for this session' >&2; exit 2; }; exec krn hook ${name}`;
 }
 
