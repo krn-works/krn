@@ -945,6 +945,8 @@ function inspectTests(
     failing = shell(root, command);
     before = () => failuresAtBase(root, from, (dir) => shell(dir, command));
   }
+  // The adopt canary measured the base green once: its failures are all fresh, so the base is not run again.
+  if (env.KRN_BASE_GREEN === '1') before = () => new Set();
   let flaky: string[] = [];
   if (failing.length > 0) {
     const settled = settleFailures(

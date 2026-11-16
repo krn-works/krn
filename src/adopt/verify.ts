@@ -437,8 +437,9 @@ function prepare(
   return undefined;
 }
 
-function stop(tree: string) {
+function stop(tree: string, baseGreen = false) {
   const env = {
+    ...(baseGreen ? { KRN_BASE_GREEN: '1' } : {}),
     CLAUDE_PROJECT_DIR: tree,
     KRN_SESSION_CLASS: 'lane',
     KRN_LANE: 'canary',
@@ -481,6 +482,17 @@ export function runCanary(
   } finally {
     deadline = Number.POSITIVE_INFINITY;
   }
+}
+
+function redBase(
+  contract: RepoContract,
+  baseRef: string,
+  own: { status: number | null; stderr: string; stdout: string },
+): CanaryResult {
+  return {
+    outcome: 'red-base',
+    message: `red base: the repository's own test command \`${contract.test}\` exits ${own.status} on the clean ${baseRef} tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. ${(own.stderr || own.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`,
+  };
 }
 
 function canary(root: string): CanaryResult {
@@ -571,6 +583,16 @@ function canary(root: string): CanaryResult {
     const prepared = prepare(root, tree, contract);
     if (prepared) return fail(prepared);
 
+    // Without a related command every Stop-gate step runs the whole test command, so a slow build would cost one
+    // run per step. One measured baseline run of it on the clean tree replaces the gate's base run and the
+    // clean-tree step; the broken-tree step is then the only gate run.
+    const wholeOnly = !contract.related;
+    if (wholeOnly) {
+      enter('test command on the clean base');
+      const own = run(tree, 'sh', ['-c', contract.test]);
+      if (own.status !== 0) return redBase(contract, baseRef, own);
+    }
+
     // A test file the runner does not collect (another include pattern) cannot be refused: try the next.
     const tried: string[] = [];
     let refusedFile: string | undefined;
@@ -579,7 +601,7 @@ function canary(root: string): CanaryResult {
       enter('Stop gate on the broken test');
       appendFileSync(join(tree, file), breakage(file) as string);
       gitIn(tree, 'commit', '-qm', 'canary: break one test', '--', file);
-      last = stop(tree);
+      last = stop(tree, wholeOnly);
       tried.push(file);
       if (last.status === 2) {
         refusedFile = file;
@@ -594,6 +616,11 @@ function canary(root: string): CanaryResult {
     const file = refusedFile;
 
     gitIn(tree, 'reset', '-q', '--hard', 'HEAD~1');
+    if (wholeOnly)
+      return {
+        outcome: 'pass',
+        message: `the Stop gate refused a broken ${file} (exit 2); the clean tree passed one run of the test command (${contract.test}), which stands in for the gate's clean-tree step`,
+      };
     // The restored commit touches the same test file with a blank line, so the gate selects that test's related
     // subset; an empty commit selects nothing and the gate would run the whole (possibly unfinishable) test command.
     appendFileSync(join(tree, file), '\n');
@@ -603,7 +630,7 @@ function canary(root: string): CanaryResult {
     // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
     // is not a gate defect: name the command. The gate ignores failures the base already had, so the touched
     // test is also run by the command the gate selects for it, never the whole suite when a related one exists.
-    const redBase = () => {
+    const checkRedBase = () => {
       enter('test command on the clean base');
       const command =
         clean.status === 0
@@ -613,14 +640,9 @@ function canary(root: string): CanaryResult {
             )
           : contract.test;
       const own = run(tree, 'sh', ['-c', command]);
-      return own.status === 0
-        ? undefined
-        : {
-            outcome: 'red-base' as const,
-            message: `red base: the repository's own test command \`${contract.test}\` exits ${own.status} on the clean ${baseRef} tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. ${(own.stderr || own.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`,
-          };
+      return own.status === 0 ? undefined : redBase(contract, baseRef, own);
     };
-    const red = redBase();
+    const red = checkRedBase();
     if (red) return red;
     if (clean.status !== 0)
       return fail(

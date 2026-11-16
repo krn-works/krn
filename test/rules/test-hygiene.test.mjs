@@ -48,6 +48,10 @@ const testTimeoutPattern =
 const allowWallClock = new Map([]);
 const allowTestTimeout = new Map([
   [
+    'test/adopt/canary.test.ts',
+    'the canary of a 60 s test command with no related command must finish inside its 180 s bound',
+  ],
+  [
     'test/scripts/planted-records.test.ts',
     'each stack installs real dependencies in adopt --init: 68-84 s at host load 56',
   ],

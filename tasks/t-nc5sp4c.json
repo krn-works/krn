@@ -1,7 +1,11 @@
 {
   "id": "t-nc5sp4c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "canary with a 60 s test command and no related command finishes under the 180 s bound; timeout keeps adopt output as pending (test/adopt/canary.test.ts)"
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "The adopt canary finishes on a repository with a slow build",

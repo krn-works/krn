@@ -197,36 +197,6 @@ test('canary breaks only a file the test command glob selects and fails delibera
   assert.doesNotMatch(run.stdout, /b\.test\.ts/u);
 });
 
-test('a canary past its time limit exits 124, names the timeout and leaves the repository as it was', () => {
-  const root = fixture({
-    ...nodeFiles,
-    'krn.json': JSON.stringify({
-      base: 'main',
-      test: 'sleep 20 && node --test',
-      related: 'sleep 20 && node --test {files}',
-      tracker: 'none',
-    }),
-  });
-  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
-    encoding: 'utf8',
-    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '2500' },
-  });
-  assert.equal(run.status, 124, run.stdout + run.stderr);
-  assert.match(run.stdout, /canary timeout: the canary did not finish within/u);
-  assert.match(run.stdout, /step "[^"]+" exceeded it after \d+\.\ds/u);
-  assert.match(run.stderr, /everything adopt wrote was removed/u);
-  const status = spawnSync('git', ['status', '--porcelain', '--ignored'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  assert.equal(status.stdout.replace(/^!! node_modules\/\n/mu, ''), '');
-  const trees = spawnSync('git', ['worktree', 'list'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  assert.equal(trees.stdout.trim().split('\n').length, 1);
-});
-
 test('a test command too slow to finish is not run whole on the clean tree: the related subset decides', () => {
   const root = fixture({
     ...nodeFiles,
@@ -258,8 +228,11 @@ test('a slow install names the install step as the one that exceeded the limit',
     encoding: 'utf8',
     env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '2500' },
   });
-  assert.equal(run.status, 124, run.stdout + run.stderr);
-  assert.match(run.stdout, /step "install" exceeded it after \d+\.\ds/u);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /canary pending: .*step "install" exceeded it after \d+\.\ds/u,
+  );
 });
 
 test('adopt on a red clean tree exits 0 in bootstrap state with a seeded green-base task naming the failing command', () => {
@@ -323,4 +296,50 @@ test('namedTests counts a plain script in a test directory as a test file', () =
     named: true,
     matched: ['test/parse-link-header.js'],
   });
+});
+
+test('a slow test command with no related command finishes the canary in under 3x one run', {
+  timeout: 175_000,
+}, () => {
+  const root = fixture({
+    ...nodeFiles,
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'sleep 60 && node --test',
+      tracker: 'none',
+    }),
+  });
+  // The default bound is 180 s, three runs of the 60 s command: a canary past it is pending, not a pass.
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: undefined },
+  });
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /canary pass:/u);
+});
+
+test('a canary past its time limit keeps what adopt wrote and reports the canary as pending', () => {
+  const root = fixture({
+    ...nodeFiles,
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'sleep 20 && node --test',
+      tracker: 'none',
+    }),
+  });
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '2500' },
+  });
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /canary pending: /u);
+  assert.match(run.stdout, /step "[^"]+" exceeded it after \d+\.\ds/u);
+  assert.doesNotMatch(run.stderr, /removed/u);
+  assert.ok(readFileSync(join(root, '.claude/settings.json'), 'utf8'));
+  assert.equal(
+    spawnSync('git', ['worktree', 'list'], { cwd: root, encoding: 'utf8' })
+      .stdout.trim()
+      .split('\n').length,
+    1,
+  );
 });
