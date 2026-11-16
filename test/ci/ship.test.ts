@@ -30,6 +30,8 @@ function receiver(options: {
   check?: string;
   existing?: string;
   mergedBefore?: string;
+  /** The answer to the lookup of any merged PR of the branch, whatever its head. */
+  mergedOfBranch?: string;
   dirty?: boolean;
   branch?: string;
   target?: string;
@@ -60,7 +62,9 @@ function receiver(options: {
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('--search'))
       return options.carrier ?? '';
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('merged'))
-      return options.mergedBefore ?? '';
+      return a.some((part) => part.includes('headRefOid =='))
+        ? (options.mergedBefore ?? '')
+        : (options.mergedOfBranch ?? '');
     if (a[0] === 'pr' && a[1] === 'list') return options.existing ?? '';
     if (a[0] === 'pr' && a[1] === 'create' && options.createRefusal)
       throw new CommandFailure({
@@ -270,6 +274,12 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   );
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
+  // The adopted PR is carried to its merge, pinned to the head ship pushed.
+  assert.ok(
+    r.calls.some((c) =>
+      c.startsWith(`gh pr merge 7 --repo o/r --squash --match-head-commit`),
+    ),
+  );
 });
 
 test('a red Check exits 74 and keeps the worktree', async () => {
@@ -736,14 +746,89 @@ test('ship retries gh pr view after gh cannot connect to the API and merges', as
   assert.ok(asked.length >= 3);
 });
 
-test('ship gives up on a network failure after three tries', async () => {
+// A message no allowlist has seen: it carries no HTTP status, so GitHub never answered it.
+const unseenNetworkFailure =
+  'Post "https://api.github.com/graphql": proxyconnect tcp: dial tcp 10.0.0.1:3128: connect: no route to host';
+
+test('ship retries a gh pr view that fails four times with an unseen network message and merges', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const { rest, asked } = flakyView(r, {
+    times: 4,
+    stderr: unseenNetworkFailure,
+  });
+  const out = await shipCommand(args, rest);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(asked.length >= 5);
+});
+
+test('after the push ship gives up on an unanswered gh call only once five minutes of backoff are spent', async () => {
   const r = receiver({ pulls: [auto, merged] });
   const { rest, asked } = flakyView(r, { times: 99, stderr: tlsTimeout });
   await assert.rejects(shipCommand(args, rest), (e: Error) => {
     assert.equal(e.message, tlsTimeout);
     return true;
   });
-  assert.equal(asked.length, 3);
+  assert.ok(asked.length > 3, `${asked.length} asks`);
+  assert.ok(r.now() >= 300_000, `${r.now()} ms waited`);
+  assert.ok(r.now() < 360_000, `${r.now()} ms waited`);
+});
+
+test('before the push an unanswered gh call is tried three times', async () => {
+  const r = receiver({ pulls: [auto] });
+  const { gh: _fake, ...rest } = r;
+  let asked = 0;
+  await assert.rejects(
+    shipCommand(['--title', title, '--body-file', 'body.md'], {
+      ...rest,
+      run: (command: string, a: string[], at?: string) => {
+        if (command !== 'gh') return r.run(command, a, at);
+        asked++;
+        return { code: 1, stdout: '', stderr: unseenNetworkFailure };
+      },
+    }),
+    (e: Error) => {
+      assert.equal(e.message, unseenNetworkFailure);
+      return true;
+    },
+  );
+  assert.equal(asked, 3);
+  assert.ok(!r.calls.some((c) => c.startsWith('git push')));
+});
+
+test('a pr create whose reply was lost adopts the PR it created instead of creating another', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const { gh: _fake, ...rest } = r;
+  let creates = 0;
+  const route = (command: string, given: string[], at?: string) => {
+    const scoped = command === 'env' && given[1] === 'gh';
+    const a = scoped ? given.slice(2) : given;
+    if (command !== 'gh' && !scoped) return r.run(command, a, at);
+    if (a[0] === 'pr' && a[1] === 'create') {
+      creates++;
+      return { code: 1, stdout: '', stderr: tlsTimeout };
+    }
+    // The open PR appears only after the create that lost its reply.
+    if (a[0] === 'pr' && a[1] === 'list' && a.includes('open'))
+      return { code: 0, stdout: creates === 0 ? '' : '7\n', stderr: '' };
+    return { code: 0, stdout: r.answer(a), stderr: '' };
+  };
+  const out = await shipCommand(args, { ...rest, run: route });
+  assert.match(out, /^pr: #7 /mu);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.equal(creates, 1);
+});
+
+test('a rerun on a rebased branch whose PR already merged reports the merge and exits 0', async () => {
+  const r = receiver({
+    pulls: [merged],
+    diff: '',
+    mergedOfBranch: `7 ${merge}\n`,
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, /^pr: #7 /mu);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  for (const step of ['git push', 'pr create', 'pr merge'])
+    assert.ok(!r.calls.some((c) => c.includes(step)), step);
 });
 
 test('ship does not retry a gh pr view that answers 404', async () => {

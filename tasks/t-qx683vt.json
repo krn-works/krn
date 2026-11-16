@@ -1,7 +1,11 @@
 {
   "id": "t-qx683vt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "After the push ship retries every gh failure without an HTTP status or GraphQL answer with capped backoff for 5 minutes (3 tries before the push); a pr create whose reply was lost adopts the PR it created; a rerun with an empty diff on a branch whose PR merged prints verdict: merged and exits 0; an open PR is adopted and merged explicitly (ship merges with --match-head-commit, it does not enable auto-merge)."
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "ship never gives up on a transient gh failure after push and resumes an existing PR",
