@@ -54,6 +54,8 @@ function receiver(options: {
   /** Fetches after which origin/<base> is ahead of the head: each moves the base once, the rebase catches up. */
   baseMoves?: number;
   rebaseExit?: number;
+  /** The `gh run list --commit` statuses of the head, per ask; the last one repeats. */
+  runs?: string[][];
 }) {
   let time = 0;
   let behind = options.baseMoves ?? 0;
@@ -61,8 +63,13 @@ function receiver(options: {
   const calls: string[] = [];
   const dirs: string[] = [];
   const pulls = [...options.pulls];
+  const runs = [...(options.runs ?? [[]])];
   const answer = (a: string[]): string => {
     calls.push(`gh ${a.join(' ')}`);
+    if (a[0] === 'run' && a[1] === 'list') {
+      const next = runs.length > 1 ? runs.shift() : runs[0];
+      return JSON.stringify((next ?? []).map((status) => ({ status })));
+    }
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('--search'))
       return options.carrier ?? '';
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('merged'))
@@ -1056,6 +1063,19 @@ test('a pending Check exits 75 at the bound and a Check that never starts exits 
     return true;
   });
   assert.ok(absent.calls.filter((c) => c.startsWith('gh pr view')).length < 40);
+});
+
+test('a run queued past the start bound is awaited, not refused, and a Check that then starts merges', async () => {
+  const none = { ...auto, statusCheckRollup: [] };
+  // The rollup stays empty past 300 s while GitHub lists the run queued, then the Check concludes.
+  const r = receiver({
+    pulls: [...Array(40).fill(none), auto, merged],
+    runs: [['queued']],
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(r.now() > 300_000, `${r.now()} ms waited`);
+  assert.ok(r.calls.some((c) => c.startsWith('gh run list')));
 });
 
 test('a head that moved while the PR waited exits 77', async () => {
