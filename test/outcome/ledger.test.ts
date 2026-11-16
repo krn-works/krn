@@ -395,3 +395,19 @@ test('mapLimited keeps input order and never runs more than the limit at once', 
   assert.equal(peak, 2);
   assert.deepEqual(await ledger.mapLimited([], 4, async () => 1), []);
 });
+
+test('the merged-PR list call gets a timeout sized for its row count', async () => {
+  // Measured 2026-11-16: `gh pr list --state merged --limit 420 --json ...`
+  // answered in 3.3 s, so 1,020 rows need about 8 s, past the 5 s call budget
+  // that made `krn ledger --limit 1000` exit 70.
+  const perRow = 3300 / 420;
+  for (const rows of [35, 420, 1020]) {
+    assert.ok(ledger.listTimeoutMs(rows) >= 5000, String(rows));
+    assert.ok(ledger.listTimeoutMs(rows) >= 2 * perRow * rows, String(rows));
+  }
+  // A call past its budget is killed by execFile, which the ledger reports as a timeout.
+  await assert.rejects(
+    ledger.callRun(100)(process.execPath, ['-e', 'setTimeout(() => {}, 2000)']),
+    (error: Error & { killed?: boolean }) => error.killed === true,
+  );
+});
