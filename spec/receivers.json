@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "modules": {
+    "src/cli/doctor-hooks.ts": {
+      "receivers": ["node"],
+      "real": "test/cli/doctor-hooks.test.ts"
+    },
     "src/cli/outside-git.ts": {
       "receivers": ["git"],
       "real": "test/cli/outside-git.test.ts"

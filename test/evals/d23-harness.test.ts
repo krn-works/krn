@@ -239,7 +239,7 @@ test('a replay clone with the harness laid over its parent refuses Stop with exi
       readFileSync(join(dir, '.claude/settings.json'), 'utf8'),
     ) as { hooks: { Stop: { hooks: { command: string }[] }[] } };
     const command = settings.hooks.Stop[0]?.hooks[0]?.command ?? '';
-    assert.match(command, /src\/hook\/stop\.ts/u);
+    assert.match(command, /src\/dispatch\/main\.ts" stop/u);
     const stop = (extra: string) =>
       spawnSync('sh', ['-c', command], {
         cwd: dir,

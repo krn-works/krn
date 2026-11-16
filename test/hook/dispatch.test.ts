@@ -67,8 +67,8 @@ test('the timing log names the routes that matched the tool and nothing else', (
     log,
   );
   const rows = readFileSync(log, 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .map((line) => JSON.parse(line));
   assert.equal(rows.length, 2);
   assert.deepEqual(
