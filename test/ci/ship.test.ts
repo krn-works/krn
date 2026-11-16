@@ -819,6 +819,65 @@ test('a head that moved while the PR waited exits 77', async () => {
   });
 });
 
+test('a superseded failed Check run beside a newer green one for the same head merges', async () => {
+  // Verbatim `gh pr view 1158 --json headRefOid,statusCheckRollup`: run 43813499494 failed first, rerun 43813694201 passed.
+  const real = JSON.parse(
+    capture(
+      'fixtures/gh',
+      'pr-1158-superseded-rollup',
+    ).streams.stdout?.toString('utf8') ?? '',
+  ) as { headRefOid: string };
+  const r = receiver({ pulls: [{ ...real, ...auto }, merged] });
+  const inner = r.run;
+  const out = await shipCommand(args, {
+    ...r,
+    run: (command: string, a: string[], at?: string) =>
+      command === 'git' && a.join(' ') === 'rev-parse HEAD'
+        ? { code: 0, stdout: `${real.headRefOid}\n`, stderr: '' }
+        : inner(command, a, at),
+  });
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('a cancelled older run beside a newer green one merges, a cancelled newest run says cancelled', async () => {
+  const run = (conclusion: string, startedAt: string, id: number) => ({
+    name: 'Check',
+    status: 'COMPLETED',
+    conclusion,
+    startedAt,
+    detailsUrl: `https://github.com/o/r/actions/runs/${id}/job/1`,
+  });
+  const older = run('CANCELLED', '2026-11-16T06:01:31Z', 1);
+  const newer = run('SUCCESS', '2026-11-16T06:03:13Z', 2);
+  for (const rollup of [
+    [older, newer],
+    [newer, older],
+  ]) {
+    const r = receiver({
+      pulls: [{ ...auto, statusCheckRollup: rollup }, merged],
+    });
+    const out = await shipCommand(args, r);
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  }
+  const cancelled = receiver({
+    pulls: [
+      {
+        ...auto,
+        statusCheckRollup: [
+          run('SUCCESS', '2026-11-16T06:01:31Z', 1),
+          run('CANCELLED', '2026-11-16T06:03:13Z', 2),
+        ],
+      },
+    ],
+  });
+  await assert.rejects(shipCommand(args, cancelled), (e: Failure) => {
+    assert.equal(e.exitCode, 74);
+    assert.match(e.message, /^verdict: cancelled: /mu);
+    assert.match(e.message, /Check concluded cancelled on a{40} in run 2/u);
+    return true;
+  });
+});
+
 test('the captured rollup of a plain-gh PR reads as a successful aggregate Check and waits for the merge', async () => {
   // Verbatim `gh pr view --json headRefOid,statusCheckRollup` of PR 1112; state and autoMergeRequest are the PR's own.
   const real = JSON.parse(

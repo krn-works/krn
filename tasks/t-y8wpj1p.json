@@ -1,7 +1,11 @@
 {
   "id": "t-y8wpj1p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship test: captured rollup of PR 1158 head (failed run then green rerun) merges; cancelled older run merges; cancelled newest run prints verdict: cancelled"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Ship ignores a cancelled superseded Check run",
