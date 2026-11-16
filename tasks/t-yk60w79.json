@@ -1,0 +1,18 @@
+{
+  "id": "t-yk60w79",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pruneMergedLanes skips ship records younger than PRUNE_GRACE_MS (30 min); test/hook/stop-merged-lane.test.ts covers fresh vs aged"
+  },
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Lane start keeps a just-merged lane worktree for a grace period",
+  "after": [],
+  "body": [
+    "Outcome: krn lane start does not prune a merged lane worktree whose ship record is younger than a grace period, so a lane session still running there keeps its cwd.\nWhy: 2026-11-16 the t-vs35jd7 and t-4k4yjzj lanes' Stop hooks failed (spawn ENOENT, run.stdout undefined) because another lane's krn lane start pruned their just-merged worktrees while the sessions were still ending.\nProof: node --test test/hook/stop-merged-lane.test.ts: a fresh ship is kept, one older than PRUNE_GRACE_MS is pruned."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
