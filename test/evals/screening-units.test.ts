@@ -1,14 +1,24 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
 import {
+  cacheOverLimit,
   commandsFor,
+  dirBytes,
   type ManifestRow,
+  pruneCache,
   readManifest,
   unitId,
   type Verification,
@@ -124,4 +134,47 @@ test('every committed screening unit is verified, loads, and is eligible for the
     eligible(loaded.map((u) => u.unit as ScreenUnit)).length,
     loaded.length,
   );
+});
+
+test('cache pruning takes a cache above the cap below it, read-only module files included', () => {
+  const root = mkdtempSync(join(tmpdir(), 'screen-cache-'));
+  const fill = (dir: string, files: number, ro: boolean) => {
+    mkdirSync(join(root, dir, 'sub'), { recursive: true });
+    for (let i = 0; i < files; i++)
+      writeFileSync(join(root, dir, 'sub', `f${i}`), Buffer.alloc(1000));
+    if (ro) {
+      for (let i = 0; i < files; i++)
+        chmodSync(join(root, dir, 'sub', `f${i}`), 0o444);
+      chmodSync(join(root, dir, 'sub'), 0o555);
+    }
+  };
+  fill('go-mod', 10, true);
+  fill('go-build', 6, false);
+  fill('npm', 2, false);
+  const lim = {
+    capBytes: dirBytes(join(root, 'go-build')) + dirBytes(join(root, 'npm')),
+    freeFloorBytes: 0,
+  };
+  assert.equal(cacheOverLimit(root, lim), true);
+  const removed = pruneCache(root, lim);
+  assert.deepEqual(removed, ['go-mod']);
+  assert.ok(dirBytes(root) <= lim.capBytes);
+  assert.equal(cacheOverLimit(root, lim), false);
+  assert.deepEqual(pruneCache(root, lim), []);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('cache pruning continues while free disk is under the floor', () => {
+  const root = mkdtempSync(join(tmpdir(), 'screen-cache-'));
+  for (const d of ['a', 'b']) {
+    mkdirSync(join(root, d));
+    writeFileSync(join(root, d, 'f'), Buffer.alloc(100));
+  }
+  const lim = { capBytes: 1e9, freeFloorBytes: 10 };
+  let free = 0;
+  const fake = () => free;
+  assert.equal(cacheOverLimit(root, lim, fake), true);
+  const removed = pruneCache(root, lim, () => (free += 6));
+  assert.equal(removed.length, 1);
+  rmSync(root, { recursive: true, force: true });
 });
