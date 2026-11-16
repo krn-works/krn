@@ -91,7 +91,9 @@ test('GitHub bounds each call and retries a timed-out call as transient', async 
   );
   assert.equal(output, 'ok');
   assert.deepEqual(bounds, [api.GH_CALL_TIMEOUT_MS, api.GH_CALL_TIMEOUT_MS]);
-  assert.equal(api.GH_CALL_TIMEOUT_MS, 10_000);
+  // A loaded host spends seconds starting the app-token wrapper; 10 s cut healthy calls.
+  assert.ok(api.GH_CALL_TIMEOUT_MS >= 30_000);
+  assert.ok(api.GH_LOG_TIMEOUT_MS > api.GH_CALL_TIMEOUT_MS);
   assert.deepEqual(waits, [1000]);
   const logBounds: Array<number | undefined> = [];
   await api.github(['run', 'view', '1', '--log-failed'], '.', (...call) => {
