@@ -161,9 +161,14 @@ export async function screenUnit(
   } catch {
     local(clone, 'fetch', '-q', 'origin', unit.base);
   }
+  // The session gets its own repository holding only the unit.base commit and no remote: a worktree of the clone
+  // reached origin/main and the reference fix through shared refs and objects (unit t-13axy56 read the upstream fix).
+  // Depth 1 because the clones are partial: only the base tree's blobs are present locally.
   const wt = mkdtempSync(join(o.scratch, 'session-'));
-  rmSync(wt, { recursive: true });
-  local(clone, 'worktree', 'add', '-q', '--detach', wt, unit.base);
+  local(wt, 'init', '-q');
+  local(wt, 'fetch', '-q', '--no-tags', '--depth', '1', clone, unit.base);
+  local(wt, 'checkout', '-q', '--detach', unit.base);
+  rmSync(join(wt, '.git', 'FETCH_HEAD'), { force: true });
   try {
     const session = await withSessionSlot(
       () => runClaude(wt, promptOf(unit), env, o.sessionMs ?? 30 * 60_000, log),
@@ -184,7 +189,7 @@ export async function screenUnit(
       harness: o.harness,
     };
   } finally {
-    if (existsSync(wt)) local(clone, 'worktree', 'remove', '--force', wt);
+    rmSync(wt, { recursive: true, force: true });
   }
 }
 
