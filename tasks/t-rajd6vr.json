@@ -1,7 +1,11 @@
 {
   "id": "t-rajd6vr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "foreignPr Stop check refuses a report naming a PR whose headRefName differs from the lane branch; test/hook/stop.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A lane reports only its own PR's ship verdict",

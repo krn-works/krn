@@ -42,6 +42,7 @@ import {
 export { withinPackage };
 
 import { statesBlocker } from '../brain/proof-line.ts';
+import { ghApiSync } from '../repo/gh.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
@@ -1031,6 +1032,42 @@ export function shippedMerge(root: string, message: unknown): boolean {
   return sha !== undefined && onBase(root, sha);
 }
 
+/** The head branch of a pull request, or undefined when gh cannot say (a check that cannot look never blocks). */
+export function prHeadBranch(root: string, pr: number): string | undefined {
+  const viewed = ghApiSync(root, `repos/{owner}/{repo}/pulls/${pr}`);
+  if (viewed.status !== 0) return undefined;
+  try {
+    const head = (JSON.parse(viewed.stdout) as { head?: { ref?: unknown } })
+      .head?.ref;
+    return typeof head === 'string' && head !== '' ? head : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A lane reports its own PR only (t-rajd6vr: a lane ended "#1183 merged 5858a69", another lane's PR, while
+ * its own #1186 was open). Every `#<n>` on a line of the final message that says merged or carries `pr:` is
+ * looked up; a PR whose head branch is not one of the lane's branches is refused, naming both.
+ */
+export function foreignPr(
+  message: unknown,
+  own: readonly string[],
+  headOf: (pr: number) => string | undefined,
+): string | undefined {
+  if (typeof message !== 'string' || own.length === 0) return undefined;
+  for (const line of message.split('\n')) {
+    if (!/\bmerged\b|^[\s>*`-]*pr:/iu.test(line)) continue;
+    for (const match of line.matchAll(/#(\d{1,7})\b/gu)) {
+      const pr = Number(match[1]);
+      const head = headOf(pr);
+      if (head !== undefined && !own.includes(head))
+        return `Stop refused: your report names PR #${pr}, whose head branch is ${head}, not your lane branch ${own[0]}. Report only the PR your own branch carries (\`gh pr list --head ${own[0]}\`) and the verdict line from your own \`krn pr ship\` output or a log under your worktree, or end with a line \`BLOCKER: <what stops you>\`.`;
+    }
+  }
+  return undefined;
+}
+
 function onBase(root: string, sha: string): boolean {
   const named = loadContract(root).contract?.base ?? 'main';
   const merged = () =>
@@ -1197,6 +1234,7 @@ export function judgeStop(
   shell: CommandRunner = runCommand,
   standards: StandardsRunner = standardsBlockers,
   outcomeJudge: JudgeCall = claudeJudge,
+  headOf: (root: string, pr: number) => string | undefined = prHeadBranch,
 ): string | undefined {
   const fields = payload as {
     cwd?: unknown;
@@ -1205,18 +1243,27 @@ export function judgeStop(
   } | null;
   // A krn-lane subagent shares the lead's CLAUDE_PROJECT_DIR; its own checkout is the payload cwd.
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
-  const root = ownerCheckout(
-    resolve(
-      subagent
-        ? laneWorktree(fields?.cwd as string, payload)
-        : (env.CLAUDE_PROJECT_DIR ??
-            (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
-    ),
+  const start = resolve(
+    subagent
+      ? laneWorktree(fields?.cwd as string, payload)
+      : (env.CLAUDE_PROJECT_DIR ??
+          (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
   );
+  const root = ownerCheckout(start);
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
+  const lane = start.split(`${sep}.krn${sep}worktrees${sep}`)[1]?.split(sep)[0];
+  const current = existsSync(start)
+    ? git(start, ['branch', '--show-current']).stdout.trim()
+    : '';
+  const foreign = foreignPr(
+    fields?.last_assistant_message,
+    [lane ?? '', current, branch].filter((name) => name !== ''),
+    (pr) => headOf(root, pr),
+  );
+  if (foreign !== undefined) return foreign;
   if (subagent && shippedMerge(root, fields?.last_assistant_message))
     return undefined;
   if (recordedShip(root, env, branch)) return undefined;
