@@ -402,7 +402,7 @@ const cases: Case[] = [
   },
   {
     id: 's-no-shared-stash',
-    base: node,
+    base: tracked,
     red: { 'scripts.sh': 'git stash\nmake test\ngit stash pop\n' },
     green: { 'scripts.sh': 'git stash list\ngit commit -am wip\n' },
   },

@@ -883,7 +883,7 @@
     "id": "s-no-shared-stash",
     "type": "standard",
     "area": "lanes",
-    "layer": "universal",
+    "layer": "krn-delivery",
     "audience": "worker",
     "tier": "reflex",
     "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
@@ -922,8 +922,7 @@
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null,
-    "supersedes": [],
-    "universal": true
+    "supersedes": []
   },
   {
     "id": "s-task-records",
@@ -3888,7 +3887,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-args-only",
@@ -3931,7 +3931,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-layout-allowlist",
@@ -3974,7 +3975,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-content-not-looks",
@@ -4017,7 +4019,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-modified-bump",
@@ -4060,7 +4063,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-empty-array",
@@ -4103,7 +4107,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-acf-keep-keys",
@@ -4146,7 +4151,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-wp-escape-output",
@@ -4189,7 +4195,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-token-values",
@@ -4232,7 +4239,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-no-clamp",
@@ -4275,7 +4283,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-specificity",
@@ -4318,7 +4327,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-data-exception",
@@ -4361,7 +4371,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-no-block-min-height",
@@ -4404,7 +4415,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-already-owned",
@@ -4447,7 +4459,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-css-layer-owner",
@@ -4490,7 +4503,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-review-new-names",
@@ -4538,7 +4552,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-design-scale-values",
@@ -4586,7 +4601,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "frontend"
+    "area": "frontend",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-deploy-tooling-pin",
@@ -4629,7 +4645,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-deploy-wpcli-core-path",
@@ -4672,7 +4689,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-wp-never-mutate-production",
@@ -4715,7 +4733,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "wordpress"
+    "area": "wordpress",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-annotate-edge",
@@ -4758,7 +4777,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-parse-at-edge",
@@ -4801,7 +4821,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-discriminated-unions",
@@ -4844,7 +4865,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-isolate-casts",
@@ -4887,7 +4909,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-narrow-exports",
@@ -4930,7 +4953,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-simple-types",
@@ -4973,7 +4997,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-prove-types",
@@ -5016,7 +5041,8 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-gate-lint-runs",

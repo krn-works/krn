@@ -432,7 +432,7 @@ async function read(path: string) {
     return '';
   }
 }
-async function walk(
+export async function walk(
   root: string,
   depth = 0,
 ): Promise<{ files: string[]; dirs: string[] }> {

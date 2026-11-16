@@ -1,7 +1,11 @@
 {
   "id": "t-cbsn9kz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "harvest --from-ledger --dry-run lists 49 proposals: ci 1, review 39, operator-verbatim 9, hidden-test 0; tests in test/brain/evidence-proposals.test.ts"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Delivered evidence proposes records (S15)",
