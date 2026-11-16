@@ -1,0 +1,19 @@
+{
+  "id": "t-20vrr8j",
+  "repo": "kenn-io/forge",
+  "base": "b8a6707a20d435516db0fa6d73e08a4eb7f37cbb",
+  "reference": "67e951fc98d3814ddd27fe6ff3d68336dc39ec0f",
+  "task": {
+    "title": "Unknown non-GET paths return 200 with the app's HTML",
+    "body": "Forge answers a POST, PUT, or DELETE to any unknown path outside `/api/` with `200 OK` and the app's HTML, so a mistyped mutation looks like it worked. `kenn-forge api DELETE <path>` then prints the page and exits 0.\n\nThe SPA fallback in `internal/server/compression/spa_handler.go` should serve `index.html` only for GET and HEAD, and return 404 (or 405) for other methods. Browser navigation only ever sends GET, so the fallback loses nothing.\n\nReproduce on v0.4.0-73-g642b9c89d (same handler on `main` at e64c88ff8):\n\n```\ncurl -s -o /dev/null -w '%{http_code}\\n' -X DELETE http://127.0.0.1:8091/repo/github/owner/name\n200\n```\n\nI hit this from Git Bash on Windows, which rewrites a leading-slash argument to a native exe into a Windows path (`/api/v1/repo/...` becomes `C:/Program Files/Git/api/v1/repo/...`). The request left `/api/`, landed on the fallback, and came back 200, so a repo removal looked done while nothing changed. `MSYS_NO_PATHCONV=1` gets the real 404 or 204.\n"
+  },
+  "spec": "Unknown non-GET paths return 200 with the app's HTML",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/server/accessservertest/spa_handler_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/server/accessservertest/",
+  "committed": "2026-10-27",
+  "issue": "https://github.com/kenn-io/forge/issues/1551"
+}

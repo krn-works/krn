@@ -1,0 +1,19 @@
+{
+  "id": "t-1xtk34n",
+  "repo": "git-pkgs/git-pkgs",
+  "base": "73515f7ae8448b2a926af1e0960e18a6f914875a",
+  "reference": "388fb9d3b7d1cb0328cbdda03883c6f6d191f7bb",
+  "task": {
+    "title": "`vulns exposure --branch` defaults to working-tree HEAD instead of the selected branch tip",
+    "body": "`git pkgs vulns exposure` has the same branch/ref mismatch that #346 reported for `vulns blame` (fixed in #350).\n\n`runVulnsExposure` resolves `--branch` to a database branch, then defaults `--ref` to the working tree `HEAD`:\n\n```go\nbranch, err := resolveBranch(db, branchName)\n...\ntargetRef := ref\nif targetRef == \"\" {\n    targetRef = refHEAD\n}\n...\nvulns, err = getVulnsAtRef(repo, db, branch.ID, targetRef, ecosystem, ecosystemFilter)\n```\n\n(`cmd/vulns.go:2036-2046`)\n\nRunning `git pkgs vulns exposure --branch feature` while `main` is checked out queries the `feature` branch history at `main`'s tip commit. If that commit is not in `feature`'s `branch_commits` the result is empty; if it is an ancestor the result reflects an older snapshot. The no-flag default hits the same case whenever the checked-out branch differs from the database's default tracked branch.\n\nThe fix is the same shape as #350: when `--ref` is not given, use `branch.LastAnalyzedSHA` instead of `refHEAD`. An explicit `--ref` should keep resolving through `getVulnsAtRef` as it does now."
+  },
+  "spec": "`vulns exposure --branch` defaults to working-tree HEAD instead of the selected branch tip",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "cmd/vulns_exposure_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./cmd/",
+  "committed": "2026-09-16",
+  "issue": "https://github.com/git-pkgs/git-pkgs/issues/354"
+}

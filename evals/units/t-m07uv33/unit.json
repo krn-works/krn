@@ -1,0 +1,19 @@
+{
+  "id": "t-m07uv33",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "b5ff80c082001f3705ed7ae114a2b25b31b283a9",
+  "reference": "07aa52c8fb6d0d2659dbfeecca242349990e7be2",
+  "task": {
+    "title": "A Zod schema imported from outside schemaDir becomes a $ref to a component that is never defined",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0`\n\n### Description\n\nA Zod schema that a schema file imports from a module outside `schemaDir` (and outside the route files) is emitted as a `$ref` to a component that is never defined. The spec has a dangling reference, and client generators fail on it (hey-api: `Reference not found: #/components/schemas/addressSchema`).\n\n### Minimal Reproduction\n\n```ts\n// src/shared/address.ts (outside schemaDir)\nimport { z } from \"zod\";\nexport const addressSchema = z.object({ city: z.string() });\n```\n\n```ts\n// src/schemas/customers.ts (schemaDir: \"./src/schemas\")\nimport { z } from \"zod\";\nimport { addressSchema } from \"../shared/address\";\nexport const customerSchema = z.object({ name: z.string(), address: addressSchema });\n```\n\nUsed as a route's `@response customerSchema`.\n\n### Actual Output\n\n```json\n\"customerSchema\": {\n  \"type\": \"object\",\n  \"properties\": {\n    \"name\": { \"type\": \"string\" },\n    \"address\": { \"$ref\": \"#/components/schemas/addressSchema\" }\n  }\n}\n```\n\nwith no `addressSchema` in `components.schemas`.\n\n### Expected Output\n\n`addressSchema` is defined in `components.schemas` (`{ type: \"object\", properties: { city: … } }`), as it is when it lives in `schemaDir`.\n\n### Cause\n\n`convertZodSchemaToOpenApi` looks for a schema in the reverse index, then `schemaDir`, then the route files. The file that references the schema already knows where it comes from through its imports, but that isn't consulted, so the lookup returns `null` while the identifier is still emitted as a `$ref`.\n"
+  },
+  "spec": "A Zod schema imported from outside schemaDir becomes a $ref to a component that is never defined",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/schema/zod/zod-converter.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/235"
+}

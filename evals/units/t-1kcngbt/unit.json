@@ -1,0 +1,19 @@
+{
+  "id": "t-1kcngbt",
+  "repo": "microsoft/dcp",
+  "base": "0fa5d16db929d278ebe6eeca01dde02f2d3630ed",
+  "reference": "6c9f6fd214bafae81360ef6d7caed56a4faf0b89",
+  "task": {
+    "title": "Container runtime is reported unhealthy when `docker --version` takes longer than 2 seconds",
+    "body": "DCP considers the container runtime unhealthy when `docker --version` does not finish within 2 seconds (`dockerVersionCommandTimeout` in `internal/docker/cli_orchestrator.go`, unchanged on `main`). A container that is reconciled in that window goes to `RuntimeUnhealthy` (`controllers/container_controller.go`). @flojon analyzed this, with a deterministic reproduction, in microsoft/aspire#19570. I found no issue for it in this repository, so this adds the DCP side and data from another platform.\n\nEnvironment: GitHub-hosted macOS Intel runner (4 vCPU), Docker engine in a Lima/QEMU VM, DCP 0.26.5 (Aspire 13.6.1).\n\n**Observed (logs)**\n\n- The DCP debug logs of 25 CI sessions contain 714 runs of `docker --version`: median 0.06 s, 95th percentile 0.64 s, 3 over 2 s (maximum 2.37 s).\n- One session (passed) shows the sequence:\n\n  ```\n  15:47:56.318 Running Docker command ... docker --version\n  15:47:56.951 Process started successfully                (0.63 s after the command was issued)\n  15:47:58.321 Context expired, stopping process...        (the 2 s limit)\n  15:47:59.752 NetworkReconciler: Container runtime is not healthy, retrying reconciliation later...\n  ```\n- In 3 of the 25 sessions DCP logged \"Container runtime is not healthy\", each time for the container network, which DCP retried (the tests passed). In none of them did a container reach `RuntimeUnhealthy`.\n- In two earlier CI runs of one sample (no DCP log was captured), a container went from `Starting` to `RuntimeUnhealthy` after 0.2 s and 1.8 s, and everything that waited for it failed immediately.\n\n**Assumed (not shown)**\n\n- That those two failures were caused by this check. The signature matches, but I do not know which command failed.\n- That the three slow calls belong to the three sessions where the runtime was reported unhealthy; I did not match them.\n\n**Suggestion**\n\nOne of the options already listed in microsoft/aspire#19570, for example treating a `--version` timeout as \"version unknown\" instead of \"not running\", or retrying once before reporting `Running: false`."
+  },
+  "spec": "Container runtime is reported unhealthy when `docker --version` takes longer than 2 seconds",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/docker/cli_orchestrator_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/docker/",
+  "committed": "2026-10-26",
+  "issue": "https://github.com/microsoft/dcp/issues/300"
+}

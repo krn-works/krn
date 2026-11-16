@@ -1,0 +1,19 @@
+{
+  "id": "t-2jrj59l",
+  "repo": "jasonfen/terminal-space-program",
+  "base": "e17e57a1771cde43a4a2c4f9e156d962d47d1580",
+  "reference": "29bb83f4dd0bd5d7c7f9e77d88ac70f78c089a2d",
+  "task": {
+    "title": "Orbit view: curve cache cap of 64 makes render cost jump past ~26 vessels",
+    "body": "Orbit-view render cost jumps between 26 and 50 vessels in one system because the orbit-line geometry cache is capped at 64 curves (`curveCacheCap`, `internal/tui/widgets/canvas_curve_cache.go:61`).\n\n**Measured (2026-10-22, #710 perf pass, 140x40 tmux):**\n- `OrbitView.Render`: 2.3-2.6 ms flat up to 26 vessels, 5.5 ms at 50.\n- Orbit view CPU at 1x warp: 1.05x the 1-vessel cost at 26 vessels, 1.60x at 50.\n- With the cap raised to 256 in a scratch build, the 50-vessel render went back to 2.7 ms.\n\n**To do:** find the vessel count where the cache starts missing (curves per vessel), size the cap for the #710 batch (about 24-29 satellites plus carrier and debris, with margin), and check memory per entry before raising it (the v0.36 cache review found 28-81 MB unbounded growth in an earlier cache). Keep the cached-vs-truth test honest (prove it red with a key sabotage).\n\nContext: #710 (Starlink-style batch launch).\n"
+  },
+  "spec": "Orbit view: curve cache cap of 64 makes render cost jump past ~26 vessels",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/tui/screens/orbit_curve_cache_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+  "committed": "2026-10-24",
+  "issue": "https://github.com/jasonfen/terminal-space-program/issues/729"
+}

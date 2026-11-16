@@ -1,0 +1,19 @@
+{
+  "id": "t-2bajtah",
+  "repo": "undistro/zora",
+  "base": "4775630f30b4e45f73eebb881287edf9e89f2159",
+  "reference": "1fcf8357259f040c4b1efb7e3507658d1c5ff39b",
+  "task": {
+    "title": "Configuration of Marvin / Popeye / Trivy plugins violates PSS",
+    "body": "## Description\nZora provides the necessary options to configure securityContexts such that the helm installation does not - violate any PSS policies enforced, for example, by a RKE2 cluster with the CIS profile enabled and/or Kyverno PSS-enforcing policies. However, these options are not available for all resources that the Zora chart creates, specifically, it is missing for the jobs launched by the Marvin, Popeye and Trivy plugins.\n\nExample: I can drop all capabilities and set a seccompProfile for the operator and the token refresher via `operator.securityContext` and `tokenRefresh.securityContext`, respectively, but there is no equivalent option for Marvin, Popeye or Trivy. A notable exception is the `trivy-download-db` job because it seems like in `trivy-job.yaml`, the securityContext is by default already configured in a way that passes PSS.\n\nIt would be nice to have configuration options for customizing the security context of (jobs launched by) Marvin, Popeye and Trivy in `values.yaml`. Note that the security context must be set correctly for **all** containers in the job pod, e.g. in the case of Marvin, the containers `checks`, `worker` and `marvin` all need the config.\n\nA possible workaround would be to introduce a namespace exemption for `zora-system` in `rke2-pss.yaml` and/or Kyverno, but of course that's not really a solution, unless the mentioned jobs necessarily need certain capabilities not allowed by PSS in order to work correctly.\n\n## How to Reproduce\n- apply the Pod Security Standards (`admissionconfiguration.apiserver.config.k8s.io/v1`) at the 'restricted' level to a Kubernetes cluster (more info: https://kubernetes.io/docs/concepts/security/pod-security-standards). Alternatively, configure a third-party policy engine like Kubewarden, Kyverno or OPA Gatekeeper to enforce PSS policies.\n- install Zora using the Helm chart, and configure `operator` and `tokenRefresh` with a security context that drops all capabilities and sets the `seccompProfile` type to `RuntimeDefault`.\n- run `kubectl -n zora-system describe job <marvin, popeye or trivy job>` and see the admission failures due to PSS-violating security contexts\n\n## Expected Behavior\nOne of the following:\n- security context of jobs created by the scanner plugins is configurable by helm chart values\n- security context of jobs created by the scanner plugins is by default configured to pass restricted PSS (see 'trivy-download-db` job)\n- the jobs cannot function correctly under restricted PSS, therefore an exemption needs to be made, and this fact is documenter somewhere in the Zora docs\n\n## System Information\n - OS: Ubuntu Linux\n - Kubernetes Distro: RKE2 v1.35.2+rke2r1\n - Zora: v0.10.8"
+  },
+  "spec": "Configuration of Marvin / Popeye / Trivy plugins violates PSS",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/plugins/cronjob_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/plugins/",
+  "committed": "2026-08-26",
+  "issue": "https://github.com/undistro/zora/issues/337"
+}

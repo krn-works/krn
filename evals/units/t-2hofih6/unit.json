@@ -1,0 +1,19 @@
+{
+  "id": "t-2hofih6",
+  "repo": "opensearch-project/opensearch-go",
+  "base": "451ef7e9a36ec918edd80be11a7fe959ee04d2e2",
+  "reference": "37714d6e2de1d6cd886113bf89264a80ac2d285d",
+  "task": {
+    "title": "Caller cancellation incorrectly marks healthy nodes as failed",
+    "body": "A request canceled by its caller is treated as a node failure. When `RoundTrip` returns an error after the caller's context is canceled, the transport calls `OnFailure`, demotes the selected node, and invalidates its shard placement.\n\nCaller cancellation alone does not indicate a node failure. This can unnecessarily reduce the available connection pool and trigger recovery work.\n\nReproduced on commit `451ef7e9a36ec918edd80be11a7fe959ee04d2e2` (client version `5.1.3`), using Go `1.27.1` on macOS/arm64. No running OpenSearch cluster is required.\n\nSave this example as `/tmp/repro.go` and run it from an unmodified checkout of the affected revision:\n\n```sh\nOPENSEARCH_GO_ROUTER=false go run /tmp/repro.go\n```\n\nThe router is disabled to isolate the connection pool and make its metrics deterministic. The custom HTTP transport cancels the caller's context during the request; it performs no network requests.\n\n```go\npackage main\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"time\"\n\n\t\"github.com/opensearch-project/opensearch-go/v5/opensearchtransport\"\n)\n\ntype roundTripFunc func(*http.Request) (*http.Response, error)\n\nfunc (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {\n\treturn f(r)\n}\n\nfunc check(err error) {\n\tif err != nil {\n\t\tpanic(err)\n\t}\n}\n\nfunc main() {\n\tctx, cancel := context.WithCancel(context.Background())\n\tdefer cancel()\n\n\ttr, err := opensearchtransport.New(opensearchtransport.Config{\n\t\tURLs: []*url.URL{\n\t\t\t{Scheme: \"http\", Host: \"node-a.invalid:9200\"},\n\t\t\t{Scheme: \"http\", Host: \"node-b.invalid:9200\"},\n\t\t},\n\t\tDisableRetry:            true,\n\t\tDiscoverNodesInterval:   -1,\n\t\tNodeStatsInterval:       -1,\n\t\tResurrectTimeoutInitial: time.Hour,\n\t\tResurrectTimeoutMax:     time.Hour,\n\t\tMinimumResurrectTimeout: time.Hour,\n\t\tTransport: roundTripFunc(func(r *http.Request) (*http.Response, error) {\n\t\t\tcancel()\n\t\t\treturn nil, r.Context().Err()\n\t\t}),\n\t})\n\tcheck(err)\n\tdefer tr.Close()\n\n\treq, err := http.NewRequestWithContext(ctx, http.MethodGet, \"/\", nil)\n\tcheck(err)\n\t_, requestErr := tr.Stream(req)\n\n\tmetrics, err := tr.Metrics()\n\tcheck(err)\n\tfmt.Printf(\"canceled=%t\\n\", errors.Is(requestErr, context.Canceled))\n\tfmt.Printf(\"live=%d dead=%d demoted=%d\\n\",\n\t\tmetrics.LiveConnections, metrics.DeadConnections, metrics.ConnectionsDemoted)\n}\n```\n\nActual output:\n\n```text\ncanceled=true\nlive=1 dead=1 demoted=1\n```\n\nExpected output:\n\n```text\ncanceled=true\nlive=2 dead=0 demoted=0\n```\n\nThe request should still return an error matching `context.Canceled`, but cancellation alone should not demote the node or invalidate its shard placement. The same distinction should apply when the caller's deadline expires.\n\nThe existing caller-context check in `roundTripAttempt` already prevents connection draining for caller cancellation. However, the subsequent error handling in `stream` still calls `OnFailure` and requests a shard-placement refresh. Genuine network failures and client-generated per-attempt timeouts should retain their existing handling."
+  },
+  "spec": "Caller cancellation incorrectly marks healthy nodes as failed",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "opensearchtransport/caller_cancellation_internal_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./opensearchtransport/",
+  "committed": "2026-10-28",
+  "issue": "https://github.com/opensearch-project/opensearch-go/issues/1253"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-1p5tq1q",
+  "repo": "jasonfen/terminal-space-program",
+  "base": "49706078be33c1df8585e25af5f011f488b79eb6",
+  "reference": "2fae096e533b36ec15ff62b16e45271a0dfd2195",
+  "task": {
+    "title": "ENGINE box says 'will not lift' on a vessel already in orbit",
+    "body": "## What the player sees\n\nWith the new default start (\\`Apollo TLI-1\\`, 126.9 t on the S-IVB's 1023 kN, slice F of ADR 0053, #646), every new game opens with the ENGINE box reading \\`TWR 0.82 (max 0.82, will not lift)\\` in red while the vessel is in orbit. Nothing needs to lift; the warning reads as if something is wrong with the start vessel.\n\n## Why\n\n\\`engineTWRCell\\` (\\`internal/tui/screens/orbit_box_engine.go\\`) computes TWR against the primary's surface gravity and shows \"will not lift\" whenever max TWR < 1.0, wherever the vessel is (ADR 0051 decision 13b). Pre-existing for any low-TWR vessel in orbit; the new default start just makes it the first thing a new player sees.\n\n## To triage\n\nTWR < 1 still matters near a surface (a descent that can't be stopped), so \"only when Landed\" may be too narrow. Options: say it only when Landed or below some altitude, or reword in orbit (e.g. a neutral TWR without the verdict). Decision 13b of ADR 0051 owns this row."
+  },
+  "spec": "ENGINE box says 'will not lift' on a vessel already in orbit",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/tui/screens/orbit_box_engine_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/tui/screens/",
+  "committed": "2026-10-15",
+  "issue": "https://github.com/jasonfen/terminal-space-program/issues/648"
+}

@@ -1,0 +1,514 @@
+/* eslint-disable jsdoc/reject-any-type */
+import assert from "node:assert/strict";
+import { after, before, beforeEach, describe, it, mock } from "node:test";
+
+import { MockAgent, setGlobalDispatcher } from "undici";
+
+import { silentError } from "../../glean/generated/error.js";
+import { fetched } from "../../glean/generated/getDoc.js";
+import clipboardDoc from "../fixtures/clipboard-api.json" with { type: "json" };
+import glossaryDoc from "../fixtures/glossary.json" with { type: "json" };
+import headersDoc from "../fixtures/headers.json" with { type: "json" };
+import kitchensinkDoc from "../fixtures/kitchensink.json" with { type: "json" };
+import { createClient, createServer } from "../helpers/client.js";
+
+describe("get-doc tool", () => {
+  /** @type {Awaited<ReturnType<createServer>>} */
+  let server;
+  /** @type {Awaited<ReturnType<createClient>>} */
+  let client;
+  /** @type {import("undici").MockPool} */
+  let mockPool;
+
+  before(async () => {
+    server = await createServer();
+    client = await createClient(server.port);
+
+    const agent = new MockAgent();
+    setGlobalDispatcher(agent);
+    // only allow unmocked requests to the mcp server:
+    agent.enableNetConnect(`localhost:${server.port}`);
+    mockPool = agent.get("https://developer.mozilla.org");
+  });
+
+  describe("path param", () => {
+    beforeEach(() => {
+      mockPool
+        .intercept({
+          path: "/en-US/docs/MDN/Kitchensink/index.json",
+          method: "GET",
+        })
+        .reply(200, kitchensinkDoc);
+    });
+
+    it("should accept normal path", async () => {
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/MDN/Kitchensink",
+        },
+      });
+      const [_, text] = frontmatterSplit(content[0].text);
+      assert.ok(text.startsWith("# The MDN Content Kitchensink"));
+    });
+
+    it("should accept full path", async () => {
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "https://developer.mozilla.org/en-US/docs/MDN/Kitchensink",
+        },
+      });
+      const [_, text] = frontmatterSplit(content[0].text);
+      assert.ok(text.startsWith("# The MDN Content Kitchensink"));
+    });
+
+    it("should accept path with index.json", async () => {
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/MDN/Kitchensink/index.json",
+        },
+      });
+      const [_, text] = frontmatterSplit(content[0].text);
+      assert.ok(text.startsWith("# The MDN Content Kitchensink"));
+    });
+
+    it("should accept path without locale", async () => {
+      mockPool
+        .intercept({
+          path: "/docs/MDN/Kitchensink/index.json",
+          method: "GET",
+        })
+        .reply(302, "", {
+          headers: {
+            location: "/en-US/docs/MDN/Kitchensink/index.json",
+          },
+        });
+
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/docs/MDN/Kitchensink",
+        },
+      });
+      const [_, text] = frontmatterSplit(content[0].text);
+      assert.ok(text.startsWith("# The MDN Content Kitchensink"));
+    });
+
+    it("should accept path without leading slash", async () => {
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "en-US/docs/MDN/Kitchensink",
+        },
+      });
+      const [_, text] = frontmatterSplit(content[0].text);
+      assert.ok(text.startsWith("# The MDN Content Kitchensink"));
+    });
+
+    it("should reject wrong base url", async () => {
+      const path = "https://example.com/en-US/docs/MDN/Kitchensink";
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+      /** @type {string} */
+      const text = content[0].text;
+      assert.deepEqual(text, `Error: ${path} doesn't look like an MDN url`);
+    });
+
+    it("should handle path to missing doc", async () => {
+      const path = "/en-US/docs/MDN/Knisnehctik";
+
+      mockPool
+        .intercept({
+          path: path + "/index.json",
+          method: "GET",
+        })
+        .reply(404);
+
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+      /** @type {string} */
+      const text = content[0].text;
+      assert.deepEqual(text, `Error: We couldn't find ${path}`);
+    });
+
+    it("should handle upstream server error", async () => {
+      const path = "/en-US/docs/MDN/Knisnehctik";
+
+      mockPool
+        .intercept({
+          path: path + "/index.json",
+          method: "GET",
+        })
+        .reply(500);
+
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+      /** @type {string} */
+      const text = content[0].text;
+      assert.deepEqual(text, `500: Internal Server Error for ${path}`);
+    });
+
+    it("should reject non-doc path", async () => {
+      const path = "/en-US/observatory";
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+      /** @type {string} */
+      const text = content[0].text;
+      assert.deepEqual(
+        text,
+        `Error: ${path} doesn't look like the path to a piece of MDN documentation`,
+      );
+    });
+  });
+
+  it("should work with real document", async () => {
+    mockPool
+      .intercept({
+        path: "/en-US/docs/Web/API/Headers/index.json",
+        method: "GET",
+      })
+      .reply(200, headersDoc);
+
+    /** @type {any} */
+    const { content, isError } = await client.callTool({
+      name: "get-doc",
+      arguments: {
+        path: "/en-US/docs/Web/API/Headers",
+      },
+    });
+    assert.equal(isError, undefined);
+    const [_, text] = frontmatterSplit(content[0].text);
+    assert.ok(text.startsWith("# Headers"));
+  });
+
+  it("handles redirect to other index.json", async () => {
+    mockPool
+      .intercept({
+        path: "/en-US/docs/redirects-to-json/index.json",
+        method: "GET",
+      })
+      .reply(302, "", {
+        headers: {
+          location: "/en-US/docs/Web/API/Headers/index.json",
+        },
+      });
+    mockPool
+      .intercept({
+        path: "/en-US/docs/Web/API/Headers/index.json",
+        method: "GET",
+      })
+      .reply(200, headersDoc);
+
+    /** @type {any} */
+    const { content, isError } = await client.callTool({
+      name: "get-doc",
+      arguments: {
+        path: "/en-US/docs/redirects-to-json",
+      },
+    });
+    assert.equal(isError, undefined);
+    const [_, text] = frontmatterSplit(content[0].text);
+    assert.ok(
+      text.startsWith(
+        "(`/en-US/docs/redirects-to-json` redirected to `/en-US/docs/Web/API/Headers`.)\n# Headers",
+      ),
+    );
+  });
+
+  it("handles broken redirect to a fragment followed by /index.json", async () => {
+    mockPool
+      .intercept({
+        path: "/en-US/docs/redirects-to-section/index.json",
+        method: "GET",
+      })
+      .reply(302, "", {
+        headers: {
+          location:
+            "/en-US/docs/Web/API/Headers#modification_restrictions/index.json",
+        },
+      });
+    mockPool
+      .intercept({
+        path: "/en-US/docs/Web/API/Headers/index.json",
+        method: "GET",
+      })
+      .reply(200, headersDoc);
+
+    /** @type {any} */
+    const { content, isError } = await client.callTool({
+      name: "get-doc",
+      arguments: {
+        path: "/en-US/docs/redirects-to-section",
+      },
+    });
+    assert.equal(isError, undefined);
+    const [_, text] = frontmatterSplit(content[0].text);
+    assert.ok(
+      text.startsWith(
+        "(`/en-US/docs/redirects-to-section` redirected to `/en-US/docs/Web/API/Headers#modification_restrictions`, the contents of the full page follows.)\n# Headers",
+      ),
+    );
+  });
+
+  it("should handle a redirect to an external url", async () => {
+    mockPool
+      .intercept({
+        path: "/en-US/docs/redirects-to-external/index.json",
+        method: "GET",
+      })
+      .reply(302, "", {
+        headers: {
+          location: "https://example.com/path/index.json",
+        },
+      });
+
+    /** @type {any} */
+    const { content, isError } = await client.callTool({
+      name: "get-doc",
+      arguments: {
+        path: "/en-US/docs/redirects-to-external",
+      },
+    });
+    assert.equal(isError, undefined);
+    const [_, text] = frontmatterSplit(content[0].text);
+    assert.ok(
+      text.includes("`/en-US/docs/redirects-to-external`"),
+      "response includes request path",
+    );
+    assert.ok(
+      text.includes("`https://example.com/path`"),
+      "response includes redirect path",
+    );
+  });
+
+  it("should handle a redirect loop", async () => {
+    mockPool
+      .intercept({
+        path: "/en-US/docs/redirect-loop/index.json",
+        method: "GET",
+      })
+      .reply(302, "", {
+        headers: { location: "/en-US/docs/redirect-loop" },
+      })
+      .persist();
+
+    /** @type {any} */
+    const { content, isError } = await client.callTool({
+      name: "get-doc",
+      arguments: {
+        path: "/en-US/docs/redirect-loop",
+      },
+    });
+    assert.equal(isError, true);
+    /** @type {string} */
+    const text = content[0].text;
+    assert.ok(
+      text.startsWith("Error: `/en-US/docs/redirect-loop`"),
+      "response starts with 'Error: `<originalPath>`'",
+    );
+  });
+
+  describe("bcd keys", () => {
+    it("should have none", async () => {
+      mockPool
+        .intercept({
+          path: "/en-US/docs/Glossary/index.json",
+          method: "GET",
+        })
+        .reply(200, glossaryDoc);
+
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/Glossary",
+        },
+      });
+      /** @type {string} */
+      const text = content[0].text;
+      assert.ok(
+        text.startsWith("# Glossary of web terms"),
+        "has no frontmatter",
+      );
+    });
+
+    it("should have one", async () => {
+      mockPool
+        .intercept({
+          path: "/en-US/docs/Web/API/Headers/index.json",
+          method: "GET",
+        })
+        .reply(200, headersDoc);
+
+      /** @type {any} */
+      const { content, isError } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/Web/API/Headers",
+        },
+      });
+      assert.equal(isError, undefined);
+      const [frontmatter] = frontmatterSplit(content[0].text);
+      assert.ok(
+        frontmatter?.split("\n").includes("compat-key: api.Headers"),
+        "frontmatter includes bcd key",
+      );
+    });
+
+    it("should have multiple", async () => {
+      mockPool
+        .intercept({
+          path: "/en-US/docs/Web/API/Clipboard_API/index.json",
+          method: "GET",
+        })
+        .reply(200, clipboardDoc);
+
+      /** @type {any} */
+      const { content } = await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/Web/API/Clipboard_API",
+        },
+      });
+      const [frontmatter] = frontmatterSplit(content[0].text);
+      const lines = frontmatter?.split("\n");
+      assert.partialDeepStrictEqual(lines, [
+        "compat-keys:",
+        "  - api.Clipboard",
+        "  - api.ClipboardEvent",
+        "  - api.ClipboardItem",
+      ]);
+    });
+  });
+
+  describe("glean", () => {
+    it("should send fetched event", async () => {
+      mockPool
+        .intercept({
+          path: "/en-US/docs/Web/API/Headers/index.json",
+          method: "GET",
+        })
+        .reply(200, headersDoc);
+      const record = mock.method(fetched, "record");
+
+      await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/docs/Web/API/Headers",
+        },
+      });
+
+      assert.equal(record.mock.calls.length, 1);
+      assert.deepEqual(record.mock.calls[0]?.arguments[0], {
+        path: "/en-US/docs/Web/API/Headers",
+        user_agent: "node",
+      });
+    });
+
+    it("should send error for wrong base url", async () => {
+      const record = mock.method(silentError, "record");
+
+      const path = "https://example.com/en-US/docs/MDN/Kitchensink";
+      await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+
+      assert.equal(record.mock.calls.length, 1);
+      assert.deepEqual(record.mock.calls[0]?.arguments[0], {
+        tool: "get-doc",
+        reason: "non_mdn_host",
+        user_agent: "node",
+      });
+    });
+
+    it("should send error for non-doc path", async () => {
+      const record = mock.method(silentError, "record");
+
+      await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path: "/en-US/observatory",
+        },
+      });
+
+      assert.equal(record.mock.calls.length, 1);
+      assert.deepEqual(record.mock.calls[0]?.arguments[0], {
+        tool: "get-doc",
+        reason: "non_doc_path",
+        user_agent: "node",
+      });
+    });
+
+    it("should send error for missing doc", async () => {
+      const record = mock.method(silentError, "record");
+      const path = "/en-US/docs/MDN/Knisnehctik";
+
+      mockPool
+        .intercept({
+          path: path + "/index.json",
+          method: "GET",
+        })
+        .reply(404);
+
+      await client.callTool({
+        name: "get-doc",
+        arguments: {
+          path,
+        },
+      });
+
+      assert.equal(record.mock.calls.length, 1);
+      assert.deepEqual(record.mock.calls[0]?.arguments[0], {
+        tool: "get-doc",
+        reason: "404",
+        user_agent: "node",
+      });
+    });
+  });
+
+  after(() => {
+    server.listener.close();
+  });
+});
+
+/**
+ * @param {string} text
+ * @returns {[string?, string]}
+ */
+function frontmatterSplit(text) {
+  const delim = "---\n";
+  const [frontmatter, ...remainder] = text.split(delim).slice(1);
+  return text.startsWith(delim)
+    ? [frontmatter, remainder.join(delim)]
+    : [undefined, text];
+}

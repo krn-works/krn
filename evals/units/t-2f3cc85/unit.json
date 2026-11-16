@@ -1,0 +1,19 @@
+{
+  "id": "t-2f3cc85",
+  "repo": "grafana/github-datasource",
+  "base": "44b212392dc8a4b217ef6746b72b7400ca01c6f1",
+  "reference": "3e3e732a3ea156f53841650f386db9593a4ed1e2",
+  "task": {
+    "title": "Bug: $__multiVar breaks on variable values that contain spaces",
+    "body": "`$__multiVar(qualifier,$var)` expands each selected value to `qualifier:value` without quotes. If a value contains a space, GitHub search treats only the first word as the qualifier value.\n\nWith a multi-value variable `labels` set to `good first issue` and `bug`, the query `is:open $__multiVar(label,$labels)` expands to:\n\n```\nis:open label:good first issue label:bug\n```\n\nGitHub reads this as the label `good` plus the free text `first issue`, so the query misses the issues labeled `good first issue`.\n\n## What you expected\n\nThe macro produces `is:open label:\"good first issue\" label:bug`, which is how GitHub search expects multi-word qualifier values.\n\n## How to reproduce\n\n1. Expand the macro: `is:open $__multiVar(label,$labels)` with `labels` set to `good first issue` and `bug` produces `is:open label:good first issue label:bug`.\n2. Run both forms against the GitHub search API, for example on `grafana/grafana`: `is:open label:good first issue` returns 0 issues, and `is:open label:\"good first issue\"` returns 18.\n\n## Environment\n\n- Plugin version: 2.9.3 (current `main`)"
+  },
+  "spec": "Bug: $__multiVar breaks on variable values that contain spaces",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/github/macros_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/github/",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/grafana/github-datasource/issues/813"
+}

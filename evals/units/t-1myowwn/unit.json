@@ -1,0 +1,19 @@
+{
+  "id": "t-1myowwn",
+  "repo": "jasonfen/terminal-space-program",
+  "base": "44250e5688692acbfe0dcb1d263e8f3c471fae09",
+  "reference": "9868f48202259f81887a6c6fdfbffba271f83e50",
+  "task": {
+    "title": "; from ORBIT with no ported target wipes your trims",
+    "body": "## What the player sees\nPress `;` in ORBIT with no ported target: the view skips PORT (correctly) and lands on SURF, but your pitch/heading trims are zeroed as if you had entered PORT.\n\n## Why\n`internal/sim/nav.go:146-156` + `:196-213`: `CycleNavMode` calls `setNavMode` on every rejected candidate, so the PORT entry zeroing runs on a mode never shown (PR #680's one-pair rule).\n\n## Evidence\nBatch review 2 finding F1 (should fix), CONFIRMED (trims 0.1/-0.2 -> 0/0). vault `reviews/2026-10-17-batch-review-2-adr0055-0057-fixes.md`.\n\n## Done when\nOnly the mode actually landed on applies its enter/leave rules; guard covers a cycle that skips PORT."
+  },
+  "spec": "; from ORBIT with no ported target wipes your trims",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/sim/nav_port_trim_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/sim/",
+  "committed": "2026-10-17",
+  "issue": "https://github.com/jasonfen/terminal-space-program/issues/689"
+}

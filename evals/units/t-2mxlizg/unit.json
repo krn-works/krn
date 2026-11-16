@@ -1,0 +1,19 @@
+{
+  "id": "t-2mxlizg",
+  "repo": "FootprintAI/Containarium",
+  "base": "01d18ec11dcea59c1b82f37cb60f45ca65562802",
+  "reference": "55b244c0e7a65cecf8bd8f6dd4b19a74dbdec606",
+  "task": {
+    "title": "Release build fails: build-caddy lets caddy-l4 float to a version that needs a newer Caddy than the pin",
+    "body": "The `v0.137.0` Release workflow failed in `build-and-release` at `make build-caddy`, so no binaries, signatures or chart were published (the image builds and PyPI publish, which do not depend on it, succeeded). `verify-release` and the Helm install-and-upgrade job were skipped.\n\n**Cause.** `CADDY_VERSION` is pinned (v2.11.4) but `--with github.com/mholt/caddy-l4` is not, so xcaddy takes the newest plugin. `caddy-l4 v0.1.3` requires `caddy/v2 v2.11.7`, and Go refuses to resolve a plugin that needs a newer Caddy than the one requested:\n\n```\ngo: github.com/mholt/caddy-l4@upgrade (v0.1.3) requires github.com/caddyserver/caddy/v2@v2.11.7, not github.com/caddyserver/caddy/v2@v2.11.4\n```\n\nIt is the same per-build drift the `CADDY_VERSION` comment says the pin exists to prevent, left open on the plugin. It broke on a tag, not on a PR, because the release build is the only job that runs `build-caddy`.\n\n**Fix.** Pin `caddy-l4` to `v0.1.2`, which requires exactly Caddy v2.11.4, and make `TestCaddyModulesInSyncWithMakefile` fail if the plugin is ever unpinned. Bumping Caddy itself stays a separate, deliberate change (the Makefile comment says to do it in its own commit).\n\n**Release impact.** `v0.137.0` is tagged but has no artifacts. A tag is never moved, so the release is superseded by a patch release."
+  },
+  "spec": "Release build fails: build-caddy lets caddy-l4 float to a version that needs a newer Caddy than the pin",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/app/caddy_types_makefile_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/app/",
+  "committed": "2026-11-14",
+  "issue": "https://github.com/FootprintAI/Containarium/issues/3714"
+}

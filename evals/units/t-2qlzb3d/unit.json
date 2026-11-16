@@ -1,0 +1,19 @@
+{
+  "id": "t-2qlzb3d",
+  "repo": "tokencanopy/e2a",
+  "base": "66100e63275b9c84454cacd1f4cd36c50faab11c",
+  "reference": "fe0a52e70aa9c237d39b8d7a7688c9705f655d61",
+  "task": {
+    "title": "fix(emailauth): close remaining RFC 9989 DMARC gaps",
+    "body": "## Summary\n\nTrack the remaining RFC 9989 conformance gaps in inbound DMARC evaluation identified while reviewing #607.\n\nThe current implementation correctly requires at least one aligned, passing SPF or DKIM identifier before returning DMARC `pass`. These gaps are therefore expected to cause false negatives or inaccurate effective-policy metadata, not a known spoofed-mail authentication bypass.\n\n## Confirmed gaps\n\n- Treat an otherwise valid DMARC record without `p=` as `p=none` instead of `permerror`.\n- Support effective-policy behavior for `np=` and testing mode `t=y`, or avoid surfacing an effective `policy` value until it is calculated correctly.\n- Convert a Unicode RFC 5322 From domain from U-label to A-label before DMARC lookup and alignment.\n- For a null SMTP `MAIL FROM`, use the HELO identity for SPF evaluation as required by the SPF/DMARC model.\n\n## Acceptance criteria\n\n- [ ] Missing-`p` and malformed/unsupported tag handling follows RFC 9989 sections 4.7, 4.8, and 4.10.1.\n- [ ] The surfaced DMARC policy reflects applicable `p`, `sp`, `np`, and `t` semantics.\n- [ ] U-label From domains are converted to A-labels before policy discovery and identifier alignment.\n- [ ] Null reverse-path messages can use the HELO identity for SPF-based DMARC alignment.\n- [ ] Unit tests cover each case and preserve the existing rule that DMARC passes only with an aligned SPF or DKIM pass.\n- [ ] Developer-facing documentation describes the supported DMARC result semantics.\n\n## References\n\n- RFC 9989 §3.2.4: https://www.rfc-editor.org/rfc/rfc9989.html#section-3.2.4\n- RFC 9989 §4.7: https://www.rfc-editor.org/rfc/rfc9989.html#section-4.7\n- RFC 9989 §4.8: https://www.rfc-editor.org/rfc/rfc9989.html#section-4.8\n- RFC 9989 §4.10.1: https://www.rfc-editor.org/rfc/rfc9989.html#section-4.10.1\n- RFC 9989 §5.3.1: https://www.rfc-editor.org/rfc/rfc9989.html#section-5.3.1\n- Related PR: #607\n"
+  },
+  "spec": "fix(emailauth): close remaining RFC 9989 DMARC gaps",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/emailauth/dmarc_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/emailauth/",
+  "committed": "2026-08-23",
+  "issue": "https://github.com/tokencanopy/e2a/issues/608"
+}

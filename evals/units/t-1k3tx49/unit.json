@@ -1,0 +1,19 @@
+{
+  "id": "t-1k3tx49",
+  "repo": "victorGPT/vibeusage",
+  "base": "4891a5882781e2fff65bf4f7b6609d521265ae98",
+  "reference": "27d4a1b56ca61809daab0253d20daee6d3457ea6",
+  "task": {
+    "title": "CLI uploads fail since 2026-10-29: SDK routes functions to unreachable *.functions.insforge.app",
+    "body": "## 现象\nDashboard 自 2026-10-29 起显示为 0。`~/.vibeusage/tracker/upload.throttle.json`：最后成功 2026-10-29T18:24Z，之后每次 `Ingest failed: Network request failed: fetch failed`，backoffStep 20。\n\n## 根因\n`@insforge/sdk@1.2.2` 的 `functions.invoke` 默认先打 `https://{appKey}.functions.insforge.app/{slug}`（34.120.54.55），仅在 404 时回退到 `${baseUrl}/functions/{slug}`；网络错误不回退。该域名在当前网络 TLS ClientHello 后即被断开（`SSL_ERROR_SYSCALL`），`baseUrl` 网关路径正常。\n\n## 复现\n```\ncurl -sv https://5tmappuk.functions.insforge.app/vibeusage-ingest   # SSL_ERROR_SYSCALL\nnode --require trace.cjs bin/tracker.js sync                         # fetch failed: Client network socket disconnected before secure TLS connection was established\n```\n（trace.cjs 包一层 globalThis.fetch 打印 e.cause）\n\n## 修复\n`createInsforgeClient` 显式传 `functionsUrl: ${baseUrl}/functions`。dashboard 自行拼 `FUNCTION_PREFIX/slug`，不受影响。"
+  },
+  "spec": "CLI uploads fail since 2026-10-29: SDK routes functions to unreachable *.functions.insforge.app",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/insforge-client.test.js"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 node --test \"test/insforge-client.test.js\"",
+  "committed": "2026-11-06",
+  "issue": "https://github.com/victorGPT/vibeusage/issues/202"
+}

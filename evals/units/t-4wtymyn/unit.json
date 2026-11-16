@@ -1,0 +1,19 @@
+{
+  "id": "t-4wtymyn",
+  "repo": "Ahmadkhattak1/awesome-downloader",
+  "base": "c0046123f63571113c2d33a444ea5e9b57dd4bb8",
+  "reference": "7c4fcffd5f232d0affda6dfa21f1fa40aa4b471f",
+  "task": {
+    "title": "Harden browser handoff and prevent duplicate or lost downloads",
+    "body": "## Scope and acceptance\nRespect interception settings; retain or pause the browser transfer until desktop acceptance is confirmed, and resume on failure. Deduplicate concurrent clicks and focus the existing review/progress window. Test desktop unavailable, timeout, rejection, duplicate requests and browser restart. Coordinate PR #4; do not import its unconditional cancel-before-handoff behavior.\n\n\n## Working agreement\nApproved objective. Claim this issue with an approach and test plan before starting to avoid duplicate work. One focused PR per independently testable change; use draft PRs for dependencies. Each PR must link its issue, include regression evidence and receive maintainer review. Keep main usable on Windows. No unrelated dependency upgrades, credentials, proprietary code or automatic release publishing. New scope beyond this issue goes through the maintainer. Passing unit tests alone does not establish platform/browser support.\n\n"
+  },
+  "spec": "Harden browser handoff and prevent duplicate or lost downloads",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/manifest-references.test.mjs"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 node --test \"tests/manifest-references.test.mjs\"",
+  "committed": "2026-11-11",
+  "issue": "https://github.com/Ahmadkhattak1/awesome-downloader/issues/16"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-j5tygrp",
+  "repo": "lmilojevicc/pi-zentui",
+  "base": "793a485c8efe3b7baf8f0af4729226a873914046",
+  "reference": "87aac6ee2bf5c21f270b2d51267fcfb1700acc87",
+  "task": {
+    "title": "fix: match Pi cumulative session usage totals",
+    "body": "## Problem\nZentui undercounts cumulative session input, output, cache, and cost because it scans only top-level assistant-message usage.\n\n## Evidence\n- Audited against Earendil Works Pi 0.82.1; `package.json` declares Pi peer dependencies `>=0.80.3`.\n- `extensions/zentui/format.ts#SessionEntry` models only `message.usage`.\n- `computeUsageTotals` skips every entry except `type:\"message\"` with `message.role:\"assistant\"`.\n- The approved audit identified additional billed usage in nested tool-result LLM activity, compaction, and branch-summary entries.\n\n## Proposed behavior\nExtend `getUsageTotals` to aggregate every Pi 0.82.1 usage-bearing entry shape: assistant messages, nested tool-result LLM usage, compaction usage, and branch-summary usage. Sum input, output, cache read/write, and total cost exactly once per recorded operation, while retaining all-session rather than active-branch semantics.\n\n## Acceptance criteria\n- Before implementation, tests document the exact Pi 0.82.1 entry shapes used by each category.\n- A mixed fixture containing assistant, nested tool-result, compaction, and branch-summary usage produces Pi-matching totals for all five numeric fields.\n- Tests cover missing usage, zero usage, malformed optional fields, duplicate-looking entries, and entries outside the active branch.\n- `buildTokenLabel` and `buildCostLabel` receive corrected totals without taking responsibility for entry traversal.\n- Usage-cache invalidation and fingerprint tests demonstrate that newly appended usage-bearing entries trigger recomputation.\n\n## Non-goals\n- Adding cache, subscription, compaction, `xp`, or model display fields.\n- Changing footer layout or formatting policy."
+  },
+  "spec": "fix: match Pi cumulative session usage totals",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/format.test.ts"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"test/format.test.ts\"",
+  "committed": "2026-07-31",
+  "issue": "https://github.com/lmilojevicc/pi-zentui/issues/65"
+}

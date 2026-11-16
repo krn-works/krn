@@ -1,0 +1,19 @@
+{
+  "id": "t-27y3bp0",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "3224f34fe91d119d79352fa4dbfe2e49ccefa19e",
+  "reference": "8ae5802bd48ac435f128e2ecdfa591357a986111",
+  "task": {
+    "title": "A schema whose .meta({ id }) is also its z.infer type's name isn't found once stored",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0`\n\n### Description\n\nWhen a schema's `.meta({ id })` is the same as the name of its `z.infer` type, the two names end up mapped to each other in `typeToSchemaMapping`. Once the schema is stored under its id, looking it up again returns `null`: the lookup maps the id back to the variable name, and nothing is stored under that name.\n\nOne visible effect: a TypeScript interface property typed with the alias falls back to `{ \"type\": \"object\" }` with a `type-resolution-fallback` diagnostic (\"Unrecognized TypeScript type node; emitting object schema.\").\n\n### Minimal Reproduction\n\n```ts\n// src/schemas/customers.ts\nimport { z } from \"zod\";\n\nexport const addressSchema = z.object({ city: z.string() }).meta({ id: \"Address\" });\nexport type Address = z.infer<typeof addressSchema>;\n\nexport const customerSchema = z.object({ address: addressSchema });\n\nexport interface CustomerProfile {\n  name: string;\n  address: Address | null;\n}\n```\n\nWith `schemaType: [\"zod\", \"typescript\"]`, one route uses `@response customerSchema` and another `@response CustomerProfile`.\n\nOr directly:\n\n```ts\nconst converter = new ZodSchemaConverter(root);\nconverter.convertZodSchemaToOpenApi(\"addressSchema\");\nconverter.convertZodSchemaToOpenApi(\"Address\");\nconverter.convertZodSchemaToOpenApi(\"addressSchema\"); // null\n```\n\n### Actual Output\n\n```json\n\"address\": { \"type\": \"object\", \"nullable\": true }\n```\n\n### Expected Output\n\n`address` carries the `Address` schema (`city`), nullable.\n\n### Cause\n\n`applyMetaIdOverride` maps `addressSchema → Address` and removes a reverse mapping it finds, but the `TSTypeAliasDeclaration` visitor (and the naming convention) adds `Address → addressSchema` again. `getStoredSchema`, `storeResolvedSchema` and `getSchemaReferenceName` always follow the mapping, so `Address` is normalized back to `addressSchema`, while `zodSchemas` keys the schema by `Address`.\n\n#227 hit the same cycle for `.extend()`, and #228 worked around it there only.\n"
+  },
+  "spec": "A schema whose .meta({ id }) is also its z.infer type's name isn't found once stored",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/schema/zod/zod-converter.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/zod-converter.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/232"
+}

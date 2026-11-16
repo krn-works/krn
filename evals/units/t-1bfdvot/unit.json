@@ -1,0 +1,19 @@
+{
+  "id": "t-1bfdvot",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "895ee3226a875263b3caf16b6bc66d19e3011858",
+  "reference": "eecfe7d159080454f7f6886b5ac9c0ea4fdf01d8",
+  "task": {
+    "title": "Zod backend: z.discriminatedUnion of named schemas gets no discriminator mapping",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0` (also 1.7.3)\n\n### Description\n\nA `z.discriminatedUnion` whose variants are named schemas gets a `discriminator` without a `mapping`.\n\n`processZodDiscriminatedUnion` means to map each `$ref` variant to its literal (\"When the variant is emitted as `$ref`, point the mapping entry at the ref\"), but it reads the literal from `variant.properties`. A `$ref` has no properties of its own, so no literal is found and the mapping stays empty.\n\nWithout a `mapping`, OpenAPI's implicit discriminator values are the component *names* (`circleSchema`, `squareSchema`), not the literals (`circle`, `square`). Clients that follow the spec key the union on those names. For example, `@hey-api/openapi-ts` generates `({ kind: 'circleSchema' } & CircleSchema) | …`, which collapses to `never` against `kind: 'circle'`, so the request body can't be typed.\n\n### Minimal Reproduction\n\n```ts\n// src/schemas/shapes.ts\nimport { z } from \"zod\";\n\nexport const circleSchema = z.object({ kind: z.literal(\"circle\"), radius: z.number() });\nexport const squareSchema = z.object({ kind: z.literal(\"square\"), side: z.number() });\nexport const shapeSchema = z.discriminatedUnion(\"kind\", [circleSchema, squareSchema]);\n```\n\n```ts\n// src/app/api/shapes/route.ts\n/**\n * Create a shape\n * @body shapeSchema\n * @response shapeSchema\n * @openapi\n */\nexport async function POST() {\n  return Response.json({});\n}\n```\n\n### Actual Output\n\n```json\n\"shapeSchema\": {\n  \"type\": \"object\",\n  \"discriminator\": { \"propertyName\": \"kind\" },\n  \"oneOf\": [\n    { \"$ref\": \"#/components/schemas/circleSchema\" },\n    { \"$ref\": \"#/components/schemas/squareSchema\" }\n  ]\n}\n```\n\n### Expected Output\n\n```json\n\"shapeSchema\": {\n  \"type\": \"object\",\n  \"discriminator\": {\n    \"propertyName\": \"kind\",\n    \"mapping\": {\n      \"circle\": \"#/components/schemas/circleSchema\",\n      \"square\": \"#/components/schemas/squareSchema\"\n    }\n  },\n  \"oneOf\": [\n    { \"$ref\": \"#/components/schemas/circleSchema\" },\n    { \"$ref\": \"#/components/schemas/squareSchema\" }\n  ]\n}\n```\n\n### Suggested fix\n\nWhen a variant is a `$ref`, read the literal from the component it points to. The converter's `zodSchemas` is keyed by component name, so a lookup by the `$ref`'s name also covers `.meta({ id })` renames and `…Output` components.\n\nI have a PR ready with the fix and a test. The existing unit test for the mapping passes a `$ref` that also carries `properties`, which real output never does, so it doesn't catch this.\n"
+  },
+  "spec": "Zod backend: z.discriminatedUnion of named schemas gets no discriminator mapping",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/schema/zod/features/unions-and-intersections.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/schema/zod/features/unions-and-intersections.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/221"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-1yoo5cd",
+  "repo": "taylorcox75/qRemote",
+  "base": "18ba59a60733ca030fc8211bad7664f4498f45dc",
+  "reference": "00d2040c0788b34b883636c10a7f49cd92e517b9",
+  "task": {
+    "title": "[BUG] Seeding ETA should be visible",
+    "body": "**Describe the bug**\n\nETA might still be meaningful for seeding items when minimum seed time and/or minimum ratio is set. This is useful to know when an item will be free to be deleted or stopped upon satisfying tracker requirements.\n\n**To Reproduce**\nGo to seeding torrent details.\n\n**Expected behavior**\n\nETA should still show as reported in the API\n\n**Screenshots**\n\nqbt WebUI:\n<img width=\"720\" height=\"62\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/6b1e465e-3ee1-4c97-93c6-da2c4318542d\" />\n\nCurrrent qRemote UI:\n\n<img width=\"1206\" height=\"547\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/a5b8131b-baa1-4bbb-b256-e5b7a9d2331c\" />\n\n**Additional context**\n\nThis was intentionally changed in #113.\n"
+  },
+  "spec": "[BUG] Seeding ETA should be visible",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/utils/torrent-state.test.ts"
+  },
+  "install": "npm ci --ignore-scripts",
+  "test": "timeout 240 npx --no-install jest \"tests/utils/torrent-state.test.ts\"",
+  "committed": "2026-09-20",
+  "issue": "https://github.com/taylorcox75/qRemote/issues/247"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-fd481gz",
+  "repo": "simonepelosi/vibez",
+  "base": "31def02bd334f76ecc8a69caeb6c3c642df0fe55",
+  "reference": "29ddbc232f45b5f8a695e91c7574955b88a0ff98",
+  "task": {
+    "title": "Preserve search query, results, and selection when reopening search",
+    "body": "## Problem\n\nWhen playing a track, album, or playlist from search (`Enter` / `Shift+Tab`) or closing the search view with `Esc`, reopening search with `/` always clears `m.searchQuery`, resets `m.searchCursor = 0`, and wipes `m.search` via `m.search.SetState(nil, false, nil)` (`internal/tui/model.go:1281-1283` and `2357-2361`).\n\nAs noted in #203, if a user searches for an artist or album, plays a result, and presses `/` to return to the rest of the search results, their query, result list, scroll offset, selected item, and open artist drill-down are lost.\n\n## Expected behavior\n\n- Closing search via `Enter` (play track/album/playlist), `Shift+Tab` (play collection next), or `Esc` should preserve `m.searchQuery` and the current `SearchModel` state (results, selected row, scroll position, and open artist album view).\n- Pressing `/` in normal mode should reopen search with the previous query, results, and selection intact, placing the text cursor at the end of the query (`len([]rune(m.searchQuery))`).\n- `Esc` inside an open artist view continues to step back to the main search results first, and a second `Esc` closes the search overlay back to normal mode.\n- Clearing or modifying the query (`Backspace`, `Delete`, `Ctrl+W`, `Ctrl+U`) updates the search and invalidates any in-flight debounce/search responses from earlier queries.\n\nRefs #203."
+  },
+  "spec": "Preserve search query, results, and selection when reopening search",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "internal/tui/model_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./internal/tui/",
+  "committed": "2026-11-02",
+  "issue": "https://github.com/simonepelosi/vibez/issues/204"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-2b85tih",
+  "repo": "openkruise/agents",
+  "base": "61598f5c0903773d75c2898238f2c84c6f42d19c",
+  "reference": "75b4f73477e553b08676d671f2d3ecbbb3410541",
+  "task": {
+    "title": "[BUG] SandboxSet controller fails to sort oldCandidates before scale down",
+    "body": "\n<!-- Please use this template while reporting a bug and provide as much info as possible. Not doing so may result in your bug not being addressed in a timely manner. Thanks!-->\n\n**What happened**:\nIn the `SandboxSet` controller, when scaling down sandboxes, the controller correctly divides the candidates into `oldCandidates` (older template revision) and `updatedCandidates` (newer template revision). \n\nHowever, when picking which `oldCandidates` to delete first (if the required scale down count is less than the total number of old sandboxes), the controller simply takes a slice without sorting:\n```go\n\t// Phase 1: Delete old revision sandboxes first\n\toldToDelete := oldCandidates[:min(count, len(oldCandidates))]\n```\nBecause the `oldCandidates` slice inherits the arbitrary order from the Kubernetes API list response, the controller ignores the intended scale-down priority (`Pending` > `Recycled` > `NotReady` > `Available`). This can result in deleting a perfectly healthy, `Available` older sandbox while leaving a `Pending` or `NotReady` older sandbox running.\n\nBy contrast, `updatedCandidates` is correctly sorted using `compareScaleDownPriority` before truncation:\n```go\n\t// Phase 2: Delete updated revision sandboxes if more needed.\n\t// Priority: Pending > Recycled (recycledCount desc) > Running-NotReady > Available fresh.\n\tslices.SortFunc(updatedCandidates, compareScaleDownPriority)\n\tupdatedToDelete := updatedCandidates[:min(remaining, len(updatedCandidates))]\n```\n\n**What you expected to happen**:\nThe `oldCandidates` slice should be sorted using `slices.SortFunc(oldCandidates, compareScaleDownPriority)` before taking the subset to delete, ensuring that less desirable sandboxes (like `Pending` or `NotReady`) are cleaned up first.\n\n**How to reproduce it (as minimally and precisely as possible)**:\n1. Create a SandboxSet with multiple replicas.\n2. Update the SandboxSet template to trigger a rolling update, but keep some old sandboxes running.\n3. Scale down the SandboxSet such that only a fraction of the `oldCandidates` needs to be deleted (i.e. `count < len(oldCandidates)`).\n4. Observe that the older sandboxes deleted are chosen arbitrarily, potentially killing `Available` sandboxes while leaving `Pending`/`NotReady` ones behind.\n\n**Anything else we need to know?**:\nThe fix is straightforward. In `pkg/controller/sandboxset/sandboxset_controller.go`:\n```go\n\t// Phase 1: Delete old revision sandboxes first\n+\tslices.SortFunc(oldCandidates, compareScaleDownPriority)\n\toldToDelete := oldCandidates[:min(count, len(oldCandidates))]\n```\n\n**Environment**:\n- OpenKruiseAgent version: latest (`main` branch)\n- Kubernetes version (use `kubectl version`): N/A\n- Install details (e.g. helm install args): N/A\n- Others: N/A\n"
+  },
+  "spec": "[BUG] SandboxSet controller fails to sort oldCandidates before scale down",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/controller/sandboxset/sandboxset_controller_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/controller/sandboxset/",
+  "committed": "2026-08-28",
+  "issue": "https://github.com/openkruise/agents/issues/802"
+}

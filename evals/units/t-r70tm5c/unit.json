@@ -1,0 +1,19 @@
+{
+  "id": "t-r70tm5c",
+  "repo": "openkruise/agents",
+  "base": "395c2c9081aa866409f41ff80c3dd6691f58ff35",
+  "reference": "f525d34b780e9a482e8e2ef8dabd1b353de0141c",
+  "task": {
+    "title": "[BUG] Customized E2B path routing fails when the sandbox root URL carries a query string",
+    "body": "**What happened**:\n\nWith the customized E2B protocol, a sandbox port is reached at `<domain>/kruise/<sandboxID>/<port>` (the address that `CustomizedE2BAdapter.GetSandboxAddress` returns). A request to that root address with a query string, for example `/kruise/sandbox1234/3000?folder=/home/user`, is rejected by the proxy with HTTP 500 `failed to map request to sandbox`.\n\n`CustomizedE2BAdapter.Map` in `pkg/servers/e2b/adapters/customized_e2b.go` splits the raw `:path` pseudo-header, which includes the query string. When no path follows the port, the query lands in the port segment and `strconv.Atoi(\"3000?folder=\")` fails:\n\n```\nstrconv.Atoi: parsing \"3000?folder=\": invalid syntax\n```\n\nRequests that have a path after the port, such as `/kruise/sandbox1234/3000/some/path?a=b`, work, because the query ends up in the forwarded path.\n\n**What you expected to happen**:\n\nThe request is routed to port 3000 of `sandbox1234` with `:path` rewritten to `/?folder=/home/user`, the same as `/kruise/sandbox1234/3000/?folder=/home/user`.\n\n**How to reproduce it (as minimally and precisely as possible)**:\n\nAdd a case to the `TestMap` table in `pkg/servers/e2b/adapters/unified_e2b_test.go`:\n\n```go\n{\n\tname:              \"customized e2b adapter - query string after port\",\n\tpath:              \"/kruise/sandbox1234/3000?folder=/home/user\",\n\theaders:           map[string]string{},\n\texpectSandboxID:   \"sandbox1234\",\n\texpectSandboxPort: 3000,\n\texpectHeaders:     map[string]string{\":path\": \"/?folder=/home/user\"},\n},\n```\n\nRun `go test -count=1 -run 'TestMap$' ./pkg/servers/e2b/adapters/`. The case fails with the `strconv.Atoi` error above.\n\nEnd to end: with the customized E2B protocol, open `https://<domain>/kruise/<sandboxID>/<port>?x=1` for a running sandbox, for example a web IDE that takes its workspace folder as a root query parameter. The proxy returns 500.\n\n**Anything else we need to know?**:\n\nThe ext_proc server (`pkg/proxy/ext_proc.go`) and the sandbox gateway filter (`pkg/sandbox-gateway/filter/filter.go`) both call `Map`, so both data planes are affected. The native E2B adapter is not affected because it takes the port from the host name or a header.\n\n**Environment**:\n- OpenKruiseAgent version: master at `dfe751d`\n- Kubernetes version (use `kubectl version`): not applicable, code-level issue\n- Install details (e.g. helm install args): customized E2B protocol (`/kruise` path prefix)\n- Others:"
+  },
+  "spec": "[BUG] Customized E2B path routing fails when the sandbox root URL carries a query string",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/servers/e2b/adapters/unified_e2b_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/servers/e2b/adapters/",
+  "committed": "2026-11-05",
+  "issue": "https://github.com/openkruise/agents/issues/1168"
+}

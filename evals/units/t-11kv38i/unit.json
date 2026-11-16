@@ -1,0 +1,19 @@
+{
+  "id": "t-11kv38i",
+  "repo": "urunc-dev/urunc",
+  "base": "83c30e878a84b6b9e701686943e746fe03e1bcd4",
+  "reference": "45cfe27bb345199c182474b12598ed1f062289b8",
+  "task": {
+    "title": "A partial extra_binaries in urunc cofniguration loses its default values",
+    "body": "When a config file defines an `[extra_binaries.*]` section but omits some of its fields, the omitted fields are left empty instead of falling back to urunc's\nbuilt-in defaults.\n\nFor example in virtiofsd if we only set the path:\n\n```toml\n[extra_binaries.virtiofsd]\npath = \"/opt/urunc/bin/virtiofsd\"\n```\n\nthen the options will stay blank.\n\nThis was found during the review of https://github.com/urunc-dev/urunc/pull/982"
+  },
+  "spec": "A partial extra_binaries in urunc cofniguration loses its default values",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "pkg/unikontainers/urunc_config_test.go"
+  },
+  "install": "go mod download",
+  "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+  "committed": "2026-09-03",
+  "issue": "https://github.com/urunc-dev/urunc/issues/1010"
+}

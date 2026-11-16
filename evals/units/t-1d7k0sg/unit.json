@@ -1,0 +1,19 @@
+{
+  "id": "t-1d7k0sg",
+  "repo": "un-ts/changesets-gitlab",
+  "base": "a2f6b28c9c78f3abbc2b8978e3d7efd4991cec58",
+  "reference": "27db5adf8fc6b4ab3014b4938039d2c6010e481f",
+  "task": {
+    "title": "Root package discovery fix from changesets/bot appears to be missing",
+    "body": "The root-package discovery issue fixed in https://github.com/changesets/bot/pull/94 appears to still exist in `changesets-gitlab`.\n\nPackage discovery checks `item.endsWith('/package.json')`, which does not match the root-level `package.json`. In a pnpm workspace containing both the root package and child packages—even with `.` explicitly included—the comment command fails with:\n\n> Found changeset … for package … which is not in the workspace\n\nThe Changesets CLI recognizes the root package correctly.\n\n#257 addressed the case where `pnpm-workspace.yaml` has no `packages` field, but not this multi-package workspace case.\n\nEncountered on 0.15.1; the same discovery condition is still present in the published 0.17.0 source.\n\nCould the upstream fix be brought over?\n"
+  },
+  "spec": "Root package discovery fix from changesets/bot appears to be missing",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/get-changed-packages.spec.ts"
+  },
+  "install": "npm install --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"test/get-changed-packages.spec.ts\"",
+  "committed": "2026-10-25",
+  "issue": "https://github.com/un-ts/changesets-gitlab/issues/276"
+}

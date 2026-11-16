@@ -1,0 +1,19 @@
+{
+  "id": "t-1br2xiq",
+  "repo": "tazo90/next-openapi-gen",
+  "base": "cd5ce6bb3ea790cc0866589dfd42c5bd4652a0de",
+  "reference": "3ee7412b7e3b573333dc38f813b11f8d9a068be3",
+  "task": {
+    "title": "A nullable enum doesn't list null in its enum, so null fails validation",
+    "body": "## Bug Report\n\n### Version\n\n`next-openapi-gen@1.10.0`\n\n### Description\n\nA nullable enum is emitted with `nullable: true` (3.0) or `type: [..., \"null\"]` (3.1), but its `enum` doesn't list `null`. An `enum` constrains the value on its own, so `null` fails it and validators reject a value the schema means to allow. In 3.0, `nullable` doesn't widen an `enum` either.\n\n### Minimal Reproduction\n\n```ts\n// src/schemas/tickets.ts\nimport { z } from \"zod\";\n\nexport const ticketUpdateSchema = z.object({\n  priority: z.enum([\"low\", \"high\"]).nullable().describe(\"null clears the priority\"),\n});\n```\n\nUsed as a route's `@body ticketUpdateSchema`.\n\n### Actual Output\n\nOpenAPI 3.0.0:\n\n```json\n\"priority\": { \"type\": \"string\", \"enum\": [\"low\", \"high\"], \"nullable\": true, \"description\": \"null clears the priority\" }\n```\n\nOpenAPI 3.1.0:\n\n```json\n\"priority\": { \"type\": [\"string\", \"null\"], \"enum\": [\"low\", \"high\"], \"description\": \"null clears the priority\" }\n```\n\n### Expected Output\n\n`\"enum\": [\"low\", \"high\", null]` in both.\n\n### Suggested fix\n\nAdd `null` to the `enum` where `version-processor.ts` finalizes nullability: `downgradeSchemaForOpenApi30` once a schema is `nullable`, and `upgradeSchemaForOpenApi31` when it adds `\"null\"` to `type`. That covers Zod, TypeScript and drizzle-zod sources alike.\n\nI have a PR ready with the fix and a test.\n"
+  },
+  "spec": "A nullable enum doesn't list null in its enum, so null fails validation",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/unit/openapi/version-processor.test.ts"
+  },
+  "install": "pnpm install --frozen-lockfile --ignore-scripts",
+  "test": "timeout 240 npx --no-install vitest run \"tests/unit/openapi/version-processor.test.ts\"",
+  "committed": "2026-11-13",
+  "issue": "https://github.com/tazo90/next-openapi-gen/issues/229"
+}

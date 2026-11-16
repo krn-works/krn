@@ -1,0 +1,19 @@
+{
+  "id": "t-14zbrpq",
+  "repo": "milvus-io/milvus-sdk-node",
+  "base": "541aff1254b0864603d50691c6ba9161833c3812",
+  "reference": "991ff3ea18c2a43ad40eeae684b2aa3ed6f884c5",
+  "task": {
+    "title": "Insert fails or sends empty vectors for typed array vectors when dynamic field is enabled",
+    "body": "**Describe the bug:**\n\nWith `enable_dynamic_field: true`, `insert`/`upsert` deep-copy every row with `JSON.parse(JSON.stringify())` in `buildDynamicRow` (`milvus/utils/Data.ts`). The copy turns typed arrays into plain objects, so vector values allowed by the SDK types break:\n\n- `Int8Vector` passed as `Int8Array`: the row is encoded as an empty buffer (no vector bytes).\n- `Float16Vector` / `BFloat16Vector` passed as `Uint8Array` bytes: insert throws `TypeError: The \"list[0]\" argument must be an instance of Buffer or Uint8Array. Received an instance of Object`.\n\nThe same data inserts correctly when the dynamic field is disabled.\n\n**Steps to reproduce:**\n\n1. Create a collection with `enable_dynamic_field: true`, an `Int8Vector` field `int8` (dim 4) and a `Float16Vector` field `f16` (dim 2).\n2. Run `client.insert({ collection_name, fields_data: [{ id: 1, int8: new Int8Array([1, -2, 3, -4]), f16: new Uint8Array([1, 2, 3, 4]) }] })`.\n3. Insert throws the `TypeError` above. Without the `f16` field, the `int8` row is sent with zero bytes.\n\n**Milvus-node-sdk version:** 3.0.6 (`main` at a82070a)\n\n**Milvus version:** any (the failure happens client-side before the RPC)"
+  },
+  "spec": "Insert fails or sends empty vectors for typed array vectors when dynamic field is enabled",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "test/utils/Data.spec.ts"
+  },
+  "install": "npm install --ignore-scripts",
+  "test": "timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
+  "committed": "2026-11-16",
+  "issue": "https://github.com/milvus-io/milvus-sdk-node/issues/624"
+}
