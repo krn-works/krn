@@ -1,7 +1,11 @@
 {
   "id": "t-xpe9zkv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast preflight (boundaries, weak-tests, guard rule tests, drift) stops before related tests; edit hook prints wall-clock/timeout violations; tests in test/fast-check.test.ts and test/hook/edit-standards.test.ts"
+  },
   "created": "2026-11-16",
   "priority": 0,
   "title": "fast fails in seconds on structure and rule checks before running related tests",

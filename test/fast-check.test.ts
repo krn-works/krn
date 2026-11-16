@@ -238,7 +238,8 @@ function repoWithChange(): { dir: string; git: (...a: string[]) => void } {
 
 const script = join(import.meta.dirname, '../scripts/fast-check.ts');
 // PR_BODY may carry a Weakens-tests override from the caller; the child must not inherit it.
-const { PR_BODY: _body, ...fastEnv } = process.env;
+// NODE_TEST_CONTEXT would turn the child's own node --test runs into silent subtests that exit 0.
+const { PR_BODY: _body, NODE_TEST_CONTEXT: _context, ...fastEnv } = process.env;
 const runFast = (cwd: string) =>
   spawnSync(process.execPath, [script], {
     cwd,
@@ -550,6 +551,25 @@ test('fast check fails naming weak-tests when the working tree removes an assert
     result.stdout,
     /test\/x\.test\.ts: net 1 assertion\(s\) removed/u,
   );
+});
+
+test('fast check stops on a broken rule in preflight, naming it, before any related test starts', () => {
+  const { dir } = repoWithChange();
+  mkdirSync(join(dir, 'test/rules'));
+  writeFileSync(
+    join(dir, 'test/rules/no-wall-clock.test.ts'),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('wall-clock assertions are forbidden', () => assert.fail('a.ts asserts on Date.now'));\n",
+  );
+  writeFileSync(
+    join(dir, 'test/a.test.ts'),
+    "import { writeFileSync } from 'node:fs';\nwriteFileSync('related-ran', '');\nimport './../a.ts';\n",
+  );
+  stubTools(dir, 'exit 0');
+  const result = runFast(dir);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /fast FAIL \(guard\): preflight stopped/u);
+  assert.match(result.stdout, /rule: .*wall-clock assertions are forbidden/u);
+  assert.equal(existsSync(join(dir, 'related-ran')), false);
 });
 
 test('fast check selects the CLI-subprocess tests that assert the repo contract detection', () => {

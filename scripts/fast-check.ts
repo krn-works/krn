@@ -68,6 +68,35 @@ const PROSE_RULE_TESTS = new Set([
   'test/rules/session-role.test.ts',
 ]);
 
+/** Structure tests outside test/rules/ that preflight runs with the rule tests. */
+const PREFLIGHT_EXTRA = ['test/evals/fr40-freeze.test.ts'];
+
+/** The drift test file and its one test that reads this repository's skill copies; its other tests spawn adoptions and stay with the related stage. */
+const DRIFT_TEST = 'test/adopt/drift.test.ts';
+const DRIFT_NAME = 'this repository has no adoption drift';
+
+/** The guard tests preflight runs first: every rule test the diff makes relevant (prose ones only for prose paths) and the structure tests beside them. */
+export function preflightTests(
+  changed: readonly string[],
+  removed: readonly string[],
+  tests: ReadonlyMap<string, string>,
+): string[] {
+  const prose = [...changed, ...removed].some((file) => PROSE_PATHS.test(file));
+  return [...tests.keys()].filter(
+    (path) =>
+      (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path))) ||
+      PREFLIGHT_EXTRA.includes(path),
+  );
+}
+
+/** The first failing rule line of a node test report, else its last lines. */
+function ruleNamed(output: string): string {
+  const names = [...output.matchAll(/^\s*[✖x] (.+?)(?: \(\d.*)?$/gmu)].map(
+    (m) => m[1] ?? '',
+  );
+  return names.length > 0 ? `rule: ${names.join('; ')}\n${output}` : output;
+}
+
 /**
  * Tree-wide tests outside test/rules/ that read every file of an area: each is selected
  * when a changed or removed path matches its trigger, so a new module, hook or setting
@@ -496,6 +525,70 @@ export function restage(root: string, staged: string[]): string[] {
   return fixed;
 }
 
+/** Fast structure and rule checks, in order, stopping at the first red: boundaries, weak-tests, then the guard tests (receiver evidence, drift, rules). */
+async function preflight(
+  root: string,
+  base: string | undefined,
+  guard: string[],
+  drift: boolean,
+): Promise<{ steps: Step[]; failed?: Step | undefined }> {
+  const steps: Step[] = [];
+  const boundaryStart = performance.now();
+  const violations = checkBoundaries(root);
+  steps.push({
+    name: 'boundaries',
+    ok: violations.length === 0,
+    seconds: (performance.now() - boundaryStart) / 1000,
+    output: violations
+      .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
+      .join('\n'),
+  });
+  const stages: Array<() => Promise<Step>> = [
+    // CI's Lint step runs the same floor on the PR diff; here it reads the working tree too.
+    () =>
+      run(root, 'weak-tests', process.execPath, [
+        fileURLToPath(new URL('./weak-tests.mjs', import.meta.url)),
+        base ?? mergeBase(root),
+        '--worktree',
+      ]),
+    ...(guard.length > 0 || drift
+      ? [
+          async () => {
+            const started = performance.now();
+            const node = (name: string, ...rest: string[]): Promise<Step> =>
+              run(root, name, process.execPath, [
+                '--test',
+                '--test-reporter=spec',
+                ...testCeilingArguments(),
+                ...rest,
+              ]);
+            const parts = await Promise.all([
+              ...(guard.length > 0 ? [node('guard', ...guard)] : []),
+              ...(drift
+                ? [
+                    node(
+                      'guard',
+                      `--test-name-pattern=${DRIFT_NAME}`,
+                      DRIFT_TEST,
+                    ),
+                  ]
+                : []),
+            ]);
+            return {
+              name: 'guard',
+              ok: parts.every((part) => part.ok),
+              seconds: (performance.now() - started) / 1000,
+              output: parts.map((part) => part.output).join('\n'),
+            };
+          },
+        ]
+      : []),
+  ];
+  for (let i = 0; steps.at(-1)?.ok !== false && i < stages.length; i++)
+    steps.push(await (stages[i] as () => Promise<Step>)());
+  return { steps, failed: steps.find((step) => !step.ok) };
+}
+
 export async function main(root: string, argv: string[] = []): Promise<number> {
   const started = performance.now();
   const parsed = parseArgs(root, argv);
@@ -567,6 +660,27 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
         : []),
     ]),
   ];
+  const guard = new Set(preflightTests(changed, removed, tests));
+  for (let i = related.length - 1; i >= 0; i--)
+    if (guard.has(related[i] ?? '')) related.splice(i, 1);
+  const pre = await preflight(
+    root,
+    parsed.base,
+    [...guard],
+    tests.has(DRIFT_TEST),
+  );
+  if (pre.failed) {
+    process.stdout.write(
+      `--- ${pre.failed.name} ---\n${ruleNamed(pre.failed.output).trim().split('\n').slice(-60).join('\n')}\n`,
+    );
+    const total = ((performance.now() - started) / 1000).toFixed(1);
+    rmSync(passMarker, { force: true });
+    recordPass(root, false);
+    process.stdout.write(
+      `fast FAIL (${pre.failed.name}): preflight stopped before lint, tsc and the related tests; ${pre.steps.map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`).join(', ')}; total ${total}s\n`,
+    );
+    return 1;
+  }
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
   const verify = (): Promise<Step[]> =>
@@ -613,7 +727,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
         ])
       : undefined;
   let verified = verify();
-  const steps: Step[] = [];
+  const steps: Step[] = [...pre.steps];
   if (lint) {
     steps.push(await lint);
     if (snapshot() !== before) {
@@ -626,24 +740,6 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
       verified = verify();
     }
   }
-  const boundaryStart = performance.now();
-  const violations = checkBoundaries(root);
-  steps.push({
-    name: 'boundaries',
-    ok: violations.length === 0,
-    seconds: (performance.now() - boundaryStart) / 1000,
-    output: violations
-      .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
-      .join('\n'),
-  });
-  // CI's Lint step runs the same floor on the PR diff; here it reads the working tree too.
-  steps.push(
-    await run(root, 'weak-tests', process.execPath, [
-      fileURLToPath(new URL('./weak-tests.mjs', import.meta.url)),
-      parsed.base ?? mergeBase(root),
-      '--worktree',
-    ]),
-  );
   steps.push(...(await verified));
   const failed = steps.filter((step) => !step.ok);
   for (const step of failed)

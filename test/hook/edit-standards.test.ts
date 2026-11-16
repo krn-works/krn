@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { editStandardsCommand } from '../../src/adopt/stop-hook.ts';
+import { ruleViolations } from '../../src/hook/edit-rules.ts';
 import {
   commandFiles,
   editedFile,
@@ -219,4 +220,55 @@ test('a file kind is its stack, else its extension, else its name', () => {
   assert.equal(fileKind('src/a.php'), 'php');
   assert.equal(fileKind('web/app/themes/t/style.CSS'), '*.css');
   assert.equal(fileKind('Makefile'), 'Makefile');
+});
+
+// Built from parts so this file does not itself trip the clock and timeout rules it seeds.
+const clock = ['Date', 'now()'].join('.');
+const option = ['time', 'out'].join('');
+
+test('an edit that writes a wall-clock assertion into a test file prints the violation in the hook output', () => {
+  const root = adoptedPhp();
+  try {
+    const template = JSON.parse(capture[0] ?? '{}');
+    const payload = {
+      ...template,
+      tool_input: {
+        file_path: `${capturedRoot}/test/timing.test.ts`,
+        old_string: 'x',
+        new_string: `const started = ${clock};\nassert.ok(${clock} - started < 2000);`,
+      },
+    };
+    const result = replay(root, JSON.stringify(payload));
+    assert.equal(result.status, 0, result.stderr);
+    const context: string = JSON.parse(result.stdout).hookSpecificOutput
+      .additionalContext;
+    assert.match(
+      context,
+      /Rule violations in this edit:\ntest\/timing\.test\.ts:2 wall-clock delta/u,
+    );
+    const clean = replay(
+      root,
+      JSON.stringify({
+        ...payload,
+        tool_input: { ...payload.tool_input, new_string: 'assert.ok(true);' },
+      }),
+    );
+    assert.doesNotMatch(clean.stdout, /Rule violations/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the static edit rules flag a per-test timeout and pass ordinary test text', () => {
+  assert.deepEqual(
+    ruleViolations(
+      'test/a.test.ts',
+      `test('slow', { ${option}: 5000 }, () => {});`,
+    ),
+    [
+      'test/a.test.ts:1 per-test timeout (test/rules/test-hygiene.test.mjs); the runner ceiling bounds every test',
+    ],
+  );
+  assert.deepEqual(ruleViolations('src/a.ts', `${clock} - started`), []);
+  assert.deepEqual(ruleViolations('test/a.test.ts', 'assert.ok(1);'), []);
 });

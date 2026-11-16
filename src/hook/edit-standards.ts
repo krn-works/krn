@@ -24,6 +24,7 @@ import {
 } from '../brain/worker-packet.ts';
 import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
 import { PATH_WORD } from './edit-route.ts';
+import { ruleViolations, writtenText } from './edit-rules.ts';
 
 /** The exposure channel of the edit moment. */
 export const EDIT_CHANNEL = 'edit';
@@ -161,13 +162,24 @@ export function main(): void {
     const input = hookInput(['PreToolUse'], raw);
     const payload = JSON.parse(raw) as Record<string, unknown>;
     const edited = editedFile(input.project, payload);
+    const text = writtenText(payload);
+    const violations =
+      edited !== undefined && text !== undefined
+        ? ruleViolations(edited, text)
+        : [];
     const files =
       edited === undefined ? commandFiles(input.project, payload) : [edited];
-    if (files.length === 0) return;
-    const main = mainCheckout(input.project);
-    const blocks = files.flatMap(
-      (file) => editContext(input.project, main, input.sessionId, file) ?? [],
-    );
+    let blocks: string[] = [];
+    try {
+      const main = mainCheckout(input.project);
+      blocks = files.flatMap(
+        (file) => editContext(input.project, main, input.sessionId, file) ?? [],
+      );
+    } catch {
+      /* A missing brain still lets the rule violations through. */
+    }
+    if (violations.length > 0)
+      blocks.unshift(`Rule violations in this edit:\n${violations.join('\n')}`);
     if (blocks.length > 0) emitContext(input.event, blocks.join('\n\n'));
   } catch {
     /* A missing brain is not a reason to interrupt an edit. */
