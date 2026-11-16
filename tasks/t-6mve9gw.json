@@ -1,7 +1,11 @@
 {
   "id": "t-6mve9gw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship awaits a run GitHub lists queued for the head; test ship.test.ts queued case passes, failed on main"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "krn pr ship refuses a Check that is queued, not missing, after 300 s",

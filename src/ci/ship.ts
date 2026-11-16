@@ -45,6 +45,8 @@ export const answeredFailure = (stderr: string) =>
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
+/** Run statuses of a Check that exists but has not started. */
+const queuedRun = new Set(['queued', 'pending', 'waiting', 'requested']);
 const mergeTimeoutMs = 600_000;
 const concluded = z.enum([
   'SUCCESS',
@@ -615,8 +617,26 @@ main checkout: ${main}`;
     }
     return undefined;
   };
+  // A run GitHub still queues for the head is a Check that has not started yet, not a missing one.
+  const queued = async (at: string) => {
+    const text = await gh([
+      'run',
+      'list',
+      '--repo',
+      repo,
+      '--commit',
+      at,
+      '--json',
+      'status',
+    ]);
+    return z
+      .array(z.object({ status: z.string() }))
+      .parse(JSON.parse(text))
+      .some((run) => queuedRun.has(run.status.toLowerCase()));
+  };
   const outcome = await waitForMerge({
     view,
+    queued,
     head,
     mergeCurrent,
     pr,
@@ -652,6 +672,8 @@ main checkout: ${main}`;
  */
 async function waitForMerge(options: {
   view: () => Promise<PrView>;
+  /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
+  queued: (head: string) => Promise<boolean>;
   head: string;
   /** Called once per head after a green Check: merges it, or returns the new head after updating the branch to the base. */
   mergeCurrent: (head: string) => Promise<string | undefined>;
@@ -752,7 +774,11 @@ async function waitForMerge(options: {
           `merge: not observed within ${mergeTimeoutMs / 1000}s; after it merges run scripts/product-release.sh`,
           `verdict: open: merge requested but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
         );
-    } else if (check === undefined && elapsed >= startTimeoutMs)
+    } else if (
+      check === undefined &&
+      elapsed >= startTimeoutMs &&
+      !(await options.queued(head))
+    )
       return stop(
         69,
         `gate: the Check never started on ${head} within ${startTimeoutMs / 1000}s`,
