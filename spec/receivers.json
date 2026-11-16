@@ -226,6 +226,10 @@
         "test/fixtures/gh/pr-1112-head-rollup.stdout.json"
       ],
       "test": "test/ci/ship.test.ts"
+    },
+    "src/ci/command.ts": {
+      "receivers": ["gh", "git"],
+      "real": "test/ci/ship.test.ts"
     }
   }
 }
