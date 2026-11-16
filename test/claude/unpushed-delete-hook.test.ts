@@ -79,6 +79,8 @@ async function fixture() {
     repo,
     tip,
     task,
+    remote,
+    directory,
     lane: join(directory, 'lane'),
     cleanup: () => rm(directory, { recursive: true, force: true }),
   };
@@ -121,6 +123,46 @@ test('unpushed delete hook allows recorded, closed, pushed or unforced deletes',
     await f.task('open');
     git(f.repo, ['push', '--quiet', 'origin', 'lane']);
     allowed('git branch -D lane');
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('unpushed delete hook allows a squash-merged tip and a record in the claim worktree', async () => {
+  const f = await fixture();
+  try {
+    const status = (command: string) => hook(f.repo, command).status;
+    assert.equal(status('git branch -D lane'), 2);
+    // The lead's `krn task edit --append-body` lands in the claiming worktree's copy.
+    await mkdir(join(f.repo, '.krn', 'task-claims'), { recursive: true });
+    await writeFile(
+      join(f.repo, '.krn', 'task-claims', 't-abc1234.json'),
+      JSON.stringify({ id: 't-abc1234', worktree: f.lane }),
+    );
+    await writeFile(
+      join(f.lane, 'tasks', 't-abc1234.json'),
+      JSON.stringify({
+        id: 't-abc1234',
+        status: 'open',
+        body: [`Unpushed work: ${f.tip}`],
+      }),
+    );
+    assert.equal(status('git branch -D lane'), 0);
+    await rm(join(f.repo, '.krn'), { recursive: true });
+    assert.equal(status(`git worktree remove --force ${f.lane}`), 2);
+    // GitHub squash-merges the lane onto main: the tip stays on no remote.
+    const other = join(f.directory, 'other');
+    git(f.directory, ['clone', '--quiet', '--branch', 'main', f.remote, other]);
+    await writeFile(join(other, 'unrelated.txt'), 'main moved\n');
+    git(other, ['add', '.']);
+    git(other, ['commit', '--quiet', '-m', 'Unrelated']);
+    await writeFile(join(other, 'work.txt'), 'work\n');
+    git(other, ['add', '.']);
+    git(other, ['commit', '--quiet', '-m', 'Lane work (t-abc1234) (#1)']);
+    git(other, ['push', '--quiet', 'origin', 'main']);
+    git(f.repo, ['fetch', '--quiet', 'origin']);
+    assert.equal(status(`git worktree remove --force ${f.lane}`), 0);
+    assert.equal(status('git branch -D lane'), 0);
   } finally {
     await f.cleanup();
   }
