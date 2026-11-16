@@ -5223,7 +5223,8 @@
     "valid_from": "2026-11-16",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   },
   {
     "id": "s-ts-strict-optional",
@@ -5261,6 +5262,7 @@
     "valid_from": "2026-11-16",
     "valid_to": null,
     "supersedes": [],
-    "area": "node"
+    "area": "node",
+    "review_by": "2026-12-15"
   }
 ]
