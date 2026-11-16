@@ -8,16 +8,10 @@
       "task": "task records pass every task-quality rule in the Lint job",
       "files": [
         "package.json",
-        "scripts/task-quality.ts",
-        "src/brain/task-quality.ts",
-        "test/cli/task-quality.test.ts"
+        "src/task/quality.ts",
+        "test/task/task-quality.test.ts"
       ],
-      "violated": [
-        "s-task-states-proof",
-        "s-task-measurable-outcome",
-        "s-task-named-proof",
-        "s-task-named-files"
-      ]
+      "violated": ["s-task-records"]
     },
     {
       "id": "40436b3",
@@ -25,7 +19,7 @@
       "audience": "lead",
       "task": "t-zdcrewe states a measurable outcome",
       "files": [],
-      "violated": ["s-task-measurable-outcome"]
+      "violated": ["s-task-records"]
     },
     {
       "id": "db68510",

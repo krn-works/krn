@@ -14,8 +14,8 @@ import {
   scoreTasks,
 } from '../../src/brain/exposures.ts';
 import { metricReader, readMetricRegistry } from '../../src/brain/metrics.ts';
-import { allTaskQualityFailures } from '../../src/brain/task-quality.ts';
 import { ledgerCommand } from '../../src/cli/ledger.ts';
+import { allTaskQualityFailures } from '../../src/task/quality.ts';
 
 // Verbatim from .krn/runs/outside/summary.txt (clean drains and a no-drain row).
 const OUTSIDE = `krn-works/krn outside/php | php | 0 | none | 73 | none | 1 | $0.00

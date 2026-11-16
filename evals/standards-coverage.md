@@ -30,7 +30,6 @@ Narrowing of the five converted records: a check is the mechanical shape of the 
 | secrets | no-secrets-tracked<br>no-private-key-tracked * | - | - | php-no-tracked-salts | - | - |
 | security | - | node-no-dynamic-code * | py-no-unsafe-execution * | php-no-raw-request-output | - | - |
 | style | linter-configured | - | - | - | - | - |
-| task-quality | task-states-proof * | - | - | - | - | - |
 | tests | tests-tracked<br>test-command<br>test-exit-code<br>clean-checkout-tests<br>(a) regression-lowest-layer<br>(a) plainest-input<br>(a) receiver-evidence<br>repo-contract | - | - | php-composer-scripts | - | - |
 | tracker | task-records | - | - | - | - | - |
 | types | - | typescript-strict<br>ts-no-any *<br>ts-no-suppressions * | - | - | - | - |

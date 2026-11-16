@@ -1,7 +1,11 @@
 {
   "id": "t-jsdzgnx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "bin/krn task check exit 0; task list --kind gate --json exit 0; task-quality folded into src/task/quality.ts behind task check --quality; 7 task-quality records removed"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Tasks are categorised and carry their origin (S16)",

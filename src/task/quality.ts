@@ -1,5 +1,5 @@
-// The task-quality rules behind the `task-quality` standards: each reads `tasks/*.json` raw and names
-// the tasks that break it. A record that does not parse is `krn task check`'s finding, not a rule's.
+// The task-quality rules `krn task check` runs: each reads `tasks/*.json` raw and names
+// the tasks that break it. A record that does not parse is the structural check's finding, not a rule's.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

@@ -63,7 +63,6 @@
 | s-node-no-dynamic-code | n/a | pass | n/a | n/a |
 | s-no-wildcard-dependencies | pass | pass | n/a | FAIL |
 | s-release-notes | n/a | FAIL | pass | n/a |
-| s-task-states-proof | pass | pass | pass | pass |
 
 FAIL cells per row: php=5, npm=5, py=3, ymir-row=5
 

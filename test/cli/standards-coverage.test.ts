@@ -401,29 +401,6 @@ const cases: Case[] = [
     },
   },
   {
-    id: 's-task-states-proof',
-    base: tracked,
-    red: {
-      'tasks/t-aaaaaaa.json': JSON.stringify({
-        id: 't-aaaaaaa',
-        status: 'open',
-        body: ['Do the thing.'],
-      }),
-    },
-    green: {
-      'tasks/t-aaaaaaa.json': JSON.stringify({
-        id: 't-aaaaaaa',
-        status: 'open',
-        body: ['Do the thing. Proof: the test passes.'],
-      }),
-      'tasks/t-bbbbbbb.json': JSON.stringify({
-        id: 't-bbbbbbb',
-        status: 'closed',
-        body: ['Done.'],
-      }),
-    },
-  },
-  {
     id: 's-no-shared-stash',
     base: node,
     red: { 'scripts.sh': 'git stash\nmake test\ngit stash pop\n' },

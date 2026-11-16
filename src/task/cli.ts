@@ -23,6 +23,7 @@ import {
   taskRecordRoot,
 } from './claims.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
+import { allTaskQualityFailures } from './quality.ts';
 import {
   isTaskCategory,
   isTaskId,
@@ -98,7 +99,7 @@ const verbHelp: Record<string, string> = {
   dep: 'krn task dep add|rm ID --after ID [--json]\nChange a blocking dependency. Example: krn task dep add t-a1b2c3d --after t-b2c3d4e --json',
   edit: 'krn task edit ID [--title T] [--priority N] [--body-file FILE|-] [--append-body TEXT] [--verify CMD]... [--reopen] [--json]\nEdit task fields; use --reopen for closed tasks. Example: krn task edit t-a1b2c3d --title "Updated task" --json',
   check:
-    'krn task check [--base REV [--head REV]] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists, or naming a feat/, fix/ or chore/ branch that exists neither locally nor on origin. Example: krn task check --evidence --json',
+    'krn task check [--base REV [--head REV]] [--quality] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --quality, also refuse an open task without a measurable Outcome, a named Proof or a named file, a body dependency missing from after, or a done close without evidence; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists, or naming a feat/, fix/ or chore/ branch that exists neither locally nor on origin. Example: krn task check --evidence --json',
 };
 
 export async function taskCommand(args: string[]): Promise<void> {
@@ -165,10 +166,14 @@ function check(args: string[], json: boolean): CommandOutput {
   let base: string | undefined;
   let head: string | undefined;
   let evidence = false;
+  let quality = false;
   let recovery: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
-    if (option === '--evidence') {
+    if (option === '--quality') {
+      if (quality) throw usage('--quality may be supplied once');
+      quality = true;
+    } else if (option === '--evidence') {
       if (evidence) throw usage('--evidence may be supplied once');
       evidence = true;
     } else if (option === '--recovery') {
@@ -189,6 +194,8 @@ function check(args: string[], json: boolean): CommandOutput {
     throw usage('--recovery requires --evidence');
   const root = repositoryRoot();
   const findings = checkTaskDirectory(root);
+  if (findings.length === 0 && quality)
+    findings.push(...allTaskQualityFailures(root));
   if (findings.length === 0 && base !== undefined)
     findings.push(
       ...branchTicketFindings(root, loadTaskIndex(root), base, head ?? 'HEAD'),
