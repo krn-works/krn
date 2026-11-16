@@ -1,0 +1,14 @@
+{
+  "id": "t-r25p4zw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "npm run fast selects tests that import a changed module transitively",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16, PR #1212 (t-v9zxepq): `npm run fast` passed locally (28 related tests) after changing src/context/gauge.ts, but CI went red on test/claude/context-replay.test.ts (\"the real gauge hook advises inside the step that crosses the threshold\"), which imports src/context/replay.ts, which imports gauge.ts. The related-test selection missed a transitive importer, costing one red Check and a reship.\nOutcome: the fast related-test selection includes tests that import a changed module transitively (at least two import hops), so changing src/context/gauge.ts selects test/claude/context-replay.test.ts; a test asserts that selection.\nProof: a test in test/ asserts the related set for src/context/gauge.ts contains test/claude/context-replay.test.ts.\nFiles: scripts/fast-check.ts, src/"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

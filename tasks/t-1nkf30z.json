@@ -1,0 +1,16 @@
+{
+  "id": "t-1nkf30z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 2,
+  "title": "Context budget step 2: global window 500k once the 200-300k band proves its quality",
+  "after": [
+    "t-v9zxepq"
+  ],
+  "body": [
+    "Source: t-v9zxepq decision 2026-11-16. Operator orders (verbatim): \"podnieś caps kontekstu, chcę wykorzystać 1M - ale zrób to stabilnie, serio, chcemy wszystko nadal mieć w chuj jakościowe.\"; \"niekoniecznie musisz dawać pełny 1m ale te 400k byłoby ok\"; \"w sensie kurwa 400k to mój guess zrób rsearch i sam ustal jak to zrobic zajebiscie\".\nCurrent (t-v9zxepq): global window 400k in ~/.claude/settings.json, thresholds at 1/2, 5/8, 3/4 of it: advisories 200k/250k, ceiling 300k.\nOutcome: the global window reads 500000 only after analyze_peak.py prints verdict pass for the 200-300k band (at least 30 lead-shipped merges); otherwise the window stays 400000.\nChange: global autoCompactWindow 500000 -> advisories 250k/312k, ceiling 375k (the operator's ~400k working context).\nGate (all must hold before step 2):\n1. >= 30 merged PRs authored by lead sessions whose peak gauge context was 200-300k (step-1 band), mapped PR->session.\n2. first-push-green in that band within 10 percentage points of the <150k band, and rework (fix( PR <= 48 h on the same task or files) not more than 10 points above it.\n3. t-ahsmyfp (global usage cut) shipped, because a 500k window raises cache-read cost per turn to ~135% of 150k host-wide.\nMeasure: .krn/runs/lead/context-budget/analyze_peak.py (prints a final verdict: line); baseline 2026-11-16: <150k 85% FPG n=20, 150-200k 71% n=17, 200k+ n=3. Its PR->session mapping covers only 41 of 654 PRs (matches PR URLs in transcripts); improve the mapping (ledger lead attribution) first, or the gate never fills.\nProof: analyze_peak.py prints verdict pass for the 200-300k band and ~/.claude/settings.json autoCompactWindow reads 500000\nFiles: ~/.claude/settings.json, src/context/gauge.ts, .krn/runs/lead/context-budget/analyze_peak.py"
+  ],
+  "kind": "chore",
+  "area": "context"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-8hhvd6g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "krn task edit rewrites a pending record instead of calling it archived",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-16: `krn task edit t-1nkf30z --body-file ...` and `--append-body` on a record created in the main checkout (pending on refs/krn/pending-tasks, #1201) exit 65 \"tasks/t-1nkf30z.json: task is archived and read-only; create a new task instead\", while `krn task show t-1nkf30z` reads it as open.\nOutcome: `krn task edit` on a pending record rewrites it on the pending ref and exits 0; `krn task show` prints the edited body; a closed archived record still refuses with exit 65.\nProof: a test in test/task/ creates a record in a main-checkout fixture, edits its body and asserts the pending ref holds the edit, plus the archived refusal.\nFiles: src/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

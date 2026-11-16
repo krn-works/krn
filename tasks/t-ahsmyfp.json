@@ -1,0 +1,19 @@
+{
+  "id": "t-ahsmyfp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 0,
+  "title": "Global usage cut: cap concurrent sessions, cheaper context-relay model, fresh session per task",
+  "after": [
+    "t-v9zxepq"
+  ],
+  "body": [
+    "Source: operator 2026-11-16, Claude Code usage-insight panel pasted verbatim, with the order (verbatim): \"prosze ogarnij to globalnie, to jest serio bardzo ważne szefunciu tuż po tym jak ogarniesz to wszystko!\"",
+    "Panel (verbatim):\n82%  Run fewer sessions at once · up to 23 at once\n25%  Start fresh when you switch tasks · run /clear\n15%  Run /context-relay on a cheaper model\n13%  Check which model \"context-relay\" subagents use\n11%  See what fills your context · run /context",
+    "Outcome: a global fix (user scope: ~/.claude, global skills, KRN lane/launcher defaults), not a per-repo patch:\n1. A global cap on concurrent agent sessions/lanes, enforced by the launcher and lane start, with the measured peak (23) as the baseline to cut.\n2. context-relay and its subagents run on a cheaper model (pin the model in the skill/agent frontmatter); verify which model they run on today from transcripts.\n3. A fresh session on task switch (lead loop: one task per session, or /clear at slice boundary) rather than carrying context across tasks.\n4. Evidence: the same usage panel, or ledger-derived numbers, before and after.\nInteracts with t-v9zxepq (a larger context window raises per-turn cost): decide them together.",
+    "Proof: the Claude Code usage panel or a ledger query shows the peak of concurrent sessions and the context-relay model share dropping after the change\nFiles: ~/.claude/settings.json, ~/.claude/skills/context-relay/SKILL.md, scripts/claude/successor-launch.ts, src/lane/"
+  ],
+  "kind": "chore",
+  "area": "context"
+}
