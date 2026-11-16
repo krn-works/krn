@@ -28,7 +28,7 @@ s-php-composer-lock [**/*.php]: A PHP project that declares Composer packages tr
 s-php-composer-scripts [**/*.php]: A PHP project with composer.json declares the composer scripts `test` and `lint`, so agents and CI run the same named checks
 s-php-no-raw-request-output [**/*.php]: PHP code never echoes request input (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) without escaping it at the output boundary
 s-php-no-tracked-salts [**/*.php]: No tracked PHP file defines a WordPress authentication key or salt as a literal; secrets, salts and deployment settings live in the private .env
-s-php-no-error-suppression [**/*.php]: PHP code does not silence a function call with the `@` operator; it checks the result or catches the exception
+s-php-no-error-suppression [**/*.php]: PHP code does not silence a function call with the `@` prefix; it checks the result or catches the exception
 s-php-no-empty-catch [**/*.php]: A PHP `catch` block is never empty; it handles, logs or rethrows the error, or says in a comment why it is ignored
 s-php-no-eval [**/*.php]: PHP code does not call `eval()` or `create_function()`; behavior is written as code or looked up in a map
 s-php-autoload-declared [**/*.php]: A PHP project with Composer and classes under a src directory declares its Composer autoload, so classes load by namespace and not by hand-written require calls
