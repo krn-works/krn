@@ -55,7 +55,7 @@ function receiver(options: {
   const calls: string[] = [];
   const dirs: string[] = [];
   const pulls = [...options.pulls];
-  const gh = async (a: string[]): Promise<string> => {
+  const answer = (a: string[]): string => {
     calls.push(`gh ${a.join(' ')}`);
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('--search'))
       return options.carrier ?? '';
@@ -96,6 +96,7 @@ function receiver(options: {
     }
     assert.fail(`unexpected gh call ${a.join(' ')}`);
   };
+  const gh = async (a: string[]): Promise<string> => answer(a);
   const run = (command: string, a: string[], at?: string) => {
     calls.push(`${command} ${a.join(' ')}`);
     dirs.push(`${at} ${command} ${a[0]}`);
@@ -175,6 +176,7 @@ function receiver(options: {
     dirs,
     run,
     gh,
+    answer,
     cwd: options.cwd ?? '/r/.krn/worktrees/feat-x',
     hasFile: () => options.hasRule ?? true,
     now: () => time,
@@ -682,6 +684,68 @@ test('a gh refusal reaches the caller with the receiver stderr, without a retry'
     },
   );
   assert.equal(asked, 1);
+});
+
+// KRN-12: the TLS stderr is the verbatim text a ship lane printed when its gh call lost the network.
+const tlsTimeout =
+  capture('fixtures/gh', 'pr-view-tls-timeout').streams.stderr?.toString(
+    'utf8',
+  ) ?? '';
+
+/** Routes the default gh through the fake: `pr view` fails with `stderr` for the first `times` asks. */
+function flakyView(
+  r: ReturnType<typeof receiver>,
+  failure: { times: number; stderr: string },
+) {
+  const { gh: _fake, ...rest } = r;
+  const asked: string[] = [];
+  const route = (command: string, given: string[], at?: string) => {
+    // A call that names --repo runs as `env KRN_APP_REPOSITORY=<repo> gh ...`.
+    const scoped = command === 'env' && given[1] === 'gh';
+    const a = scoped ? given.slice(2) : given;
+    if (command !== 'gh' && !scoped) return r.run(command, a, at);
+    if (a[0] === 'pr' && a[1] === 'view') {
+      asked.push(a.join(' '));
+      if (asked.length <= failure.times)
+        return { code: 1, stdout: '', stderr: failure.stderr };
+    }
+    return { code: 0, stdout: r.answer(a), stderr: '' };
+  };
+  return { rest: { ...rest, run: route }, asked };
+}
+
+test('ship retries gh pr view after a TLS handshake timeout and merges', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const { rest, asked } = flakyView(r, { times: 2, stderr: tlsTimeout });
+  const out = await shipCommand(args, rest);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(asked.length >= 3);
+});
+
+test('ship gives up on a network failure after three tries', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const { rest, asked } = flakyView(r, { times: 99, stderr: tlsTimeout });
+  await assert.rejects(shipCommand(args, rest), (e: Error) => {
+    assert.equal(e.message, tlsTimeout);
+    return true;
+  });
+  assert.equal(asked.length, 3);
+});
+
+test('ship does not retry a gh pr view that answers 404', async () => {
+  const stderr =
+    capture('fixtures/gh', 'pr-not-found').streams.stderr?.toString('utf8') ??
+    '';
+  const r = receiver({ pulls: [auto, merged] });
+  const { rest, asked } = flakyView(r, {
+    times: 99,
+    stderr,
+  });
+  await assert.rejects(shipCommand(args, rest), (e: Error) => {
+    assert.equal(e.message, stderr);
+    return true;
+  });
+  assert.equal(asked.length, 1);
 });
 
 // KRN-12: the Proof command is the real weak-tests script over a real git commit that drops
