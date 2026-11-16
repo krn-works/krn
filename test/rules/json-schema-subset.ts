@@ -12,6 +12,8 @@ const KNOWN = new Set([
   'properties',
   'additionalProperties',
   'items',
+  'minItems',
+  'uniqueItems',
   'pattern',
   'minLength',
   'maxLength',
@@ -65,6 +67,15 @@ export function validate(schema: Schema, value: unknown, path = '$'): string[] {
       value <= schema.exclusiveMinimum
     )
       errors.push(`${path}: not above ${schema.exclusiveMinimum}`);
+  }
+  if (Array.isArray(value)) {
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems)
+      errors.push(`${path}: fewer than ${schema.minItems} items`);
+    if (
+      schema.uniqueItems === true &&
+      new Set(value.map((item) => JSON.stringify(item))).size !== value.length
+    )
+      errors.push(`${path}: duplicate items`);
   }
   if (Array.isArray(value) && schema.items !== undefined)
     for (const [index, item] of value.entries())

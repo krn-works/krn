@@ -166,3 +166,16 @@ test('the record and exposure readers refuse an unknown major', () => {
   assert.throws(() => readExposures(root), FormatError);
   assert.throws(() => assertFormat(root, 'krn.record'), /major 3/u);
 });
+
+// A task created with `--stack` failed this check with "unsupported keyword minItems" and
+// "uniqueItems" because the validator did not know the keywords task.v1 uses on stack (t-y9gvftp).
+test('a task stack of distinct names conforms and an empty or duplicated one is refused', () => {
+  const stack = (
+    read('spec/schema/task.v1.json') as {
+      properties: { stack: Record<string, unknown> };
+    }
+  ).properties.stack;
+  assert.deepEqual(validate(stack, ['typescript', 'node']), []);
+  assert.deepEqual(validate(stack, []), ['$: fewer than 1 items']);
+  assert.deepEqual(validate(stack, ['node', 'node']), ['$: duplicate items']);
+});
