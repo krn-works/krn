@@ -1,0 +1,18 @@
+{
+  "id": "t-ftv39j4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "A lane brief line lane-model: opus does not run the lane on Opus",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-16: the S7 lane brief (.krn/runs/lead/briefs/t-1p7dmw9.md) carried 'lane-model: opus' and the Agent call asked for opus, yet PR #1249 says 'Agent: Claude Sonnet 5.5'.\nOutcome: a brief with lane-model: opus starts the krn-lane agent on Opus; the PR Agent line names Opus\nProof: a regression test feeds a brief with lane-model: opus to the Agent routing hook and asserts the routed model is opus"
+  ],
+  "kind": "defect",
+  "area": "lane",
+  "from": {
+    "kind": "finding",
+    "ref": "lane-model-opus"
+  }
+}
