@@ -620,6 +620,12 @@ main checkout: ${main}`;
           ),
           { exitCode: 77 },
         );
+      // GitHub already accepted the merge and is still applying it: keep waiting for MERGED.
+      if (
+        error instanceof CommandFailure &&
+        /merge already in progress/iu.test(error.result.stderr)
+      )
+        return undefined;
       throw error;
     }
     return undefined;
