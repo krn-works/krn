@@ -311,3 +311,26 @@ test('a lane subagent mutating Bash on the main checkout is refused; read-only B
   ])
     assert.equal(run(command), undefined, command);
 });
+
+test('the main-checkout guard ignores heredoc bodies, quoted operators and relative paths after cd into the worktree', () => {
+  const run = (command: string) => decide(subagent('Bash', { command }), lead);
+  const own = `${main}/.krn/worktrees/lane-a`;
+  for (const command of [
+    // Heredoc body lines are data: neither `rm` nor `>` in them runs.
+    `cat > ${main}/.krn/tmp/brief.md <<'EOF'\nrm src/x.ts\nthen a > b in prose\nEOF`,
+    // `>` inside a quoted placeholder is text, not a redirect.
+    `krn pr body --task '<task-id>' --verified '<command: verdict>' --out ${main}/.krn/tmp/b.md`,
+    `echo "a > b" | grep a`,
+    // Relative targets resolve against the cd that precedes them.
+    `cd ${own} && echo x > src/out.ts`,
+    `cd ${own} && git add -A && git commit -m x`,
+    `cd ${own} && sed -i 's/a b/c/' src/x.ts`,
+  ])
+    assert.equal(run(command), undefined, command);
+  for (const command of [
+    `cd ${own} && echo x > ${main}/src/x.ts`,
+    `cd ${own} && cd ../../.. && rm src/x.ts`,
+    `echo "x" > "${main}/src/x.ts"`,
+  ])
+    assert.match(run(command) ?? '', /^Refused/u, command);
+});
