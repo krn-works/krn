@@ -16,6 +16,7 @@ import { writeFastPass } from '../src/ci/fast-pass.ts';
 import { check as checkBoundaries } from './boundaries.ts';
 import { withSlot } from './lib/slot-lock.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
+import { refreshIndex } from './render-standards-index.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
@@ -510,6 +511,8 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     process.stderr.write(`fast: ${parsed.error}\n`);
     return 64;
   }
+  // The standards index is generated from the pack: regenerate it so the diff below carries it.
+  refreshIndex(root);
   let changed: string[];
   let removed: string[];
   let surviving: Set<string>;

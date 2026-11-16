@@ -1,7 +1,11 @@
 {
   "id": "t-0sp26bn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/brain/standards-index.test.ts passes: index line count equals enforced pack record count, 5925 bytes, shipped byte-identical by adopt"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "A generated standards index shows agents every repository rule",
