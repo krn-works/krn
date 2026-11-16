@@ -2,6 +2,12 @@ import { planScoredShare, predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
+  BANDS,
+  type BandName,
+  collectContextGate,
+  renderContextGate,
+} from '../outcome/context-gate.ts';
+import {
   collectFirstPushGreen,
   renderFirstPushGreen,
 } from '../outcome/first-push-green.ts';
@@ -27,6 +33,8 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let predictions = false;
   let share = false;
   let firstPushGreen = false;
+  let contextGate = false;
+  let band: BandName | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
@@ -43,6 +51,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--first-push-green') {
       firstPushGreen = true;
+      continue;
+    }
+    if (flag === '--context-gate') {
+      contextGate = true;
       continue;
     }
     if (flag === '--check-ceiling') {
@@ -66,6 +78,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     if (
       ![
         '--last',
+        '--band',
         '--since',
         '--pr',
         '--limit',
@@ -80,7 +93,11 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       i++,
       () => new CliUsageError(`Missing value for ${flag}`),
     );
-    if (flag === '--last') {
+    if (flag === '--band') {
+      const named = BANDS.find((b) => b.name === value);
+      if (!named) throw new CliUsageError('Invalid --band');
+      band = named.name;
+    } else if (flag === '--last') {
       if (!/^\d+$/.test(value) || Number(value) < 1)
         throw new CliUsageError('Invalid --last');
       window.last = Number(value);
@@ -108,6 +125,21 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (contextGate) {
+    const report = await collectContextGate({
+      ...(options.since === undefined ? {} : { since: options.since }),
+      ...(options.repo === undefined ? {} : { repo: options.repo }),
+      ...(options.root === undefined ? {} : { root: options.root }),
+      ...(options.transcripts === undefined
+        ? {}
+        : { transcripts: options.transcripts }),
+      ...(band === undefined ? {} : { band }),
+    });
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderContextGate(report),
+    );
+    return;
   }
   if (firstPushGreen) {
     const report = await collectFirstPushGreen({
