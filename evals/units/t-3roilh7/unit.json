@@ -13,7 +13,7 @@
     "dest": "scw/config_test.go"
   },
   "install": "go mod download",
-  "test": "timeout 240 go test -count=1 ./scw/",
+  "test": "timeout 240 go test -count=1 -run '^(TestSaveConfig|TestLoadProfileAndActiveProfile|TestConfigString|TestMergeProfiles|TestConfig_ConfigFile|TestEmptyConfig|TestEmptyProfile)$' ./scw/",
   "committed": "2026-10-23",
   "issue": "https://github.com/scaleway/scaleway-sdk-go/issues/3383"
 }

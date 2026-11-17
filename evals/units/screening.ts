@@ -21,6 +21,7 @@ import {
   statfsSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shellWord } from '../../src/repo/shell-text.ts';
@@ -385,6 +386,7 @@ export async function gradeWorktree(
   scratch = resolve(scratch);
   // No unsandboxed fallback: a host without a working bwrap fails the grade loudly instead of recording a verdict.
   requireSandbox();
+  refuseScratchInRepository(scratch);
   cacheRoot = join(scratch, 'cache');
   mkdirSync(dirname(join(wt, unit.hidden.dest)), { recursive: true });
   writeFileSync(
@@ -409,6 +411,24 @@ export async function gradeWorktree(
     ) ||
     (unit.test.includes('pytest') && test === 2);
   return { install, test, compile };
+}
+
+/**
+ * A unit's temporaries live under scratch, and its tests may assert "not inside a git repository" from a temp dir.
+ * Under a scratch inside a checkout they find that checkout instead (go-git ignores GIT_CEILING_DIRECTORIES), so the
+ * fix fails and the unit is dropped for the host's layout, not its code.
+ */
+export function refuseScratchInRepository(scratch: string): void {
+  let dir = resolve(scratch);
+  while (!existsSync(dir)) dir = dirname(dir);
+  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: dir,
+    encoding: 'utf8',
+  });
+  if (top.status === 0)
+    throw new Error(
+      `grade scratch ${scratch} is inside the git repository ${top.stdout.trim()}: pass a --scratch outside any repository`,
+    );
 }
 
 /** Run the hidden test on one commit in a throwaway worktree of the clone. */
@@ -463,7 +483,8 @@ async function verify(
       k: seen.set(r.repo, (seen.get(r.repo) ?? -1) + 1).get(r.repo) as number,
     }))
     .sort((a, b) => a.k - b.k || a.i - b.i)
-    .map((x) => x.r);
+    .map((x) => x.r)
+    .filter((r) => toGrade(r, only));
   let next = 0;
   const slow = new Set<string>();
   const graded: { id: string; v: Verification }[] = [];
@@ -569,6 +590,14 @@ async function verify(
     rmSync(join(unitsDir, id), { recursive: true, force: true });
 }
 
+/**
+ * A row this verify run grades: unrecorded, and the named one under `--id`. Rows outside it never reach the cache
+ * check, which walks the whole cache: run per row of a 254-row manifest, an `--id` run spent minutes after its grade.
+ */
+export function toGrade(row: ManifestRow, only: string | undefined): boolean {
+  return (!only || row.id === only) && !row.verification;
+}
+
 /** Exit status of a verify run whose every grade failed install: the grading host broke, not the units. */
 export const EXIT_INFRASTRUCTURE = 75;
 
@@ -606,7 +635,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       await verify(
         sources,
         flag('units') ?? here,
-        flag('scratch') ?? '.krn/tmp/screen-scratch',
+        flag('scratch') ?? join(tmpdir(), 'krn-screen-scratch'),
         flag('log-dir') ?? '.krn/runs/lane/screening-verify',
         Number(flag('concurrency') ?? 2),
         flag('id'),

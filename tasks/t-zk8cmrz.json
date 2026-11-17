@@ -1,7 +1,11 @@
 {
   "id": "t-zk8cmrz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "70/73 verified units re-verified under bwrap on a manifest copy (verify --recorded: 70); 3 dropped with reasons in the PR; scratch-in-repo refusal and toGrade filter"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Re-verify every screening unit through the bubblewrap grade",

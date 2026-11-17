@@ -130,9 +130,9 @@
     "verification": {
       "installBase": 0,
       "testBase": 1,
-      "baseFailure": "assertion",
-      "installFix": 0,
-      "testFix": 0
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
     }
   },
   {
@@ -2908,7 +2908,7 @@
       "testBase": 1,
       "baseFailure": "assertion",
       "installFix": 0,
-      "testFix": 0
+      "testFix": 1
     }
   },
   {
@@ -2942,7 +2942,7 @@
       "testBase": 1,
       "baseFailure": "assertion",
       "installFix": 0,
-      "testFix": 0
+      "testFix": 1
     }
   },
   {
