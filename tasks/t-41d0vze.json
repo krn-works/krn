@@ -1,7 +1,11 @@
 {
   "id": "t-41d0vze",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "unnamed standards query no longer applies the holdout; test/brain/standards-query-shipped.test.ts proves both queries list r-regression-layer"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Standards query finds the regression-layer record for a regression-test question",
