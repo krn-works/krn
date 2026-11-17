@@ -1,0 +1,18 @@
+{
+  "id": "t-8m2br4j",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "quoted spans and heredoc bodies ignored by kill refusal; substitution still refused; dispatch.test.ts proof"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Hook full-match kill refusal fires on quoted text and heredoc data",
+  "after": [],
+  "body": [
+    "#1318 (t-gapyf24) refuses any Bash command whose text matches the full-match kill pattern (pkill with -f, or kill fed by pgrep with -f), including quoted data: on 2026-11-17 the lead's `echo '... pkill -f ...' >> status.md` and a `printf` task body quoting the pattern were refused, so nothing ran.\nOutcome: the refusal tests only executable text: single-quoted spans, double-quoted spans without a command substitution, and heredoc bodies are ignored; a kill fed by a pgrep -f command substitution inside double quotes is still refused.\nProof: cases in test/hook/dispatch.test.ts through src/dispatch/main.ts pre-tool."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

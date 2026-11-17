@@ -223,3 +223,27 @@ test('one pre-tool process refuses kill fed by pgrep -f and pkill -f, naming ps 
     assert.equal(result.stderr, '', command);
   }
 });
+
+test('one pre-tool process ignores the kill pattern in quoted data and heredoc bodies but refuses it in a double-quoted substitution', () => {
+  for (const command of [
+    "echo 'run pkill -f x.sh later' >> status.md",
+    'echo "note: pkill -f x.sh" >> status.md',
+    "printf '%s' 'kill $(pgrep -f x)'",
+    'cat <<EOF > body.md\npkill -f x.sh\nkill $(pgrep -f x)\nEOF',
+    "cat <<'EOF' > body.md\npgrep -f x | xargs kill\nEOF",
+  ]) {
+    const result = hook('pre-tool', bash(command));
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+  for (const command of [
+    'kill "$(pgrep -f x.sh)"',
+    'echo "x" && pkill -f x.sh',
+    "echo 'a' ; kill $(pgrep -f x)",
+    'cat <<EOF\nhi\nEOF\npkill -f x',
+  ]) {
+    const result = hook('pre-tool', bash(command));
+    assert.equal(result.status, 2, command);
+    assert.match(result.stderr, /ps -eo pid,args/u, command);
+  }
+});
