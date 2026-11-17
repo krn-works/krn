@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { fetchBase } from '../../src/cli/lane.ts';
+import { addLaneWorktree, fetchBase } from '../../src/cli/lane.ts';
 
 // A lane session exports its class; these tests start lanes of their own.
 delete process.env.KRN_SESSION_CLASS;
@@ -550,6 +550,53 @@ test('fetchBase waits out a ref lock another fetch holds and fails at once on an
       git(join(base, 'other'), 'rev-parse', 'HEAD'),
     );
     assert.throws(() => fetchBase(repo, 'no-such-branch', 40, 1000), /failed/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('addLaneWorktree retries once when git reports the worktree lock-file race and cleans the admin dir', () => {
+  const { base, repo } = fixture();
+  try {
+    git(repo, 'fetch', '-q', 'origin');
+    const path = join(repo, '.krn', 'worktrees', 'p3');
+    const admin = join(repo, '.git', 'worktrees', 'p3');
+    let calls = 0;
+    addLaneWorktree(
+      repo,
+      'p3',
+      path,
+      'main',
+      (cwd, args) => {
+        calls += 1;
+        if (calls > 1)
+          return spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
+        // The verbatim failure: git made the branch and the admin dir, then lost the admin dir.
+        mkdirSync(admin, { recursive: true });
+        git(repo, 'branch', 'p3', 'origin/main');
+        return {
+          status: 128,
+          stderr: `fatal: could not open '${repo}/.git/worktrees/p3/locked' for writing: No such file or directory\n`,
+        };
+      },
+      5,
+      1,
+    );
+    assert.equal(calls, 2);
+    assert.ok(existsSync(join(path, '.git')));
+    assert.throws(
+      () =>
+        addLaneWorktree(
+          repo,
+          'p4',
+          join(repo, '.krn', 'worktrees', 'p4'),
+          'main',
+          () => ({ status: 128, stderr: 'fatal: other failure' }),
+          5,
+          1,
+        ),
+      /other failure/u,
+    );
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
