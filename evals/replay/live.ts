@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
+import { withoutBrowser } from '../units/no-browser.ts';
 import { forceRemove, gradeWorktree } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
 import { ARMS, type Arm } from './arms.ts';
@@ -73,7 +74,8 @@ export function armEnv(
   // The session's own builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs.
   env.TMPDIR = join(scratch, 'tmp');
   mkdirSync(env.TMPDIR, { recursive: true });
-  return env;
+  // The session runs the repository's own tests, which may open a URL (t-nsk5wca).
+  return withoutBrowser(env, join(scratch, 'no-browser'));
 }
 
 interface Session {

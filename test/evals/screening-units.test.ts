@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
+import { openerPaths } from '../../evals/units/no-browser.ts';
 import {
   cacheOverLimit,
   commandsFor,
@@ -273,6 +274,60 @@ test('grading temporaries live under scratch, not the size-capped host /tmp', as
     assert.equal(tmp, join(scratch, 'cache', 'tmp'));
     assert.equal(gotmp, tmp);
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a grading command that opens a URL reaches only the stub opener, never the desktop (t-nsk5wca)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'grade-no-browser-'));
+  const saved = {
+    DISPLAY: process.env.DISPLAY,
+    WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY,
+    DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS,
+  };
+  // The grader runs under a desktop session: its own env names a display and a bus.
+  process.env.DISPLAY = ':0';
+  process.env.WAYLAND_DISPLAY = 'wayland-1';
+  process.env.DBUS_SESSION_BUS_ADDRESS = 'unix:path=/host/session/bus';
+  try {
+    const wt = join(root, 'wt');
+    const unitDir = join(root, 'unit');
+    const scratch = join(root, 'scratch');
+    mkdirSync(wt);
+    mkdirSync(unitDir);
+    writeFileSync(join(unitDir, 'hidden.txt'), 'x');
+    const unit = {
+      install: 'true',
+      test: 'xdg-open https://example.invalid && "$BROWSER" https://example.invalid/b && echo "${DISPLAY-unset}|${WAYLAND_DISPLAY-unset}|$DBUS_SESSION_BUS_ADDRESS" > seen && true',
+      hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+    } as unknown as Parameters<typeof gradeWorktree>[1];
+    const g = await gradeWorktree(
+      wt,
+      unit,
+      unitDir,
+      join(root, 'log'),
+      scratch,
+    );
+    assert.equal(g.test, 0);
+    const opened = readFileSync(
+      openerPaths(join(scratch, 'cache', 'no-browser')).log,
+      'utf8',
+    );
+    assert.equal(
+      opened,
+      'xdg-open https://example.invalid\nxdg-open https://example.invalid/b\n',
+    );
+    const [display, wayland, bus] = readFileSync(join(wt, 'seen'), 'utf8')
+      .trim()
+      .split('|');
+    assert.equal(display, 'unset');
+    assert.equal(wayland, 'unset');
+    assert.notEqual(bus, process.env.DBUS_SESSION_BUS_ADDRESS);
+    assert.ok(bus?.startsWith(`unix:path=${scratch}`), bus);
+  } finally {
+    for (const [name, value] of Object.entries(saved))
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
     rmSync(root, { recursive: true, force: true });
   }
 });

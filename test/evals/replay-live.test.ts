@@ -12,8 +12,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { sessionOf } from '../../evals/replay/live.ts';
+import { ARMS } from '../../evals/replay/arms.ts';
+import { armEnv, sessionOf } from '../../evals/replay/live.ts';
 import { parseRows } from '../../evals/replay/screen.ts';
+import { openerPaths } from '../../evals/units/no-browser.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const git = (cwd: string, ...a: string[]) =>
@@ -457,5 +459,34 @@ test('a screened session writes its temporaries under scratch', () => {
       assert.equal(l, join(root, 'scratch', 'tmp'));
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an arm session env reaches no desktop: stub openers first on PATH, no display, no real bus (t-nsk5wca)', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'arm-env-'));
+  try {
+    const env = armEnv(ARMS.A, scratch, {
+      PATH: '/usr/bin',
+      HOME: scratch,
+      DISPLAY: ':0',
+      WAYLAND_DISPLAY: 'wayland-1',
+      DBUS_SESSION_BUS_ADDRESS: 'unix:path=/host/session/bus',
+    });
+    assert.equal(env.DISPLAY, undefined);
+    assert.equal(env.WAYLAND_DISPLAY, undefined);
+    assert.equal(
+      env.DBUS_SESSION_BUS_ADDRESS,
+      `unix:path=${join(scratch, 'no-browser', 'no-bus')}`,
+    );
+    const opened = spawnSync('sh', ['-c', 'xdg-open https://example.invalid'], {
+      env,
+    });
+    assert.equal(opened.status, 0);
+    assert.equal(
+      readFileSync(openerPaths(join(scratch, 'no-browser')).log, 'utf8'),
+      'xdg-open https://example.invalid\n',
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });

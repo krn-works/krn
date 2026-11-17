@@ -1,0 +1,22 @@
+{
+  "id": "t-nsk5wca",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "screening commands (cleanEnv) and arm sessions (armEnv) run with stub openers first on PATH, BROWSER at the stub, no DISPLAY/WAYLAND_DISPLAY and the bus at a missing path; tests in screening-units and replay-live"
+  },
+  "created": "2026-11-17",
+  "priority": 0,
+  "title": "Screen grading and sessions never open the host browser",
+  "after": [],
+  "body": [
+    "Source: operator report 2026-11-17: Chrome opened https://ko-fi.com/pelpsi at 03:28, 03:30 and 04:06 (history transition 6, external launch). Cause: gold-run grading of units t-fd481gz and t-obh9z0b (simonepelosi/vibez) ran go test ./internal/tui/, whose code calls openurl.Open(\"https://ko-fi.com/pelpsi\"); xdg-open reached the desktop session.\nFix: screening install/test commands and arm sessions run with a PATH stub dir whose xdg-open, open, sensible-browser, x-www-browser and gio log the URL and exit 0, BROWSER set to that stub, and DISPLAY, WAYLAND_DISPLAY and DBUS_SESSION_BUS_ADDRESS cleared (bus pointed at a nonexistent path).\nOutcome: a grading test whose command runs xdg-open https://example.invalid exits 0, the URL lands in the stub log, and no browser starts.\nProof: test/evals/screening-units.test.ts asserts the stub log line and that the command saw no DISPLAY, WAYLAND_DISPLAY or real bus."
+  ],
+  "kind": "defect",
+  "area": "eval",
+  "from": {
+    "kind": "inbox",
+    "ref": "operator-2026-11-17"
+  }
+}
