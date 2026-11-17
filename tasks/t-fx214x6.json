@@ -1,7 +1,11 @@
 {
   "id": "t-fx214x6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "sessionOf records a missing total_cost_usd as null; the report already excludes null and counts it unknown"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Replay arms record an unknown session cost as unknown, never zero",

@@ -225,13 +225,17 @@ const usageLimit =
 
 test('a usage-limited, crashed or silent session did not run; a result or the time limit did', () => {
   assert.deepEqual(sessionOf(usageLimit, false), { cost: 0.41, ran: false });
-  assert.deepEqual(sessionOf('', false), { cost: 0, ran: false });
-  assert.deepEqual(sessionOf('Error: boom', false), { cost: 0, ran: false });
+  assert.deepEqual(sessionOf('', false), { cost: null, ran: false });
+  assert.deepEqual(sessionOf('Error: boom', false), { cost: null, ran: false });
   assert.deepEqual(sessionOf('{"result":"ok","total_cost_usd":0.25}', false), {
     cost: 0.25,
     ran: true,
   });
-  assert.deepEqual(sessionOf('', true), { cost: 0, ran: true });
+  assert.deepEqual(sessionOf('', true), { cost: null, ran: true });
+  assert.deepEqual(sessionOf('{"result":"ok"}', false), {
+    cost: null,
+    ran: true,
+  });
 });
 
 test('--screen records a usage-limited session ungraded and the next run screens it again', () => {
