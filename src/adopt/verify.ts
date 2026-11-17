@@ -78,7 +78,7 @@ const rulesSchema = z.array(
 export interface VerifyReport {
   ok: boolean;
   gaps: string[];
-  /** Set when the CI checks were skipped, with the reason (no GitHub origin). */
+  /** Set when the CI checks were not run, with the reason: a repository with no origin (a fresh local project). */
   skipped?: string;
 }
 
@@ -191,28 +191,40 @@ function gh(root: string, path: string): string {
 export function verifyRepository(root: string): VerifyReport {
   const origin = originUrl(root);
   const github = hasGithubHost(origin);
-  let gaps: string[] = [];
-  if (github) {
+  const base = contractBase(root);
+  const gaps: string[] = [];
+  // No origin is the bootstrap flow of a fresh local project: it is reported, not refused. An origin that is not GitHub is refused.
+  if (!github && origin !== undefined)
+    gaps.push(
+      `no GitHub host (origin ${origin}): the required check and auto-merge cannot be checked`,
+    );
+  else if (github) {
     const repoBody = gh(root, 'repos/{owner}/{repo}');
     const branch = defaultBranch(repoBody);
-    gaps = verifyGaps(
-      repoBody,
-      gh(root, `repos/{owner}/{repo}/branches/${branch}`),
-      gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`),
+    gaps.push(
+      ...verifyGaps(
+        repoBody,
+        gh(root, `repos/{owner}/{repo}/branches/${branch}`),
+        gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`),
+      ),
     );
+    // krn.json `base` wins over the repository default, as for lanes; the gate read above is the default branch's.
+    if (base !== branch)
+      gaps.push(
+        `lane base ${base} is not the default branch ${branch}: the required check on ${base} was not checked`,
+      );
   }
-  // krn.json `base` wins over the repository default, as for lanes.
-  const base = contractBase(root);
   const deploying = deployWorkflows(root, base);
   if (deploying.length > 0 && !contractDeployAcknowledged(root))
     gaps.push(deployRemedy(deploying, base));
-  return github
-    ? { ok: gaps.length === 0, gaps }
-    : {
+  return origin === undefined
+    ? {
         ok: gaps.length === 0,
         gaps,
-        skipped: `no GitHub host (origin ${origin ?? 'none'}): the required check and auto-merge were not checked`,
-      };
+        skipped:
+          'no origin: the required gate (required check and auto-merge) was not checked',
+      }
+    : { ok: gaps.length === 0, gaps };
 }
 
 /** One contract gate command that two or more workflows run, and the files that run it. */

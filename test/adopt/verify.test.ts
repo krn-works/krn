@@ -181,20 +181,31 @@ test('adopt --verify names a deploying base-branch workflow until krn.json ackno
   assert.equal(plain.status, 0, plain.stdout + plain.stderr);
 });
 
-// A repository whose origin is not on GitHub: the CI checks are skipped with a named line, never a gh failure.
+// A repository whose origin is not on GitHub: verify cannot read the required gate, so it refuses with a named gap, never a gh failure and never a silent pass.
 for (const origin of [
-  null,
   'git@gitlab.com:team/app.git',
   'https://git.example.org/team/app.git',
   '../elsewhere/bare.git',
 ]) {
-  test(`adopt --verify with origin ${origin ?? 'none'} says there is no GitHub host and skips the CI checks`, () => {
+  test(`adopt --verify with non-GitHub origin ${origin} refuses with a named no-GitHub-host gap`, () => {
     const run = verify(repo, unpinned, '[]', () => {}, origin);
-    assert.equal(run.status, 0, run.stdout + run.stderr);
-    assert.match(run.stdout, /^verify skipped: no GitHub host \(origin /mu);
-    assert.doesNotMatch(run.stdout + run.stderr, /placehol|verify gap/u);
+    assert.equal(run.status, 1, run.stdout + run.stderr);
+    assert.match(run.stdout, /^verify gap: no GitHub host \(origin /mu);
+    assert.doesNotMatch(run.stdout, /verify ok: required check/u);
+    assert.doesNotMatch(run.stdout + run.stderr, /placehol/u);
   });
 }
+
+// No origin is a fresh local project: it exits 0 and says the required gate was not checked.
+test('adopt --verify with no origin exits 0 and says the required gate was not checked', () => {
+  const run = verify(repo, unpinned, '[]', () => {}, null);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /^verify skipped: no origin: the required gate .* not checked/mu,
+  );
+  assert.doesNotMatch(run.stdout + run.stderr, /placehol|verify gap/u);
+});
 
 test('adopt --verify on a non-GitHub origin still names an unacknowledged deploy workflow', () => {
   const run = verify(
@@ -205,8 +216,19 @@ test('adopt --verify on a non-GitHub origin still names an unacknowledged deploy
     'git@gitlab.com:team/app.git',
   );
   assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stdout, /verify skipped: no GitHub host/u);
+  assert.match(run.stdout, /verify gap: no GitHub host/u);
   assert.match(run.stdout, /verify gap: \.github\/workflows\/deploy-on-push/u);
+});
+
+test('adopt --verify refuses a lane base that is not the default branch', () => {
+  const run = verify(repo, protectedBranch, '[]', (root) =>
+    writeFileSync(join(root, 'krn.json'), '{"base":"develop"}\n'),
+  );
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /verify gap: lane base develop is not the default branch main/u,
+  );
 });
 
 test('adopt --verify names an edited hook file and a deleted standards record and exits 1; an untouched adoption is clean', () => {
