@@ -1,0 +1,18 @@
+{
+  "id": "t-txywvhe",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "startEgress falls back to /tmp when the parent is too deep; regression test against a live socket"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Egress socket falls back to a short directory when the parent path is too long",
+  "after": [],
+  "body": [
+    "startEgress (evals/units/egress.ts) throws \"egress socket path too long for a unix socket\" when its parent (tmpdir(), the test worker TMPDIR) sits under a long lane worktree path; 20 npm test failures block every lane ship from .krn/worktrees/<branch>.\nFiles: evals/units/egress.ts, test/evals/egress.test.ts\nOutcome: startEgress under a 120-byte parent returns a socket path of at most 107 bytes and serves; npm test in .krn/worktrees/lane-start-slim shows 0 egress-path failures.\nProof: node --test test/evals/egress.test.ts passes with the new long-parent regression test."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

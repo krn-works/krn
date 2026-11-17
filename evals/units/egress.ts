@@ -193,15 +193,26 @@ export interface Egress {
   close(): Promise<void>;
 }
 
+/** Unix socket paths stop at 107 bytes; the socket is `<parent>/egress-XXXXXX/proxy.sock`. */
+const socketPathLimit = 107;
+const socketSuffixBytes = Buffer.byteLength('/egress-XXXXXX/proxy.sock');
+
+/** `parent` when the socket fits under it, else `/tmp`: a lane worktree's TMPDIR can be too deep for a unix socket. */
+export function egressParent(parent: string): string {
+  return Buffer.byteLength(parent) + socketSuffixBytes <= socketPathLimit
+    ? parent
+    : '/tmp';
+}
+
 /**
- * Starts the filtering proxy on a fresh unix socket under `parent` (keep it short: unix paths stop at 107 bytes).
+ * Starts the filtering proxy on a fresh unix socket under `parent`, or under `/tmp` when `parent` is too deep.
  * It serves from this process's event loop: spawn the sandbox asynchronously, since spawnSync blocks the loop and
  * every download through the proxy then hangs.
  */
 export async function startEgress(parent: string): Promise<Egress> {
-  const dir = mkdtempSync(join(parent, 'egress-'));
+  const dir = mkdtempSync(join(egressParent(parent), 'egress-'));
   const socket = join(dir, 'proxy.sock');
-  if (Buffer.byteLength(socket) > 107)
+  if (Buffer.byteLength(socket) > socketPathLimit)
     throw new Error(`egress socket path too long for a unix socket: ${socket}`);
   const server: Server = createServer(onRequest);
   // Tunnels leave the HTTP server's connection tracking: close() destroys this server's own so it never waits on one.
