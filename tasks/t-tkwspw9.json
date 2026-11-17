@@ -1,7 +1,11 @@
 {
   "id": "t-tkwspw9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "operator unlocked the vault 2026-11-17 07:50; bw serve answers on 8087 and ships #1290 and #1293 merged"
+  },
   "created": "2026-11-17",
   "priority": 0,
   "title": "Ship pushes again once the operator unlocks Bitwarden and bw serve runs",

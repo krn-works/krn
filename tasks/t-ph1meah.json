@@ -1,0 +1,14 @@
+{
+  "id": "t-ph1meah",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Report dollars per merged and per first-push-green PR",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (radar 4), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: krn ledger joins slice-cost and first-push-green and prints dollars per merged PR and dollars per first-push-green PR.\nProof: node --test test/outcome over fixture transcripts plus a PR list asserting both dollar figures."
+  ],
+  "kind": "feature",
+  "area": "outcome"
+}

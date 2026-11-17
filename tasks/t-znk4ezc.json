@@ -1,0 +1,14 @@
+{
+  "id": "t-znk4ezc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship keeps waiting while the head Check run is queued",
+  "after": [],
+  "body": [
+    "Source: 2026-11-17 ship of t-r53fan0 exited 69 \"the Check never started on 3a71b7d within 300s\"; run 44035472255 on that SHA started later and passed, while three other PR runs queued.\nOutcome: krn pr ship keeps waiting while the Check run for the head SHA is queued (or a run for it exists), and exits 69 only when no run for the SHA exists after the start window.\nProof: a ship test with a captured `gh run list` reply showing a queued run for the head asserts no exit 69.\nFiles: src/ci/ship.ts"
+  ],
+  "kind": "defect",
+  "area": "ship"
+}
