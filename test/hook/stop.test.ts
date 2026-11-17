@@ -2263,6 +2263,65 @@ test('a lane whose ship merged and removed its branch and worktree may stop with
   }
 });
 
+test('a lane agent whose squash-merged ship kept its worktree may stop while the tip is the shipped head', () => {
+  // Evidence: lane t-nfztnf6 shipped PR #1341 (squash 16c85d2), kept worktree replay-arm-b as a lane ship does,
+  // and SubagentStop refused twice with "no commit on this branch" (t-hswt15n).
+  const origin = mkdtempSync(join(tmpdir(), 'stop-origin-'));
+  const main = clone();
+  try {
+    sh(main, 'checkout', '-q', 'main');
+    sh(origin, 'init', '-q', '--bare', '-b', 'main');
+    sh(main, 'remote', 'add', 'origin', origin);
+    sh(main, 'push', '-q', 'origin', 'main');
+    const tree = join(main, '.krn/worktrees/kept-lane');
+    sh(main, 'worktree', 'add', '-q', '-b', 'kept-lane', tree, 'main');
+    writeFileSync(join(tree, 'src/b.ts'), 'export const b = 1;\n');
+    sh(tree, 'add', '.');
+    sh(tree, 'commit', '-q', '-m', 'lane work');
+    const head = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: tree,
+      encoding: 'utf8',
+    }).stdout.trim();
+    // The squash: main gets the lane's change as another commit, so the lane commit is not on the base.
+    sh(main, 'merge', '-q', '--squash', 'kept-lane');
+    sh(main, 'commit', '-q', '-m', 'squash of kept-lane');
+    sh(main, 'push', '-q', 'origin', 'main');
+    sh(tree, 'fetch', '-q', 'origin');
+    const squash = spawnSync('git', ['rev-parse', 'main'], {
+      cwd: main,
+      encoding: 'utf8',
+    }).stdout.trim();
+    recordShip(main, {
+      branch: 'kept-lane',
+      sha: squash,
+      head,
+      task: 't-abcdefg',
+    });
+    const env = {
+      CLAUDE_PROJECT_DIR: tree,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_SCOPE: 'src/',
+      KRN_TASK: 't-abcdefg',
+    };
+    // The hook's branch as git prints it, newline included, from the lane worktree or the main checkout.
+    assert.equal(recordedShip(tree, env, 'kept-lane\n'), true);
+    assert.equal(recordedShip(tree, env, 'main\n'), true);
+    assert.equal(
+      judgeStop(payload(tree, 'shipped'), env, () => [], 'kept-lane'),
+      undefined,
+    );
+    // Work committed after the ship is not shipped: the record no longer speaks for the worktree.
+    writeFileSync(join(tree, 'src/c.ts'), 'export const c = 1;\n');
+    sh(tree, 'add', '.');
+    sh(tree, 'commit', '-q', '-m', 'later work');
+    assert.equal(recordedShip(tree, env, 'kept-lane'), false);
+    assert.equal(recordedShip(tree, env, 'main'), false);
+  } finally {
+    for (const path of [origin, main])
+      rmSync(path, { recursive: true, force: true });
+  }
+});
+
 test('a contract with arms off turns the red-first and clause arms off, an explicit env still wins', () => {
   const real = { base: 'main', test: 'npm test', tracker: 'krn' } as const;
   const off = { ...real, arms: { 'red-first': false, clauses: false } };
