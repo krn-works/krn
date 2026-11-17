@@ -1,7 +1,11 @@
 {
   "id": "t-gx41jz3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship fast-forwards a clean main checkout on the base after the merge; test/ci/ship.test.ts covers clean, dirty, other-branch and diverged"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Hooks never run a main checkout older than the lane worktree they judge",

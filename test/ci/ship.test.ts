@@ -38,6 +38,8 @@ function receiver(options: {
   mergedOfBranch?: string;
   dirty?: boolean;
   branch?: string;
+  /** The main checkout (/r): its branch, a dirty tree and a refused fast-forward. */
+  main?: { branch: string; dirty?: boolean; ffExit?: number };
   target?: string;
   cwd?: string;
   createRefusal?: string;
@@ -131,6 +133,17 @@ function receiver(options: {
       return { code: options.proofExit ?? 0, stdout: '', stderr: 'proof out' };
     if (command === 'bash') return out(`commit=${merge}\n`);
     const line = a.join(' ');
+    if (at === '/r' && options.main) {
+      if (line === 'rev-parse --abbrev-ref HEAD')
+        return out(`${options.main.branch}\n`);
+      if (a[0] === 'status') return out(options.main.dirty ? ' M f\n' : '');
+      if (a[0] === 'merge')
+        return {
+          code: options.main.ffExit ?? 0,
+          stdout: '',
+          stderr: 'fatal: Not possible to fast-forward, aborting.\n',
+        };
+    }
     if (line === 'rev-parse --abbrev-ref HEAD')
       return out(`${options.branch ?? 'feat-x'}\n`);
     if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
@@ -232,6 +245,53 @@ test('ship pushes, creates, merges explicitly, waits through the merge and leave
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
+});
+
+test('a merged ship fast-forwards a clean main checkout on the base, and only that one', async () => {
+  const ff = 'git merge --ff-only -q origin/main';
+  const clean = receiver({ pulls: [auto, merged], main: { branch: 'main' } });
+  const out = await shipCommand(args, {
+    ...clean,
+    completeClose: completeCloseExposure,
+  });
+  assert.match(out, /^main sync: fast-forwarded to origin\/main$/mu);
+  assert.ok(clean.dirs.includes('/r git merge'), clean.dirs.join('\n'));
+  assert.ok(clean.calls.includes(ff));
+  const dirty = receiver({
+    pulls: [auto, merged],
+    main: { branch: 'main', dirty: true },
+  });
+  assert.match(
+    await shipCommand(args, { ...dirty, completeClose: completeCloseExposure }),
+    /^main sync: skipped, the main checkout has uncommitted changes$/mu,
+  );
+  assert.ok(!dirty.calls.includes(ff));
+  const elsewhere = receiver({
+    pulls: [auto, merged],
+    main: { branch: 'topic' },
+  });
+  assert.match(
+    await shipCommand(args, {
+      ...elsewhere,
+      completeClose: completeCloseExposure,
+    }),
+    /^main sync: skipped, the main checkout is not on main$/mu,
+  );
+  assert.ok(!elsewhere.calls.includes(ff));
+  // A diverged main checkout warns; the merged PR still exits as merged.
+  const diverged = receiver({
+    pulls: [auto, merged],
+    main: { branch: 'main', ffExit: 128 },
+  });
+  const warned = await shipCommand(args, {
+    ...diverged,
+    completeClose: completeCloseExposure,
+  });
+  assert.match(warned, /^verdict: merged /mu);
+  assert.match(
+    warned,
+    /^main sync: warning, not fast-forwarded: fatal: Not possible to fast-forward, aborting\.$/mu,
+  );
 });
 
 test('a merged ship completes the pending close row of its task with the PR and the Check conclusion, once', async () => {
