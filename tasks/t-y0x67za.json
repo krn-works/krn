@@ -1,0 +1,20 @@
+{
+  "id": "t-y0x67za",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Lane start is claim plus worktree add; lane-run worktree, preflight, git and lane-lock are deleted",
+  "after": [
+    "t-exqjkea"
+  ],
+  "body": [
+    "Split of S24 (t-x4z168s), step 2 of 3. `krn lane start` keeps only the claim plus `git worktree add`; `gitWith` (src/cli/lane-run/git.ts) and `sleepSync` (src/cli/lane-lock.ts) move to their owners, since src/cli/lane.ts and src/cli/lane-finish.ts import them; `tokenHelper` stays (src/outside-git.ts, doctor-unattended import it).\nOutcome: src/cli/lane-run/worktree.ts, preflight.ts, git.ts and src/cli/lane-lock.ts are deleted (434 lines), with scripts/boundaries.ts and their tests updated; lane start, lane finish and ship tests stay green.\nProof: `test ! -e src/cli/lane-lock.ts && test ! -e src/cli/lane-run/preflight.ts` and `npm test` green on CI."
+  ],
+  "kind": "debt",
+  "area": "lane",
+  "from": {
+    "kind": "task",
+    "ref": "t-x4z168s"
+  }
+}
