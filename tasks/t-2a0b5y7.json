@@ -1,0 +1,18 @@
+{
+  "id": "t-2a0b5y7",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "open-red count skips pending Check and fresh no-run PRs; test/rules/open-red-limit.test.ts covers pending, failed, stale and fresh no-run"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Open-red lane limit counts PRs with a running Check as red",
+  "after": [],
+  "body": [
+    "On 2026-11-17 `krn lane start` refused with \"open-red limit: 3 open PRs have a red or missing Check (#1321, #1320, #1319)\" while all three had every job green except Test (12/13) still running: the open-red count (#1316, t-z0q36nh) counts a PR whose Check is in progress as missing, so three shipping lanes block every new lane until CI ends.\nOutcome: a PR whose Check is queued or in progress does not count toward KRN_OPEN_RED_MAX; a failed Check, and a PR with no Check run at all after its head is older than a grace period, still count.\nProof: a lane test over gh fixtures (one pending, one failed, one without a run) asserts only the failed and the stale no-run PR are counted.\nFiles: src/cli/lane-open-red.ts, test/rules/open-red-limit.test.ts"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

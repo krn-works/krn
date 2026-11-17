@@ -41,7 +41,7 @@ test('ghRepoView asks gh for the repository name as JSON', async () => {
   ]);
 });
 
-test('the open PR list read replays the captured gh reply and counts its PR without a finished Check as missing', () => {
+test('the open PR list read replays the captured gh reply and treats its PR with a Check still running as pending', () => {
   const bin = mkdtempSync(join(tmpdir(), 'krn-gh-'));
   const fixture = fileURLToPath(
     new URL('../fixtures/gh/pr-list-open-rollup.stdout.json', import.meta.url),
@@ -56,10 +56,8 @@ test('the open PR list read replays the captured gh reply and counts its PR with
     assert.equal(reply.stdout, capture('gh/pr-list-open-rollup.stdout.json'));
     const prs = readOpenPrs(bin);
     assert.ok(prs && prs.length > 0);
-    assert.throws(() => {
-      process.env.KRN_OPEN_RED_MAX = '1';
-      checkOpenRedLimit(bin);
-    }, /open-red limit/);
+    process.env.KRN_OPEN_RED_MAX = '1';
+    assert.doesNotThrow(() => checkOpenRedLimit(bin));
   } finally {
     delete process.env.KRN_OPEN_RED_MAX;
     process.env.PATH = before;
