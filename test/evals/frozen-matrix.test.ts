@@ -22,6 +22,8 @@ const frozen: Prereg = {
   reps: 2,
   alpha: 0.05,
   mdePp: 15,
+  models: ['sonnet'],
+  harness: 'a1',
   contrasts: [
     ['C', 'A'],
     ['C', 'B'],
@@ -38,7 +40,7 @@ const complete = (): Row[] =>
         rep,
         pass: arm === 'C' ? rep === 1 : rep === 2,
         cost: 0.5,
-        harness: 'h1',
+        harness: 'a1',
         model: 'sonnet',
       })),
     ),
@@ -49,7 +51,7 @@ const mixed = (): Row[] =>
   complete().map((r, i) => ({
     ...r,
     rep: r.rep === 2 ? 99 : r.rep,
-    harness: i === 0 ? 'h2' : r.harness,
+    harness: i === 0 ? 'b2' : r.harness,
   }));
 
 const prereg = [
@@ -57,6 +59,8 @@ const prereg = [
   'reps: 2',
   'contrasts: C-A, C-B',
   'alpha: 0.05',
+  'model: sonnet',
+  'harness-sha: a1',
   'mde-pp: 15',
   '## Units',
   '- t-aa',
@@ -107,7 +111,7 @@ test('a 12-row rep-99 mixed-harness matrix is refused before any test', () => {
   const problems = matrixProblems(rows, frozen).join('\n');
   assert.match(problems, /rep 99 outside 1\.\.2/);
   assert.match(problems, /missing t-aa A rep 2/);
-  assert.match(problems, /mixed harness: h1, h2/);
+  assert.match(problems, /mixed harness: a1, b2/);
   const result = strictReport(rows);
   assert.equal(result.status, 65);
   assert.match(result.stderr, /verdict: matrix incomplete or mixed/);

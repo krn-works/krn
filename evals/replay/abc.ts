@@ -13,6 +13,10 @@ export interface Prereg {
   mdePp: number;
   /** Each contrast is `[treatment, control]`: the estimate is treatment minus control. */
   contrasts: [ArmId, ArmId][];
+  /** Model families the run is pinned to (from the `model:` line); a row realizing any other is not the matrix. */
+  models?: string[];
+  /** The harness content hash frozen at the freeze commit (`harness-sha:`); absent until frozen. */
+  harness?: string;
 }
 
 const field = (text: string, name: string): string => {
@@ -34,9 +38,19 @@ export function parsePrereg(text: string): Prereg {
       if (!m) throw new Error(`bad contrast: ${c}`);
       return [m[1], m[2]] as [ArmId, ArmId];
     });
+  const models = [
+    ...field(text, 'model')
+      .toLowerCase()
+      .matchAll(/[a-z][a-z0-9.-]*/g),
+  ]
+    .map((m) => m[0])
+    .filter((w) => /^(sonnet|opus|haiku|fable)/.test(w));
+  const harness = /^harness-sha:[ \t]*([0-9a-f]+)[ \t]*$/m.exec(text)?.[1];
   return {
     units,
     reps: Number(field(text, 'reps')),
+    models,
+    ...(harness === undefined ? {} : { harness }),
     alpha: Number(field(text, 'alpha')),
     mdePp: Number(field(text, 'mde-pp')),
     contrasts,
@@ -169,9 +183,29 @@ export function matrixProblems(rows: Row[], prereg: Prereg): string[] {
   const harnesses = new Set(rows.map((r) => r.harness));
   if (harnesses.size > 1)
     problems.push(`mixed harness: ${[...harnesses].sort().join(', ')}`);
+  if (prereg.harness === undefined) problems.push('prereg pins no harness-sha');
+  else {
+    const wrong = [...harnesses].filter((h) => h !== prereg.harness);
+    if (wrong.length > 0)
+      problems.push(
+        `harness ${wrong.sort().join(', ')} is not the preregistered ${prereg.harness}`,
+      );
+  }
   const models = new Set(rows.map((r) => r.model ?? 'unknown'));
   if (models.size > 1)
     problems.push(`mixed realized model: ${[...models].sort().join(', ')}`);
+  const pinned = prereg.models ?? [];
+  const outside = [...models].filter(
+    (m) =>
+      m === 'unknown' ||
+      !m
+        .split(',')
+        .every((k) => pinned.some((p) => k.toLowerCase().includes(p))),
+  );
+  if (outside.length > 0)
+    problems.push(
+      `realized model ${outside.sort().join(', ')} outside the pinned set ${pinned.join(', ') || '(none)'}`,
+    );
   return problems;
 }
 
