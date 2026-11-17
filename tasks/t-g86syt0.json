@@ -1,0 +1,18 @@
+{
+  "id": "t-g86syt0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Screening verify keeps manifest fields it does not own when it re-grades a unit",
+  "after": [],
+  "body": [
+    "On 2026-11-17 the t-g0w638s lane (#1333, fd1954b) re-graded t-2blfi57 with 'node evals/units/screening.ts verify --id'; the rewritten manifest row lost its 'gold: 1' field, because verify writes the record anew instead of merging it with the existing row.\nOutcome: re-grading a unit keeps every manifest field the grade does not own (gold and any annotation); t-2blfi57 gets its gold field back.\nProof: a unit test re-grades a manifest row carrying gold: 1 and asserts the field survives."
+  ],
+  "kind": "defect",
+  "area": "evals",
+  "from": {
+    "kind": "task",
+    "ref": "t-g0w638s"
+  }
+}
