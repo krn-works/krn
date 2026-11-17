@@ -32,7 +32,7 @@ import {
   sessionVerification,
   ticketCommitTitle,
 } from './delivery.ts';
-import type { PreparedLane } from './prepare.ts';
+import { commitsSinceRed, type PreparedLane } from './prepare.ts';
 import { redCheckOf } from './red-check.ts';
 import {
   exitBudgetCapped,
@@ -233,7 +233,7 @@ export async function laneVerdict(
       return await stop('dirty tree');
     if (
       red !== undefined &&
-      git(path, ['rev-list', '--count', `${red.sha}..HEAD`]) === '0'
+      commitsSinceRed(path, red, task ?? slug).length === 0
     )
       return await stop(
         `no new commit since the red Check (run ${red.run} on ${red.sha.slice(0, 12)})`,
