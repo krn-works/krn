@@ -1,7 +1,11 @@
 {
   "id": "t-g0w638s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "re-graded one at a time at load <8: t-2blfi57 base compile failure, t-2ouowe0 and t-1ew29tn base assertion but fix fails hidden test; verify --recorded prints 70, no testBase 124 left"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Re-grade the screening units recorded as base timeouts on a quiet host",

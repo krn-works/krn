@@ -113,6 +113,17 @@ test('a base test killed by its timeout is not verified, even when recorded as a
   assert.equal(verified({ ...good, testBase: 124 }), false);
 });
 
+test('the recorded manifest holds no unit whose base test was killed by its timeout and counted as verified', () => {
+  for (const r of readManifest()) {
+    if (r.verification?.testBase === 124)
+      assert.equal(r.verification.baseFailure, 'timeout', r.id);
+  }
+  assert.equal(
+    readManifest().filter((r) => r.verification?.testBase === 124).length,
+    0,
+  );
+});
+
 function recorded(rows: ManifestRow[]) {
   const file = join(mkdtempSync(join(tmpdir(), 'screening-')), 'm.json');
   writeFileSync(file, JSON.stringify(rows));

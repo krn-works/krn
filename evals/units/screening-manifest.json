@@ -316,11 +316,10 @@
     "test": "timeout 240 go test -count=1 ./pkg/fuse/",
     "verification": {
       "installBase": 0,
-      "testBase": 124,
-      "baseFailure": "timeout",
-      "installFix": 0,
-      "testFix": 0,
-      "gold": 1
+      "testBase": 1,
+      "baseFailure": "compile",
+      "installFix": -1,
+      "testFix": -1
     }
   },
   {
@@ -3670,8 +3669,8 @@
     "test": "timeout 240 go test -count=1 ./internal/controller/clickhouse/",
     "verification": {
       "installBase": 0,
-      "testBase": 124,
-      "baseFailure": "timeout",
+      "testBase": 1,
+      "baseFailure": "assertion",
       "installFix": 0,
       "testFix": 1
     }
@@ -3772,10 +3771,10 @@
     "test": "timeout 240 go test -count=1 ./internal/server/",
     "verification": {
       "installBase": 0,
-      "testBase": 124,
-      "baseFailure": "timeout",
+      "testBase": 1,
+      "baseFailure": "assertion",
       "installFix": 0,
-      "testFix": 124
+      "testFix": 1
     }
   },
   {
