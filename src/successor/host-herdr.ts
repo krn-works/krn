@@ -254,5 +254,7 @@ export function herdrHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
     closeTab: (tab) => outcome(run('herdr', ['tab', 'close', tab])),
     rename: (tab, label) =>
       outcome(run('herdr', ['tab', 'rename', tab, label])),
+    // Only hc keeps finished terminals listed until they are removed.
+    removeFinished: () => [],
   };
 }
