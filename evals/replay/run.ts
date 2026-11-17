@@ -9,6 +9,7 @@
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
@@ -24,6 +25,12 @@ import {
 } from './screen.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+// The screening clones live once, in the main checkout: a run started from a linked worktree (as `krn pr ship` runs
+// the plan proof) or from another directory still finds them.
+export function defaultSources(from: string = here): string {
+  return join(mainCheckoutRoot(from), '.krn', 'sources', 'screening');
+}
 
 export function plan(opts: {
   arms: Arm[];
@@ -56,7 +63,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const loaded = loadUnits(flag('units-dir') ?? join(here, '..', 'units'));
     const units = loaded.map((u) => u.unit as ScreenUnit);
     const rowsFile = flag('rows') ?? join(here, 'screen-rows.jsonl');
-    const sources = flag('sources') ?? '.krn/sources/screening';
+    const sources = flag('sources') ?? defaultSources();
     const scratch = flag('scratch') ?? join(tmpdir(), 'krn-screen-live');
     const replay = flag('replay');
     if (replay !== undefined) {
@@ -135,7 +142,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         const row = await armCRow(
           byId.get(id) as LiveUnit,
           {
-            sources: flag('sources') ?? '.krn/sources/screening',
+            sources: flag('sources') ?? defaultSources(),
             scratch,
             harness,
             ...modelOption,
