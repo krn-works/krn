@@ -1,0 +1,14 @@
+{
+  "id": "t-8e4kdzz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "A base test timeout counts as an assertion failure in screening verify",
+  "after": [],
+  "body": [
+    "evals/units/screening.ts one() records baseFailure 'assertion' whenever the base test is non-zero and not a compile failure, so a base test killed by its timeout (exit 124) counts as red by assertion and verified() accepts the unit. On 2026-11-17 the t-zk8cmrz first pass under load ~100 recorded testBase 124 for 5 units (t-1jr2vwd, t-1c4dlg5, t-1ynhv0n, t-1mwsacc, t-2f3cc85); the committed manifest holds t-2blfi57 verified with testBase 124.\nOutcome: a base or fix test that exits 124 records a timeout verdict that verified() rejects (or triggers one sequential re-grade), and t-2blfi57 is re-graded on a quiet host so its base fails by assertion.\nProof: a unit test where the base test exits 124 is not verified; verify --recorded still prints >= 70."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}
