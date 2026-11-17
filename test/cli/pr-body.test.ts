@@ -173,6 +173,16 @@ test('pr body --lane adds the lane marker line and the plain body has none', () 
   assert.doesNotMatch(renderPrBody(input), /^Lane:/m);
 });
 
+test('pr body --lane records the advisor arm: fable when given, none otherwise', () => {
+  const input = { task, commits: [], verified: 'x', agent: 'a', refs: false };
+  assert.match(
+    renderPrBody({ ...input, lane: true, advisor: 'fable' }),
+    /^Advisor arm: fable$/m,
+  );
+  assert.match(renderPrBody({ ...input, lane: true }), /^Advisor arm: none$/m);
+  assert.doesNotMatch(renderPrBody(input), /^Advisor arm:/m);
+});
+
 test('proofCommands keeps the runnable backtick spans of the Proof field', () => {
   const record = {
     ...task,

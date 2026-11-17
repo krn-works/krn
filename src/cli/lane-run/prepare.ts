@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { briefClauses } from '../../brain/proof-line.ts';
+import { laneAdvisor } from '../../outcome/lane-advisor.ts';
 import { contractBase } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
@@ -86,7 +87,7 @@ export async function prepareLane(
     join(main, '.krn', 'tmp', 'app-cache'),
     {
       lane,
-      advisor: /^Advisor: on$/mu.test(prompt.text),
+      advisor: laneAdvisor(prompt.text) !== undefined,
       // Stop reads the clauses the brief states, the same list the proof line counts.
       ...(clauses.length === 0
         ? {}

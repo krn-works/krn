@@ -80,6 +80,8 @@ export interface HeadlessRun {
   model: string;
   fallbackModel: string;
   budgetUsd: number;
+  /** The advisor model for this session only (`--advisor`); absent leaves the advisor off. */
+  advisor?: string;
 }
 
 export function headlessArgs(run: HeadlessRun): string[] {
@@ -100,6 +102,7 @@ export function headlessArgs(run: HeadlessRun): string[] {
     String(run.budgetUsd),
     '--setting-sources',
     'project',
+    ...(run.advisor === undefined ? [] : ['--advisor', run.advisor]),
   ];
 }
 

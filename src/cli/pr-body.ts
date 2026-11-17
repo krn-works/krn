@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { ADVISOR_ARM_PREFIX } from '../outcome/lane-advisor.ts';
 import { LANE_MARKER } from '../outcome/lane-marker.ts';
 import { titleTaskId } from '../outcome/task-id.ts';
 import { contractBase } from '../repo/contract.ts';
@@ -21,6 +22,8 @@ export interface BodyInput {
   agent: string;
   refs: boolean;
   lane?: boolean;
+  /** The advisor arm of the lane (`fable` or `none`), written as a line next to the lane marker. */
+  advisor?: string;
   /** Names and behaviours the task body left unstated, one per line; rendered as its own section when present. */
   assumptions?: string;
 }
@@ -124,7 +127,7 @@ ${assumed}## Task
 ${input.refs ? 'Refs' : 'Ticket'}: ${task.id}
 
 Agent: ${input.agent}
-${input.lane ? `\n${LANE_MARKER}\n` : ''}
+${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n` : ''}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 `;
 }
@@ -230,6 +233,9 @@ export function prBodyCommand(args: string[]): string {
     agent,
     refs: refs || commitsLeaveTaskOpen(root, range, id),
     lane,
+    ...(process.env.KRN_LANE_ADVISOR === undefined
+      ? {}
+      : { advisor: process.env.KRN_LANE_ADVISOR }),
     assumptions,
   });
   if (out === undefined) return text;
