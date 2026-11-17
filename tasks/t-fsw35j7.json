@@ -1,0 +1,14 @@
+{
+  "id": "t-fsw35j7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship passes PR_BODY to its scoped checks as it does to the Proof",
+  "after": [],
+  "body": [
+    "krn pr ship runs the scoped checks (node scripts/fast-check.ts --base origin/<base>, src/ci/ship.ts:463-468) without PR_BODY, while Proof commands get it via proofEnvironment (ship.ts:118-124, 481-490); weak-tests then refuses a declared Weakens-tests line, and a branch that passed `PR_BODY=... npm run fast` is refused after any rebase changes its tree (2026-11-17, t-y0x67za, .krn/tmp/slim-ship2.log).\nFiles: src/ci/ship.ts, test/ci/ship.test.ts\nOutcome: the scoped check runs with the same PR_BODY as the Proof commands; a branch removing assertions with a Weakens-tests body line ships; the new test exits 0 and fails before the fix.\nProof: node --test test/ci/ship.test.ts passes with a case asserting PR_BODY reaches the scoped check."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

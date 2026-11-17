@@ -1,0 +1,14 @@
+{
+  "id": "t-hfbgy5a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "The retro asks GPT-6.2 Astra to critique every slice that hit a workaround",
+  "after": [],
+  "body": [
+    "Operator 2026-11-17: \"zacznij częściej pytać Astrę 6.2 o zdanie\", to polish recurring friction instead of working around it. Today the lead only asks Astra by hand (.krn/runs/research/gpt-6-2/RUN.md: codex exec -m gpt-6.2-astra -o ...). This session hit four workarounds in one slice (egress socket path, ambient KRN_SESSION_CLASS in tests, ship scoped check without PR_BODY, Agent isolation vs lane worktrees).\nFiles: scripts/claude/astra-critique.ts, .claude/skills/delivery-retro/SKILL.md\nOutcome: one command sends a slice's friction log (blockers, refusals, workarounds with evidence paths) to codex exec -m gpt-6.2-astra read-only and writes its critique under .krn/runs/research/gpt-6-2/critique-<date>.md; delivery-retro runs it whenever the slice recorded a workaround or a tool refusal, and each finding gets a task or a disposition.\nProof: node scripts/claude/astra-critique.ts --dry-run prints the exact codex command and the friction log it would send, exit 0."
+  ],
+  "kind": "feature",
+  "area": "workflow"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-t2bzkq9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Stop tests fail under full-suite load in a lane worktree and pass alone",
+  "after": [],
+  "body": [
+    "Full npm test in a lane worktree (2026-11-17, branch lane-start-slim, 4 lanes running) failed 6 test/hook/stop.test.ts cases (krn-lane subagent judged at main checkout; merged lane stops without verdict; missing test root named by directory; worktree gone + branch merged; released claim accepts lane branch; worker Stop gate judges claimed worktree); the same file passes 87/87 alone in the same worktree and on main. Logs: .krn/tmp/stop-slim.log, task output b7wa9td4u. A load- or ambient-env-dependent Stop test blocks every lane ship's Proof.\nFiles: test/hook/stop.test.ts, scripts/test-suite.mjs\nOutcome: the six cases pass in 5 consecutive full npm test runs under 3 concurrent lane loads, or the shared state they race on is isolated; the root cause is named in the PR.\nProof: five consecutive npm test runs with KRN_TEST_SHARDS default show 0 failures in test/hook/stop.test.ts."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
