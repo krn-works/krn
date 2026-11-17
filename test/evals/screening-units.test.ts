@@ -22,6 +22,7 @@ import {
   commandsFor,
   dirBytes,
   dropsToRemove,
+  duplicateIds,
   EXIT_INFRASTRUCTURE,
   forceRemove,
   gradeWorktree,
@@ -201,6 +202,44 @@ test('verify --id re-grades a recorded unit and refuses an id the manifest lacks
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('verify refuses a manifest holding one id twice, naming the id, and the committed manifest has none (t-zt6d2de)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dup-manifest-'));
+  try {
+    const row = {
+      id: 't-dup0001',
+      repo: 'o/r',
+      issue: 'https://github.com/o/r/issues/1',
+      fixPr: 'https://github.com/o/r/pull/2',
+      base: 'b',
+      fix: 'f',
+      committed: '2026-01-01',
+      test: 'true',
+    };
+    const manifest = join(root, 'm.json');
+    writeFileSync(
+      manifest,
+      JSON.stringify([
+        row,
+        { ...row, id: 't-other01' },
+        { ...row, fixPr: 'https://github.com/o/r/pull/3' },
+      ]),
+    );
+    for (const args of [['verify', '--recorded'], ['verify']]) {
+      const run = spawnSync(
+        process.execPath,
+        [join(unitsDir, 'screening.ts'), ...args, '--manifest', manifest],
+        { encoding: 'utf8' },
+      );
+      assert.notEqual(run.status, 0, args.join(' '));
+      assert.match(run.stderr, /duplicate unit ids: t-dup0001\b/);
+      assert.doesNotMatch(run.stderr, /t-other01/);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  assert.deepEqual(duplicateIds(readManifest()), []);
 });
 
 test('every committed screening unit is verified, loads, and is eligible for the screen', () => {

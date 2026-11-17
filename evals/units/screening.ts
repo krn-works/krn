@@ -93,10 +93,25 @@ export function verified(v: Verification | undefined): boolean {
   );
 }
 
+/** Ids that more than one row carries: two fix PRs of one issue share an id, so verify --id could not tell them apart. */
+export function duplicateIds(rows: ManifestRow[]): string[] {
+  const seen = new Set<string>();
+  const dup = new Set<string>();
+  for (const r of rows) (seen.has(r.id) ? dup : seen).add(r.id);
+  return [...dup];
+}
+
+/** Reads the manifest; a manifest with a duplicate id is refused, naming the ids. */
 export function readManifest(file = manifestPath): ManifestRow[] {
-  return existsSync(file)
+  const rows = existsSync(file)
     ? (JSON.parse(readFileSync(file, 'utf8')) as ManifestRow[])
     : [];
+  const dup = duplicateIds(rows);
+  if (dup.length)
+    throw new Error(
+      `manifest ${file} holds duplicate unit ids: ${dup.join(', ')}`,
+    );
+  return rows;
 }
 
 const git = (dir: string, ...a: string[]) => {
@@ -650,6 +665,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       .map((l) => JSON.parse(l) as Candidate);
     build(cands, sources, here, Number(flag('limit') ?? 400));
   } else if (cmd === 'verify') {
+    try {
+      readManifest();
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
     if (!rest.includes('--recorded'))
       await verify(
         sources,
