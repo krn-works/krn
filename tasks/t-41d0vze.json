@@ -1,0 +1,14 @@
+{
+  "id": "t-41d0vze",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Standards query finds the regression-layer record for a regression-test question",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (b), .krn/runs/research/rss-trials/b-c.md: `krn standards query` missed r-regression-layer on five phrasings of a question about regression tests, though the record exists in .agents/records.json.\nOutcome: `krn standards query \"what must a regression test for a defect fix look like and where does it go\"` (no flags) lists r-regression-layer within the default budget, and so does \"regression test defect fix lowest layer\".\nProof: a node:test under test/brain runs both queries over the shipped records and asserts the id appears."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}

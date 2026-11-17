@@ -1,0 +1,14 @@
+{
+  "id": "t-3tb798f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Report the revert rate of merged PRs in the ledger",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (h), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: krn ledger --reverts prints reverts/merged over the last N merged PRs, so a revert rate sits beside first-push-green.\nProof: node --test test/outcome ledger test with a fixture of PRs titled Revert \"...\" asserting the printed reverts/merged ratio."
+  ],
+  "kind": "feature",
+  "area": "outcome"
+}

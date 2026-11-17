@@ -1,0 +1,14 @@
+{
+  "id": "t-tz84xsq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "List running lanes and stop them by PID on drop",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (e), .krn/runs/research/rss-trials/a-e.md\nOutcome: krn lane list prints one row per live lane worktree (slug, task id, branch, claim owner, PID alive, PR state); krn lane drop SLUG stops the recorded lane PID before removing the worktree.\nProof: node --test test/cli lane test with a stand-in KRN_LANE_CLAUDE that sleeps: list shows it alive, drop stops it by PID and removes the worktree, exit 0."
+  ],
+  "kind": "feature",
+  "area": "lane"
+}

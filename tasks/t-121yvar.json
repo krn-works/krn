@@ -1,0 +1,14 @@
+{
+  "id": "t-121yvar",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Stop check names a missing test root and spares non-delivery lanes",
+  "after": [],
+  "body": [
+    "Source: 2026-11-17 research lanes for t-tpkc9xz: three lanes reported their Stop check failing with `spawnSync .../node/24.22.1/bin/node ENOENT` while that node exists; spawnSync reports ENOENT on the program when its cwd is missing (src/hook/stop.ts runTests answers `<run>::error <message>`). The lanes also could not finish because a non-delivery lane has no commit or PR.\nOutcome: when the Stop check's test root does not exist it names the missing directory instead of the program, and a lane brief can mark itself non-delivery so its Stop check does not demand a commit, PR or test run.\nProof: node --test test/hook/stop.test.ts with a case whose root is removed asserts the message names the directory."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

@@ -1,7 +1,11 @@
 {
   "id": "t-tpkc9xz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "eight items and six radar patterns tried; verdicts and follow-up tasks in .krn/runs/research/rss-trials-2026-11-17.md; h blocked at source (private video)"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Every rss digest item from 2026-11-17 is tried on this host with a verdict",

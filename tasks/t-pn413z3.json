@@ -1,0 +1,14 @@
+{
+  "id": "t-pn413z3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Show per-unit results and flag wins carried by few units",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (radar 2), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: The A/B/C report in src/outcome/advisor-trial.ts prints a per-unit table and flags any arm win carried by fewer than N units (N=5 default).\nProof: node --test test/outcome with a 4-unit fixture asserting the thin-win flag is printed."
+  ],
+  "kind": "feature",
+  "area": "eval"
+}

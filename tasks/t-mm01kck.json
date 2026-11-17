@@ -1,0 +1,14 @@
+{
+  "id": "t-mm01kck",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 0,
+  "title": "Grade screening units inside bubblewrap so third-party code cannot reach the desktop",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (d), .krn/runs/research/rss-trials/d.md\nOutcome: run() in evals/units/screening.ts wraps install (network on) and test (network off) in bwrap --unshare-all --ro-bind / / --tmpfs /run --tmpfs /tmp --clearenv with only the scratch bound writable; a missing bwrap is a refusal, not an unsandboxed run. Replaces the PATH-stub plan in t-nsk5wca and covers token isolation of t-k7gv1wt for grading.\nProof: node --test test/evals/screening-units.test.ts runs `xdg-open https://example.invalid; env` in the wrapper and asserts no DISPLAY/WAYLAND_DISPLAY/DBUS/XDG_RUNTIME_DIR/GH_TOKEN, `ls /run/user` fails, and the t-fd481gz base/fix verdicts equal {1,0}."
+  ],
+  "kind": "defect",
+  "area": "eval"
+}

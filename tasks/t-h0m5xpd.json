@@ -1,0 +1,14 @@
+{
+  "id": "t-h0m5xpd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Test that refusals survive resume and parallel calls, and flag stale claims",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (f), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: Three untested authorization paths gain mechanical checks: a refused PreToolUse payload stays refused after SessionStart resume|compact; one refused call among parallel PreToolUse payloads does not drop or release the others; krn doctor flags claims older than N hours with no commit.\nProof: node --test on dispatch tests replaying a refused payload after resume, a two-payload parallel case with per-call decisions, and a krn doctor stale-claim fixture, all passing."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-2m93pvx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Lanes can run a second-model-family reviewer before push, recorded as an arm",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (radar 1), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: krn lane accepts an optional pre-push reviewer on another model family, recorded per PR as a Reviewer arm (pattern of src/outcome/lane-advisor.ts), so krn ledger --first-push-green can split by that arm.\nProof: krn ledger --first-push-green split by Reviewer arm prints a verdict over at least 20 PRs per arm."
+  ],
+  "kind": "feature",
+  "area": "lane"
+}

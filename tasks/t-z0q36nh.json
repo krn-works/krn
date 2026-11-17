@@ -1,0 +1,14 @@
+{
+  "id": "t-z0q36nh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Refuse new lanes while too many open PRs have a red or missing Check",
+  "after": [],
+  "body": [
+    "Source: t-tpkc9xz trial (radar 6), .krn/runs/research/rss-trials/f-g-h-radar.md\nOutcome: krn lane start refuses when open PRs with red or missing Check reach KRN_OPEN_RED_MAX (default 3).\nProof: node --test test/rules/open-red-limit.test.ts beside lane-limit.test.ts with a stubbed PR list asserting refusal at 3."
+  ],
+  "kind": "gate",
+  "area": "lane"
+}
