@@ -117,7 +117,7 @@ function windowSetting(path: string): number | undefined {
   return windowValue(window);
 }
 
-function budget(project: string): number {
+export function budget(project: string): number {
   return (
     windowValue(process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW) ??
     windowSetting(projectPath(project, 'settings.json')) ??

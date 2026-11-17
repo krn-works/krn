@@ -32,6 +32,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     'adopt',
     'brain',
     'ci',
+    'context',
     'core',
     'dispatch',
     'outcome',
