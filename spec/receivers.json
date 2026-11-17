@@ -263,6 +263,10 @@
     "src/ci/command.ts": {
       "receivers": ["gh", "git"],
       "real": "test/ci/ship.test.ts"
+    },
+    "src/cli/prune.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/prune.test.ts"
     }
   }
 }

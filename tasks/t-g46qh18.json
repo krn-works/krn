@@ -1,0 +1,14 @@
+{
+  "id": "t-g46qh18",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Nested delivery-loop runs age out and a run ending removes its scratch",
+  "after": [],
+  "body": [
+    "Follow-up of t-4ejaccq (krn prune). Two parts of its Outcome have no anchor in code yet:\n1. \"A run ending removes its own scratch/\": no code in src/ or scripts/ creates .krn/runs/**/scratch or marks a run finished (recon 2026-11-17); the scratch dirs on disk come from agent tooling (e.g. mypy-cache/scratch under delivery-loop/<program>/runs/<run>/). krn prune treats a scratch/ idle for an hour with no process cwd in its run as finished.\n2. delivery-loop is KEEP in src/state/layout.ts RUN_CATEGORIES, so `krn prune --days N` never ages out nested program runs like delivery-loop/<program>/runs/<run> (elektroinstal-ogar had 599 of them, ~800 MB each, before the manual cleanup).\nOutcome: the writer that creates run scratch (agent tooling or a KRN run wrapper) is named and removes it when the run ends; the layout gives nested delivery-loop program runs (delivery-loop/<program>/runs/<run>) a retention that prune applies, while session-continuity and handoffs stay kept.\nProof: a fixture with delivery-loop/session-continuity/handoff.md and delivery-loop/p/runs/r1 aged 30 days: `krn prune --days 7` removes r1 and keeps the handoff."
+  ],
+  "kind": "feature",
+  "area": "state"
+}

@@ -221,7 +221,7 @@ export interface TidyPlan {
   bytes: number;
 }
 
-function newest(path: string, deep: boolean): number {
+export function newest(path: string, deep: boolean): number {
   const stat = lstatSync(path);
   let latest = stat.mtimeMs;
   if (!deep || !stat.isDirectory()) return latest;
@@ -230,7 +230,7 @@ function newest(path: string, deep: boolean): number {
   return latest;
 }
 
-function size(path: string): number {
+export function size(path: string): number {
   const stat = lstatSync(path);
   if (!stat.isDirectory()) return stat.size;
   let total = 0;
