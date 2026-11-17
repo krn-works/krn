@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import {
   completeCloseExposure,
 } from '../../src/brain/close-exposure.ts';
 import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
+import { baseRedProof } from '../../src/ci/base-red.ts';
 import { CommandFailure, run } from '../../src/ci/command.ts';
 import {
   ownsProductRelease,
@@ -1463,4 +1465,129 @@ test('a same-named Check of another App never lets ship merge, and a skipped or 
       return true;
     });
   }
+});
+
+// KRN-12: the base-red gate runs against a real git repository and the real node test runner.
+const gitIn = (dir: string, ...gitArgs: string[]) => {
+  const result = spawnSync('git', gitArgs, { cwd: dir, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout;
+};
+
+/** A repository whose base commit has a buggy src/area.ts and whose `fix` branch carries `testSource` and `fixed`. */
+function defectRepository(
+  testSource: string,
+  fixed: string,
+  buggy = 'export const side = () => 1;\n',
+): string {
+  const dir = mkdtempSync(join(tmpdir(), 'ship-base-red-'));
+  gitIn(dir, 'init', '-q', '-b', 'main');
+  gitIn(dir, 'config', 'user.email', 'a@b.c');
+  gitIn(dir, 'config', 'user.name', 'a');
+  mkdirSync(join(dir, 'src'));
+  mkdirSync(join(dir, 'test'));
+  writeFileSync(join(dir, 'src', 'area.ts'), buggy);
+  writeFileSync(join(dir, 'README.md'), 'x\n');
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'base');
+  gitIn(dir, 'checkout', '-q', '-b', 'fix');
+  writeFileSync(join(dir, 'src', 'area.ts'), fixed);
+  writeFileSync(join(dir, 'test', 'area.test.ts'), testSource);
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'fix');
+  return dir;
+}
+
+const sideFixed = 'export const side = () => 2;\n';
+const sideTest = (expected: number) =>
+  `import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { side } from '../src/area.ts';\ntest('side is ${expected}', () => {\n  assert.equal(side(), ${expected});\n});\n`;
+const shipDefect = (dir: string, kind: string | undefined) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'ship-body-')), 'body.md');
+  writeFileSync(file, '## Problem\n\nx\n');
+  const r = receiver({ pulls: [auto, merged], cwd: dir });
+  let published = '';
+  return {
+    r,
+    published: () => published,
+    ship: () =>
+      shipCommand(['--title', title, '--body-file', file, '--repo', 'o/r'], {
+        ...r,
+        kindOf: () => kind,
+        baseRed: (at, ref, _runner, env) =>
+          baseRedProof(at, ref.replace('origin/', ''), run, env),
+        publish: (_cwd, text) => {
+          published = text;
+          return '/r/published.md';
+        },
+      }),
+  };
+};
+
+test('a defect branch whose new test also passes on the base source is refused with exit 81', async () => {
+  const dir = defectRepository(sideTest(1), sideFixed);
+  const { r, ship } = shipDefect(dir, 'defect');
+  await assert.rejects(ship(), (error: Failure) => {
+    assert.equal(error.exitCode, 81);
+    assert.match(
+      error.message,
+      /test\/area\.test\.ts passes on the base source/u,
+    );
+    return true;
+  });
+  assert.equal(
+    r.calls.some((c) => c.startsWith('push')),
+    false,
+  );
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+  assert.equal(readFileSync(join(dir, 'src', 'area.ts'), 'utf8'), sideFixed);
+});
+
+test('a defect branch whose test fails on the base by assertion ships and records the case names', async () => {
+  const dir = defectRepository(sideTest(2), sideFixed);
+  const { published, ship } = shipDefect(dir, 'defect');
+  assert.match(await ship(), /^verdict: merged /mu);
+  assert.match(published(), /^## Base red proof$/mu);
+  assert.match(published(), /^- fails on the base source: side is 2$/mu);
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+  assert.equal(readFileSync(join(dir, 'src', 'area.ts'), 'utf8'), sideFixed);
+});
+
+test('a base run that fails only by a missing module is refused, and the tree is restored', async () => {
+  const dir = defectRepository(
+    `import test from 'node:test';\nimport { gone } from '../src/gone.ts';\ntest('x', () => gone());\n`,
+    sideFixed,
+  );
+  const { ship } = shipDefect(dir, 'defect');
+  await assert.rejects(ship(), (error: Failure) => {
+    assert.equal(error.exitCode, 81);
+    assert.match(error.message, /without an assertion/u);
+    assert.match(error.message, /ERR_MODULE_NOT_FOUND/u);
+    return true;
+  });
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+});
+
+test('a base run that fails by a syntax error in the base source is not red', () => {
+  const dir = defectRepository(
+    sideTest(2),
+    sideFixed,
+    'export const side = ;\n',
+  );
+  const verdict = baseRedProof(dir, 'main', run);
+  assert.equal(verdict.kind, 'load-error');
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+});
+
+test('a defect branch without a changed test is refused, and a non-defect task is not run on the base', async () => {
+  const dir = defectRepository(sideTest(1), sideFixed);
+  gitIn(dir, 'rm', '-q', 'test/area.test.ts');
+  gitIn(dir, 'commit', '-q', '-m', 'drop test');
+  const { ship } = shipDefect(dir, 'defect');
+  await assert.rejects(ship(), (error: Failure) => {
+    assert.equal(error.exitCode, 81);
+    assert.match(error.message, /needs a changed or added test file/u);
+    return true;
+  });
+  const green = defectRepository(sideTest(1), sideFixed);
+  assert.match(await shipDefect(green, 'gate').ship(), /^verdict: merged /mu);
 });

@@ -7,7 +7,7 @@ import { startDetachedShip } from '../ci/ship-live.ts';
 import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
-import { proofOfTitle } from './pr-body.ts';
+import { kindOfTitle, proofOfTitle } from './pr-body.ts';
 
 /**
  * A runner whose git calls carry the origin's App credential helper when the origin is an outside repository: the
@@ -36,6 +36,7 @@ export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
   run: outsideRunner(),
   baseOf: contractBase,
   proofOf: proofOfTitle,
+  kindOf: kindOfTitle,
   completeClose: completeCloseExposure,
   releaseClaim: (main, worktree, task) => {
     releaseClosedClaims(main, worktree, task);

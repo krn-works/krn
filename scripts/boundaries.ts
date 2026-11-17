@@ -212,6 +212,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/brain/standards-cli.ts',
     'src/brain/standards-review.ts',
     'src/brain/task-query.ts',
+    'src/ci/base-red.ts',
     'src/ci/conflict-check.ts',
     'src/ci/fast-pass.ts',
     'src/ci/ship.ts',

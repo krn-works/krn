@@ -59,7 +59,13 @@ export async function publishCommand(
     // open: their Proof commands name work not yet done, so none runs here.
     verdict = await shipCommand(
       ['--worktree', path, '--title', commit.title, '--body-file', bodyFile],
-      { ...cliShipRuntime, cwd: main, proofOf: () => [], ...runtime },
+      {
+        ...cliShipRuntime,
+        cwd: main,
+        proofOf: () => [],
+        kindOf: () => undefined,
+        ...runtime,
+      },
     );
   } catch (error) {
     await dropUnpushedLane(main, slug);
