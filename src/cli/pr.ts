@@ -1,6 +1,8 @@
+import { resolve } from 'node:path';
 import { deployRemedy, deployWorkflows } from '../adopt/deploy.ts';
 import { completeCloseExposure } from '../brain/close-exposure.ts';
 import { shipCommand, shipUsage } from '../ci/ship.ts';
+import { startDetachedShip } from '../ci/ship-live.ts';
 import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
 import { proofOfTitle } from './pr-body.ts';
@@ -23,7 +25,21 @@ export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
 
 export async function prCommand(args: string[]): Promise<void> {
   const [verb, ...rest] = args;
-  if (verb === 'ship')
+  if (verb === 'ship' && rest.includes('--detach')) {
+    const args = rest.filter((arg) => arg !== '--detach');
+    const at = args.indexOf('--worktree');
+    const worktree = resolve(at >= 0 ? (args[at + 1] ?? '.') : '.');
+    const started = startDetachedShip(worktree, [
+      ...process.execArgv,
+      ...process.argv.slice(1, 2),
+      'pr',
+      'ship',
+      ...args,
+    ]);
+    process.stdout.write(
+      `ship detached: pid ${started.pid}, log ${started.log}; \`krn lane status\` shows whether it is live, merged or orphaned\n`,
+    );
+  } else if (verb === 'ship')
     process.stdout.write(`${await shipCommand(rest, cliShipRuntime)}\n`);
   else if (verb === 'body') {
     const { prBodyCommand } = await import('./pr-body.ts');
