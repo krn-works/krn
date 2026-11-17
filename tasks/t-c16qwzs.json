@@ -1,7 +1,11 @@
 {
   "id": "t-c16qwzs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "strict matrixProblems now refuses a uniform wrong harness sha, an unpinned or unknown model, and a prereg without harness-sha; tests in replay-abc and frozen-matrix"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Strict A/B/C report refuses a uniform wrong base SHA or an unknown model",

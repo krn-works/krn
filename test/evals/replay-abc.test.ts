@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   analyze,
   holm,
+  matrixProblems,
   type Prereg,
   parsePrereg,
   reportLines,
@@ -175,4 +176,52 @@ test('--report on an empty rows file exits 65 and on rows prints one verdict per
     2,
   );
   assert.match(out.stdout, /cost: USD per resolved task/);
+});
+
+test('strict matrix refuses a uniform wrong harness sha or an unpinned or unknown model', () => {
+  const pinned: Prereg = {
+    ...frozen,
+    models: ['sonnet', 'opus'],
+    harness: 'abc123',
+  };
+  const matrix = (extra: Partial<Row>): Row[] =>
+    frozen.units.flatMap((u) =>
+      (['A', 'B', 'C'] as ArmId[]).flatMap((arm) =>
+        reps(u, arm, 2, 1).map((r) => ({
+          ...r,
+          harness: 'abc123',
+          model: 'claude-sonnet-4',
+          ...extra,
+        })),
+      ),
+    );
+  assert.deepEqual(matrixProblems(matrix({}), pinned), []);
+  const sha = matrixProblems(matrix({ harness: 'deadbeef' }), pinned);
+  assert.ok(
+    sha.some((p) => p.includes('not the preregistered abc123')),
+    `${sha}`,
+  );
+  const other = matrixProblems(matrix({ model: 'gpt-6' }), pinned);
+  assert.ok(
+    other.some((p) => p.includes('outside the pinned set')),
+    `${other}`,
+  );
+  const unknown = matrixProblems(matrix({ model: null }), pinned);
+  assert.ok(
+    unknown.some((p) => p.includes('outside the pinned set')),
+    `${unknown}`,
+  );
+  assert.ok(
+    matrixProblems(matrix({}), frozen).some((p) =>
+      p.includes('no harness-sha'),
+    ),
+  );
+});
+
+test('parsePrereg reads the pinned model families and the frozen harness sha', () => {
+  const p = parsePrereg(
+    'reps: 1\nalpha: 0.05\nmde-pp: 15\ncontrasts: C-A\nmodel: sonnet (fallback opus, as x sets it)\nharness-sha: 0123abcd\n- t-1\n',
+  );
+  assert.deepEqual(p.models, ['sonnet', 'opus']);
+  assert.equal(p.harness, '0123abcd');
 });
