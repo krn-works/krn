@@ -1,7 +1,11 @@
 {
   "id": "t-djde6e9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "live arm claude runs in bubblewrap with egress proxy; real session verified (0.077 USD), regression test fails on old live.ts"
+  },
   "created": "2026-11-17",
   "priority": 0,
   "title": "Live eval arm sessions run claude unsandboxed on the host network and filesystem",

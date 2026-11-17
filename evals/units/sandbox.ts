@@ -18,6 +18,8 @@ export interface SandboxOptions {
   cwd: string;
   /** The only host paths the command may write. */
   writable: readonly string[];
+  /** Host paths shown read-only that the hidden HOME or the empty /tmp would otherwise hide (a binary's directory). */
+  readable?: readonly string[];
   /**
    * Internet for the install phase, through the egress.ts proxy listening on this unix socket; the test phase runs
    * offline. There is no host-network mode: the host namespace would expose every loopback listener.
@@ -60,7 +62,8 @@ export function sandboxArgv(cmd: string, o: SandboxOptions): string[] {
     '/run',
   ];
   a.push(...hiddenHome(o.env));
-  // Binds come after the tmpfs mounts, so a writable directory under /tmp stays visible.
+  // Binds come after the tmpfs mounts, so a directory under /tmp or HOME stays visible.
+  for (const r of o.readable ?? []) a.push('--ro-bind', resolve(r), resolve(r));
   for (const w of o.writable) a.push('--bind', resolve(w), resolve(w));
   const env = o.egress ? { ...o.env, ...proxyEnv() } : o.env;
   if (o.egress) a.push('--bind', dirname(o.egress), dirname(o.egress));

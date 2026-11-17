@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -9,6 +10,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -17,6 +20,7 @@ import { ARMS } from '../../evals/replay/arms.ts';
 import { armEnv, sessionOf } from '../../evals/replay/live.ts';
 import { parseRows } from '../../evals/replay/screen.ts';
 import { openerPaths } from '../../evals/units/no-browser.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const git = (cwd: string, ...a: string[]) =>
@@ -62,11 +66,11 @@ function fixture(root: string) {
       }),
     );
   }
-  const log = join(root, 'sessions.log');
+  const log = join(root, 'scratch', 'sessions.log');
   const stub = join(root, 'claude');
   writeFileSync(
     stub,
-    `#!/bin/sh\nprompt=$(cat)\necho +1 >> ${log}\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'prompt-')}$$\necho -1 >> ${log}\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
+    `#!/bin/sh\nprompt=$(cat)\necho +1 >> ${log}\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
   );
   chmodSync(stub, 0o755);
   return { units, stub, log };
@@ -125,7 +129,7 @@ test('--screen runs one arm-A session per unit under the slot cap and records gr
     }
     assert.equal(peak(log), 1);
     // Arm A: private config dir, no KRN variable, project settings only.
-    for (const l of readFileSync(join(root, 'env.log'), 'utf8')
+    for (const l of readFileSync(join(root, 'scratch', 'env.log'), 'utf8')
       .split('\n')
       .filter(Boolean)) {
       const [cfg, probe, args] = l.split('|');
@@ -336,7 +340,7 @@ test('a screened session reaches only the unit base: no reference fix, no later 
   const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
   try {
     const { units } = fixture(root);
-    const seen = join(root, 'seen');
+    const seen = join(root, 'scratch', 'seen');
     // Records every commit the session can reach by any ref and whether the reference object exists at all.
     const probe = join(root, 'probe');
     writeFileSync(
@@ -425,11 +429,11 @@ test('a screened session writes its temporaries under scratch', () => {
   const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
   try {
     const { units } = fixture(root);
-    const seen = join(root, 'seen');
+    const seen = join(root, 'scratch', 'seen');
     const probe = join(root, 'probe');
     writeFileSync(
       probe,
-      `#!/bin/sh\ncat >/dev/null\necho "$TMPDIR" >> ${seen}\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+      `#!/bin/sh\ncat >/dev/null\necho "$TMPDIR" >> ${seen}\necho "$CLAUDE_CODE_TMPDIR" >> ${seen}\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
     );
     chmodSync(probe, 0o755);
     const r = spawnSync(
@@ -453,6 +457,7 @@ test('a screened session writes its temporaries under scratch', () => {
           ...process.env,
           KRN_EVAL_CLAUDE: probe,
           KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+          CLAUDE_CODE_TMPDIR: '/host/claude-tmp',
         },
       },
     );
@@ -461,6 +466,90 @@ test('a screened session writes its temporaries under scratch', () => {
       assert.equal(l, join(root, 'scratch', 'tmp'));
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a screened session reaches no host loopback listener, no HOME credential and no path outside scratch (t-djde6e9)', async (t) => {
+  requiresIsolation(t, 'live arm sandbox', ['bwrap']);
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  const home = mkdtempSync(join(tmpdir(), 'replay-home-'));
+  const outside = mkdtempSync(join(tmpdir(), 'replay-outside-'));
+  mkdirSync(join(home, '.ssh'));
+  writeFileSync(join(home, '.ssh', 'id_ed25519'), 'planted-key\n');
+  const servers = await Promise.all(
+    ['127.0.0.1', '::1'].map(
+      (host) =>
+        new Promise<Server>((resolve) => {
+          const s = createServer((_q, r) => r.end('host-secret'));
+          s.listen(0, host, () => resolve(s));
+        }),
+    ),
+  );
+  const [v4, v6] = servers.map((s) => (s.address() as AddressInfo).port);
+  try {
+    const { units } = fixture(root);
+    const seen = join(root, 'scratch', 'seen');
+    const probe = join(root, 'probe');
+    const urls = [
+      `http://127.0.0.1:${v4}/`,
+      `http://localhost:${v4}/`,
+      `http://[::1]:${v6}/`,
+    ];
+    writeFileSync(
+      probe,
+      [
+        '#!/bin/sh',
+        'cat >/dev/null',
+        ...urls.flatMap((u) => [
+          `curl -s -m 5 --noproxy '*' ${u} >> ${seen} 2>&1`,
+          `curl -s -m 5 ${u} >> ${seen} 2>&1`,
+        ]),
+        `cat ${join(home, '.ssh', 'id_ed25519')} >> ${seen} 2>&1`,
+        `touch ${join(outside, 'escaped')} 2>/dev/null`,
+        `echo probed >> ${seen}`,
+        `echo '{"result":"ok","total_cost_usd":0.1}'`,
+        '',
+      ].join('\n'),
+    );
+    chmodSync(probe, 0o755);
+    const status = await new Promise<number | null>((resolve) => {
+      const p = spawn(
+        'node',
+        [
+          'evals/replay/run.ts',
+          '--screen',
+          '--units-dir',
+          units,
+          '--sources',
+          join(root, 'sources'),
+          '--scratch',
+          join(root, 'scratch'),
+          '--rows',
+          join(root, 'rows.jsonl'),
+        ],
+        {
+          cwd: repo,
+          stdio: 'ignore',
+          env: {
+            ...process.env,
+            HOME: home,
+            KRN_EVAL_CLAUDE: probe,
+            KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+          },
+        },
+      );
+      p.on('close', resolve);
+    });
+    assert.equal(status, 0);
+    const text = readFileSync(seen, 'utf8');
+    assert.match(text, /probed/, 'the probe ran');
+    assert.doesNotMatch(text, /host-secret/);
+    assert.doesNotMatch(text, /planted-key/);
+    assert.equal(existsSync(join(outside, 'escaped')), false);
+  } finally {
+    for (const s of servers) s.close();
+    for (const d of [root, home, outside])
+      rmSync(d, { recursive: true, force: true });
   }
 });
 

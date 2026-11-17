@@ -204,7 +204,13 @@ export async function startEgress(parent: string): Promise<Egress> {
   if (Buffer.byteLength(socket) > 107)
     throw new Error(`egress socket path too long for a unix socket: ${socket}`);
   const server: Server = createServer(onRequest);
-  server.on('connect', onConnect);
+  // Tunnels leave the HTTP server's connection tracking: close() destroys this server's own so it never waits on one.
+  const tunnels = new Set<Socket>();
+  server.on('connect', (req: IncomingMessage, client: Socket, head: Buffer) => {
+    tunnels.add(client);
+    client.on('close', () => tunnels.delete(client));
+    onConnect(req, client, head);
+  });
   server.on('clientError', (_e, s) => s.destroy());
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -220,6 +226,7 @@ export async function startEgress(parent: string): Promise<Egress> {
           resolve();
         });
         server.closeAllConnections();
+        for (const t of tunnels) t.destroy();
       }),
   };
 }

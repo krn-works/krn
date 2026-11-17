@@ -2,13 +2,21 @@
 // prompt, every session inside a host-wide session slot, then the unit's hidden test grades the result into a row.
 // KRN_EVAL_CLAUDE names the claude binary (default `claude`); KRN_EVAL_MAX_SESSIONS caps live sessions host-wide.
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  realpathSync,
+  symlinkSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
+import { shellWords } from '../../src/repo/shell-text.ts';
 import { withSessionSlot } from '../session-slot.ts';
+import { startEgress } from '../units/egress.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
-import { requireSandbox } from '../units/sandbox.ts';
+import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
 import {
   forceRemove,
   gradeWorktree,
@@ -101,6 +109,8 @@ export function armEnv(
   // The session's own builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs.
   env.TMPDIR = join(scratch, 'tmp');
   mkdirSync(env.TMPDIR, { recursive: true });
+  // Claude Code's own shell tool writes under CLAUDE_CODE_TMPDIR: a host value names a path the sandbox shows read-only.
+  env.CLAUDE_CODE_TMPDIR = env.TMPDIR;
   // The session runs the repository's own tests, which may open a URL (t-nsk5wca).
   return withoutBrowser(env, join(scratch, 'no-browser'));
 }
@@ -127,7 +137,26 @@ export function sessionOf(out: string, timedOut: boolean): Session {
   return { cost, ran: timedOut || (r !== undefined && r.is_error !== true) };
 }
 
-function runClaude(
+/**
+ * The host paths a sandboxed session writes: its checkout, its scratch (config, TMPDIR, stub openers) and the host
+ * login file the private config links to, so a token refresh still reaches the host login.
+ */
+function sessionWritable(cwd: string, env: NodeJS.ProcessEnv): string[] {
+  const w = [cwd];
+  if (env.CLAUDE_CONFIG_DIR) {
+    w.push(dirname(env.CLAUDE_CONFIG_DIR));
+    const link = join(env.CLAUDE_CONFIG_DIR, '.credentials.json');
+    if (existsSync(link)) w.push(realpathSync(link));
+  }
+  return w;
+}
+
+/**
+ * Runs the arm's claude inside bubblewrap (sandbox.ts) with internet only through the egress proxy (egress.ts): no
+ * host loopback service, no private network, no HOME credential but the login, no write outside the session's own
+ * paths. The proxy passes CONNECT tunnels through untouched, so the session's API traffic is never terminated.
+ */
+async function runClaude(
   cwd: string,
   prompt: string,
   env: NodeJS.ProcessEnv,
@@ -135,21 +164,46 @@ function runClaude(
   log: string,
 ): Promise<Session> {
   const bin = env.KRN_EVAL_CLAUDE ?? 'claude';
+  const egress = await startEgress(tmpdir());
+  try {
+    return await sandboxedClaude(cwd, prompt, env, ms, log, bin, egress.socket);
+  } finally {
+    await egress.close();
+  }
+}
+
+function sandboxedClaude(
+  cwd: string,
+  prompt: string,
+  env: NodeJS.ProcessEnv,
+  ms: number,
+  log: string,
+  bin: string,
+  socket: string,
+): Promise<Session> {
+  const cmd = shellWords([
+    bin,
+    '-p',
+    '--output-format',
+    'json',
+    '--permission-mode',
+    'bypassPermissions',
+    '--disallowedTools',
+    DENIED_TOOLS.join(','),
+    '--setting-sources',
+    'project',
+  ]);
   return new Promise((resolve) => {
     const p = spawn(
-      bin,
-      [
-        '-p',
-        '--output-format',
-        'json',
-        '--permission-mode',
-        'bypassPermissions',
-        '--disallowedTools',
-        DENIED_TOOLS.join(','),
-        '--setting-sources',
-        'project',
-      ],
-      { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: true },
+      'bwrap',
+      sandboxArgv(cmd, {
+        cwd,
+        writable: sessionWritable(cwd, env),
+        ...(isAbsolute(bin) ? { readable: [dirname(bin)] } : {}),
+        egress: socket,
+        env,
+      }),
+      { stdio: ['pipe', 'pipe', 'pipe'], detached: true },
     );
     let out = '';
     let timedOut = false;
