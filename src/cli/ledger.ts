@@ -24,6 +24,7 @@ import {
   type LedgerOptions,
   renderLedger,
 } from '../outcome/ledger.ts';
+import { collectRevertRate, renderRevertRate } from '../outcome/revert-rate.ts';
 import {
   CEILING_WINDOW_PRS,
   collectWindow,
@@ -42,6 +43,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let share = false;
   let firstPushGreen = false;
   let contextGate = false;
+  let reverts = false;
   let advisorTrial = false;
   let effortPolicy = false;
   let band: BandName | undefined;
@@ -69,6 +71,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--first-push-green') {
       firstPushGreen = true;
+      continue;
+    }
+    if (flag === '--reverts') {
+      reverts = true;
       continue;
     }
     if (flag === '--context-gate') {
@@ -176,6 +182,16 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     });
     process.stdout.write(
       json ? `${JSON.stringify(report)}\n` : renderContextGate(report),
+    );
+    return;
+  }
+  if (reverts) {
+    const report = await collectRevertRate({
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.repo === undefined ? {} : { repo: options.repo }),
+    });
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderRevertRate(report),
     );
     return;
   }
