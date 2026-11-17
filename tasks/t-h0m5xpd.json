@@ -1,7 +1,11 @@
 {
   "id": "t-h0m5xpd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "dispatch tests: refusal survives resume/compact, parallel per-call decisions; krn doctor flags stale claims (new doctor-claims.ts)"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Test that refusals survive resume and parallel calls, and flag stale claims",
