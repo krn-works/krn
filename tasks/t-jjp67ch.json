@@ -1,0 +1,14 @@
+{
+  "id": "t-jjp67ch",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Screening verify keeps unit directories when every grade fails install",
+  "after": [],
+  "body": [
+    "screening verify deletes a unit directory on any drop (evals/units/screening.ts, \"A dropped unit leaves the unit set\"). With a relative --scratch (fixed in t-xasrw18) every grade failed with install 1 and two committed units were removed from the worktree. A run where every graded unit fails install is an infrastructure failure, not a unit verdict.\nAcceptance: a verify run where every graded unit fails install keeps the unit directories and exits non-zero naming infrastructure.\nProof: node --test test/evals/screening-units.test.ts exits 0 with an all-install-fail test"
+  ],
+  "kind": "defect",
+  "area": "eval"
+}

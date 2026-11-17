@@ -1,0 +1,6 @@
+{
+  "text": "Quote a command for an outer shell with single-quote escaping, never JSON.stringify: double quotes let the outer shell expand $x, $? and $(...) before the inner shell runs.",
+  "kind": "check",
+  "evidence": ["evals/units/screening.ts"],
+  "recorded_at": "2026-11-17"
+}

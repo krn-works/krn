@@ -21,8 +21,9 @@ import {
   statfsSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shellWord } from '../../src/repo/shell-text.ts';
 import { withoutBrowser } from './no-browser.ts';
 import { requireSandbox, sandboxArgv } from './sandbox.ts';
 import type { Unit } from './unit.ts';
@@ -111,7 +112,7 @@ export function commandsFor(
   testFile: string,
   files: (p: string) => string | null,
 ): { install: string; test: string } | null {
-  const q = JSON.stringify(testFile);
+  const q = shellWord(testFile);
   if (lang === 'Go')
     return {
       install: 'go mod download',
@@ -378,6 +379,10 @@ export async function gradeWorktree(
   log: string,
   scratch: string,
 ): Promise<{ install: number; test: number; compile: boolean }> {
+  // Absolute paths: the unit runs with the worktree as cwd, where a relative TMPDIR or cache path names nothing.
+  wt = resolve(wt);
+  unitDir = resolve(unitDir);
+  scratch = resolve(scratch);
   // No unsandboxed fallback: a host without a working bwrap fails the grade loudly instead of recording a verdict.
   requireSandbox();
   cacheRoot = join(scratch, 'cache');
@@ -387,7 +392,8 @@ export async function gradeWorktree(
     readFileSync(join(unitDir, unit.hidden.file)),
   );
   const install = await run(
-    `timeout ${INSTALL_SECONDS} sh -c ${JSON.stringify(unit.install)}`,
+    // Single quotes: the outer shell must not expand `$x`, `$?` or `$(...)` before the unit's own shell runs.
+    `timeout ${INSTALL_SECONDS} sh -c ${shellWord(unit.install)}`,
     wt,
     log,
     [wt],
@@ -434,6 +440,10 @@ async function verify(
   only: string | undefined,
 ): Promise<void> {
   requireSandbox();
+  // A relative scratch reaches `git -C <clone> worktree add` as a path inside the clone: every grade fails and drops its unit.
+  sources = resolve(sources);
+  scratch = resolve(scratch);
+  logDir = resolve(logDir);
   const rows = readManifest();
   mkdirSync(logDir, { recursive: true });
   mkdirSync(scratch, { recursive: true });

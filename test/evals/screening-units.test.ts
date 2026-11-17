@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
@@ -84,7 +84,7 @@ test('commands name the runner the base tree shows and nothing when none is name
     p === 'package.json' ? '{"vitest":"1"}' : null;
   assert.match(
     commandsFor('TypeScript', 'src/a.test.ts', vitest)?.test ?? '',
-    /vitest run "src\/a\.test\.ts"/,
+    /vitest run 'src\/a\.test\.ts'/,
   );
   assert.equal(
     commandsFor('TypeScript', 'a.test.ts', (p) =>
@@ -280,6 +280,31 @@ test('grading temporaries live under scratch, not the size-capped host /tmp', as
   }
 });
 
+test('a grade given relative worktree and scratch paths still hands the unit an absolute, existing TMPDIR', async () => {
+  const f = gradeFixture(
+    'grade-relative-',
+    'true',
+    'echo "$TMPDIR" > seen && test -d "$TMPDIR"',
+  );
+  const rel = (p: string) => relative(process.cwd(), p);
+  try {
+    const g = await gradeWorktree(
+      rel(f.wt),
+      f.unit,
+      rel(f.unitDir),
+      f.log,
+      rel(f.scratch),
+    );
+    assert.equal(g.test, 0, readFileSync(f.log, 'utf8'));
+    assert.equal(
+      readFileSync(join(f.wt, 'seen'), 'utf8').trim(),
+      join(f.scratch, 'cache', 'tmp'),
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('a grading command that opens a URL reaches only the stub opener, never the desktop (t-nsk5wca)', async () => {
   const root = mkdtempSync(join(tmpdir(), 'grade-no-browser-'));
   const saved = {
@@ -423,7 +448,6 @@ test('a grade sees no host HOME credentials, even with network, and still runs t
   process.env.PATH = `${join(home, 'tools/bin')}:${process.env.PATH}`;
   const probe = (phase: string) =>
     [
-      // No `$?`: the unit command is nested in a double-quoted `sh -c`, which would expand it early.
       `cat ~/.netrc ~/.config/gh/hosts.yml ~/.ssh/id_ed25519 > ${phase}-secrets 2> /dev/null && echo read > ${phase}-read || echo hidden > ${phase}-read`,
       `hometool > ${phase}-tool`,
     ].join('; ');
@@ -446,6 +470,26 @@ test('a grade sees no host HOME credentials, even with network, and still runs t
     Object.assign(process.env, saved);
     rmSync(f.root, { recursive: true, force: true });
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('a unit command sees its own $x, $? and $(...): the grade never expands them in an outer shell (t-xasrw18)', async (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const probe = (phase: string) =>
+    `for x in a b; do echo "[$x]" >> ${phase}-loop; done; false; echo "$?" > ${phase}-status; echo "$(echo inner)" "it's" > ${phase}-sub`;
+  const f = gradeFixture('grade-dollar-', probe('install'), probe('test'));
+  try {
+    const g = await gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch);
+    assert.equal(g.install, 0, readFileSync(f.log, 'utf8'));
+    assert.equal(g.test, 0, readFileSync(f.log, 'utf8'));
+    const read = (n: string) => readFileSync(join(f.wt, n), 'utf8').trim();
+    for (const phase of ['install', 'test']) {
+      assert.equal(read(`${phase}-loop`), '[a]\n[b]', `${phase} lost $x`);
+      assert.equal(read(`${phase}-status`), '1', `${phase} read an outer $?`);
+      assert.equal(read(`${phase}-sub`), "inner it's", `${phase} lost $(...)`);
+    }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
   }
 });
 
