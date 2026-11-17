@@ -2,6 +2,10 @@ import { planScoredShare, predictionScorecard } from '../brain/exposures.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
+  collectAdvisorTrial,
+  renderAdvisorTrial,
+} from '../outcome/advisor-trial.ts';
+import {
   BANDS,
   type BandName,
   collectContextGate,
@@ -34,6 +38,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let share = false;
   let firstPushGreen = false;
   let contextGate = false;
+  let advisorTrial = false;
   let band: BandName | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -47,6 +52,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--share') {
       share = true;
+      continue;
+    }
+    if (flag === '--advisor-trial') {
+      advisorTrial = true;
       continue;
     }
     if (flag === '--first-push-green') {
@@ -125,6 +134,16 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (advisorTrial) {
+    const report = await collectAdvisorTrial({
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.repo === undefined ? {} : { repo: options.repo }),
+    });
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderAdvisorTrial(report),
+    );
+    return;
   }
   if (contextGate) {
     const report = await collectContextGate({

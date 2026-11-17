@@ -5,6 +5,7 @@ import { contractLaneBudget } from '../../repo/contract.ts';
 import { mainCheckoutPlaceholders } from '../../state/sandbox-placeholders.ts';
 import {
   fallbackModel,
+  laneAdvisorModel,
   laneSandboxSettings,
   sessionTimeoutMs,
 } from './environment.ts';
@@ -58,6 +59,9 @@ export function runSession(lane: PreparedLane): SessionOutcome {
       model,
       fallbackModel: fallbackModel(model),
       budgetUsd: contractLaneBudget(origin),
+      ...(environment.KRN_LANE_ADVISOR === laneAdvisorModel
+        ? { advisor: laneAdvisorModel }
+        : {}),
     }),
     sessionOptions,
   );

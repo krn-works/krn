@@ -52,6 +52,9 @@ export function laneSandboxSettings(worktree: string): string {
   return existsSync(own) ? own : productSandboxSettings;
 }
 
+/** The one advisor model a lane can opt in to. */
+export const laneAdvisorModel = 'fable';
+
 /**
  * The session environment: the operator's credentials removed, the `gh` wrapper first on PATH,
  * and git config that empties the inherited github.com credential helpers before installing
@@ -65,7 +68,7 @@ export function sessionEnvironment(
     lane: string;
     repository?: string;
     body?: string;
-    /** The brief opts in to the Fable advisor with a line `Advisor: on`. */
+    /** The brief opts in to the Fable advisor with a line `lane-advisor: fable` (or `Advisor: on`). */
     advisor?: boolean;
   },
 ): NodeJS.ProcessEnv {
@@ -79,6 +82,8 @@ export function sessionEnvironment(
   return {
     ...scrubbed,
     KRN_SESSION_CLASS: 'lane',
+    // The trial arm of this lane; `krn pr body --lane` writes it into the PR body.
+    KRN_LANE_ADVISOR: identity.advisor === true ? laneAdvisorModel : 'none',
     // An unattended session must not call the Fable advisor (billed without consent in -p) unless the brief says `Advisor: on`.
     ...(identity.advisor === true
       ? {}
