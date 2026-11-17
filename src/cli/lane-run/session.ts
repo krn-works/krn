@@ -38,7 +38,7 @@ export interface SessionOutcome {
 
 /** Stage three: spawn the headless session in the lane worktree and read its result. */
 export function runSession(lane: PreparedLane): SessionOutcome {
-  const { worktree, model, environment, main, brief, origin } = lane;
+  const { worktree, model, environment, main, brief, origin, effort } = lane;
   const claude = laneBinary();
   // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
   const sessionOptions = {
@@ -57,6 +57,7 @@ export function runSession(lane: PreparedLane): SessionOutcome {
       brief,
       settings: laneSandboxSettings(worktree),
       model,
+      effort,
       fallbackModel: fallbackModel(model),
       budgetUsd: contractLaneBudget(origin),
       ...(environment.KRN_LANE_ADVISOR === laneAdvisorModel

@@ -1,7 +1,14 @@
-import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { briefClauses } from '../../brain/proof-line.ts';
 import { laneAdvisor } from '../../outcome/lane-advisor.ts';
+import { effortHistory, laneEffort } from '../../outcome/lane-effort.ts';
 import { contractBase } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
@@ -37,10 +44,17 @@ export interface PreparedLane extends LaneRequest {
   served: string;
   environment: NodeJS.ProcessEnv;
   red: RedCheck | undefined;
+  /** The effort this turn runs at: low, or high after a red Check. */
+  effort: string;
   redFile: string;
   worktree: string;
   /** An earlier run already delivered the commit: it ships without a session. */
   delivered: boolean;
+}
+
+/** Where a lane run records the effort of every turn so the rerun after a red Check appends to it. */
+export function effortFile(main: string, lane: string): string {
+  return join(main, '.krn', 'tmp', `lane-run-${lane}-effort.json`);
 }
 
 /** Stage two: brief the session, check the credential and remote, and reuse or start the worktree. A verdict means no session starts. */
@@ -80,6 +94,14 @@ export async function prepareLane(
   const served =
     prompt.packet === null ? '' : ` packet ${prompt.packet.slice(0, 12)}`;
 
+  const effortPath = effortFile(main, lane);
+  const previous = existsSync(effortPath)
+    ? (JSON.parse(readFileSync(effortPath, 'utf8')) as string[])
+    : [];
+  const efforts = effortHistory(previous, red !== undefined);
+  mkdirSync(dirname(effortPath), { recursive: true });
+  writeFileSync(effortPath, JSON.stringify(efforts));
+  const effort = laneEffort(red !== undefined);
   const clauses = briefClauses(brief);
   const repository = originRepository(origin);
   const environment = sessionEnvironment(
@@ -88,6 +110,7 @@ export async function prepareLane(
     {
       lane,
       advisor: laneAdvisor(prompt.text) !== undefined,
+      effort: efforts.join(','),
       // Stop reads the clauses the brief states, the same list the proof line counts.
       ...(clauses.length === 0
         ? {}
@@ -148,6 +171,7 @@ export async function prepareLane(
     served,
     environment,
     red,
+    effort,
     redFile,
     worktree: started.path,
     delivered: delivered || (red === undefined && parked),
