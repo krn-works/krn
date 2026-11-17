@@ -1,7 +1,11 @@
 {
   "id": "t-3tb798f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger --reverts prints reverts/merged; test/outcome/revert-rate.test.ts asserts the ratio on a fixture"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Report the revert rate of merged PRs in the ledger",
