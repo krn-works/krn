@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { judgeStop } from '../../src/hook/stop.ts';
+import { judgeStop, laneTreeOf } from '../../src/hook/stop.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
 
 function git(cwd: string, ...args: string[]): string {
@@ -206,5 +206,26 @@ test('a lane subagent Stop check judges the claimed lane worktree when the sessi
   } finally {
     rmSync(main, { recursive: true, force: true });
     rmSync(foreign, { recursive: true, force: true });
+  }
+});
+
+test('a repository created inside another lane worktree is its own main, a path that is gone is a lane tree only at its own depth', () => {
+  const outer = realpathSync(mkdtempSync(join(tmpdir(), 'lane-outer-')));
+  try {
+    const tree = join(outer, '.krn', 'worktrees', 'outer-lane');
+    mkdirSync(tree, { recursive: true });
+    writeFileSync(join(tree, '.git'), 'gitdir: ../../../.git/worktrees/x\n');
+    const nested = join(tree, '.krn', 'tmp', 'inner');
+    mkdirSync(join(nested, '.git'), { recursive: true });
+    assert.deepEqual(laneTreeOf(tree), { owner: outer, name: 'outer-lane' });
+    assert.deepEqual(laneTreeOf(join(tree, 'src-dir-gone')), undefined);
+    assert.equal(laneTreeOf(nested), undefined);
+    assert.deepEqual(laneTreeOf(join(nested, '.krn', 'worktrees', 'merged')), {
+      owner: nested,
+      name: 'merged',
+    });
+    assert.equal(laneTreeOf(join(nested, 'vanished-root')), undefined);
+  } finally {
+    rmSync(outer, { recursive: true, force: true });
   }
 });
