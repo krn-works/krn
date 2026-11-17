@@ -25,6 +25,7 @@ import {
 import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
 import { PATH_WORD } from './edit-route.ts';
 import { ruleViolations, writtenText } from './edit-rules.ts';
+import { taskId } from './scope.ts';
 
 /** The exposure channel of the edit moment. */
 export const EDIT_CHANNEL = 'edit';
@@ -93,6 +94,7 @@ export function fileKind(file: string): string {
 /**
  * The block for one edit of `file` in session `sessionId`, or undefined when no record scoped to the
  * file's kind is new to the session. Served and withheld records are logged under the session's run.
+ * The holdout is keyed by `holdoutKey` (the task, so a retried session lands in the same arm), else the session.
  */
 export function editContext(
   project: string,
@@ -100,6 +102,7 @@ export function editContext(
   sessionId: string,
   file: string,
   asOf: string = new Date().toISOString().slice(0, 10),
+  holdoutKey: string = sessionId,
 ): string | undefined {
   const kind = fileKind(file);
   const own = readExposures(main).filter(
@@ -115,10 +118,10 @@ export function editContext(
   // The would-serve set is what the budget admits without the holdout; withheld is that set's held-out part.
   const wouldServe = withinBudget(fresh, EDIT_BUDGET);
   const withheld = wouldServe
-    .filter((standard) => heldOut(sessionId, standard.id))
+    .filter((standard) => heldOut(holdoutKey, standard.id))
     .map((standard) => standard.id);
   const served = withinBudget(
-    fresh.filter((standard) => !heldOut(sessionId, standard.id)),
+    fresh.filter((standard) => !heldOut(holdoutKey, standard.id)),
     EDIT_BUDGET,
   );
   try {
@@ -166,7 +169,15 @@ export function main(): void {
     try {
       const main = mainCheckout(input.project);
       blocks = files.flatMap(
-        (file) => editContext(input.project, main, input.sessionId, file) ?? [],
+        (file) =>
+          editContext(
+            input.project,
+            main,
+            input.sessionId,
+            file,
+            undefined,
+            process.env.KRN_TASK ?? taskId(input.project) ?? input.sessionId,
+          ) ?? [],
       );
     } catch {
       /* A missing brain still lets the rule violations through. */

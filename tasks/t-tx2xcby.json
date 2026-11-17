@@ -1,7 +1,11 @@
 {
   "id": "t-tx2xcby",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "two sessions of one task get the same edit-standards holdout arm; test fails on origin/main source (exit 1), passes with fix"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Edit-standards holdout arm is keyed by task, not session id",
