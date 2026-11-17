@@ -47,8 +47,8 @@ export interface Candidate {
 export interface Verification {
   installBase: number;
   testBase: number;
-  /** assertion: the hidden test ran and failed; compile: it could not load, which excludes the unit. */
-  baseFailure: 'assertion' | 'compile' | 'none';
+  /** assertion: the hidden test ran and failed; compile: it could not load, which excludes the unit; timeout: the test was killed (exit 124), which proves nothing about the base. */
+  baseFailure: 'assertion' | 'compile' | 'timeout' | 'none';
   installFix: number;
   testFix: number;
   /** Hidden-test exit with the reference fix applied in the screen's own isolated checkout; non-zero means the screen cannot grade the unit. */
@@ -80,6 +80,19 @@ export const unitId = (issue: string): string =>
     .slice(0, 7)
     .padEnd(7, '0')}`;
 
+/** Exit status of a command killed by `timeout`. */
+export const EXIT_TIMEOUT = 124;
+
+/** Verdict for a base test run: a killed run is a timeout, never an assertion. */
+export function baseVerdict(
+  test: number,
+  compile: boolean,
+): Verification['baseFailure'] {
+  if (test === 0) return 'none';
+  if (test === EXIT_TIMEOUT) return 'timeout';
+  return compile ? 'compile' : 'assertion';
+}
+
 /** True when the recorded runs show the hidden test red on base by assertion and green on the fix. */
 export function verified(v: Verification | undefined): boolean {
   return (
@@ -88,6 +101,7 @@ export function verified(v: Verification | undefined): boolean {
     v.installFix === 0 &&
     v.baseFailure === 'assertion' &&
     v.testBase !== 0 &&
+    v.testBase !== EXIT_TIMEOUT &&
     v.testFix === 0 &&
     (v.gold === undefined || v.gold === 0)
   );
@@ -586,8 +600,7 @@ async function verify(
         v = {
           installBase: b.install,
           testBase: b.test,
-          baseFailure:
-            b.test === 0 ? 'none' : b.compile ? 'compile' : 'assertion',
+          baseFailure: baseVerdict(b.test, b.compile),
           installFix: f.install,
           testFix: f.test,
         };

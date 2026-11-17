@@ -317,7 +317,7 @@
     "verification": {
       "installBase": 0,
       "testBase": 124,
-      "baseFailure": "assertion",
+      "baseFailure": "timeout",
       "installFix": 0,
       "testFix": 0,
       "gold": 1
@@ -3671,7 +3671,7 @@
     "verification": {
       "installBase": 0,
       "testBase": 124,
-      "baseFailure": "assertion",
+      "baseFailure": "timeout",
       "installFix": 0,
       "testFix": 1
     }
@@ -3773,7 +3773,7 @@
     "verification": {
       "installBase": 0,
       "testBase": 124,
-      "baseFailure": "assertion",
+      "baseFailure": "timeout",
       "installFix": 0,
       "testFix": 124
     }
