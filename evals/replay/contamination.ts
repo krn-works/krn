@@ -16,32 +16,92 @@ export interface Hit {
   failed: boolean;
 }
 
-const GH =
-  /(?:^|[\s;&|(`])gh\s+(?:pr|issue|api|repo|search|release|browse|run|gist)\b/;
-const GIT = /\bgit\s+(?:clone|fetch|pull|ls-remote|remote\s+add)\b/;
-const HTTP = /(?:^|[\s;&|(`])(?:curl|wget)\s/;
+/** Each kind of access: how a command invokes it and the result lines that show one invocation reached nothing. */
+const KINDS = [
+  {
+    kind: 'gh',
+    call: /(?:^|[\s;&|(`'"])gh\s+(?:pr|issue|api|repo|search|release|browse|run|gist)\b/g,
+    failed:
+      /^(?:To get started with GitHub CLI|To use GitHub CLI in a GitHub Actions workflow|no git remotes found|GraphQL: Could not resolve|gh: .*\(HTTP 40[134]\)|HTTP 40[134]:|.*\bgh: (?:command )?not found)/gm,
+  },
+  {
+    kind: 'git',
+    call: /\bgit\s+(?:clone|fetch|pull|ls-remote|remote\s+add)\b/g,
+    failed: /^(?:fatal: |.*\bgit: (?:command )?not found)/gm,
+  },
+  {
+    kind: 'http',
+    call: /(?:^|[\s;&|(`'"])(?:curl|wget)\s/g,
+    failed:
+      /^(?:curl: \(\d+\)|wget: |.*ERROR 40[134]|.*\b(?:curl|wget): (?:command )?not found)/gm,
+  },
+] as const;
+
 /** A URL off this host: a session's curl of its own test server is local. */
 const REMOTE_URL =
   /\b(?:https?:\/\/)?(?!localhost\b|127\.|0\.0\.0\.0|\[::1\])[a-z0-9-]+(?:\.[a-z0-9-]+)+\//i;
+/**
+ * A GitHub URL with a scheme next to a fetch call reaches the upstream whatever runs it (python -c, node -e); an import
+ * path has no scheme, and a link written into a changelog has no fetch.
+ */
+const FETCH_CALL =
+  /\b(?:urlopen|urllib|requests\.(?:get|post)|httpx|fetch\(|https?\.get|axios|Invoke-WebRequest)/;
+const GITHUB_URL =
+  /https?:\/\/(?:api\.github\.com|github\.com|raw\.githubusercontent\.com|codeload\.github\.com)\//i;
+/** A nested shell or eval runs its quoted argument, so its quotes stay. */
+const NESTED = /\b(?:sh|bash|zsh)\s+-l?c\b|\beval\b/;
 
 /** The command without quoted text that runs nothing: `grep "gh run"` names gh, `"$(gh api …)"` runs it. */
 const executable = (cmd: string): string =>
-  cmd.replace(/'[^']*'/g, "''").replace(/"(?:[^"\\$`]|\\.)*"/g, '""');
+  NESTED.test(cmd)
+    ? cmd
+    : cmd.replace(/'[^']*'/g, "''").replace(/"(?:[^"\\$`]|\\.)*"/g, '""');
 
-/** Result text of a call that reached nothing: a refused login, no remote, an unreachable host, a missing page. */
-const FAILED =
-  /no git remotes found|gh auth login|GH_TOKEN environment variable|HTTP 40[134]\b|Could not resolve (?:host|to a Repository)|could not read Username|Repository not found|Authentication failed|not a git repository|command not found|tool is not available|No such tool available|has been denied|permission to use \w+ has been denied/i;
+/** A web tool result that is a refusal, not a page. */
+const WEB_REFUSED =
+  /tool is not available|No such tool available|has been denied|permission to use \w+ has been denied/i;
 
-/** The kind of upstream or web access a tool call can make, or undefined for a local call. */
-export function accessOf(name: string, input: unknown): string | undefined {
-  if (name === 'WebFetch' || name === 'WebSearch') return name;
-  if (name !== 'Bash') return undefined;
+/** Each kind of upstream or web access a tool call can make, with its invocation count; empty for a local call. */
+export function accessesOf(
+  name: string,
+  input: unknown,
+): { kind: string; calls: number }[] {
+  if (name === 'WebFetch' || name === 'WebSearch')
+    return [{ kind: name, calls: 1 }];
+  if (name !== 'Bash') return [];
   const raw = String((input as { command?: unknown } | null)?.command ?? '');
   const cmd = executable(raw);
-  if (GH.test(cmd)) return 'gh';
-  if (GIT.test(cmd)) return 'git';
-  if (HTTP.test(cmd) && REMOTE_URL.test(raw)) return 'http';
-  return undefined;
+  const out: { kind: string; calls: number }[] = [];
+  for (const k of KINDS) {
+    const calls = cmd.match(k.call)?.length ?? 0;
+    if (calls === 0) continue;
+    if (k.kind === 'http' && !REMOTE_URL.test(raw)) continue;
+    out.push({ kind: k.kind, calls });
+  }
+  if (
+    GITHUB_URL.test(raw) &&
+    FETCH_CALL.test(raw) &&
+    !out.some((a) => a.kind === 'http')
+  )
+    out.push({ kind: 'http', calls: 1 });
+  return out;
+}
+
+/** The first kind of access a tool call can make, or undefined for a local call. */
+export const accessOf = (name: string, input: unknown): string | undefined =>
+  accessesOf(name, input)[0]?.kind;
+
+/**
+ * Whether every invocation of `kind` in a result reached nothing. An empty result returned nothing; otherwise a kind is
+ * cleared only when its own failure lines number at least its invocations, so one refused gh beside a curl that
+ * returned the fix, or a second gh that worked, still counts.
+ */
+function failedAll(kind: string, calls: number, text: string): boolean {
+  if (text.trim() === '') return true;
+  if (kind === 'WebFetch' || kind === 'WebSearch')
+    return WEB_REFUSED.test(text);
+  const k = KINDS.find((x) => x.kind === kind);
+  return k !== undefined && (text.match(k.failed)?.length ?? 0) >= calls;
 }
 
 interface Block {
@@ -88,18 +148,19 @@ export function scanTranscript(jsonl: string): Hit[] {
         });
   }
   const hits: Hit[] = [];
-  for (const u of uses) {
-    const kind = accessOf(u.name ?? '', u.input);
-    if (!kind) continue;
-    const r = results.get(u.id ?? '');
-    // No result: the session died mid-call, so nothing came back into the session.
-    const failed = !r || r.error || r.text.trim() === '' || FAILED.test(r.text);
-    hits.push({
-      kind,
-      call: JSON.stringify(u.input ?? {}).slice(0, 200),
-      failed,
-    });
-  }
+  for (const u of uses)
+    for (const { kind, calls } of accessesOf(u.name ?? '', u.input)) {
+      const r = results.get(u.id ?? '');
+      // No result: the session died mid-call, so nothing came back into the session. A web tool error is a refusal;
+      // a Bash exit code says nothing about what an earlier command in it printed.
+      const web = kind === 'WebFetch' || kind === 'WebSearch';
+      const failed = !r || (web && r.error) || failedAll(kind, calls, r.text);
+      hits.push({
+        kind,
+        call: JSON.stringify(u.input ?? {}).slice(0, 200),
+        failed,
+      });
+    }
   return hits;
 }
 
@@ -107,17 +168,26 @@ export function scanTranscript(jsonl: string): Hit[] {
 export const contaminated = (hits: Hit[]): boolean =>
   hits.some((h) => !h.failed);
 
-/** Session transcripts under a screen scratch directory, by session id. */
-export function transcripts(scratch: string): Map<string, string> {
-  const found = new Map<string, string>();
-  const walk = (d: string) => {
+const SESSION_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * Transcripts under a screen scratch directory, by session id: the session's own `<id>.jsonl` and every subagent
+ * transcript under its `<id>/` directory, since a subagent's tool calls are the session's too.
+ */
+export function transcripts(scratch: string): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  const add = (id: string, f: string) =>
+    found.set(id, [...(found.get(id) ?? []), f]);
+  const walk = (d: string, owner: string | undefined) => {
     for (const e of readdirSync(d, { withFileTypes: true }))
-      if (e.isDirectory()) walk(join(d, e.name));
+      if (e.isDirectory())
+        walk(join(d, e.name), SESSION_ID.test(e.name) ? e.name : owner);
       else if (e.name.endsWith('.jsonl'))
-        found.set(e.name.slice(0, -6), join(d, e.name));
+        add(owner ?? e.name.slice(0, -6), join(d, e.name));
   };
   const root = join(scratch, 'claude-config', 'projects');
-  if (existsSync(root)) walk(root);
+  if (existsSync(root)) walk(root, undefined);
   return found;
 }
 
@@ -142,9 +212,7 @@ export function scanRows(rowsFile: string, scratch: string): RowScan[] {
           ),
         ].map((m) => m[1] as string)
       : [];
-    const files = ids
-      .map((id) => all.get(id))
-      .filter((f): f is string => f !== undefined);
+    const files = ids.flatMap((id) => all.get(id) ?? []);
     return {
       unit: r.unit,
       rep: r.rep,

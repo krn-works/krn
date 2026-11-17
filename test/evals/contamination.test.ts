@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import {
   accessOf,
   contaminated,
+  scanRows,
   scanTranscript,
 } from '../../evals/replay/contamination.ts';
 
@@ -94,4 +103,87 @@ test('a refused WebFetch is not contamination; one that returned a page is', () 
     ),
     true,
   );
+});
+
+test('a refused gh beside a curl that returned the fix still counts; so does a second gh that worked', () => {
+  const both = scanTranscript(
+    session(
+      {
+        command:
+          'gh pr view 1 -R o/r 2>&1; curl -s https://api.github.com/repos/o/r/pulls/1',
+      },
+      'To get started with GitHub CLI, please run:  gh auth login\n{"title":"Fix root package.json"}',
+    ),
+  );
+  assert.deepEqual(
+    both.map((h) => [h.kind, h.failed]),
+    [
+      ['gh', true],
+      ['http', false],
+    ],
+  );
+  const twice = scanTranscript(
+    session(
+      { command: 'gh pr list 2>&1; gh pr view 1 -R o/r' },
+      'no git remotes found\ntitle: Fix root package.json',
+    ),
+  );
+  assert.equal(contaminated(twice), true);
+});
+
+test('upstream text quoting a failure does not clear the call that fetched it', () => {
+  const hits = scanTranscript(
+    session(
+      { command: 'gh issue view 16 -R o/r' },
+      'title: install fails\nbody: the script says `sh: curl: command not found` and HTTP 404 on the mirror',
+    ),
+  );
+  assert.equal(contaminated(hits), true);
+});
+
+test('a fetch nested in sh -c, eval, python or node is a call', () => {
+  assert.equal(
+    accessOf('Bash', { command: "bash -c 'gh pr diff 1 -R o/r'" }),
+    'gh',
+  );
+  assert.equal(
+    accessOf('Bash', { command: 'eval "curl -s https://x.org/a"' }),
+    'http',
+  );
+  assert.equal(
+    accessOf('Bash', {
+      command:
+        'python3 -c "import urllib.request as u; print(u.urlopen(\'https://api.github.com/repos/o/r/pulls/1\').read())"',
+    }),
+    'http',
+  );
+  assert.equal(
+    accessOf('Bash', { command: 'grep -rn "github.com/o/r/pkg" go.mod' }),
+    undefined,
+  );
+});
+
+test('a subagent transcript under the session directory is scanned with its session', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'contam-'));
+  try {
+    const id = '466fcb95-567c-4f2f-ac05-0db218bdf2cf';
+    const dir = join(scratch, 'claude-config', 'projects', '-session');
+    mkdirSync(join(dir, id, 'subagents'), { recursive: true });
+    writeFileSync(join(dir, `${id}.jsonl`), '');
+    writeFileSync(
+      join(dir, id, 'subagents', 'agent-a1.jsonl'),
+      session({ command: 'gh pr diff 1 -R o/r' }, '-fix\n+fixed'),
+    );
+    writeFileSync(join(scratch, 't-aaaaaaa-1.log'), `{"session_id":"${id}"}`);
+    const rows = join(scratch, 'rows.jsonl');
+    writeFileSync(
+      rows,
+      `${JSON.stringify({ unit: 't-aaaaaaa', arm: 'A', rep: 1, pass: true, cost: 0, harness: 'h' })}\n`,
+    );
+    const [r] = scanRows(rows, scratch);
+    assert.equal(r?.transcript, true);
+    assert.equal(contaminated(r?.hits ?? []), true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
