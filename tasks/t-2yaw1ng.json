@@ -1,0 +1,14 @@
+{
+  "id": "t-2yaw1ng",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Merged lane worktrees stay on disk and count against the lane budget",
+  "after": [],
+  "body": [
+    "On 2026-11-17 all ten lane worktrees whose `krn pr ship` merged (#1318–#1327 and the task-records lane) were still in .krn/worktrees after the merge; `krn lane status` showed each as `merged`, and the lead had to `krn lane drop` them one by one. While they stay they count toward KRN_LANE_MAX_LIVE (a lane start refused with grade-no-app-gh still counted). Likely cause: lanes run `krn pr ship` with the worktree as cwd, so the post-merge removal cannot remove the directory it runs in.\nOutcome: after a merged ship the worktree and branch are gone whether ship ran from the repository root or from inside the worktree; `krn lane start` also drops every `merged` worktree before counting the budget.\nProof: a test running the ship post-merge cleanup with cwd inside the worktree asserts the directory and branch are removed; a lane-start test with one merged worktree at the budget limit starts.\nFiles: src/cli/lane.ts, src/cli/pr-ship.ts"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
