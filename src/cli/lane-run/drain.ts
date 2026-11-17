@@ -7,7 +7,7 @@ import type { LaneVerdict } from './steps.ts';
 export const drainUsage =
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]';
 
-/** Two consecutive runs ending in this same non-zero exit stop the drain. */
+/** Two consecutive runs of the same task ending in the same non-zero exit stop the drain; a failure of another task starts a new streak. */
 export const repeatedClassLimit = 2;
 
 export interface DrainRequest {
@@ -99,7 +99,7 @@ export interface DrainResult {
 /**
  * Deliver ready tasks one after another: the doctor check first (a failure stops before any
  * claim), then up to `max` single-task runs, one summary line each. It stops early when the
- * queue is empty or two consecutive runs end with the same non-zero exit. The exit is 0 only when
+ * queue is empty or two consecutive runs of the same task end with the same non-zero exit. The exit is 0 only when
  * no run failed, else the exit of the last failure; a line names every failed task.
  */
 export async function drainReady(
@@ -122,6 +122,7 @@ export async function drainReady(
   const root = repositoryRoot(request.root ?? process.cwd());
   const tried = new Set<string>();
   let lastFailure = 0;
+  let lastFailedId: string | undefined;
   let streak = 0;
   let exitCode = 0;
   const failed: string[] = [];
@@ -152,10 +153,13 @@ export async function drainReady(
     if (verdict.exitCode === 0) {
       streak = 0;
       lastFailure = 0;
+      lastFailedId = undefined;
       continue;
     }
-    streak = verdict.exitCode === lastFailure ? streak + 1 : 1;
+    streak =
+      verdict.exitCode === lastFailure && id === lastFailedId ? streak + 1 : 1;
     lastFailure = verdict.exitCode;
+    lastFailedId = id;
     if (streak >= repeatedClassLimit) {
       summarise();
       say(`drain: stopped after ${streak} consecutive exit ${lastFailure}`);
