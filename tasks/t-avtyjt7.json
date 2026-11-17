@@ -1,7 +1,11 @@
 {
   "id": "t-avtyjt7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "piped-check hook refuses while/until loops on pgrep by name; test covers refuse and PID/file/-P accept"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Wait loops never condition on host-wide pgrep by process name",
