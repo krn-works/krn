@@ -1,0 +1,14 @@
+{
+  "id": "t-rx92cvg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Replay real KRN failures cut before the wrong decision and measure repeats per harness revision",
+  "after": [],
+  "body": [
+    "Operator-pasted note 2026-11-17 (unverified; source: GPT-6.2 system card, \"AgentReplay\"): OpenAI replays a real Codex session whose error an independent grader confirmed, truncated just before the wrong decision, and measures how often a model repeats it. KRN has such sessions: ship/merge-state misreads, lanes writing in the wrong worktree (2026-11-17 isolation conflict), Stop loops.\nFiles: evals/replay/agent-replay.ts, evals/replay/fixtures/agent-replay/\nOutcome: a command takes a recorded Claude Code transcript plus the turn index before a confirmed wrong decision, resumes a fresh session from that prefix under the current harness, and grades whether the wrong decision repeats; a suite of at least 5 real KRN failures prints the repeat rate per harness revision.\nProof: node evals/replay/agent-replay.ts --suite --dry-run lists the 5 cases with their cut points, exit 0; a live run prints repeat rate before and after one harness fix."
+  ],
+  "kind": "research",
+  "area": "evals"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-3dkjnaw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Overnight Codex replay rows use the discounted background completion window",
+  "after": [],
+  "body": [
+    "Operator-pasted note 2026-11-17 (unverified; source: OpenAI API changelog, background mode): Responses API background_options.completion_window gives 30% (2 h) or 40% (8 h) off model tokens, including follow-up tool-call requests. Relevant to night grading and the Codex/Sol replay arm (t-188gftz).\nFiles: src/harness/codex.ts\nOutcome: the Codex/Sol replay arm can run overnight rows with completion_window, and rows record the discounted cost; a check confirms the field and prices against OpenAI's own docs first.\nProof: a recorded overnight row shows completion_window and a cost matching the discounted rate."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}
