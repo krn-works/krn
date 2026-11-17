@@ -6,6 +6,7 @@ import {
   originUrl,
   repoSlug,
 } from '../adopt/verify.ts';
+import { describeBwServe, vaultStatus } from '../ci/bw-serve-state.ts';
 import { skillsMissingPermission } from './doctor-skills.ts';
 import { tokenHelper } from './lane-run/environment.ts';
 
@@ -18,6 +19,12 @@ export const exitUsage = 64;
 export const exitSkillPermission = 1;
 /** The App token mints but the repository named by --root is not visible to the App. */
 export const exitAppNotInstalled = APP_NOT_INSTALLED_EXIT;
+
+const describeUnit = 'bw-serve.service';
+
+function unitRun(probe: Probe, env: NodeJS.ProcessEnv) {
+  return (command: string, args: string[]) => probe(command, args, env).stdout;
+}
 
 /** bw serve locks the vault after this long; an unattended run outliving it loses the App token. */
 const defaultSessionLimitHours = 10;
@@ -115,8 +122,11 @@ export function unattendedReport(
   const mint = probe(process.execPath, [tokenHelper, 'token'], sessionEnv);
   if (mint.status !== 0) {
     const reason = mint.stderr.trim().split('\n')[0] || 'no reason given';
+    const why = reason.includes(describeUnit)
+      ? ''
+      : ` (${describeBwServe(unitRun(probe, sessionEnv))})`;
     return {
-      text: `FAIL mint: no App token (${reason}). Remedy: run bw-up to unlock the vault and start bw serve, then rerun krn doctor --unattended.\n`,
+      text: `FAIL mint: no App token (${reason})${why}. Remedy: the operator runs bw-up in an interactive shell to unlock the vault and start bw serve, then rerun krn doctor --unattended.\n`,
       exitCode: exitMintFailed,
     };
   }
@@ -136,6 +146,21 @@ export function unattendedReport(
         };
     }
   }
+  const base = (env.KRN_BW_SERVE || 'http://localhost:8087').replace(
+    /\/+$/u,
+    '',
+  );
+  const status = probe(
+    'curl',
+    ['-sS', '--max-time', '5', `${base}/status`],
+    env,
+  );
+  const vault = vaultStatus(status.stdout);
+  if (vault !== 'unlocked')
+    return {
+      text: `FAIL vault: bw serve at ${base} reports ${vault ?? 'no status'}, not unlocked, so the App token cannot be minted again (a cached token hides it). ${describeBwServe(unitRun(probe, env))}. Remedy: the operator runs bw-up in an interactive shell, then rerun krn doctor --unattended.\n`,
+      exitCode: exitVaultShort,
+    };
   const limit = Number(env.KRN_BW_SESSION_HOURS) || defaultSessionLimitHours;
   const elapsed = serveElapsedSeconds(probe, env);
   if (elapsed === undefined)

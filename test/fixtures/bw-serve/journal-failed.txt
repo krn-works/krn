@@ -1,0 +1,4 @@
+Started [systemd-run] /home/krn/.local/bin/bw serve --hostname localhost --port 8087.
+Error: listen EADDRINUSE: address already in use ::1:8087
+bw-serve.service: Main process exited, code=exited, status=1/FAILURE
+bw-serve.service: Failed with result 'exit-code'.

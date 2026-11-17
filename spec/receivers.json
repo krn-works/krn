@@ -92,14 +92,25 @@
       "real": "test/cli/lane-run.test.ts"
     },
     "src/cli/doctor-unattended.ts": {
-      "receivers": ["node", "ss", "ps", "gh"],
+      "receivers": ["node", "ss", "ps", "gh", "curl"],
       "capture": [
+        "test/fixtures/bw-serve/status-locked.json",
+        "test/fixtures/bw-serve/status-unlocked.json",
         "test/fixtures/bw-serve/ss-listen.txt",
         "test/fixtures/bw-serve/ps-etimes.txt",
         "test/fixtures/gh/repo-not-installed.stderr.log",
         "test/fixtures/gh/repo-not-installed.stdout.json"
       ],
       "test": "test/cli/doctor-unattended.test.ts"
+    },
+    "src/ci/bw-serve-state.ts": {
+      "receivers": ["systemctl", "journalctl"],
+      "capture": [
+        "test/fixtures/bw-serve/systemctl-show-failed.txt",
+        "test/fixtures/bw-serve/systemctl-show-absent.txt",
+        "test/fixtures/bw-serve/journal-failed.txt"
+      ],
+      "test": "test/ci/app-token.test.ts"
     },
     "src/cli/hook.ts": {
       "receivers": ["node"],
