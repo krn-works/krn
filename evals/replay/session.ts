@@ -3,10 +3,7 @@
 // sessions through it. Asynchronous: an in-process egress proxy (evals/units/egress.ts) must keep serving while the
 // session runs.
 import { spawn } from 'node:child_process';
-import {
-  parseSessionResult,
-  type SessionResult,
-} from '../../src/cli/lane-run/result.ts';
+import { parseSessionResult, type SessionResult } from './session-result.ts';
 
 /** Kill every process the session left in its own process group (a Bash child can outlive claude). */
 export function killGroup(pid: number | undefined): void {

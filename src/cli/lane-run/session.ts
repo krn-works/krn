@@ -1,5 +1,6 @@
 import { rmSync } from 'node:fs';
 import { driveSession } from '../../../evals/replay/session.ts';
+import type { SessionResult } from '../../../evals/replay/session-result.ts';
 import { headlessArgs, laneBinary } from '../../harness/claude.ts';
 import { contractLaneBudget } from '../../repo/contract.ts';
 import { mainCheckoutPlaceholders } from '../../state/sandbox-placeholders.ts';
@@ -11,7 +12,7 @@ import {
 } from './environment.ts';
 import { prepareWorktree, settingsFailure } from './preflight.ts';
 import type { PreparedLane } from './prepare.ts';
-import { exitCredentialUnavailable, type SessionResult } from './result.ts';
+import { exitCredentialUnavailable } from './result.ts';
 
 /** What the session stage produced: the result, and why it did not start when the worktree or settings refused it. */
 export interface SessionOutcome {

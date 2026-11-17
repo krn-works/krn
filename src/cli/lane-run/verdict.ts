@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { noProgressAttempts } from '../../../evals/replay/session-result.ts';
 import { isTestFile } from '../../brain/acceptance-clauses.ts';
 import {
   appendExposure,
@@ -39,7 +40,6 @@ import {
   exitNoDelivery,
   exitNoProgress,
   exitSessionBlocked,
-  noProgressAttempts,
 } from './result.ts';
 import type { SessionOutcome } from './session.ts';
 import type { LaneRunSteps, LaneVerdict } from './steps.ts';

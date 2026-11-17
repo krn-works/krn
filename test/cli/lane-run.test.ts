@@ -15,6 +15,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import {
+  parseSessionResult,
+  repeatedStopRefusal,
+  transcriptTurns,
+} from '../../evals/replay/session-result.ts';
 import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 import { readExposures } from '../../src/brain/exposures.ts';
 import { startLane } from '../../src/cli/lane.ts';
@@ -49,11 +54,6 @@ import {
   redCheckFinding,
   redCheckOf,
 } from '../../src/cli/lane-run/red-check.ts';
-import {
-  parseSessionResult,
-  repeatedStopRefusal,
-  transcriptTurns,
-} from '../../src/cli/lane-run/result.ts';
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
