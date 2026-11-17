@@ -1,0 +1,14 @@
+{
+  "id": "t-p33sqcr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Drain stops after two consecutive infrastructure-class failures across tasks; task-class failures never stop it",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: t-gpb2me6 (#1366, f7953b0) made the streak count only repeats of the same task, but the drain never retries a task (`tried` set in src/cli/lane-run/drain.ts), so the streak stop is now unreachable: a systemic failure (no App token exit 70, vault 75, mint 69 — as seen 2026-11-17 when bw serve died) would burn every queued task.\nOutcome: exit codes are split into infrastructure class (69, 70, 75 and any code the doctor maps to the host) and task class (74, 81, 76, 77 ...); two consecutive infrastructure-class failures on different tasks stop the drain with exit equal to that code and a `drain: stopped, infrastructure <code> twice` line; task-class failures on different tasks never stop it; the unreachable same-task streak code is deleted.\nProof: test/cli/lane-drain.test.ts cases: [70 on t-a, 70 on t-b] stops before t-c; [74 on t-a, 74 on t-b] runs all tasks; both fail before the fix by assertion.\nFiles: src/cli/lane-run/drain.ts, test/cli/lane-drain.test.ts"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
