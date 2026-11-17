@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
-import { startEgress } from '../units/egress.ts';
+import { SESSION_HOSTS, startEgress } from '../units/egress.ts';
 import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
 import { forceRemove, gradeWorktree } from '../units/screening.ts';
 import type { Arm } from './arms.ts';
@@ -69,7 +69,7 @@ async function sandboxedSession(
     ...(o.model === undefined ? {} : { model: o.model }),
     ...(o.budgetUsd === undefined ? {} : { budgetUsd: o.budgetUsd }),
   });
-  const egress = await startEgress(tmpdir());
+  const egress = await startEgress(tmpdir(), SESSION_HOSTS);
   try {
     return await driveSession({
       command: 'bwrap',

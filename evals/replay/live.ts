@@ -14,7 +14,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
-import { startEgress } from '../units/egress.ts';
+import { SESSION_HOSTS, startEgress } from '../units/egress.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
 import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
 import {
@@ -178,7 +178,7 @@ async function runClaude(
   log: string,
 ): Promise<Session> {
   const bin = env.KRN_EVAL_CLAUDE ?? 'claude';
-  const egress = await startEgress(tmpdir());
+  const egress = await startEgress(tmpdir(), SESSION_HOSTS);
   try {
     return await sandboxedClaude(cwd, prompt, env, ms, log, bin, egress.socket);
   } finally {

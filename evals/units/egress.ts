@@ -80,10 +80,34 @@ function ownAddresses(): string[] {
     .flatMap((i) => (i ? [i.address] : []));
 }
 
+/**
+ * The hosts an agent session needs: the Anthropic API and login, GitHub, and the npm registry. A name matches itself
+ * and its subdomains. Credentials stay inside the session's own CONNECT tunnels to these hosts.
+ */
+export const SESSION_HOSTS: readonly string[] = [
+  'anthropic.com',
+  'claude.ai',
+  'github.com',
+  'githubusercontent.com',
+  'registry.npmjs.org',
+];
+
+/** Whether `host` is one of `hosts` or a subdomain of one. */
+export function hostListed(host: string, hosts: readonly string[]): boolean {
+  const h = host
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '')
+    .toLowerCase();
+  return hosts.some((l) => h === l || h.endsWith(`.${l}`));
+}
+
 /** The vetted address for `host`, or the reason it is refused. One lookup; the caller connects to this address. */
 export async function vet(
   host: string,
+  hosts?: readonly string[],
 ): Promise<{ ip: string } | { refused: string }> {
+  if (hosts && !hostListed(host, hosts))
+    return { refused: `${host} is not an allowed host` };
   const bare = host.replace(/^\[|\]$/g, '');
   let ips: string[];
   try {
@@ -110,14 +134,19 @@ function splitHostPort(
   return { host: m[1] as string, port: Number(m[2]) };
 }
 
-function onConnect(req: IncomingMessage, client: Socket, head: Buffer): void {
+function onConnect(
+  req: IncomingMessage,
+  client: Socket,
+  head: Buffer,
+  hosts?: readonly string[],
+): void {
   client.on('error', () => client.destroy());
   const target = splitHostPort(req.url ?? '');
   if (!target) {
     client.end('HTTP/1.1 400 Bad Request\r\n\r\n');
     return;
   }
-  void vet(target.host).then((v) => {
+  void vet(target.host, hosts).then((v) => {
     if ('refused' in v) {
       client.end(
         `HTTP/1.1 403 Forbidden\r\nX-Egress-Refused: ${v.refused.replace(/[\r\n]/g, ' ')}\r\n\r\n`,
@@ -141,6 +170,7 @@ function onConnect(req: IncomingMessage, client: Socket, head: Buffer): void {
 function onRequest(
   req: IncomingMessage,
   res: import('node:http').ServerResponse,
+  hosts?: readonly string[],
 ): void {
   let url: URL;
   try {
@@ -153,7 +183,7 @@ function onRequest(
     res.writeHead(400).end();
     return;
   }
-  void vet(url.hostname).then((v) => {
+  void vet(url.hostname, hosts).then((v) => {
     if ('refused' in v) {
       res.writeHead(403, { 'X-Egress-Refused': v.refused }).end();
       return;
@@ -205,22 +235,26 @@ export function egressParent(parent: string): string {
 }
 
 /**
- * Starts the filtering proxy on a fresh unix socket under `parent`, or under `/tmp` when `parent` is too deep.
+ * Starts the filtering proxy on a fresh unix socket under `parent`, or under `/tmp` when `parent` is too deep. With
+ * `hosts` it connects only to those names (and their subdomains); without, to any public address.
  * It serves from this process's event loop: spawn the sandbox asynchronously, since spawnSync blocks the loop and
  * every download through the proxy then hangs.
  */
-export async function startEgress(parent: string): Promise<Egress> {
+export async function startEgress(
+  parent: string,
+  hosts?: readonly string[],
+): Promise<Egress> {
   const dir = mkdtempSync(join(egressParent(parent), 'egress-'));
   const socket = join(dir, 'proxy.sock');
   if (Buffer.byteLength(socket) > socketPathLimit)
     throw new Error(`egress socket path too long for a unix socket: ${socket}`);
-  const server: Server = createServer(onRequest);
+  const server: Server = createServer((req, res) => onRequest(req, res, hosts));
   // Tunnels leave the HTTP server's connection tracking: close() destroys this server's own so it never waits on one.
   const tunnels = new Set<Socket>();
   server.on('connect', (req: IncomingMessage, client: Socket, head: Buffer) => {
     tunnels.add(client);
     client.on('close', () => tunnels.delete(client));
-    onConnect(req, client, head);
+    onConnect(req, client, head, hosts);
   });
   server.on('clientError', (_e, s) => s.destroy());
   await new Promise<void>((resolve, reject) => {
