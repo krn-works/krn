@@ -251,7 +251,7 @@ export function dirBytes(path: string): number {
 }
 
 /** Remove a tree whose directories or files may be read-only (the Go module cache is). */
-function forceRemove(path: string): void {
+export function forceRemove(path: string): void {
   try {
     if (lstatSync(path).isDirectory()) {
       chmodSync(path, 0o700);
