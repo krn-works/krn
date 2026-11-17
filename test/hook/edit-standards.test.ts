@@ -16,7 +16,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { editStandardsCommand } from '../../src/adopt/stop-hook.ts';
-import { appendExposure, servedExposure } from '../../src/brain/exposures.ts';
+import {
+  appendExposure,
+  readExposures,
+  servedExposure,
+} from '../../src/brain/exposures.ts';
 import { ruleViolations } from '../../src/hook/edit-rules.ts';
 import {
   commandFiles,
@@ -252,6 +256,35 @@ test('an earlier edit exposure of a kind hides only the records it served, never
     const later = ids(editContext(root, root, 'session', 'src/a.php'));
     assert.ok(!later.includes(first), 'the served record is not repeated');
     assert.ok(later.length > 0, 'later rules of the kind are still printed');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('two sessions of one task get the same holdout arm', () => {
+  const root = adoptedPhp();
+  try {
+    const arms = ['one', 'two', 'three', 'four', 'five', 'six', 'seven'].map(
+      (session) => {
+        const text = editContext(
+          root,
+          root,
+          session,
+          'src/a.php',
+          undefined,
+          't-aaaaaaa',
+        );
+        const withheld = readExposures(root).find(
+          (exposure) => exposure.run === session,
+        )?.withheld;
+        return `${text}|${withheld?.join(',')}`;
+      },
+    );
+    assert.equal(
+      new Set(arms).size,
+      1,
+      'every session of the task shares an arm',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
