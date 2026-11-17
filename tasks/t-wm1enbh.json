@@ -1,0 +1,14 @@
+{
+  "id": "t-wm1enbh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Read arXiv 2611.19700 (in-context memory vs weight adaptation) and disposition its arm split for the A/B/C proof",
+  "after": [],
+  "body": [
+    "rss-news radar 2026-11-17 (titles only, article not read): https://arxiv.org/abs/2611.19700v1 reports on SWE-bench memory-only 23.6%, weight adapter 32.1%, both 43.8%; on AppWorld memory alone keeps most of the gain. KRN's proof (plan item 5, ADR 0021) compares A plain, B static instruction file, C brain.\nOutcome: a written disposition in .krn/runs/research/ after reading the paper: whether its memory-only vs combined split changes the preregistered A/B/C design (e.g. a per-world report, or a brain-retrieval-only arm without the static file), with the exact arm change or 'no change' and why.\nProof: the disposition file exists and names the paper's tables it relies on."
+  ],
+  "kind": "research",
+  "area": "evals"
+}
