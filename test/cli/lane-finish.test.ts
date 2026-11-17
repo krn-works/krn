@@ -101,6 +101,8 @@ function fakeGh(worktree: string) {
             },
       );
     }
+    // The head has no check run yet: the check-runs answer is the empty list the jq filter prints.
+    if (a[0] === 'api') return '[]';
     if (a[0] === 'pr' && a[1] === 'create') {
       // The body lives in the worktree, which the merged ship removes: read it while it exists.
       bodies.push(

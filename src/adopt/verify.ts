@@ -28,6 +28,7 @@ import {
   withinPackage,
 } from '../repo/contract.ts';
 import { ghApiSync } from '../repo/gh.ts';
+import { isRequiredCheckName } from '../repo/required-check.ts';
 import { deployRemedy, deployWorkflows } from './deploy.ts';
 import { isKrnStopCommand } from './stop-hook.ts';
 import { GATE_KEYS, type GateKey, workflowGates } from './workflow-gates.ts';
@@ -123,10 +124,15 @@ export function verifyGaps(
   const contexts = new Set<string>();
   for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
     ?.required_status_checks?.checks ?? [])
-    if (check.app_id === ACTIONS_APP_ID) contexts.add(check.context);
+    if (check.app_id === ACTIONS_APP_ID && isRequiredCheckName(check.context))
+      contexts.add(check.context);
   for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
     for (const check of rule.parameters?.required_status_checks ?? [])
-      if (check.integration_id === ACTIONS_APP_ID) contexts.add(check.context);
+      if (
+        check.integration_id === ACTIONS_APP_ID &&
+        isRequiredCheckName(check.context)
+      )
+        contexts.add(check.context);
   if (contexts.size !== 1)
     gaps.push(
       `branch ${repo.default_branch} has no single required status check from GitHub Actions`,
