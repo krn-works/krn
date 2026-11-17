@@ -1,7 +1,11 @@
 {
   "id": "t-gv984e8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scope hook refuses worker redirects outside worktree; 3 hook-layer tests"
+  },
   "created": "2026-11-17",
   "priority": 3,
   "title": "A lane writing scratch output outside its worktree is refused",

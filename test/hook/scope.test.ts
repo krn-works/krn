@@ -334,3 +334,38 @@ test('the main-checkout guard ignores heredoc bodies, quoted operators and relat
   ])
     assert.match(run(command) ?? '', /^Refused/u, command);
 });
+
+test('a worker redirect to an absolute path outside the worktree is refused with the scratch rule', () => {
+  const env = worker('src/');
+  for (const command of [
+    'krn pr ship --title x > /tmp/x',
+    'krn pr ship >> /tmp/ship.log 2>&1',
+    'npm test 2>&1 | tee /tmp/t.log',
+    'cd /tmp && echo x > out',
+  ])
+    assert.match(
+      decide(bash(command), env) ?? '',
+      /Scratch rule: write logs and drafts under \/r\/clone\/\.krn\/tmp/u,
+      command,
+    );
+});
+
+test('a worker redirect into .krn/tmp, the worktree, /dev/null or the harness scratchpad is allowed', () => {
+  const env = { ...worker('src/'), CLAUDE_CODE_TMPDIR: '/h/claude' };
+  for (const command of [
+    'npm test > .krn/tmp/x.log 2>&1',
+    `npm test > ${root}/.krn/tmp/x.log`,
+    'npm test > /dev/null 2>&1',
+    'npm test 2>/dev/null',
+    'echo x > /h/claude/claude-1000/p/s/scratchpad/n.txt',
+    'npm test | tee .krn/tmp/t.log',
+  ])
+    assert.equal(decide(bash(command), env), undefined, command);
+});
+
+test('a lead session may redirect anywhere', () => {
+  assert.equal(
+    decide(bash('krn pr ship > /tmp/x'), { CLAUDE_PROJECT_DIR: root }),
+    undefined,
+  );
+});
