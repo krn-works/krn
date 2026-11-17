@@ -2,16 +2,9 @@
 // prompt, every session inside a host-wide session slot, then the unit's hidden test grades the result into a row.
 // KRN_EVAL_CLAUDE names the claude binary (default `claude`); KRN_EVAL_MAX_SESSIONS caps live sessions host-wide.
 import { spawn } from 'node:child_process';
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-} from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
@@ -19,6 +12,7 @@ import { requireSandbox } from '../units/sandbox.ts';
 import { forceRemove, gradeWorktree } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
 import { ARMS, type Arm } from './arms.ts';
+import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
 import { formatRow, type Row } from './rows.ts';
 import { eligible, readRows, type ScreenUnit } from './screen.ts';
 
@@ -34,6 +28,8 @@ export interface LiveOptions {
   sessionMs?: number;
   /** Sessions per unit; a unit passes when any rep passes. */
   reps?: number;
+  /** Directory that receives each graded session's patch and grade (recording.ts); none when unset. */
+  recordings?: string | undefined;
 }
 
 export interface LiveUnit {
@@ -190,23 +186,10 @@ export async function screenUnit(
   const arm = ARMS.A;
   const slotEnv = o.env ?? process.env;
   const env = armEnv(arm, o.scratch, slotEnv);
-  // Absolute: the session repository fetches from it with `git -C <session>`, which would resolve a relative path there.
-  const clone = resolve(o.sources, unit.repo.replace('/', '__'));
-  mkdirSync(o.scratch, { recursive: true });
   const log = join(o.scratch, `${unit.id}-${rep}.log`);
-  try {
-    local(clone, 'cat-file', '-e', `${unit.base}^{commit}`);
-  } catch {
-    local(clone, 'fetch', '-q', 'origin', unit.base);
-  }
-  // The session gets its own repository holding only the unit.base commit and no remote: a worktree of the clone
-  // reached origin/main and the reference fix through shared refs and objects (unit t-13axy56 read the upstream fix).
-  // Depth 1 because the clones are partial: only the base tree's blobs are present locally.
-  const wt = mkdtempSync(join(o.scratch, 'session-'));
-  local(wt, 'init', '-q');
-  local(wt, 'fetch', '-q', '--no-tags', '--depth', '1', clone, unit.base);
-  local(wt, 'checkout', '-q', '--detach', unit.base);
-  rmSync(join(wt, '.git', 'FETCH_HEAD'), { force: true });
+  // The session gets its own repository holding only the unit.base commit and no remote (unit t-13axy56 read the
+  // upstream fix through a worktree's shared refs).
+  const wt = baseCheckout(o.sources, unit, o.scratch);
   try {
     const session = await withSessionSlot(
       () => runClaude(wt, promptOf(unit), env, o.sessionMs ?? 30 * 60_000, log),
@@ -215,9 +198,27 @@ export async function screenUnit(
     // The grade sees the session's source change on a fresh install: ignored leftovers of the session's own installs
     // or builds (node_modules, .venv, dist) are not part of a change and can break the grading install.
     if (session.ran) local(wt, 'clean', '-fdXq');
+    // The change is recorded before the grade writes the hidden test into the checkout; a failed recording keeps the row.
+    let patch: string | undefined;
+    if (session.ran && o.recordings !== undefined)
+      try {
+        patch = recordPatch(wt, o.recordings, unit.id, rep, unit.base);
+      } catch (e) {
+        appendFileSync(log, `record: ${String(e)}\n`);
+      }
     const g = session.ran
       ? await gradeWorktree(wt, unit, dir, log, o.scratch)
       : undefined;
+    if (g && patch !== undefined && o.recordings !== undefined)
+      recordGrade(o.recordings, {
+        unit: unit.id,
+        rep,
+        base: unit.base,
+        pass: g.install === 0 && g.test === 0,
+        install: g.install,
+        test: g.test,
+        harness: o.harness,
+      });
     return {
       unit: unit.id,
       arm: arm.id,

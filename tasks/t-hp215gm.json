@@ -1,7 +1,11 @@
 {
   "id": "t-hp215gm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Live screen path records patch+grade (evals/replay/recording.ts); one paid arm-A session on t-1azubpv recorded pass; run.ts --screen --replay regraded it pass with 0 model calls, exit 0; tests in test/evals/replay-recording.test.ts"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Eval regressions replay recorded model calls instead of spending quota",
