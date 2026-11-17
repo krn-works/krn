@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
-import { gradeWorktree } from '../units/screening.ts';
+import { forceRemove, gradeWorktree } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
 import { ARMS, type Arm } from './arms.ts';
 import { formatRow, type Row } from './rows.ts';
@@ -193,7 +193,12 @@ export async function screenUnit(
       harness: o.harness,
     };
   } finally {
-    rmSync(wt, { recursive: true, force: true });
+    // A session may leave read-only trees (envtest binaries, a Go module cache); a failed removal never loses the row.
+    try {
+      forceRemove(wt);
+    } catch (e) {
+      appendFileSync(log, `cleanup: ${String(e)}\n`);
+    }
   }
 }
 

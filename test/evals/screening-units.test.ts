@@ -18,6 +18,7 @@ import {
   cacheOverLimit,
   commandsFor,
   dirBytes,
+  forceRemove,
   gradeWorktree,
   INSTALL_SECONDS,
   type ManifestRow,
@@ -183,6 +184,31 @@ test('cache pruning continues while free disk is under the floor', () => {
   const removed = pruneCache(root, lim, () => (free += 6));
   assert.equal(removed.length, 1);
   rmSync(root, { recursive: true, force: true });
+});
+
+test('a session tree holding a read-only directory is removed, where a plain rmSync fails with EACCES', () => {
+  const make = () => {
+    // The shape a screened session left behind: envtest binaries under a directory without write permission.
+    const wt = mkdtempSync(join(tmpdir(), 'session-'));
+    const ro = join(wt, 'bin', 'k8s', '1.31.0-linux-amd64');
+    mkdirSync(ro, { recursive: true });
+    writeFileSync(join(ro, 'kube-apiserver'), 'x');
+    chmodSync(ro, 0o555);
+    return { wt, ro };
+  };
+  const plain = make();
+  try {
+    assert.throws(
+      () => rmSync(plain.wt, { recursive: true, force: true }),
+      /EACCES/,
+    );
+  } finally {
+    chmodSync(plain.ro, 0o755);
+    rmSync(plain.wt, { recursive: true, force: true });
+  }
+  const forced = make();
+  forceRemove(forced.wt);
+  assert.equal(existsSync(forced.wt), false);
 });
 
 test('a screened session is graded with the install time verification had', async () => {
