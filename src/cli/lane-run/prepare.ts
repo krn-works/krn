@@ -12,13 +12,12 @@ import { effortHistory, laneEffort } from '../../outcome/lane-effort.ts';
 import { contractBase } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
+import { git } from '../git-with.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
 import { sessionEnvironment } from './environment.ts';
-import { git } from './git.ts';
-import { remoteFailure } from './preflight.ts';
 import {
   type RedCheck,
   redCheckBrief,
@@ -27,7 +26,6 @@ import {
 } from './red-check.ts';
 import { exitCredentialUnavailable } from './result.ts';
 import { defaultSteps, type LaneRunSteps, type LaneVerdict } from './steps.ts';
-import { reclaimLane, reusableLane } from './worktree.ts';
 
 /** Everything the session and verdict stages need: the request plus the prepared lane. */
 export interface PreparedLane extends LaneRequest {
@@ -126,20 +124,11 @@ export async function prepareLane(
       exitCode: exitCredentialUnavailable,
     };
 
-  const unreachable = remoteFailure(origin, base, environment);
-  if (unreachable !== undefined)
-    return {
-      line: `lane ${label}: preflight: ${unreachable}; no session started`,
-      exitCode: exitCredentialUnavailable,
-    };
-
   const existing = join(main, '.krn', 'worktrees', lane);
   const holder = actor ?? `lane-${lane}`;
-  // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
+  // A rerun after a failed run finds its worktree and branch: it is reused as it stands, its claim is not retaken.
   const started = existsSync(existing)
-    ? task === undefined
-      ? reusableLane(existing, lane)
-      : await reclaimLane(main, existing, lane, task, holder, origin, base)
+    ? { path: existing }
     : await steps.start([
         lane,
         ...(task === undefined ? [] : ['--task', task]),

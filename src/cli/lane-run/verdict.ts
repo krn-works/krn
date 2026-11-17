@@ -20,6 +20,7 @@ import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { recordChecks } from '../../brain/standards-cli.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
+import { git } from '../git-with.ts';
 import { renderPrBody } from '../pr-body.ts';
 import {
   contractVerification,
@@ -31,7 +32,6 @@ import {
   sessionVerification,
   ticketCommitTitle,
 } from './delivery.ts';
-import { git } from './git.ts';
 import type { PreparedLane } from './prepare.ts';
 import { redCheckOf } from './red-check.ts';
 import {
@@ -43,7 +43,6 @@ import {
 } from './result.ts';
 import type { SessionOutcome } from './session.ts';
 import type { LaneRunSteps, LaneVerdict } from './steps.ts';
-import { commitsSinceRed } from './worktree.ts';
 
 const stopHook = fileURLToPath(new URL('../../hook/stop.ts', import.meta.url));
 
@@ -234,7 +233,7 @@ export async function laneVerdict(
       return await stop('dirty tree');
     if (
       red !== undefined &&
-      commitsSinceRed(path, red, task ?? slug).length === 0
+      git(path, ['rev-list', '--count', `${red.sha}..HEAD`]) === '0'
     )
       return await stop(
         `no new commit since the red Check (run ${red.run} on ${red.sha.slice(0, 12)})`,

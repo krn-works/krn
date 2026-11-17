@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { checkCommand } from './brief.ts';
-import { failingTests, lastLine } from './preflight.ts';
+import { failingTests, lastLine } from './test-output.ts';
 
 /** The failing check's verdict line, its failing test files and the path of its full output. */
 /** A red required Check a ship reported: the run that failed and the head it judged. */

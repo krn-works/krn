@@ -71,17 +71,9 @@
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"
     },
-    "src/cli/lane-run/git.ts": {
+    "src/cli/git-with.ts": {
       "receivers": ["git"],
-      "real": "test/cli/lane-run.test.ts"
-    },
-    "src/cli/lane-run/preflight.ts": {
-      "receivers": ["git"],
-      "real": "test/cli/lane-run.test.ts"
-    },
-    "src/cli/lane-run/worktree.ts": {
-      "receivers": ["git"],
-      "real": "test/cli/lane-run.test.ts"
+      "real": "test/cli/git-with.test.ts"
     },
     "src/cli/lane-run/verdict.ts": {
       "receivers": ["node"],

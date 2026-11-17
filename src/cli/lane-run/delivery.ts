@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { syncLockfile } from '../../adopt/init.ts';
 import { findContract } from '../../repo/contract.ts';
+import { git } from '../git-with.ts';
 import { baseIsVacuous, bootstrapProof, isBootstrapTask } from './bootstrap.ts';
 import { fastCheck } from './environment.ts';
-import { git } from './git.ts';
-import { settledRun } from './preflight.ts';
 import { failedCheckDetail } from './red-check.ts';
+import { settledRun } from './test-output.ts';
 
 /** The subject of the session's commit that carries the task's Ticket trailer, else undefined. */
 export function ticketCommitTitle(
