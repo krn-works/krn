@@ -95,7 +95,7 @@ function fakeGh(worktree: string) {
             }
           : {
               state: 'MERGED',
-              headRefOid: 'a'.repeat(40),
+              headRefOid: git(worktree, 'rev-parse', 'HEAD'),
               mergeCommit: { oid: merge },
               statusCheckRollup: [],
             },

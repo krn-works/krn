@@ -767,6 +767,12 @@ async function waitForMerge(options: {
       lines,
     });
     if (pull.state === 'MERGED') {
+      // The merge was pinned to `head`: a merge at another head is somebody else's change, not this ship.
+      if (pull.headRefOid !== head)
+        return stop(
+          77,
+          `verdict: head moved: PR #${options.pr} merged at ${pull.headRefOid}, not ${head}`,
+        );
       const sha = pull.mergeCommit?.oid ?? 'unknown';
       return { merged: sha, lines: [`merged: ${sha}`] };
     }

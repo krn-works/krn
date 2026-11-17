@@ -1,7 +1,11 @@
 {
   "id": "t-y0q3dyv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "a MERGED PR at another head than the shipped one exits 77; ship.test.ts regression fails before, passes after"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Ship reports a merge only when the merged PR's head is the shipped head",

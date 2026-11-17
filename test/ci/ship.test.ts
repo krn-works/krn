@@ -1085,7 +1085,7 @@ test('a base that moved after the Check passed is merged only after the update a
   const fresh = { ...auto, headRefOid: newHead };
   const r = receiver({
     // The PR keeps its old head and old green Check for one poll after the push.
-    pulls: [stale, stale, fresh, merged],
+    pulls: [stale, stale, fresh, { ...merged, headRefOid: newHead }],
     baseMoves: 1,
   });
   const out = await shipCommand(args, r);
@@ -1276,6 +1276,18 @@ test('a head that moved while the PR waited exits 77', async () => {
   });
 });
 
+test('a PR merged at another head than the shipped one exits 77 and is never reported as merged', async () => {
+  const r = receiver({
+    pulls: [{ ...merged, headRefOid: 'e'.repeat(40) }],
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 77);
+    assert.match(e.message, /head moved/u);
+    assert.doesNotMatch(e.message, /verdict: merged/u);
+    return true;
+  });
+});
+
 test('a superseded failed Check run beside a newer green one for the same head merges', async () => {
   // Verbatim `gh pr view 1158 --json headRefOid,statusCheckRollup`: run 43813499494 failed first, rerun 43813694201 passed.
   const real = JSON.parse(
@@ -1284,7 +1296,12 @@ test('a superseded failed Check run beside a newer green one for the same head m
       'pr-1158-superseded-rollup',
     ).streams.stdout?.toString('utf8') ?? '',
   ) as { headRefOid: string };
-  const r = receiver({ pulls: [{ ...real, ...auto }, merged] });
+  const r = receiver({
+    pulls: [
+      { ...real, ...auto },
+      { ...merged, headRefOid: real.headRefOid },
+    ],
+  });
   const inner = r.run;
   const out = await shipCommand(args, {
     ...r,
@@ -1349,7 +1366,12 @@ test('the captured rollup of a plain-gh PR reads as a successful aggregate Check
       'utf8',
     ) ?? '',
   ) as { headRefOid: string };
-  const r = receiver({ pulls: [{ ...real, ...auto }, merged] });
+  const r = receiver({
+    pulls: [
+      { ...real, ...auto },
+      { ...merged, headRefOid: real.headRefOid },
+    ],
+  });
   const inner = r.run;
   const out = await shipCommand(args, {
     ...r,
