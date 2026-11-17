@@ -1,0 +1,14 @@
+{
+  "id": "t-wg8d2gx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "The Agent hook refuses worktree isolation for KRN lanes",
+  "after": [],
+  "body": [
+    "A lead launched krn-lane agents with the Agent tool's isolation: \"worktree\"; the harness then confines writes to .claude/worktrees/agent-*, while the KRN scope hook (src/hook/scope.ts) allows lane writes only in .krn/worktrees/<lane>, so the lane can write nowhere and wastes its run (2026-11-17, t-76cjaca).\nFiles: src/hook/agent.ts, test/hook/agent-isolation.test.ts\nOutcome: the PreToolUse Agent hook refuses a krn-lane or general-purpose call with isolation \"worktree\" and names krn lane start as the worktree owner; the test exits 0.\nProof: node --test test/hook/agent-isolation.test.ts passes with a refused isolated call and an allowed plain call."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-n2vghdf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Subagent Stop reuses unchanged proof instead of re-running it",
+  "after": [],
+  "body": [
+    "Evidence (verified 2026-11-17): .krn/runs/hook/timing.jsonl* record 177 subagent-stop calls totalling 2340.6 s, median 336.7 ms, p90 14360.6 ms: one in ten lane stops waits over 14 s, mostly re-proving evidence that has not changed.\nOutcome: subagent-stop reuses its proof (related tests, merge evidence) when base, head, contract and toolchain are unchanged since the last verdict, so a repeated Stop on an unchanged tree costs under 1 s; p90 over the next 100 calls is under 5 s.\nProof: a stop test counts test-runner invocations: two Stops on one unchanged tree run the tests once; a changed file reruns them.\nFiles: src/hook/stop.ts, test/hook/stop.test.ts"
+  ],
+  "kind": "feature",
+  "area": "hook"
+}

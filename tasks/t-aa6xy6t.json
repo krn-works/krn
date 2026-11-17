@@ -1,0 +1,14 @@
+{
+  "id": "t-aa6xy6t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Outside lanes preflight the receiver before a paid session starts",
+  "after": [],
+  "body": [
+    "Evidence (verified 2026-11-17): .krn/runs/{pilot,pilot-py,units-ts,units-py}/lanes/summary.txt hold 50 outside lane attempts: 20 exit 0, 30 nonzero (74 x9 red check, 72 x9, 65 x5, 73 x3, 64 x2, 69 x2). Each failed attempt spent a paid model session before a receiver setup problem surfaced (red baseline, missing required gate, workflow permissions per .krn/runs/outside/summary.txt).\nOutcome: a lane on an outside repository runs a preflight (baseline test green, required Check configured and reachable, App/workflow permissions) before the model session starts; a failed preflight exits with a named code and launches no session.\nProof: a test with a red baseline and one with a missing required Check each assert zero session launches and the named exit; the next 10 pilot attempts have no exit 72/73/64 after a launched session."
+  ],
+  "kind": "feature",
+  "area": "lane"
+}

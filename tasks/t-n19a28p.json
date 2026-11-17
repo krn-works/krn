@@ -1,0 +1,14 @@
+{
+  "id": "t-n19a28p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "ADR 0021 records the bound-below-margin retirement rule",
+  "after": [],
+  "body": [
+    "t-76cjaca (merged 7953037) replaced the Fisher non-significance retirement rule in src/brain/retire.ts with a one-sided 90% Wald upper bound on benefit below a 0.25 margin; ADR 0021 still records the Fisher rule, so the decision record contradicts the code.\nFiles: docs/adr/0021-*.md\nOutcome: ADR 0021 states the bound-below-margin retirement rule with z and margin and cites t-76cjaca; grep for the Fisher retirement rule in docs/adr/0021 returns 0 lines.\nProof: grep -ci 'fisher' on the ADR's retirement section returns 0 and the ADR names t-76cjaca."
+  ],
+  "kind": "chore",
+  "area": "brain"
+}
