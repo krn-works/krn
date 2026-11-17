@@ -1,7 +1,11 @@
 {
   "id": "t-mm01kck",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gradeWorktree runs install (net on) and test (net off) through bwrap; screening-units test proves no desktop env, no /run/user, read-only host, loopback-only test phase, refusal without bwrap; sandboxed t-fd481gz verify gives base 1 fix 0"
+  },
   "created": "2026-11-17",
   "priority": 0,
   "title": "Grade screening units inside bubblewrap so third-party code cannot reach the desktop",

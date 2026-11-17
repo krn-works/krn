@@ -1,0 +1,14 @@
+{
+  "id": "t-zk8cmrz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Re-verify every screening unit through the bubblewrap grade",
+  "after": [],
+  "body": [
+    "Source: t-mm01kck lane. Grading now runs inside bubblewrap (read-only HOME, offline test phase). Four units, one per install family (go t-fd481gz, pnpm t-1zp9219, python t-ubnq9ps, npm t-1hecgls), kept their recorded verdicts under the sandbox; the other units were not re-run.\nOutcome: every verified unit in evals/units/screening-manifest.json is re-verified through the sandbox on a manifest copy, and any unit whose verdict flips is fixed (write target moved into the cache) or dropped from the screen.\nProof: a log of node evals/units/screening.ts verify on a cleared manifest copy whose verdicts equal the committed ones, with the flipped ids listed."
+  ],
+  "kind": "debt",
+  "area": "eval"
+}

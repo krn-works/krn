@@ -9,10 +9,12 @@ import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
+  closeSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -22,6 +24,7 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withoutBrowser } from './no-browser.ts';
+import { requireSandbox, sandboxArgv } from './sandbox.ts';
 import type { Unit } from './unit.ts';
 
 export const MIN_VERIFIED = 70;
@@ -335,15 +338,36 @@ function cleanEnv(): NodeJS.ProcessEnv {
   );
 }
 
-const run = (cmd: string, cwd: string, log: string): Promise<number> =>
+/**
+ * Runs one third-party command inside bubblewrap (sandbox.ts): only `writable` and the cache are writable, and the
+ * network is there only when `net` is set. The log is written by this process, so it may live outside the sandbox.
+ */
+const run = (
+  cmd: string,
+  cwd: string,
+  log: string,
+  writable: readonly string[],
+  net: boolean,
+): Promise<number> =>
   new Promise((resolve) => {
     mkdirSync(join(cacheRoot, 'tmp'), { recursive: true });
     appendFileSync(log, `\n$ ${cmd}\n`);
-    const p = spawn('sh', ['-c', `${cmd} >> ${JSON.stringify(log)} 2>&1`], {
-      cwd,
-      env: cleanEnv(),
+    const fd = openSync(log, 'a');
+    const p = spawn(
+      'bwrap',
+      sandboxArgv(cmd, {
+        cwd,
+        writable: [...writable, cacheRoot],
+        net,
+        env: cleanEnv(),
+      }),
+      { stdio: ['ignore', fd, fd] },
+    );
+    p.on('error', () => resolve(127));
+    p.on('close', (c) => {
+      closeSync(fd);
+      resolve(c ?? 1);
     });
-    p.on('close', (c) => resolve(c ?? 1));
   });
 
 /** Copy the hidden test into a prepared worktree, install and run it: the grade of whatever state the worktree holds. */
@@ -354,6 +378,8 @@ export async function gradeWorktree(
   log: string,
   scratch: string,
 ): Promise<{ install: number; test: number; compile: boolean }> {
+  // No unsandboxed fallback: a host without a working bwrap fails the grade loudly instead of recording a verdict.
+  requireSandbox();
   cacheRoot = join(scratch, 'cache');
   mkdirSync(dirname(join(wt, unit.hidden.dest)), { recursive: true });
   writeFileSync(
@@ -364,10 +390,12 @@ export async function gradeWorktree(
     `timeout ${INSTALL_SECONDS} sh -c ${JSON.stringify(unit.install)}`,
     wt,
     log,
+    [wt],
+    true,
   );
   if (install !== 0) return { install, test: -1, compile: false };
   const mark = readFileSync(log, 'utf8').length;
-  const test = await run(unit.test, wt, log);
+  const test = await run(unit.test, wt, log, [wt], false);
   const tail = readFileSync(log, 'utf8').slice(mark);
   const compile =
     /\[build failed\]|\[setup failed\]|undefined: |ImportError|ModuleNotFoundError|SyntaxError|Cannot find module|Class .* not found|Call to undefined/.test(
@@ -405,6 +433,7 @@ async function verify(
   concurrency: number,
   only: string | undefined,
 ): Promise<void> {
+  requireSandbox();
   const rows = readManifest();
   mkdirSync(logDir, { recursive: true });
   mkdirSync(scratch, { recursive: true });

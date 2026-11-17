@@ -30,6 +30,7 @@ import {
   verified,
 } from '../../evals/units/screening.ts';
 import { loadUnits } from '../../evals/units/unit.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const unitsDir = join(repo, 'evals/units');
@@ -217,18 +218,19 @@ test('a screened session is graded with the install time verification had', asyn
   const path = process.env.PATH;
   try {
     // A `timeout` on PATH that records its seconds and runs the command, so the test sees the grade's install budget.
+    // The stub writes inside the worktree: the sandboxed grade may write nowhere else outside its cache.
     const bin = join(root, 'bin');
     mkdirSync(bin);
-    const seen = join(root, 'seen');
+    const wt = join(root, 'wt');
+    mkdirSync(wt);
+    const seen = join(wt, 'seen');
     writeFileSync(
       join(bin, 'timeout'),
       `#!/bin/sh\necho "$1" >> ${seen}\nshift\nexec "$@"\n`,
     );
     chmodSync(join(bin, 'timeout'), 0o755);
     process.env.PATH = `${bin}:${path}`;
-    const wt = join(root, 'wt');
     const unitDir = join(root, 'unit');
-    mkdirSync(wt);
     mkdirSync(unitDir);
     writeFileSync(join(unitDir, 'hidden.txt'), 'x');
     const unit = {
@@ -329,5 +331,98 @@ test('a grading command that opens a URL reaches only the stub opener, never the
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/** A worktree, unit dir and scratch for one grade of a unit whose install and test are the given shell commands. */
+function gradeFixture(prefix: string, install: string, testCmd: string) {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  const wt = join(root, 'wt');
+  const unitDir = join(root, 'unit');
+  const scratch = join(root, 'scratch');
+  mkdirSync(wt);
+  mkdirSync(unitDir);
+  writeFileSync(join(unitDir, 'hidden.txt'), 'x');
+  const unit = {
+    install,
+    test: testCmd,
+    hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+  } as unknown as Parameters<typeof gradeWorktree>[1];
+  return { root, wt, unitDir, scratch, unit, log: join(root, 'log') };
+}
+
+test('a grade runs inside bubblewrap: no desktop, no host tokens, host read-only, network for install only', async (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const outside = mkdtempSync(join(tmpdir(), 'grade-outside-'));
+  const runtime = ['', 'run', 'user', String(process.getuid?.() ?? 0)].join(
+    '/',
+  );
+  const planted = {
+    DISPLAY: ':0',
+    WAYLAND_DISPLAY: 'wayland-1',
+    XDG_RUNTIME_DIR: runtime,
+    DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtime}/bus`,
+    GH_TOKEN: 'gho_planted',
+  };
+  const saved = Object.fromEntries(
+    Object.keys(planted).map((k) => [k, process.env[k]]),
+  );
+  Object.assign(process.env, planted);
+  // /proc/net/dev lists only lo (2 header lines + 1) in a network namespace of its own.
+  const f = gradeFixture(
+    'grade-sandbox-',
+    'grep -c : /proc/net/dev > install-ifaces',
+    [
+      'xdg-open https://example.invalid',
+      'env > env.txt',
+      'ls /run/user > /dev/null 2>&1; echo "$?" > run-user',
+      `touch ${JSON.stringify(join(outside, 'escaped'))} 2> /dev/null; echo "$?" > host-write`,
+      'grep -c : /proc/net/dev > test-ifaces',
+    ].join('; '),
+  );
+  try {
+    const g = await gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch);
+    assert.equal(g.install, 0, readFileSync(f.log, 'utf8'));
+    assert.equal(g.test, 0, readFileSync(f.log, 'utf8'));
+    const read = (n: string) => readFileSync(join(f.wt, n), 'utf8').trim();
+    const env = read('env.txt');
+    for (const name of ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR'])
+      assert.doesNotMatch(env, new RegExp(`^${name}=`, 'm'));
+    assert.doesNotMatch(env, /gho_planted|GH_TOKEN/);
+    assert.doesNotMatch(env, /^DBUS_SESSION_BUS_ADDRESS=.*\/run\/user/m);
+    assert.notEqual(read('run-user'), '0', 'ls /run/user must fail');
+    assert.notEqual(
+      read('host-write'),
+      '0',
+      'a write outside scratch must fail',
+    );
+    assert.equal(existsSync(join(outside, 'escaped')), false);
+    assert.equal(read('test-ifaces'), '1', 'the test phase has only loopback');
+    assert.ok(Number(read('install-ifaces')) > 1, 'install keeps the network');
+  } finally {
+    for (const [k, v] of Object.entries(saved))
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('without a working bwrap a grade is refused before any unit command runs', async () => {
+  const f = gradeFixture('grade-no-bwrap-', 'touch installed', 'touch tested');
+  const path = process.env.PATH;
+  try {
+    const empty = join(f.root, 'empty-bin');
+    mkdirSync(empty);
+    process.env.PATH = empty;
+    await assert.rejects(
+      gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch),
+      /refuses to run third-party code without bubblewrap/,
+    );
+    assert.equal(existsSync(join(f.wt, 'installed')), false);
+    assert.equal(existsSync(join(f.wt, 'tested')), false);
+  } finally {
+    process.env.PATH = path;
+    rmSync(f.root, { recursive: true, force: true });
   }
 });
