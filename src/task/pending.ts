@@ -98,29 +98,44 @@ function refEntries(root: string): Entry[] {
   return entries;
 }
 
+/** Every blob the base history holds for `tasks/<name>`: the record as published, then as changed. */
+function publishedBlobs(root: string, base: string, name: string): Set<string> {
+  const run = git(root, [
+    'log',
+    '--raw',
+    '--no-abbrev',
+    '--format=',
+    base,
+    '--',
+    `tasks/${name}`,
+  ]);
+  const blobs = new Set<string>();
+  if (run.status !== 0) return blobs;
+  for (const line of run.stdout.toString().split('\n')) {
+    const match = /^:\d+ \d+ [0-9a-f]+ ([0-9a-f]+) [ACMR]\d*\t/u.exec(line);
+    if (match !== null) blobs.add(match[1] as string);
+  }
+  return blobs;
+}
+
 function stillPending(
   root: string,
   base: string | undefined,
   entry: Entry,
 ): boolean {
-  const published =
+  const onBase =
     base !== undefined &&
-    git(root, [
-      'rev-parse',
-      '--verify',
-      '--quiet',
-      `${base}:tasks/${entry.name}`,
-    ]);
+    git(root, ['cat-file', '-e', `${base}:tasks/${entry.name}`]).status === 0;
   if (existsSync(join(root, 'tasks', entry.name))) {
     // An untracked file is a record taken out of the ref; a tracked one is published, and the
     // ref holds only an edit of it.
     if (!isTracked(root, entry.name)) return false;
-    if (published === false || published.status !== 0) return false;
+    if (!onBase) return false;
   }
-  if (published === false || published === undefined) return true;
-  return (
-    published.status !== 0 || published.stdout.toString().trim() !== entry.blob
-  );
+  if (base === undefined || !onBase) return true;
+  // An edit is a pending blob the base never held: a record the base published and a lane later
+  // changed (closed) is older than the base's, not an edit of it.
+  return !publishedBlobs(root, base, entry.name).has(entry.blob);
 }
 
 function isTracked(root: string, name: string): boolean {

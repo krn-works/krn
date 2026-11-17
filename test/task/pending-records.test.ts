@@ -253,3 +253,40 @@ test('closing a pending record keeps the closed record on the pending ref and pu
   assert.ok(dry.stdout.includes(id), dry.stdout);
   assert.equal(f.git(f.main, 'status', '--porcelain'), '');
 });
+
+test('publish drops a pending record the base later closed and keeps one edited after publication', (t) => {
+  const f = fixture(t);
+  const closedLater = f.create(f.main, 'Published then closed');
+  const editedLater = f.create(f.main, 'Published then edited');
+  const lane = join(f.root, 'publish');
+  f.git(f.main, 'worktree', 'add', '-qb', 'publish', lane, 'origin/main');
+  commitPendingRecords(lane, pendingTaskFiles(f.main));
+  // A lane PR carries the close of the first record onto the base.
+  const closed = f.task(
+    lane,
+    'close',
+    closedLater,
+    '--as',
+    'done',
+    '--note',
+    'x',
+  );
+  assert.equal(closed.status, 0, closed.stderr);
+  f.git(lane, 'add', '.');
+  f.git(lane, 'commit', '-qm', 'close');
+  f.git(
+    f.main,
+    'update-ref',
+    'refs/remotes/origin/main',
+    f.git(lane, 'rev-parse', 'HEAD'),
+  );
+  // The main checkout pulls the base, so both records are published there.
+  f.git(f.main, 'merge', '-q', '--ff-only', 'publish');
+  // The second record is edited in the main checkout after it was published.
+  const edit = f.task(f.main, 'edit', editedLater, '--append-body', 'Edited.');
+  assert.equal(edit.status, 0, edit.stderr);
+  const dry = f.task(f.main, 'publish', '--dry-run');
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.ok(!dry.stdout.includes(closedLater), dry.stdout);
+  assert.ok(dry.stdout.includes(editedLater), dry.stdout);
+});
