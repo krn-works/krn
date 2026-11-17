@@ -1,0 +1,20 @@
+{
+  "id": "t-5y9fxx0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "The krn lane run verb is removed after the pilot moved to the replay driver",
+  "after": [
+    "t-y0x67za"
+  ],
+  "body": [
+    "Split of S24 (t-x4z168s), step 3 of 3. After the driver lives under evals/replay and the pilot runs through it, the `krn lane run` verb and the rest of src/cli/lane-run/ are removed; docs/program/fable-plan-brief.md's `krn lane run` proof line and the ADR 0022 mention of lane-canary.ts (a file that does not exist) are corrected.\nOutcome: `krn lane run` exits 64 as an unknown verb; src/cli/lane-run/ holds only what other modules import (environment.ts tokenHelper) or is gone; plan S24 proof passes.\nProof: `bin/krn lane run --task x; test $? -eq 64` and `node evals/replay/run.ts --arms C --units 1` prints `verdict:`."
+  ],
+  "kind": "debt",
+  "area": "lane",
+  "from": {
+    "kind": "task",
+    "ref": "t-x4z168s"
+  }
+}

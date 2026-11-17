@@ -1,0 +1,18 @@
+{
+  "id": "t-exqjkea",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "The headless session driver runs under evals/replay and the pilot uses it",
+  "after": [],
+  "body": [
+    "Split of S24 (t-x4z168s), step 1 of 3. Recon 2026-11-17: `krn lane run` is the only unattended path for outside-repo pilots (.krn/runs/pilot/lanes/run.sh, doctor-unattended, outside-acceptance), and the binding overnight goal ranks \"KRN delivers tasks in an outside repository unattended\" first, so the session driver must move before anything is deleted. evals/replay/run.ts without --dry exits 69 \"live sessions need the session driver (lane run)\".\nOutcome: the headless session driver (src/cli/lane-run/session.ts with the prepare/result/verdict pieces it needs) lives under evals/replay; `node evals/replay/run.ts --arms C --units 1` runs one live row and prints a verdict line; the pilot lane script runs through the same driver; `krn lane run` delegates to it until step 3 removes the verb.\nProof: `node evals/replay/run.ts --arms C --units 1` prints `verdict:`; the pilot lane script still delivers one task in an outside test repo."
+  ],
+  "kind": "debt",
+  "area": "lane",
+  "from": {
+    "kind": "task",
+    "ref": "t-x4z168s"
+  }
+}
