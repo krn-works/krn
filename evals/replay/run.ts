@@ -15,7 +15,13 @@ import { type Arm, parseArms } from './arms.ts';
 import { type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
-import { readRows, report, type ScreenUnit, screen } from './screen.ts';
+import {
+  eligible,
+  readRows,
+  report,
+  type ScreenUnit,
+  screen,
+} from './screen.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -102,8 +108,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const count = Number(flag('units') ?? 1);
   const reps = Number(flag('reps') ?? 1);
   const unitsDir = flag('units-dir') ?? join(here, '..', 'units');
-  const ids = loadUnits(unitsDir)
-    .map((u) => u.unit.id)
+  const all = loadUnits(unitsDir).map((u) => u.unit as ScreenUnit);
+  // A live row grades with the hidden test, so it draws only from verified units, like the screening run.
+  const ids = (dry ? all : eligible(all))
+    .map((u) => u.id)
     .sort()
     .slice(0, count);
   if (ids.length < count) {
