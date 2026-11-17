@@ -8,8 +8,8 @@ import {
 import { namedTests } from '../../adopt/verify.ts';
 import { findContract, parseContractFile } from '../../repo/contract.ts';
 import { getTask } from '../../task/store.ts';
-import { git } from './git.ts';
-import { settledRun } from './preflight.ts';
+import { git } from '../git-with.ts';
+import { settledRun } from './test-output.ts';
 
 /** True when the task is the seeded first-test task of a repository in the bootstrap state. */
 export function isBootstrapTask(worktree: string, task: string): boolean {

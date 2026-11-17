@@ -13,7 +13,7 @@ import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
-import { gitWith } from './lane-run/git.ts';
+import { gitWith } from './git-with.ts';
 import { cliShipRuntime } from './pr.ts';
 import { prBodyCommand } from './pr-body.ts';
 

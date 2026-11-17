@@ -1104,6 +1104,33 @@ function onBase(root: string, sha: string): boolean {
   return fetched.status === 0 && merged();
 }
 
+const laneMarker = `${sep}.krn${sep}worktrees${sep}`;
+
+/**
+ * The lane worktree a path lies in, as `<owner>/.krn/worktrees/<name>`. An existing path belongs to its nearest
+ * enclosing checkout only: a repository created under another lane's `.krn/tmp` (a test temp dir) is its own main.
+ * A path that is gone is a lane tree only when it is exactly `<owner>/.krn/worktrees/<name>`.
+ */
+export function laneTreeOf(
+  path: string,
+): { owner: string; name: string } | undefined {
+  let top = path;
+  if (existsSync(path)) {
+    while (!existsSync(join(top, '.git'))) {
+      const up = dirname(top);
+      if (up === top) return undefined;
+      top = up;
+    }
+    if (!statSync(join(top, '.git')).isFile()) return undefined;
+  }
+  const at = top.lastIndexOf(laneMarker);
+  if (at < 0) return undefined;
+  const rest = top.slice(at + laneMarker.length).split(sep);
+  const name = rest[0];
+  if (!existsSync(path) && rest.length !== 1) return undefined;
+  return name ? { owner: top.slice(0, at), name } : undefined;
+}
+
 /**
  * Where `krn pr ship` recorded a merged ship for this session's lane, whose branch and worktree it then
  * removed. The last message need not repeat the verdict: lanes ended "the branch was deleted after merge"
@@ -1131,11 +1158,10 @@ export function recordedShip(
     ]);
     if (common.status === 0) main = dirname(common.stdout);
   }
-  const marker = `${sep}.krn${sep}worktrees${sep}`;
-  const at = root.indexOf(marker);
-  if (main === undefined && at >= 0) main = root.slice(0, at);
+  const tree = laneTreeOf(root);
+  if (main === undefined && tree) main = tree.owner;
   if (main === undefined) return false;
-  const lane = at >= 0 ? root.slice(at + marker.length).split(sep)[0] : '';
+  const lane = tree?.name ?? '';
   // A lane worktree still on disk counts only while its tip is the shipped head: later work there is unshipped.
   const kept = lane !== '' && existsSync(join(root, '.git'));
   const tip =
@@ -1423,8 +1449,8 @@ function laneWorktreeIn(main: string, text: string): string | undefined {
  */
 export function ownerCheckout(root: string): string {
   if (existsSync(root)) return root;
-  const owner = root.split(`${sep}.krn${sep}worktrees${sep}`)[0] as string;
-  return owner !== root && existsSync(owner) ? owner : root;
+  const owner = laneTreeOf(root)?.owner;
+  return owner !== undefined && existsSync(owner) ? owner : root;
 }
 
 /** The task ids a session names: KRN_TASK and the ids in its transcript (a lane subagent's own transcript first). */
@@ -1595,8 +1621,7 @@ export function claimedWorktree(
   env: NodeJS.ProcessEnv,
   payload: unknown,
 ): string {
-  if (start.includes(`${sep}.krn${sep}worktrees${sep}`) || !existsSync(start))
-    return start;
+  if (laneTreeOf(start) || !existsSync(start)) return start;
   const tree = laneRecords(start, env, payload).find(
     (record) => record.worktree !== undefined && existsSync(record.worktree),
   )?.worktree;
@@ -1636,7 +1661,7 @@ export function judgeStop(
   if (subagent && readOnlySession(payload)) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
-  const lane = start.split(`${sep}.krn${sep}worktrees${sep}`)[1]?.split(sep)[0];
+  const lane = laneTreeOf(start)?.name;
   const current = existsSync(start)
     ? git(start, ['branch', '--show-current']).stdout.trim()
     : '';

@@ -2,23 +2,30 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { briefClauses } from '../../brain/proof-line.ts';
+import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { laneAdvisor } from '../../outcome/lane-advisor.ts';
 import { effortHistory, laneEffort } from '../../outcome/lane-effort.ts';
 import { contractBase } from '../../repo/contract.ts';
-import { mainCheckoutRoot } from '../../task/claims.ts';
+import {
+  claimTask,
+  inspectClaim,
+  mainCheckoutRoot,
+} from '../../task/claims.ts';
+import { taskFile } from '../../task/paths.ts';
+import { mergeTaskRecords } from '../../task/record-merge.ts';
 import { getTask } from '../../task/store.ts';
+import { git } from '../git-with.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
 import { sessionEnvironment } from './environment.ts';
-import { git } from './git.ts';
-import { remoteFailure } from './preflight.ts';
 import {
   type RedCheck,
   redCheckBrief,
@@ -27,7 +34,6 @@ import {
 } from './red-check.ts';
 import { exitCredentialUnavailable } from './result.ts';
 import { defaultSteps, type LaneRunSteps, type LaneVerdict } from './steps.ts';
-import { reclaimLane, reusableLane } from './worktree.ts';
 
 /** Everything the session and verdict stages need: the request plus the prepared lane. */
 export interface PreparedLane extends LaneRequest {
@@ -126,13 +132,6 @@ export async function prepareLane(
       exitCode: exitCredentialUnavailable,
     };
 
-  const unreachable = remoteFailure(origin, base, environment);
-  if (unreachable !== undefined)
-    return {
-      line: `lane ${label}: preflight: ${unreachable}; no session started`,
-      exitCode: exitCredentialUnavailable,
-    };
-
   const existing = join(main, '.krn', 'worktrees', lane);
   const holder = actor ?? `lane-${lane}`;
   // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
@@ -176,4 +175,123 @@ export async function prepareLane(
     worktree: started.path,
     delivered: delivered || (red === undefined && parked),
   };
+}
+
+/** The worktree a failed run left behind, when it is the lane's own; anything else is a usage error. */
+export function reusableLane(
+  path: string,
+  slug: string,
+): { path: string; slug: string } {
+  let branch: string | undefined;
+  try {
+    branch = git(path, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  } catch {
+    branch = undefined;
+  }
+  if (branch !== slug)
+    throw new CliUsageError(
+      `${path} exists but is not lane ${slug}'s worktree`,
+    );
+  return { path, slug };
+}
+
+/** A record the lead edited in the invoking checkout after the first run moves into the reused worktree; a worktree record the worker changed too is a divergence and refuses. */
+export function carryEditedRecord(
+  origin: string,
+  path: string,
+  task: string,
+  base: string,
+): void {
+  const rel = taskFile(task);
+  const source = join(origin, rel);
+  const target = join(path, rel);
+  if (!existsSync(source) || !existsSync(target)) return;
+  const edited = readFileSync(source, 'utf8');
+  const current = readFileSync(target, 'utf8');
+  if (edited === current) return;
+  const shown = (ref: string) => {
+    // git trims stdout; a task record ends in one newline.
+    try {
+      return `${git(path, ['show', `${ref}:${rel}`])}\n`;
+    } catch {
+      return undefined;
+    }
+  };
+  const original = shown(`origin/${base}`) ?? shown('HEAD');
+  // The invoking checkout never moved from the base record: the worktree's own changes stand.
+  if (edited === original) return;
+  if (original === undefined || current === original) {
+    writeFileSync(target, edited);
+    return;
+  }
+  // Both changed (the lane closed the task, the lead appended a rework note): merge disjoint edits.
+  const merge = mergeTaskRecords({
+    base: original,
+    lane: current,
+    main: edited,
+  });
+  if (!('merged' in merge))
+    throw new CliUsageError(
+      'conflict' in merge
+        ? `${rel} differs between ${origin} and the lane worktree ${path}: both changed ${merge.conflict}; reconcile them before rerunning`
+        : `${rel} cannot be merged between ${origin} and the lane worktree ${path}: ${merge.invalid}`,
+    );
+  writeFileSync(source, merge.merged);
+  if (merge.merged === current) return;
+  writeFileSync(target, merge.merged);
+  // Committed, so the lane's clean-tree check passes and the shipped commit carries the note.
+  git(path, ['add', '--', rel]);
+  git(path, ['commit', '-q', '-m', carrySubject(task), '-m', `Refs: ${task}`]);
+}
+
+/** The subject of the commit a rerun makes to carry the invoking checkout's record edits into the lane. */
+export function carrySubject(task: string): string {
+  return `chore(tasks): carry the lead's record edits into the lane (${task})`;
+}
+
+/** Commits after the red Check's head other than a record carry; a rewritten history counts as new work. */
+export function commitsSinceRed(
+  path: string,
+  red: RedCheck,
+  task: string,
+): string[] {
+  let log: string;
+  try {
+    log = git(path, ['log', '--format=%s', `${red.sha}..HEAD`]);
+  } catch {
+    return ['history rewritten since the red Check'];
+  }
+  return log
+    .split('\n')
+    .filter((line) => line !== '' && line !== carrySubject(task));
+}
+
+/** Reuse the worktree a failed run left and take its claim again. */
+export async function reclaimLane(
+  main: string,
+  path: string,
+  slug: string,
+  task: string,
+  actor: string,
+  origin: string,
+  base: string,
+): Promise<{ path: string; slug: string }> {
+  const lane = reusableLane(path, slug);
+  carryEditedRecord(origin, path, task, base);
+  // The task closed in the lane worktree: an earlier run delivered it and only the ship failed.
+  if (getTask(path, task).status === 'closed') return lane;
+  // A run that died before it released its own claim leaves it live: the same actor and worktree resume it.
+  const held = inspectClaim(main, task);
+  if (
+    held.state === 'live' &&
+    held.claim?.actor === actor &&
+    held.claim.worktree === realpathSync(path)
+  )
+    return lane;
+  await claimTask(main, task, {
+    actor,
+    worktree: path,
+    reason: `lane ${slug}`,
+  });
+  return lane;
 }

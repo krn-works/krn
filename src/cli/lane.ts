@@ -34,16 +34,15 @@ import { taskFile } from '../task/paths.ts';
 import { takePendingTask } from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
+import { gitWith } from './git-with.ts';
 import { laneBriefText } from './lane-brief.ts';
 import { finishLane, laneFinishUsage } from './lane-finish.ts';
-import { sleepSync } from './lane-lock.ts';
 import { checkOpenRedLimit, type OpenPr } from './lane-open-red.ts';
-import { gitWith } from './lane-run/git.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
 
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session a preflight checks origin with the lane credentials and the sandbox settings file (exit 69 in seconds), then it runs the krn.json `install` command (exit 71 when it fails) and the contract test on the clean base, one lane at a time per repository (a red run reruns only its failing test files once; exit 72 when they fail again, naming them), starting no session in any of these cases; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
+  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   laneFinishUsage,
   'krn lane status [--root DIR]  one line per lane worktree: `live` (its `krn pr ship` runs, pid alive), `merged` (its ship merged on the base), `orphaned` (committed past the base, no pull request and no live ship: run `krn pr ship` or `krn lane finish`), `pr-open` (a pull request exists, no live ship), `empty` (no commit past the base) or `unknown` (gh cannot say)',
@@ -214,6 +213,11 @@ function mergedShipBranches(main: string, base: string): Set<string> {
 }
 
 const git = gitWith((message) => new CliUsageError(message));
+
+/** Block the thread for `ms` milliseconds; lane steps are synchronous child processes. */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
 
 /**
  * Fetch the base branch, retried while a concurrent `krn lane start` of the same repository holds

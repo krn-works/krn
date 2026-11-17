@@ -20,6 +20,7 @@ import { proofLine, proofOf } from '../../brain/proof-line.ts';
 import { recordChecks } from '../../brain/standards-cli.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
+import { git } from '../git-with.ts';
 import { renderPrBody } from '../pr-body.ts';
 import {
   contractVerification,
@@ -31,8 +32,7 @@ import {
   sessionVerification,
   ticketCommitTitle,
 } from './delivery.ts';
-import { git } from './git.ts';
-import type { PreparedLane } from './prepare.ts';
+import { commitsSinceRed, type PreparedLane } from './prepare.ts';
 import { redCheckOf } from './red-check.ts';
 import {
   exitBudgetCapped,
@@ -43,7 +43,6 @@ import {
 } from './result.ts';
 import type { SessionOutcome } from './session.ts';
 import type { LaneRunSteps, LaneVerdict } from './steps.ts';
-import { commitsSinceRed } from './worktree.ts';
 
 const stopHook = fileURLToPath(new URL('../../hook/stop.ts', import.meta.url));
 

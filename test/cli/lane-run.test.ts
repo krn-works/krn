@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
@@ -20,7 +20,6 @@ import {
   repeatedStopRefusal,
   transcriptTurns,
 } from '../../evals/replay/session-result.ts';
-import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 import { readExposures } from '../../src/brain/exposures.ts';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
@@ -40,24 +39,18 @@ import {
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run/environment.ts';
 import {
-  baselineReason,
-  failingTests,
-  prepareWorktree,
-  remoteDetail,
-  remoteFailure,
-  rerunCommand,
-  settingsFailure,
-  settledRun,
-} from '../../src/cli/lane-run/preflight.ts';
-import {
   redCheckFile,
   redCheckFinding,
   redCheckOf,
 } from '../../src/cli/lane-run/red-check.ts';
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
+import {
+  failingTests,
+  settledRun,
+} from '../../src/cli/lane-run/test-output.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
-import { createTask } from '../../src/task/store.ts';
+import { rerunCommand } from '../../src/repo/contract.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
 Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
@@ -940,122 +933,6 @@ test('a failed run releases the claim, keeps the worktree and a rerun claims it 
   }
 });
 
-test('a rerun carries a task record edited after the failed run into the worktree', async () => {
-  const { base, repo, claude } = fixture('true');
-  process.env.KRN_LANE_CLAUDE = claude;
-  const steps = {
-    start: startLane,
-    ship: async () => 'verdict: merged abc1234',
-    mint: async () => undefined,
-  };
-  try {
-    const first = await laneRunCommand(
-      ['--task', 't-abc1234', '--root', repo],
-      steps,
-    );
-    assert.equal(first.exitCode, 74);
-    const file = join(repo, 'tasks', 't-abc1234.json');
-    const edited = readFileSync(file, 'utf8').replace(
-      '"Outcome: o"',
-      '"Outcome: o",\n    "Lead note: rework"',
-    );
-    assert.notEqual(edited, readFileSync(file, 'utf8'));
-    writeFileSync(file, edited);
-    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
-    assert.equal(
-      readFileSync(
-        join(repo, '.krn', 'worktrees', 't-abc1234', 'tasks', 't-abc1234.json'),
-        'utf8',
-      ),
-      edited,
-    );
-  } finally {
-    delete process.env.KRN_LANE_CLAUDE;
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('a rerun merges a lead body note into the record the lane closed, commits it and ships', async () => {
-  const { base, repo, claude } = fixture(deliver());
-  // The carry commit changes the tree, so the rerun verifies it with the contract check.
-  withContract(repo, { base: 'main', test: 'true' });
-  process.env.KRN_LANE_CLAUDE = claude;
-  let shipCalls = 0;
-  const steps = {
-    start: startLane,
-    ship: async () => {
-      shipCalls += 1;
-      if (shipCalls === 1) throw new Error('push rejected');
-      return 'verdict: merged abc1234';
-    },
-    mint: async () => undefined,
-  };
-  const worktree = join(repo, '.krn', 'worktrees', 't-abc1234');
-  const lanePath = join(worktree, 'tasks', 't-abc1234.json');
-  const mainPath = join(repo, 'tasks', 't-abc1234.json');
-  try {
-    const first = await laneRunCommand(
-      ['--task', 't-abc1234', '--root', repo],
-      steps,
-    );
-    assert.equal(first.exitCode, 74, first.line);
-    writeFileSync(
-      mainPath,
-      readFileSync(mainPath, 'utf8').replace(
-        '"Outcome: o"',
-        '"Outcome: o",\n    "Lead note: rework"',
-      ),
-    );
-    const second = await laneRunCommand(
-      ['--task', 't-abc1234', '--root', repo],
-      steps,
-    );
-    assert.equal(second.exitCode, 0, second.line);
-    for (const path of [lanePath, mainPath]) {
-      const record = JSON.parse(readFileSync(path, 'utf8'));
-      assert.equal(record.status, 'closed', path);
-      assert.deepEqual(record.body, ['Outcome: o', 'Lead note: rework'], path);
-    }
-    assert.equal(git(worktree, 'status', '--porcelain'), '');
-    assert.equal(
-      git(worktree, 'log', '-1', '--format=%s%n%b'),
-      "chore(tasks): carry the lead's record edits into the lane (t-abc1234)\nRefs: t-abc1234",
-    );
-  } finally {
-    delete process.env.KRN_LANE_CLAUDE;
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('a rerun refuses a record both sides changed in the same field and names it', async () => {
-  const { base, repo, claude } = fixture(deliver());
-  process.env.KRN_LANE_CLAUDE = claude;
-  const steps = {
-    start: startLane,
-    ship: async () => {
-      throw new Error('push rejected');
-    },
-    mint: async () => undefined,
-  };
-  const mainPath = join(repo, 'tasks', 't-abc1234.json');
-  try {
-    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
-    const record = JSON.parse(readFileSync(mainPath, 'utf8'));
-    record.status = 'closed';
-    record.resolution = { kind: 'done', ref: null, note: 'lead closed it' };
-    writeFileSync(mainPath, `${JSON.stringify(record, null, 2)}\n`);
-    await assert.rejects(
-      laneRunCommand(['--task', 't-abc1234', '--root', repo], steps),
-      (error: Error) =>
-        error instanceof CliUsageError &&
-        /both changed resolution; reconcile them/u.test(error.message),
-    );
-  } finally {
-    delete process.env.KRN_LANE_CLAUDE;
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
 test('a session that cannot start exits 69, not the no-delivery 74', async () => {
   const { base, repo } = fixture('true');
   process.env.KRN_LANE_CLAUDE = join(base, 'missing-claude');
@@ -1509,29 +1386,6 @@ test('a rerun resumes the live claim its own actor left in the lane worktree', a
   }
 });
 
-test('a rerun never resumes a claim another actor holds', async () => {
-  const { base, repo, claude } = fixture(deliver());
-  process.env.KRN_LANE_CLAUDE = claude;
-  try {
-    const started = await startLane(['t-abc1234', '--root', repo]);
-    await claimTask(repo, 't-abc1234', {
-      actor: 'someone-else',
-      worktree: started.path,
-      reason: 'theirs',
-    });
-    await assert.rejects(
-      laneRunCommand(['--task', 't-abc1234', '--root', repo], {
-        start: async () => assert.fail('the lane exists'),
-        ship: async () => 'unreachable',
-        mint: async () => undefined,
-      }),
-    );
-  } finally {
-    delete process.env.KRN_LANE_CLAUDE;
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
 test('a token helper run is a failure unless it exited 0, and names its first stderr line', () => {
   assert.equal(mintFailure({ status: 0, stderr: 'noise' }), undefined);
   assert.equal(
@@ -1547,22 +1401,6 @@ test('a token helper run is a failure unless it exited 0, and names its first st
     'token helper exited with status 3',
   );
 });
-
-// KRN-12: the receiver is a real npm install of a tiny package with a file: dependency (offline).
-function npmFiles(
-  test: string,
-  install = 'npm install --no-audit --no-fund --offline',
-): Record<string, string> {
-  return {
-    'krn.json': JSON.stringify({ install, test }),
-    'package.json': JSON.stringify({
-      name: 'fixture',
-      version: '1.0.0',
-      dependencies: { dep: 'file:./dep' },
-    }),
-    'dep/package.json': JSON.stringify({ name: 'dep', version: '1.0.0' }),
-  };
-}
 
 async function runPrepared(
   files: Record<string, string>,
@@ -1595,39 +1433,12 @@ async function runPrepared(
   }
 }
 
-test('lane run installs the contract dependencies in the worktree and runs the baseline test before the session', async () => {
-  const out = await runPrepared(
-    npmFiles('test -f node_modules/dep/package.json'),
-  );
-  assert.equal(out.installed, true);
-  assert.equal(out.started, true);
-  assert.match(out.verdict.line, /dirty tree/u);
-});
-
-test('lane run exits 71 naming the install when it fails and starts no session', async () => {
-  const out = await runPrepared(
-    npmFiles('true', 'echo no network >&2; exit 3'),
-  );
-  assert.equal(out.verdict.exitCode, 71);
-  assert.match(
-    out.verdict.line,
-    /install failed \(echo no network.*exit 3: no network/u,
-  );
-  assert.equal(out.started, false);
-  assert.notEqual(out.claim.state, 'live');
-});
-
-test('lane run exits 72 on a red baseline and starts no session', async () => {
-  const out = await runPrepared(npmFiles(`node -e "process.exit(1)"`));
-  assert.equal(out.verdict.exitCode, 72);
-  assert.match(out.verdict.line, /red baseline/u);
-  assert.equal(out.installed, true);
-  assert.equal(out.started, false);
-});
-
-test('lane run skips install and baseline when the contract names none', async () => {
-  const out = await runPrepared({});
-  assert.equal(out.started, true);
+test('lane run starts the worktree and runs the session with no install or baseline step', async () => {
+  const out = await runPrepared({
+    'krn.json': JSON.stringify({ install: 'exit 3', test: 'exit 1' }),
+  });
+  assert.equal(out.started, true, out.verdict.line);
+  assert.equal(out.installed, false);
 });
 
 // KRN-12: verbatim captures of a red vitest 5 run (stdout, stderr) and a red node --test run.
@@ -1655,17 +1466,6 @@ test('failingTests names the failing file of a red node --test run', () => {
   );
 });
 
-test('failingTests names the file of a red node:test TAP run, so a preamble warning is never the baseline reason', () => {
-  const stdout = fixtureText('node-test/tap-red-run.stdout.txt');
-  assert.deepEqual(failingTests(stdout), [
-    '/work/repo/test/claude/worker-stop.test.ts',
-  ]);
-  assert.equal(
-    baselineReason({ status: 1, stdout, stderr: '' }),
-    'exit 1; failing: /work/repo/test/claude/worker-stop.test.ts',
-  );
-});
-
 test('failingTests reads plain jest and pytest failure lines', () => {
   assert.deepEqual(
     failingTests(
@@ -1673,111 +1473,6 @@ test('failingTests reads plain jest and pytest failure lines', () => {
     ),
     ['src/a.test.js', 'tests/test_b.py'],
   );
-});
-
-test('a red baseline names the failing test files, never the vitest separator', () => {
-  // Seen on the pilot: the exit-72 detail quoted `⎯⎯⎯⎯[3/3]⎯` instead of the failing tests.
-  const reason = baselineReason({ status: 1, ...vitestRed });
-  assert.equal(
-    reason,
-    'exit 1; failing: test/math.test.ts, test/other.test.ts',
-  );
-  assert.equal(
-    baselineReason({ status: 1, stdout: '', stderr: 'boom\n⎯⎯⎯⎯[1/1]⎯\n' }),
-    'exit 1: boom',
-  );
-});
-
-test('lane run exit 72 names the failing test file', async () => {
-  const out = await runPrepared(
-    npmFiles(
-      `node -e "console.log(' FAIL  test/a.test.ts > adds'); process.exit(1)"`,
-    ),
-  );
-  assert.equal(out.verdict.exitCode, 72);
-  assert.match(out.verdict.line, /failing: test\/a\.test\.ts\)/u);
-  assert.equal(out.started, false);
-});
-
-test('lane run waits for the baseline lock another lane holds under the main checkout', async () => {
-  // Seen on the pilot: five lanes ran the suite at once, it timed out, and every lane refused with 72.
-  const out = await runPrepared(
-    npmFiles('test -e ../../../../released'),
-    (repo, base) => {
-      const lock = join(repo, '.krn', 'tmp', 'lane-baseline.lock');
-      mkdirSync(join(repo, '.krn', 'tmp'), { recursive: true });
-      const other = spawn('sh', [
-        '-c',
-        `sleep 1.5; touch '${join(base, 'released')}'; rm -f '${lock}'`,
-      ]);
-      writeFileSync(lock, String(other.pid));
-    },
-  );
-  assert.equal(out.started, true, out.verdict.line);
-});
-
-test('settingsFailure names a missing or unreadable sandbox settings file', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'krn-settings-'));
-  try {
-    const file = join(dir, 'settings.sandbox.json');
-    assert.match(settingsFailure(file) ?? '', /settings file missing/u);
-    writeFileSync(file, '{ not json');
-    assert.match(settingsFailure(file) ?? '', /settings file is not JSON/u);
-    writeFileSync(file, '{}');
-    assert.equal(settingsFailure(file), undefined);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('lane run refuses an unreadable sandbox settings file before the install and the session', async () => {
-  const out = await runPrepared({
-    ...npmFiles('true'),
-    '.claude/settings.sandbox.json': '{ not json',
-  });
-  assert.equal(out.verdict.exitCode, 69);
-  assert.match(
-    out.verdict.line,
-    /preflight: sandbox settings file is not JSON/u,
-  );
-  assert.equal(out.started, false);
-  assert.equal(out.installed, false);
-  assert.notEqual(out.claim.state, 'live');
-});
-
-test('remoteFailure reads origin with the session credentials, not the operator ones', () => {
-  const { base, repo } = fixture('true');
-  try {
-    assert.equal(remoteFailure(repo, 'main', process.env), undefined);
-    assert.equal(
-      remoteFailure(repo, 'nope', process.env),
-      'origin has no branch nope',
-    );
-    // A session environment the remote refuses (here: file transport forbidden) fails the preflight.
-    assert.match(
-      remoteFailure(repo, 'main', {
-        ...process.env,
-        GIT_CONFIG_COUNT: '1',
-        GIT_CONFIG_KEY_0: 'protocol.file.allow',
-        GIT_CONFIG_VALUE_0: 'never',
-      }) ?? '',
-      /origin unreachable with the lane credentials.*git remote add origin URL.*check the lane credentials/u,
-    );
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('lane run fails in seconds on an unreachable remote and creates no worktree', async () => {
-  const out = await runPrepared({}, (repo, base) =>
-    git(repo, 'remote', 'set-url', 'origin', join(base, 'missing.git')),
-  );
-  assert.equal(out.verdict.exitCode, 69);
-  assert.match(
-    out.verdict.line,
-    /^lane t-abc1234: preflight: origin unreachable with the lane credentials/u,
-  );
-  assert.equal(out.started, false);
 });
 
 test('rerunCommand appends the failing files, behind -- for an npm script', () => {
@@ -1796,32 +1491,6 @@ test('rerunCommand appends the failing files, behind -- for an npm script', () =
     rerunCommand('npm test -- --run', ['a.test.ts']),
     "npm test -- --run 'a.test.ts'",
   );
-});
-
-/** A clean base checkout whose contract test is check.mjs: red without arguments, then `rerun` decides. */
-function flakyBaseline(rerun: 'pass' | 'fail') {
-  return fixture('true', {
-    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
-    'check.mjs': `const files = process.argv.slice(2);
-if (files.length === 0 || ${rerun === 'fail'}) {
-  console.log(' FAIL  test/flaky.test.ts > times out under load');
-  process.exit(1);
-}
-console.log('reran ' + files.join(' '));
-`,
-  });
-}
-
-test('a red baseline reruns only its failing test files once and passes when they pass alone', () => {
-  // Seen on the pilot: lanes run one at a time still refused with 72 while the suite passed by hand.
-  const { base, repo } = flakyBaseline('pass');
-  try {
-    const flaky: string[] = [];
-    assert.equal(prepareWorktree(repo, 'main', repo, flaky), undefined);
-    assert.deepEqual(flaky, ['test/flaky.test.ts']);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
 });
 
 test('settledRun: fail then pass is flaky, fail then fail stays red, a nameless failure is not rerun', () => {
@@ -1845,52 +1514,6 @@ test('settledRun: fail then pass is flaky, fail then fail stays red, a nameless 
   const nameless = settledRun(stub([{ status: 2, stdout: 'boom' }]), 'x');
   assert.equal(nameless.run.status, 2);
   assert.equal(commands.length, 1);
-});
-
-test('a vacuous test command refuses the lane before the session with 72', () => {
-  const { base, repo } = flakyBaseline('pass');
-  try {
-    writeFileSync(join(repo, 'krn.json'), '{"test":"exit 0","vacuous":true}\n');
-    const refusal = prepareWorktree(repo, 'main', repo);
-    assert.equal(refusal?.exitCode, 72);
-    assert.match(refusal?.detail ?? '', /vacuous/u);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('a red baseline whose failing files fail again refuses with 72 and names them', () => {
-  const { base, repo } = flakyBaseline('fail');
-  try {
-    const refusal = prepareWorktree(repo, 'main', repo);
-    assert.equal(refusal?.exitCode, 72);
-    assert.match(refusal?.detail ?? '', /failing: test\/flaky\.test\.ts\)/u);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('a red baseline admits only the seeded green-base task and refuses any other with 72', () => {
-  const { base, repo } = flakyBaseline('fail');
-  try {
-    const green = createTask(repo, {
-      title: GREEN_BASE_TASK_TITLE,
-      priority: 1,
-      body: ['Outcome: green.', 'Why: red.', 'Proof: passes.'],
-    });
-    const other = createTask(repo, {
-      title: 'something else',
-      priority: 1,
-      body: ['Outcome: x.', 'Why: y.', 'Proof: z.'],
-    });
-    assert.equal(prepareWorktree(repo, 'main', repo, [], green.id), undefined);
-    assert.equal(
-      prepareWorktree(repo, 'main', repo, [], other.id)?.exitCode,
-      72,
-    );
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
 });
 
 test('lane run removes the empty placeholders a session left in the main checkout and keeps a non-empty one', async () => {
@@ -2029,16 +1652,6 @@ test('a first test that never calls production code is not delivered', async () 
   );
   assert.notEqual(out.verdict.exitCode, 0);
   assert.match(out.verdict.line, /does not exercise production code/u);
-  assert.equal(out.shipped, 0);
-});
-
-test('lane run refuses any other task on a vacuous contract before the session', async () => {
-  const out = await bootstrapRun(
-    'Some other task',
-    "import { add } from './lib.mjs';\nif (add(1, 2) !== 3) process.exit(1);",
-  );
-  assert.equal(out.verdict.exitCode, 72);
-  assert.match(out.verdict.line, /vacuous test command/u);
   assert.equal(out.shipped, 0);
 });
 
@@ -2210,39 +1823,6 @@ test('clause 6: a lane ending prints the proof line from the real Stop log, the 
   }
 });
 
-test('clause 2: a baseline run that failed only because the worktree directory was missing runs once more', () => {
-  // Verbatim failure of the 1115i py row, with the marker making the first run the only one that fails.
-  const { base, repo } = fixture('true', {
-    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
-    'check.mjs': `import { existsSync, writeFileSync } from 'node:fs';
-if (!existsSync('seen')) {
-  writeFileSync('seen', '');
-  console.error("FileNotFoundError: [Errno 2] No such file or directory: '" + process.cwd() + "'");
-  process.exit(1);
-}
-`,
-  });
-  try {
-    assert.equal(prepareWorktree(repo, 'main', repo), undefined);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('clause 2: a FileNotFoundError naming another path stays a red baseline', () => {
-  const { base, repo } = fixture('true', {
-    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
-    'check.mjs': `console.error("FileNotFoundError: [Errno 2] No such file or directory: '/elsewhere'");
-process.exit(1);
-`,
-  });
-  try {
-    assert.equal(prepareWorktree(repo, 'main', repo)?.exitCode, 72);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
 // The merged outside lane of rerun 1115i (npm, t-0lpk5qu): the task body and the test file are verbatim from its
 // session transcript; ship removed the lane worktree, and the proof line then read an empty tree and printed 0/4.
 const outsideBody = [
@@ -2272,6 +1852,13 @@ test("clause 4: the declared command targets this test file", () => {
   assert.equal(krn.test, "node --test test/*.test.mjs");
 });
 `;
+
+test('failingTests names the file of a red node:test TAP run, so a preamble warning is never the failing file', () => {
+  assert.deepEqual(
+    failingTests(fixtureText('node-test/tap-red-run.stdout.txt')),
+    ['/work/repo/test/claude/worker-stop.test.ts'],
+  );
+});
 
 test('clause 8: a merged lane prints the proof of the tree it shipped, though ship removed its worktree', async () => {
   const { base, repo, claude } = fixture(
@@ -2303,14 +1890,141 @@ test('clause 8: a merged lane prints the proof of the tree it shipped, though sh
   }
 });
 
-test('a refused ls-remote names every stderr line, so a helper warning never hides the cause', () => {
-  // Verbatim stderr of the pilot preflight on 2026-11-17 (lane session, no cached App token).
-  const stderr =
-    'github-app-token: discarded a cached token that is not a 40-character ghs_ installation token\n' +
-    'github-app-token: no cached App token in a lane session (the launcher mints it before the session)\n' +
-    "fatal: could not read Username for 'https://github.com': terminal prompts disabled\n";
-  const detail = remoteDetail(stderr);
-  assert.match(detail, /no cached App token in a lane session/u);
-  assert.match(detail, /fatal: could not read Username/u);
-  assert.equal(remoteDetail(''), '');
+test('a rerun carries a task record edited after the failed run into the worktree', async () => {
+  const { base, repo, claude } = fixture('true');
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'verdict: merged abc1234',
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74);
+    const file = join(repo, 'tasks', 't-abc1234.json');
+    const edited = readFileSync(file, 'utf8').replace(
+      '"Outcome: o"',
+      '"Outcome: o",\n    "Lead note: rework"',
+    );
+    assert.notEqual(edited, readFileSync(file, 'utf8'));
+    writeFileSync(file, edited);
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    assert.equal(
+      readFileSync(
+        join(repo, '.krn', 'worktrees', 't-abc1234', 'tasks', 't-abc1234.json'),
+        'utf8',
+      ),
+      edited,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun merges a lead body note into the record the lane closed, commits it and ships', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  // The carry commit changes the tree, so the rerun verifies it with the contract check.
+  withContract(repo, { base: 'main', test: 'true' });
+  process.env.KRN_LANE_CLAUDE = claude;
+  let shipCalls = 0;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      shipCalls += 1;
+      if (shipCalls === 1) throw new Error('push rejected');
+      return 'verdict: merged abc1234';
+    },
+    mint: async () => undefined,
+  };
+  const worktree = join(repo, '.krn', 'worktrees', 't-abc1234');
+  const lanePath = join(worktree, 'tasks', 't-abc1234.json');
+  const mainPath = join(repo, 'tasks', 't-abc1234.json');
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    writeFileSync(
+      mainPath,
+      readFileSync(mainPath, 'utf8').replace(
+        '"Outcome: o"',
+        '"Outcome: o",\n    "Lead note: rework"',
+      ),
+    );
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+    for (const path of [lanePath, mainPath]) {
+      const record = JSON.parse(readFileSync(path, 'utf8'));
+      assert.equal(record.status, 'closed', path);
+      assert.deepEqual(record.body, ['Outcome: o', 'Lead note: rework'], path);
+    }
+    assert.equal(git(worktree, 'status', '--porcelain'), '');
+    assert.equal(
+      git(worktree, 'log', '-1', '--format=%s%n%b'),
+      "chore(tasks): carry the lead's record edits into the lane (t-abc1234)\nRefs: t-abc1234",
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun refuses a record both sides changed in the same field and names it', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      throw new Error('push rejected');
+    },
+    mint: async () => undefined,
+  };
+  const mainPath = join(repo, 'tasks', 't-abc1234.json');
+  try {
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    const record = JSON.parse(readFileSync(mainPath, 'utf8'));
+    record.status = 'closed';
+    record.resolution = { kind: 'done', ref: null, note: 'lead closed it' };
+    writeFileSync(mainPath, `${JSON.stringify(record, null, 2)}\n`);
+    await assert.rejects(
+      laneRunCommand(['--task', 't-abc1234', '--root', repo], steps),
+      (error: Error) =>
+        error instanceof CliUsageError &&
+        /both changed resolution; reconcile them/u.test(error.message),
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun never resumes a claim another actor holds', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const started = await startLane(['t-abc1234', '--root', repo]);
+    await claimTask(repo, 't-abc1234', {
+      actor: 'someone-else',
+      worktree: started.path,
+      reason: 'theirs',
+    });
+    await assert.rejects(
+      laneRunCommand(['--task', 't-abc1234', '--root', repo], {
+        start: async () => assert.fail('the lane exists'),
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      }),
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
 });

@@ -10,9 +10,7 @@ import {
   laneSandboxSettings,
   sessionTimeoutMs,
 } from './environment.ts';
-import { prepareWorktree, settingsFailure } from './preflight.ts';
 import type { PreparedLane } from './prepare.ts';
-import { exitCredentialUnavailable } from './result.ts';
 
 /** What the session stage produced: the result, and why it did not start when the worktree or settings refused it. */
 export interface SessionOutcome {
@@ -60,7 +58,7 @@ export async function runSession(lane: PreparedLane): Promise<SessionOutcome> {
 export async function sessionStage(
   lane: PreparedLane,
 ): Promise<SessionOutcome> {
-  const { worktree, base, main, delivered } = lane;
+  const { delivered } = lane;
   if (delivered)
     return {
       result: {
@@ -72,21 +70,5 @@ export async function sessionStage(
       notStarted: false,
       flaky: [],
     };
-  const flaky: string[] = [];
-  const unusable = settingsFailure(laneSandboxSettings(worktree));
-  const refusal =
-    unusable !== undefined
-      ? {
-          detail: `preflight: ${unusable}; no session started`,
-          exitCode: exitCredentialUnavailable,
-        }
-      : prepareWorktree(worktree, base, main, flaky, lane.task);
-  if (refusal !== undefined)
-    return {
-      result: { ok: false, detail: refusal.detail, cost: undefined },
-      refusal,
-      notStarted: false,
-      flaky,
-    };
-  return { ...(await runSession(lane)), flaky };
+  return { ...(await runSession(lane)), flaky: [] };
 }

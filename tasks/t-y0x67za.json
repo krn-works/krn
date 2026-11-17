@@ -1,7 +1,11 @@
 {
   "id": "t-y0x67za",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane-lock.ts, lane-run/preflight.ts, worktree.ts and git.ts are deleted; gitWith moved to src/cli/git-with.ts (real-git test), sleepSync into lane.ts; lane run now starts the worktree through lane start with no install, baseline, remote or reuse-claim step; tsc, lane-run, lane and ship tests green"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Lane start is claim plus worktree add; lane-run worktree, preflight, git and lane-lock are deleted",
