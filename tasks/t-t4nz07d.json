@@ -1,0 +1,18 @@
+{
+  "id": "t-t4nz07d",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "drift check reports missing skills paths and off-advisory relay thresholds; fixture tests pass"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Drift check flags adopted-repo prompts naming removed skill scripts or stale context thresholds",
+  "after": [],
+  "body": [
+    "Agent prompts and AGENTS.md in adopted repositories kept telling leads to measure context with `context-usage.py` (removed from the context-relay skill) and to report a \"hook 150k vs relay 200k\" conflict that krn #1212 resolved on 2026-11-16; about 15 files across projects carried it for days (operator found it in sawaryn-i-partnerzy, 2026-11-17).\nOutcome: `krn adopt drift` (or the existing drift check) reports, per adopted repository, agent-facing markdown (AGENTS.md, CLAUDE.md, docs/*PROMPT*.md) that names a script path of a global or KRN skill which no longer exists, and a stated context threshold that differs from the gauge advisories of the configured window.\nProof: node --test test/adopt/drift.test.ts exits 0 with a fixture repo naming context-usage.py and a 150k relay threshold"
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

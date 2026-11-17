@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { adoptionDrift, refreshAdoption } from '../../src/adopt/drift.ts';
+import { staleAgentText } from '../../src/context/stale-agent-text.ts';
 
 // KRN-12: the real `krn adopt` entry writes the fixture, then drift and refresh read it back.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -245,4 +246,86 @@ test('this repository has no adoption drift in the skills the installer writes',
     'delivery-lead is installed here',
   );
   assert.ok(drift.kept.includes('.agents/skills/delivery-lead/lanes.md'));
+});
+
+// The agent-text check reads the skills under the Claude config directory and the window from its settings.
+function withAgentText(text: string, file = 'AGENTS.md') {
+  const root = adopted();
+  const config = mkdtempSync(join(tmpdir(), 'krn-drift-cfg-'));
+  mkdirSync(join(config, 'skills/context-relay/scripts'), { recursive: true });
+  writeFileSync(join(config, 'skills/context-relay/SKILL.md'), '# relay\n');
+  writeFileSync(join(config, 'skills/context-relay/scripts/relay.sh'), '');
+  writeFileSync(
+    join(config, 'settings.json'),
+    JSON.stringify({ autoCompactWindow: 400000 }),
+  );
+  mkdirSync(join(root, 'docs'), { recursive: true });
+  writeFileSync(join(root, file), text);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: config };
+  const found = () => {
+    const before = process.env.CLAUDE_CONFIG_DIR;
+    process.env.CLAUDE_CONFIG_DIR = config;
+    try {
+      return staleAgentText(root);
+    } finally {
+      if (before === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = before;
+    }
+  };
+  return { root, env, found };
+}
+
+test('agent text naming a removed skill script is reported with file and line', () => {
+  const { root, env, found } = withAgentText(
+    [
+      'Start.',
+      'mierz kontekst (`python3 ~/.claude/skills/context-relay/scripts/context-usage.py`)',
+      'relay: ~/.claude/skills/context-relay/scripts/relay.sh',
+      'See .agents/skills/gone-skill/run.sh.',
+    ].join('\n'),
+  );
+  assert.deepEqual(found(), [
+    'AGENTS.md:2 names ~/.claude/skills/context-relay/scripts/context-usage.py, which does not exist',
+    'AGENTS.md:4 names .agents/skills/gone-skill/run.sh, which does not exist',
+  ]);
+  const run = spawnSync(
+    process.execPath,
+    [cli, 'adopt', root, '--refresh', '--dry-run'],
+    {
+      encoding: 'utf8',
+      env,
+    },
+  );
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /^stale AGENTS\.md:2 names ~\/\.claude\/skills\/context-relay\/scripts\/context-usage\.py/mu,
+  );
+});
+
+test('a relay threshold that is none of the window advisories is reported, the advisories themselves are not', () => {
+  const { found } = withAgentText(
+    [
+      'hook nadal wypisuje komunikat przy 150k',
+      'relay przy ~150k z 400k',
+      'handoff at 200k, relay at 250k, ceiling 300k of 400k',
+      'Model has 128k output; unrelated 90k budget.',
+    ].join('\n'),
+    'docs/NEXT-PROMPT.md',
+  );
+  assert.deepEqual(found(), [
+    'docs/NEXT-PROMPT.md:1 states 150k; the gauge advises at 200k and 250k of a 400k window',
+    'docs/NEXT-PROMPT.md:2 states 150k; the gauge advises at 200k and 250k of a 400k window',
+  ]);
+});
+
+test('current wording and history logs pass', () => {
+  const { root, found } = withAgentText(
+    'Relay at 200k and 250k of the 400k window; use ~/.claude/skills/context-relay/scripts/relay.sh.\n',
+  );
+  writeFileSync(
+    join(root, 'docs/HISTORY-PROMPT.md'),
+    'relay at 150k via ~/.claude/skills/x/y.py\n',
+  );
+  assert.deepEqual(found(), []);
 });
