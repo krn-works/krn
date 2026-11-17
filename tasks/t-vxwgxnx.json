@@ -1,0 +1,18 @@
+{
+  "id": "t-vxwgxnx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-16",
+  "priority": 1,
+  "title": "Screen report flags sessions that reached the upstream fix",
+  "after": [],
+  "body": [
+    "Source: S7 screen 2026-11-17: units t-13axy56 and t-11kv38i read the upstream fix; scanner prototype .krn/runs/lead/s7/contam.mjs maps rows to session transcripts by session_id.\nOutcome: node evals/replay/run.ts --screen --report prints a contamination line (flagged passes and fails) and a test with a fixture transcript passes.\nProof: the replay test reading a captured transcript fixture flags the upstream fetch and exits 0."
+  ],
+  "kind": "feature",
+  "area": "eval",
+  "from": {
+    "kind": "finding",
+    "ref": "s7-contamination"
+  }
+}
