@@ -70,6 +70,8 @@ export function sessionEnvironment(
     body?: string;
     /** The brief opts in to the Fable advisor with a line `lane-advisor: fable` (or `Advisor: on`). */
     advisor?: boolean;
+    /** The effort of each lane turn so far, comma separated; `krn pr body --lane` writes it into the PR body. */
+    effort?: string;
   },
 ): NodeJS.ProcessEnv {
   const scrubbed: NodeJS.ProcessEnv = { ...env };
@@ -84,6 +86,9 @@ export function sessionEnvironment(
     KRN_SESSION_CLASS: 'lane',
     // The trial arm of this lane; `krn pr body --lane` writes it into the PR body.
     KRN_LANE_ADVISOR: identity.advisor === true ? laneAdvisorModel : 'none',
+    ...(identity.effort === undefined
+      ? {}
+      : { KRN_LANE_EFFORT: identity.effort }),
     // An unattended session must not call the Fable advisor (billed without consent in -p) unless the brief says `Advisor: on`.
     ...(identity.advisor === true
       ? {}

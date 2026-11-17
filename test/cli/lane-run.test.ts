@@ -1353,12 +1353,14 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
       return ciLogsCapture('logs-weak-tests-43501009193.txt');
     },
   };
+  const efforts = join(base, 'efforts.txt');
   const rewrite = (action: string) =>
     writeFileSync(
       claude,
-      `#!/bin/sh\nprintf '%s' "$2" > '${brief}'\n${action}\ncat <<'JSON'\n${capture}\nJSON\n`,
+      `#!/bin/sh\nprintf '%s' "$2" > '${brief}'\nprev=; for a in "$@"; do [ "$prev" = --effort ] && echo "$a" >> '${efforts}'; prev=$a; done\n${action}\ncat <<'JSON'\n${capture}\nJSON\n`,
     );
   try {
+    rewrite(deliver());
     const first = await laneRunCommand(
       ['--task', 't-abc1234', '--root', repo],
       steps,
@@ -1404,6 +1406,12 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
     assert.equal(fixed.exitCode, 0, fixed.line);
     assert.equal(shipCalls, 2);
     assert.equal(existsSync(redCheckFile(repo, 't-abc1234')), false);
+    // The first turn ran at low effort; every turn after the red Check ran at high.
+    assert.deepEqual(readFileSync(efforts, 'utf8').trim().split('\n'), [
+      'low',
+      'high',
+      'high',
+    ]);
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });

@@ -12,6 +12,10 @@ import {
   renderContextGate,
 } from '../outcome/context-gate.ts';
 import {
+  collectEffortTrial,
+  renderEffortTrial,
+} from '../outcome/effort-trial.ts';
+import {
   collectFirstPushGreen,
   renderFirstPushGreen,
 } from '../outcome/first-push-green.ts';
@@ -39,6 +43,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let firstPushGreen = false;
   let contextGate = false;
   let advisorTrial = false;
+  let effortPolicy = false;
   let band: BandName | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -56,6 +61,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--advisor-trial') {
       advisorTrial = true;
+      continue;
+    }
+    if (flag === '--effort-policy') {
+      effortPolicy = true;
       continue;
     }
     if (flag === '--first-push-green') {
@@ -134,6 +143,16 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (effortPolicy) {
+    const report = await collectEffortTrial({
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.repo === undefined ? {} : { repo: options.repo }),
+    });
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderEffortTrial(report),
+    );
+    return;
   }
   if (advisorTrial) {
     const report = await collectAdvisorTrial({

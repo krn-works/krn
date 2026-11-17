@@ -82,6 +82,8 @@ export interface HeadlessRun {
   budgetUsd: number;
   /** The advisor model for this session only (`--advisor`); absent leaves the advisor off. */
   advisor?: string;
+  /** The reasoning effort of this turn (`--effort`); absent keeps the model default. */
+  effort?: string;
 }
 
 export function headlessArgs(run: HeadlessRun): string[] {
@@ -103,6 +105,7 @@ export function headlessArgs(run: HeadlessRun): string[] {
     '--setting-sources',
     'project',
     ...(run.advisor === undefined ? [] : ['--advisor', run.advisor]),
+    ...(run.effort === undefined ? [] : ['--effort', run.effort]),
   ];
 }
 
