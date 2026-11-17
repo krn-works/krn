@@ -1,7 +1,11 @@
 {
   "id": "t-pn413z3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "renderAdvisorTrial prints per-unit table and thin-win flag (N option, default 5); node --test test/outcome passes"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Show per-unit results and flag wins carried by few units",

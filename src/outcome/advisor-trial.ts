@@ -70,7 +70,23 @@ export async function collectAdvisorTrial(
   return reports;
 }
 
-export function renderAdvisorTrial(reports: ArmReport[]): string {
+/** A win carried by fewer measured units than this is flagged as thin. */
+export const THIN_WIN_UNITS = 5;
+
+/** The arm ahead on first-push-green, or null on a tie or when an arm has nothing measured. */
+function leader(reports: ArmReport[]): ArmReport | null {
+  const [a, b] = reports;
+  if (!a || !b || a.result.share === null || b.result.share === null)
+    return null;
+  if (a.result.share === b.result.share) return null;
+  return a.result.share > b.result.share ? a : b;
+}
+
+export function renderAdvisorTrial(
+  reports: ArmReport[],
+  options: { minUnits?: number } = {},
+): string {
+  const minUnits = options.minUnits ?? THIN_WIN_UNITS;
   const lines = reports.map((r) => {
     const pct =
       r.result.share === null ? 'n/a' : `${(r.result.share * 100).toFixed(1)}%`;
@@ -80,5 +96,20 @@ export function renderAdvisorTrial(reports: ArmReport[]): string {
       r.fableCostPerPr === null ? 'n/a' : `$${r.fableCostPerPr.toFixed(2)}`;
     return `${r.arm}: ${r.prs} PRs, first-push-green ${pct} (${r.result.green} of ${r.result.measured}), CI rounds per PR ${mean}, Fable cost per PR ${cost}`;
   });
-  return `${lines.join('\n')}\n`;
+  const units = reports.flatMap((r) =>
+    r.result.prs.map(
+      (p) =>
+        `${r.arm} #${p.number} rounds ${p.rounds} first ${p.first ?? 'none'}`,
+    ),
+  );
+  const out = [...lines, 'Per-unit results:', ...units];
+  const winner = leader(reports);
+  if (winner) {
+    const smallest = Math.min(...reports.map((r) => r.result.measured));
+    if (smallest < minUnits)
+      out.push(
+        `thin win: ${winner.arm} leads on first-push-green but an arm has only ${smallest} measured units (fewer than ${minUnits})`,
+      );
+  }
+  return `${out.join('\n')}\n`;
 }
