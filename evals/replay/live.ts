@@ -129,7 +129,8 @@ export function isolatedEnv(
 }
 
 interface Session {
-  cost: number;
+  /** Null when the session printed no numeric cost: unknown, never zero. */
+  cost: number | null;
   /** False when the session never ran to a result (spawn error, usage limit, crash): its row stays ungraded. */
   ran: boolean;
 }
@@ -146,7 +147,7 @@ export function sessionOf(out: string, timedOut: boolean): Session {
   } catch {
     // Not JSON: no result line.
   }
-  const cost = typeof r?.total_cost_usd === 'number' ? r.total_cost_usd : 0;
+  const cost = typeof r?.total_cost_usd === 'number' ? r.total_cost_usd : null;
   return { cost, ran: timedOut || (r !== undefined && r.is_error !== true) };
 }
 
