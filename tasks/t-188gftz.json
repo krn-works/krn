@@ -1,0 +1,18 @@
+{
+  "id": "t-188gftz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Trial GPT-6.2 Sol as first-attempt lane model against Sonnet, dollars per accepted merge",
+  "after": [
+    "t-xr4yzgb",
+    "t-ysg43y7"
+  ],
+  "body": [
+    "Operator 2026-11-17: test GPT-6.2 Sol ($2/$10 per MTok) as the first-attempt lane model with Opus 5.5 as escalation, decided by dollars per accepted merge including failed attempts and rework. State today: Codex 0.169.0 is installed, but KRN serves Codex only context hooks (src/dispatch/table.ts:118 codexEvents: SessionStart, UserPromptSubmit, PostToolUse, PreCompact); a Codex lane gets no Stop gate, no PreToolUse write scope, no edit-time standards, and no lane or replay driver (src/harness has claude.ts only). Note: the current lane default Sonnet 5.5 has the same list price as Sol, so the comparison that matters is Sol vs Sonnet first attempt, Opus escalation for both.\nFiles: src/harness/codex.ts, evals/replay/session-args.ts, evals/routing/report.ts\nOutcome: the replay driver runs an arm on codex exec with model gpt-6.2-sol under the same sandbox, egress and grading as Claude arms; each row records the realized model and all-attempt cost; a frozen paired run on at least 20 screened units prints dollars per accepted merge for Sol-first vs Sonnet-first (Opus escalation after a red attempt) with a CI.\nProof: node evals/routing/report.ts --all-attempts prints both policies with n>=20 paired units and a verdict line.",
+    "Operator 2026-11-17: consider Sol instead of Sonnet as the lane default; the operator expects Sol to win clearly on dollars and capability and wants the margin measured. Decision rule: if Sol-first beats Sonnet-first on dollars per accepted merge without a lower acceptance rate, Sol replaces Sonnet as the lane default, after the Codex harness gets the Stop gate and write-scope hooks."
+  ],
+  "kind": "research",
+  "area": "outcome"
+}

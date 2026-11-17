@@ -1,0 +1,14 @@
+{
+  "id": "t-sy4qhg1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship stops re-running CI on an unchanged patch after the base moves",
+  "after": [],
+  "body": [
+    "Evidence (verified 2026-11-17 from the GPT-6.2 Sol friction report): `ledger --first-push-green --limit 100` = 100/100 green, 188 CI rounds (1.88/PR), 88 extra rounds. A 5-PR sample (#1340, #1333, #1332, #1330, #1327) has the same `git patch-id --stable` on every judged head: the extra rounds re-check an unchanged patch. The ruleset \"main integrity\" (25961157) has strict_required_status_checks_policy=false and no merge queue, so the rebase + force-push in src/ci/ship.ts:619-639 on a moved base is KRN's own choice, not GitHub's.\nChange: ship merges without rebasing when the base moved but the patch applies cleanly and touches no file the base move changed, and rebases only on conflict or overlap. A semantic break from a stale check is still caught by the post-merge Check on main.\nOutcome: after this change `ledger --first-push-green --limit 30` reports at most 1.3 CI rounds per PR with 0 red main Checks caused by a stale merge.\nProof: a ship test with a moved base touching a disjoint file merges with one Check round and no force-push; with an overlapping file it rebases.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "feature",
+  "area": "ci"
+}

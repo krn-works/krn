@@ -1,0 +1,14 @@
+{
+  "id": "t-zsam36m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Measure which standards injections change a diff and stop repeating served records",
+  "after": [],
+  "body": [
+    "Lead observation 2026-11-17: PreToolUse standards packets were injected on most Bash calls, mostly the same generic TypeScript records (no-any, no-suppressions, no-star-reexport, deep-relative-imports), and changed no decision in the session's diffs; the useful catches came from guard tests (receivers.json, boundaries, README command table). Self-report only, not a measurement.\nOutcome: `krn ledger --standards-effect` prints one line with the share (0-1) of standards injections followed by a diff touching the record subject over the last 20 sessions and the repeat count per session; when the share is below 0.2, a record already served in the session is not injected again (exit 0, a test asserts the second injection is absent).\nProof: a ledger/standards command prints the share of injections followed by a diff touching the record's subject over the last N sessions, and the repeat count per session."
+  ],
+  "kind": "research",
+  "area": "brain"
+}
