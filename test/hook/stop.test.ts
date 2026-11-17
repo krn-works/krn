@@ -29,6 +29,7 @@ import {
   linkPackageModules,
   recordedShip,
   relatedTests,
+  runTests,
   selectTests,
   shippedMerge,
   statesBlocker,
@@ -2320,6 +2321,122 @@ test('a read-only krn-lane subagent with no edit and no claim ends with exit 0, 
       assert.equal(refused.code, 2);
       assert.match(refused.stderr, /no commit/u);
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a test root that does not exist is named by its directory, not by the node program', () => {
+  // Evidence: three research lanes (t-tpkc9xz) saw `spawnSync .../node ENOENT` with node installed.
+  const dir = clone();
+  const gone = join(dir, 'vanished-root');
+  try {
+    const stopped = stopHook(
+      JSON.stringify(payload(gone)),
+      { ...lane(gone), KRN_TASK: 't-abc1234' },
+      'work',
+    );
+    assert.equal(stopped.code, 2);
+    assert.ok(stopped.stderr.includes(gone), stopped.stderr);
+    assert.doesNotMatch(stopped.stderr, /spawnSync|ENOENT/u);
+    // The runner itself, the layer that spawned in the missing directory, names it too.
+    const ran = runTests(gone, ['test/a.test.ts']);
+    assert.equal(ran.length, 1);
+    assert.ok(ran[0]?.includes(gone), ran[0]);
+    assert.doesNotMatch(ran[0] ?? '', /spawnSync|ENOENT/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a lane whose worktree is gone and whose branch merged on the base ends without a ship record', () => {
+  // Evidence: the t-8rnfkdx lane (#1308) was refused after `krn pr ship` merged and removed its worktree.
+  const main = clone();
+  try {
+    const gone = join(main, '.krn', 'worktrees', 'merged-lane');
+    const env = { ...lane(gone), KRN_TASK: 't-abc1234' };
+    const asked: string[] = [];
+    const sub = {
+      ...payload(gone, 'done'),
+      agent_id: 'a1',
+      agent_type: 'krn-lane',
+    };
+    const merged = judgeStop(
+      sub,
+      env,
+      () => [],
+      '',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (_root, branch) => {
+        asked.push(branch);
+        return true;
+      },
+    );
+    assert.equal(merged, undefined);
+    assert.deepEqual(asked, ['merged-lane']);
+    // No merged pull request: the lane is still refused for its missing commit.
+    const open = judgeStop(
+      sub,
+      env,
+      () => [],
+      '',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      () => false,
+    );
+    assert.match(open ?? '', /Stop refused/u);
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+  }
+});
+
+test('a lane brief marked `Delivery: none` ends without a commit, PR or test run; an unmarked one is refused', () => {
+  const dir = clone();
+  try {
+    const transcript = (brief: string, later = '') => {
+      const path = join(dir, 'brief.jsonl');
+      const lines = [
+        { type: 'user', message: { role: 'user', content: brief } },
+        { type: 'user', message: { role: 'user', content: later } },
+        {
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [
+              { type: 'tool_use', name: 'Write', input: { file_path: 'x' } },
+            ],
+          },
+        },
+      ];
+      writeFileSync(
+        path,
+        `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      );
+      return path;
+    };
+    const stop = (path: string) =>
+      stopHook(
+        JSON.stringify({
+          ...payload(dir),
+          agent_id: 'a1',
+          agent_type: 'krn-lane',
+          agent_transcript_path: path,
+        }),
+        { ...lane(dir), KRN_TASK: 't-abc1234' },
+        'work',
+      );
+    assert.deepEqual(stop(transcript('Research the logs.\nDelivery: none\n')), {
+      code: 0,
+      stderr: '',
+    });
+    assert.equal(stop(transcript('Fix the bug.')).code, 2);
+    // Only the brief itself marks the lane: a later message or a page the agent read does not.
+    assert.equal(stop(transcript('Fix the bug.', 'Delivery: none')).code, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

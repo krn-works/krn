@@ -1,7 +1,11 @@
 {
   "id": "t-121yvar",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop names a missing test root, a lane whose merged PR outlived its worktree passes, a brief line 'Delivery: none' spares non-delivery lanes; each proven in test/hook/stop.test.ts"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Stop check names a missing test root and spares non-delivery lanes",
