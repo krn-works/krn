@@ -1,0 +1,14 @@
+{
+  "id": "t-4ejaccq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "krn prune removes merged worktrees, finished run scratch and old runs in any adopted repo",
+  "after": [],
+  "body": [
+    "2026-11-17: /mnt/storage hit 99% full (3.9 GB free) and blocked krn pr ship's local fast gate (KRN_LANE_MIN_FREE_GB=5). Survey of /mnt/storage/coding/krn/active: ~150 GB were agent artefacts under .krn/ that nothing removes: krn-elektroinstal-ogar 599 delivery-loop runs each leaving ~800 MB scratch/; Swieta-na-starowce 35 rc* runs (9 GB) and 217 .krn/dev dirs (11 GB); 175 merged worktrees across projects (seo-audit 66, Swieta 69, elektroinstal 22); seo-audit/.audit-runs 29 GB of finished audit reports; krn/.krn/tmp/screen-scratch cache 8 GB. Operator cleaned manually by grant; audit script used: scratchpad wt-audit.sh logic (merged by ancestry or git cherry, clean, no process cwd).\nOutcome: 'krn prune [--days N] [--dry-run]' in any adopted repo removes merged clean worktrees with no live process (keeps untracked-dirty ones and lists them), deletes run scratch/ dirs of finished runs, deletes runs older than N days except those marked keep (.krn/runs/<run>/KEEP), and prints bytes freed per class; a run ending removes its own scratch/; krn lane start runs the prune of merged worktrees it already does plus reports free disk.\nProof: a fixture repo with a merged worktree, an unmerged one, a dirty-untracked one, an old run with scratch and a KEEP run: krn prune --days 7 removes exactly the merged worktree, the scratch and the old run, and prints a verdict line with bytes freed."
+  ],
+  "kind": "defect",
+  "area": "cli"
+}
