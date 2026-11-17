@@ -1,0 +1,15 @@
+{
+  "id": "t-4jjh6wt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Doctor and ship name a dead bw-serve unit and its journal reason instead of a bare unavailable",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-17: bw-serve.service (transient systemd-run unit) failed at 15:28:42 with EADDRINUSE on ::1:8087 and stayed failed; every krn pr ship and lane ship then exited 70 with only \"github-app-token: bw serve unavailable at http://localhost:8087\" (lanes t-jfg2npc, t-dgkkmp1). Lanes reported it as a credential blocker without the cause. The remedy `bw-up` is correct (defined in ~/.config/krn/shell/bw.bash, interactive shells only); the operator ran it and doctor passed.\nOutcome: when bw serve does not answer, doctor --unattended and the app-token error name the bw-serve unit state (failed / inactive / absent) and the last journal error line (e.g. EADDRINUSE), and say that `bw-up` is an operator command in an interactive shell.\nProof: a test with a captured `systemctl --user show bw-serve.service` and journal line for a failed unit asserts the message names \"failed\" and EADDRINUSE.\nFiles: src/cli/doctor-unattended.ts, src/ci/app-token.ts, test/cli/doctor-unattended.test.ts",
+    "Also (2026-11-17 17:5x): after the bw-serve unit was restarted with an empty BW_SESSION, GET localhost:8087/status reports \"status\":\"locked\" yet krn doctor --unattended prints PASS (\"App token minted, vault session has 10.0h left\"): the mint is served from the token cache and the vault check measures only the serve process age. Doctor must FAIL vault when /status is not unlocked; regression test with a captured locked /status body."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
