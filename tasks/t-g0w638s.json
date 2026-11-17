@@ -1,0 +1,18 @@
+{
+  "id": "t-g0w638s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Re-grade the screening units recorded as base timeouts on a quiet host",
+  "after": [],
+  "body": [
+    "The t-8e4kdzz lane (#1329, 14f6df0) marked t-2blfi57 in evals/units/screening-manifest.json as baseFailure timeout instead of re-grading it, because host load was ~44; t-2ouowe0 and t-1ew29tn were relabelled timeout too (testBase 124). verify --recorded now prints 70, the minimum.\nOutcome: on a quiet host (uptime load < 8) the three units are re-graded one at a time; each base either fails by assertion (verified again) or stays timeout with its measured duration recorded.\nProof: node evals/units/screening.ts verify --recorded prints >= 70 and names no unit whose testBase is 124."
+  ],
+  "kind": "defect",
+  "area": "evals",
+  "from": {
+    "kind": "task",
+    "ref": "t-8e4kdzz"
+  }
+}

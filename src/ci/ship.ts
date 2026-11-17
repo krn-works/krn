@@ -3,6 +3,7 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
+import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
@@ -12,7 +13,7 @@ import { readFastPass } from './fast-pass.ts';
 import { clearShipLive, markShipLive } from './ship-live.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), and leaves the worktree and branch for the next `krn lane start` to prune; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -146,6 +147,8 @@ async function shipRun(
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
+    /** The pids of other processes working inside a path; the default reads /proc. */
+    worktreeUsers?: (path: string) => number[] | undefined;
     /** Releases the claim in `main` of a task whose record in `worktree` is closed; the cli supplies the tracker's. */
     releaseClaim?: (main: string, worktree: string, task: string) => void;
     /** Completes the close evidence row of a task whose PR merged; the cli supplies the brain's writer. */
@@ -255,10 +258,12 @@ async function shipRun(
       ? `main sync: fast-forwarded to origin/${target}`
       : `main sync: warning, not fast-forwarded: ${(moved.stderr.trim().split('\n')[0] ?? '').trim()}`;
   };
-  // The PR is merged by now: a refused removal is a warning, never a failed ship.
   const task =
     process.env.KRN_TASK ?? /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1];
-  // The lane ends here: the worktree and branch stay, and the lead prunes merged lanes at the next lane start.
+  // The lane ends here. With --drop (the lead's ship) the worktree and branch go once no other process
+  // works inside them; a lane agent's ship keeps them, since its session may still run steps there
+  // that no process cwd reveals, and the next `krn lane start` prunes them. The PR is merged by now:
+  // a refused removal is a line, never a failed ship.
   const cleanup = (sha: string) => {
     // `head` is the lane tip that merged: a later lane that reuses the branch name never matches it.
     const head = git(['rev-parse', 'HEAD']);
@@ -274,9 +279,20 @@ async function shipRun(
       } catch {
         // The PR is merged: a claim that stays is tidied by the next state check.
       }
-    return `lane: worktree ${worktree} and branch ${branch} kept; the next krn lane start prunes merged lanes
+    const synced = syncMain();
+    const removal = values.drop
+      ? removeFinishedLane(main, worktree, branch, {
+          git: (a, at) => runner('git', a, at),
+          ...(runtime.worktreeUsers ? { users: runtime.worktreeUsers } : {}),
+        })
+      : { removed: false as const, reason: 'no --drop' };
+    return `${
+      removal.removed
+        ? `lane: worktree ${worktree} and branch ${branch} removed`
+        : `lane: worktree ${worktree} and branch ${branch} kept (${removal.reason}); the next krn lane start prunes merged lanes`
+    }
 main checkout: ${main}
-${syncMain()}`;
+${synced}`;
   };
   const viewOf = (number: number) =>
     gh([
@@ -867,6 +883,7 @@ function parse(args: string[]) {
       'body-file': { type: 'string' },
       repo: { type: 'string' },
       force: { type: 'boolean' },
+      drop: { type: 'boolean' },
       worktree: { type: 'string' },
       base: { type: 'string' },
     },
@@ -878,6 +895,7 @@ function parse(args: string[]) {
     base: values.base,
     repo: values.repo,
     force: values.force === true,
+    drop: values.drop === true,
   };
 }
 

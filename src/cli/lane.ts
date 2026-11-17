@@ -20,6 +20,7 @@ import {
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
+import { removeFinishedLane, worktreeUsers } from '../repo/lane-removal.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
 import {
@@ -114,7 +115,7 @@ export function checkLaneBudget(main: string, base?: string): void {
   // Only real worktrees count: a lane worktree holds a `.git` file; a test fixture or a
   // leftover directory under .krn/worktrees does not block a lane (t-tj1g7m9).
   // A lane whose ship record names a merge commit on origin/<base> and that holds no uncommitted
-  // change is finished: it stays on disk during the prune grace but never fills the budget.
+  // change is finished: it may stay on disk while a session works inside it but never fills the budget.
   const merged = base ? mergedShipBranches(main, base) : new Set<string>();
   const live: string[] = [];
   if (existsSync(dir))
@@ -226,19 +227,25 @@ export function gitRun(cwd: string, args: string[]) {
 }
 
 /**
- * A lane ends at the merge: `krn pr ship` leaves its worktree and branch. The next lane start removes
- * each lane whose ship record names a merge commit that is on `origin/<base>`, provided the worktree
- * holds no uncommitted change, then prunes the worktrees git lost. Returns the removed lane slugs.
+ * A lane ends at the merge: `krn pr ship --drop` removes its worktree and branch unless a process still
+ * works there; a lane agent's ship keeps them. The next lane start removes each lane whose ship record names a merge commit that is on
+ * `origin/<base>`, provided the worktree holds no uncommitted change and no other process works inside
+ * it, then prunes the worktrees git lost. Returns the removed lane slugs.
  * Evidence-based, not `git branch --merged`: squash merges leave the lane commits unmerged by ancestry.
- * A ship younger than PRUNE_GRACE_MS is kept: its lane session may still run there, and removing its cwd
- * makes every hook of that session fail to spawn (t-vs35jd7 and t-4k4yjzj lanes, 2026-11-16).
+ * Removing the cwd of a live lane session makes every hook of that session fail to spawn (t-vs35jd7 and
+ * t-4k4yjzj lanes, 2026-11-16): a ship younger than PRUNE_FLOOR_MS is kept, and after it the process
+ * cwds decide; a host without /proc keeps a ship younger than PRUNE_GRACE_MS. A record whose worktree and branch are already gone is skipped
+ * silently: it stays as evidence for the Stop hook.
  */
 export const PRUNE_GRACE_MS = 30 * 60_000;
+/** With /proc: a lane agent's session runs no process inside its worktree between steps, so a fresh ship keeps it this long. */
+export const PRUNE_FLOOR_MS = 5 * 60_000;
 
 export function pruneMergedLanes(
   main: string,
   base: string,
   now = Date.now(),
+  users: (path: string) => number[] | undefined = worktreeUsers,
 ): string[] {
   gitRun(main, ['worktree', 'prune']);
   const dir = join(main, shipRecordDir);
@@ -251,8 +258,9 @@ export function pruneMergedLanes(
       head?: unknown;
       at?: unknown;
     };
+    let age: number;
     try {
-      if (now - statSync(join(dir, name)).mtimeMs < PRUNE_GRACE_MS) continue;
+      age = now - statSync(join(dir, name)).mtimeMs;
       record = JSON.parse(readFileSync(join(dir, name), 'utf8'));
     } catch {
       continue;
@@ -260,28 +268,35 @@ export function pruneMergedLanes(
     const { branch, sha } = record;
     if (typeof branch !== 'string' || typeof sha !== 'string') continue;
     if (!/^[0-9a-f]{7,40}$/u.test(sha) || branch === base) continue;
+    const path = join(main, '.krn', 'worktrees', branch);
+    const hasBranch = (): boolean =>
+      gitRun(main, ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`])
+        .status === 0;
+    if (!existsSync(path) && !hasBranch()) continue;
     if (
       gitRun(main, ['merge-base', '--is-ancestor', sha, `origin/${base}`])
         .status !== 0
     )
       continue;
-    const path = join(main, '.krn', 'worktrees', branch);
     if (existsSync(path)) {
       // The record belongs to the lane that shipped it: a worktree whose tip is another commit is a
       // later lane that reuses the branch name, and its own ship may still wait on an open PR.
       if (!tipBelongsToRecord(path, record)) continue;
-      const status = gitRun(path, ['status', '--porcelain']);
-      if (status.status !== 0 || status.stdout.trim() !== '') continue;
-      if (gitRun(main, ['worktree', 'remove', '--force', path]).status !== 0)
-        continue;
-    }
-    const has = gitRun(main, [
-      'show-ref',
-      '--verify',
-      '--quiet',
-      `refs/heads/${branch}`,
-    ]);
-    if (has.status === 0) gitRun(main, ['branch', '-D', branch]);
+      const removal = removeFinishedLane(main, path, branch, {
+        git: (args, cwd) => {
+          const out = gitRun(cwd, args);
+          return { code: out.status ?? 70, stdout: out.stdout ?? '' };
+        },
+        users: (at) => {
+          const found = users(at);
+          // No /proc: a ship younger than the grace may still have its session there.
+          if (found === undefined) return age < PRUNE_GRACE_MS ? [0] : [];
+          // A lane agent may still be ending its session there without a process inside.
+          return age < PRUNE_FLOOR_MS ? [0, ...found] : found;
+        },
+      });
+      if (!removal.removed) continue;
+    } else if (hasBranch()) gitRun(main, ['branch', '-D', branch]);
     removed.push(branch);
     process.stderr.write(
       `lane prune: removed ${branch}: its ship merged as ${sha.slice(0, 12)} on origin/${base} and the worktree held no change\n`,
