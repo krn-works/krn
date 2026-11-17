@@ -6,13 +6,14 @@ import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { contractBase } from '../repo/contract.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
-import { gitRun, isMergedOn, shipRecord } from './lane.ts';
+import { gitRun, isMergedOn, laneMergeVerdict, shipRecord } from './lane.ts';
 
 export type LaneState =
   | 'live'
   | 'merged'
   | 'orphaned'
   | 'pr-open'
+  | 'closed'
   | 'empty'
   | 'unknown';
 
@@ -55,7 +56,15 @@ export function laneState(
   const pid = liveShipPid(tree);
   if (pid !== undefined) return { state: 'live', detail: `pid ${pid}` };
   const record = shipRecord(main, name);
-  if (record && isMergedOn(main, base, record.sha))
+  const headOf = gitRun(tree, ['rev-parse', 'HEAD']);
+  const verdict = (pr?: { state: string }) =>
+    laneMergeVerdict({
+      record,
+      head: headOf.status === 0 ? headOf.stdout.trim() : undefined,
+      merged: (sha) => isMergedOn(main, base, sha),
+      pr,
+    });
+  if (record && verdict() === 'merged')
     return { state: 'merged', detail: record.sha.slice(0, 12) };
   const ahead = gitRun(tree, ['rev-list', '--count', `origin/${base}..HEAD`]);
   if (ahead.status !== 0) return { state: 'unknown', detail: 'git failed' };
@@ -63,14 +72,16 @@ export function laneState(
     return { state: 'empty', detail: 'no commit past the base' };
   try {
     const pr = prOf(main, name);
-    if (pr === undefined)
+    const decided = verdict(pr);
+    if (decided === 'unshipped')
       return {
         state: 'orphaned',
         detail: `${ahead.stdout.trim()} commit(s), no pull request, no live ship`,
       };
-    return pr.state === 'MERGED'
-      ? { state: 'merged', detail: `#${pr.number}` }
-      : { state: 'pr-open', detail: `#${pr.number} ${pr.state.toLowerCase()}` };
+    const label = pr ? `#${pr.number}` : '';
+    return decided === 'merged'
+      ? { state: 'merged', detail: label }
+      : { state: decided, detail: `${label} ${pr?.state.toLowerCase()}` };
   } catch {
     return { state: 'unknown', detail: 'gh could not list pull requests' };
   }

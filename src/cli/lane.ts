@@ -21,6 +21,7 @@ import {
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
 import { removeFinishedLane, worktreeUsers } from '../repo/lane-removal.ts';
+import { laneMergeVerdict, type MergeVerdict } from '../repo/merge-verdict.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
 import {
@@ -147,7 +148,7 @@ function laneState(main: string, name: string, base?: string): string {
 export function shipRecord(
   main: string,
   branch: string,
-): { branch: string; sha: string } | undefined {
+): { branch: string; sha: string; head?: string; at?: string } | undefined {
   try {
     const record = JSON.parse(
       readFileSync(
@@ -156,7 +157,12 @@ export function shipRecord(
       ),
     );
     if (typeof record.sha === 'string' && /^[0-9a-f]{7,40}$/u.test(record.sha))
-      return { branch, sha: record.sha };
+      return {
+        branch,
+        sha: record.sha,
+        ...(typeof record.head === 'string' ? { head: record.head } : {}),
+        ...(typeof record.at === 'string' ? { at: record.at } : {}),
+      };
   } catch {
     /* No usable record. */
   }
@@ -170,6 +176,16 @@ export function isMergedOn(main: string, base: string, sha: string): boolean {
   );
 }
 
+export { laneMergeVerdict, type MergeVerdict };
+
+function recordOf(record: { sha: string; head?: unknown; at?: unknown }) {
+  return {
+    sha: record.sha,
+    ...(typeof record.head === 'string' ? { head: record.head } : {}),
+    ...(typeof record.at === 'string' ? { at: record.at } : {}),
+  };
+}
+
 /** Lane branches whose ship record names a merge commit that is on origin/<base>. */
 function mergedShipBranches(main: string, base: string): Set<string> {
   const dir = join(main, shipRecordDir);
@@ -177,10 +193,19 @@ function mergedShipBranches(main: string, base: string): Set<string> {
   if (!existsSync(dir)) return merged;
   for (const name of readdirSync(dir)) {
     try {
-      const { branch, sha } = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+      const record = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+      const { branch, sha } = record;
       if (typeof branch !== 'string' || branch === base) continue;
       if (!/^[0-9a-f]{7,40}$/u.test(String(sha))) continue;
-      if (isMergedOn(main, base, sha)) merged.add(branch);
+      const path = join(main, '.krn', 'worktrees', branch);
+      const tip = gitRun(path, ['rev-parse', 'HEAD']);
+      const verdict = laneMergeVerdict({
+        record: recordOf(record),
+        head: tip.status === 0 ? tip.stdout.trim() : undefined,
+        committedAt: tip.status === 0 ? commitTime(path) : undefined,
+        merged: (at) => isMergedOn(main, base, at),
+      });
+      if (verdict === 'merged') merged.add(branch);
     } catch {
       /* Not a ship record. */
     }
@@ -273,15 +298,20 @@ export function pruneMergedLanes(
       gitRun(main, ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`])
         .status === 0;
     if (!existsSync(path) && !hasBranch()) continue;
-    if (
-      gitRun(main, ['merge-base', '--is-ancestor', sha, `origin/${base}`])
-        .status !== 0
-    )
+    // The record belongs to the lane that shipped it: a worktree whose tip is another commit is a
+    // later lane that reuses the branch name, and its own ship may still wait on an open PR.
+    const tipAt = existsSync(path) ? path : main;
+    const ref = existsSync(path) ? 'HEAD' : `refs/heads/${branch}`;
+    const tip = gitRun(tipAt, ['rev-parse', ref]);
+    const verdict = laneMergeVerdict({
+      record: recordOf({ ...record, sha }),
+      head: tip.status === 0 ? tip.stdout.trim() : undefined,
+      committedAt: tip.status === 0 ? commitTime(tipAt, ref) : undefined,
+      merged: (at) => isMergedOn(main, base, at),
+    });
+    if (verdict !== 'merged' || (existsSync(path) && tip.status !== 0))
       continue;
     if (existsSync(path)) {
-      // The record belongs to the lane that shipped it: a worktree whose tip is another commit is a
-      // later lane that reuses the branch name, and its own ship may still wait on an open PR.
-      if (!tipBelongsToRecord(path, record)) continue;
       const removal = removeFinishedLane(main, path, branch, {
         git: (args, cwd) => {
           const out = gitRun(cwd, args);
@@ -357,23 +387,12 @@ export function addLaneWorktree(
   }
 }
 
-/** A recorded head must equal the worktree tip; a record without one needs a tip no newer than the ship. */
-function tipBelongsToRecord(
-  path: string,
-  record: { head?: unknown; at?: unknown },
-): boolean {
-  const tip = gitRun(path, ['rev-parse', 'HEAD']);
-  if (tip.status !== 0) return false;
-  if (typeof record.head === 'string') return tip.stdout.trim() === record.head;
-  const committed = Number(
-    gitRun(path, ['log', '-1', '--format=%ct', 'HEAD']).stdout.trim(),
+/** The commit time of a worktree tip in ms, or undefined when git cannot say. */
+function commitTime(path: string, ref = 'HEAD'): number | undefined {
+  const seconds = Number(
+    gitRun(path, ['log', '-1', '--format=%ct', ref]).stdout.trim(),
   );
-  const shipped = Date.parse(String(record.at));
-  return (
-    Number.isFinite(committed) &&
-    Number.isFinite(shipped) &&
-    committed * 1000 <= shipped
-  );
+  return Number.isFinite(seconds) ? seconds * 1000 : undefined;
 }
 
 function gitOk(root: string, args: string[]): boolean {

@@ -1,7 +1,11 @@
 {
   "id": "t-vyjf950",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "laneMergeVerdict in src/repo/merge-verdict.ts decides merged/pr-open/closed/unshipped; lane status, prune, budget and Stop call it; test/cli/lane-merge-verdict.test.ts passes and failed before the fix"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "One merge verdict serves lane status, prune and Stop",

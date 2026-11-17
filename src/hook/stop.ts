@@ -47,6 +47,7 @@ export { withinPackage };
 
 import { statesBlocker } from '../brain/proof-line.ts';
 import { ghApiSync } from '../repo/gh.ts';
+import { laneMergeVerdict } from '../repo/merge-verdict.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
@@ -1155,14 +1156,24 @@ export function recordedShip(
         sha?: unknown;
         head?: unknown;
       };
-      if ((kept || onLane) && record.head !== tip) continue;
       if (onLane && record.branch !== current) continue;
       const ours =
         (lane !== '' && record.branch === lane) ||
         (typeof record.branch === 'string' &&
           claimed.includes(record.branch)) ||
         (env.KRN_TASK !== undefined && record.task === env.KRN_TASK);
-      if (ours && typeof record.sha === 'string' && onBase(main, record.sha))
+      if (
+        ours &&
+        typeof record.sha === 'string' &&
+        laneMergeVerdict({
+          record: {
+            sha: record.sha,
+            ...(typeof record.head === 'string' ? { head: record.head } : {}),
+          },
+          head: kept || onLane ? tip : undefined,
+          merged: (sha) => onBase(main, sha),
+        }) === 'merged'
+      )
         return true;
     } catch {
       /* An unreadable record proves nothing. */
