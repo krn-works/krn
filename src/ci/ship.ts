@@ -86,7 +86,7 @@ const aggregateCheck = /(?:^|\/ )Check$/u;
  * The newest aggregate Check of the head: a rerun or a superseded run leaves older runs in the
  * rollup, and only the latest one speaks for the head. Ordered by start time, later entry on a tie.
  */
-function newestCheck(
+export function newestCheck(
   rollup: PrView['statusCheckRollup'],
 ): PrView['statusCheckRollup'][number] | undefined {
   let newest: PrView['statusCheckRollup'][number] | undefined;

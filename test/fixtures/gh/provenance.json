@@ -154,6 +154,15 @@
         "file": "pr-merge-head-moved.stderr.log",
         "sha256": "8f3e37b1c5f398b21d07330b6092a13839d3f3e290d0ca8cf10572922ff89a10"
       }
+    },
+    {
+      "name": "pr-list-open-rollup",
+      "command": "gh pr list --state open --limit 100 --json number,statusCheckRollup",
+      "exitCode": 0,
+      "stdout": {
+        "file": "pr-list-open-rollup.stdout.json",
+        "sha256": "387108ee31f0d7b0ab58cee6daae5fab3605caba7ad63e77722e28f878d533b1"
+      }
     }
   ]
 }

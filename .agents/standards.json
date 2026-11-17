@@ -707,6 +707,35 @@
     "supersedes": []
   },
   {
+    "id": "s-ci-open-red-limit",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A new lane is refused while KRN_OPEN_RED_MAX open PRs have a red or missing Check. CI runs `node --test test/rules/open-red-limit.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/cli/lane.ts", "src/cli/lane-open-red.ts"],
+      "terms": ["lane", "open", "red", "check", "limit"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/open-red-limit.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/open-red-limit.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-17",
+    "valid_from": "2026-11-17",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-ci-lead-traps",
     "type": "standard",
     "area": "ci",

@@ -1,7 +1,11 @@
 {
   "id": "t-z0q36nh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane start refuses at KRN_OPEN_RED_MAX (default 3) red or missing Check PRs; test/rules/open-red-limit.test.ts asserts refusal at 3, pass at 2"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Refuse new lanes while too many open PRs have a red or missing Check",
