@@ -432,11 +432,17 @@ export type Runner = (root: string, tests: string[]) => string[];
 /** Failing keys of one shell command run at `root`, read from its output. */
 export type CommandRunner = (root: string, command: string) => string[];
 
+/** The failure key of a check whose test root is gone: it names the directory, never the program. */
+const missingRootKey = (root: string): string =>
+  `<run>::error test root ${root} does not exist (the worktree was removed or never created)`;
+
 const REPORTER = fileURLToPath(
   new URL('./failure-reporter.mjs', import.meta.url),
 );
 
-const runTests: Runner = (root, tests) => {
+export const runTests: Runner = (root, tests) => {
+  // spawnSync reports a missing cwd as ENOENT on the program, which sends the reader hunting for node.
+  if (!existsSync(root)) return [missingRootKey(root)];
   const run = spawnSync(
     process.execPath,
     ['--test', `--test-reporter=${REPORTER}`, ...tests],
@@ -501,6 +507,7 @@ export function failuresIn(output: string, status: number | string): string[] {
 const NAMELESS = /^<run>::/u;
 
 const runCommand: CommandRunner = (root, command) => {
+  if (!existsSync(root)) return [missingRootKey(root)];
   const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
     cwd: root,
     encoding: 'utf8',
@@ -897,6 +904,12 @@ function inspectTests(
   shell: CommandRunner,
   env: NodeJS.ProcessEnv,
 ): Outcome & { ignored: number; modified?: string[] } {
+  if (!existsSync(root))
+    return {
+      ok: false,
+      ignored: 0,
+      reason: `the test root ${root} does not exist (the worktree was removed or never created), so no test can run there. Run from an existing checkout, or end with a line \`BLOCKER: <what stops you>\`.`,
+    };
   const { contract, error } = loadContract(root);
   if (error)
     return {
@@ -1247,6 +1260,80 @@ export function readOnlySession(payload: unknown): boolean {
 }
 
 /**
+ * A lane brief that marks itself non-delivery (a line `Delivery: none` in the first user message of the
+ * agent's own transcript, or KRN_DELIVERY=none) produces a report, not a commit: its end needs no commit,
+ * PR or test run. Only the brief itself counts; later tool output and pages the agent read never do.
+ */
+export function nonDeliveryBrief(
+  env: NodeJS.ProcessEnv,
+  payload: unknown,
+): boolean {
+  if (env.KRN_DELIVERY === 'none') return true;
+  const path = (payload as { agent_transcript_path?: unknown } | null)
+    ?.agent_transcript_path;
+  if (typeof path !== 'string') return false;
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return false;
+  }
+  for (const line of text.split('\n')) {
+    let entry: {
+      type?: unknown;
+      message?: { role?: unknown; content?: unknown };
+    };
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (entry?.type !== 'user' && entry?.message?.role !== 'user') continue;
+    const content = entry.message?.content;
+    const brief = Array.isArray(content)
+      ? content
+          .map((part: { text?: unknown }) =>
+            typeof part?.text === 'string' ? part.text : '',
+          )
+          .join('\n')
+      : typeof content === 'string'
+        ? content
+        : '';
+    return /^[\s>*`-]*Delivery:\s*none\b/imu.test(brief);
+  }
+  return false;
+}
+
+/**
+ * Whether the lane named by a removed worktree directory has a merged pull request on the base. A squash
+ * merge leaves the branch tip no ancestor of the base and `krn pr ship` deletes the branch, so the merged
+ * pull request of the head branch is the evidence. Only a worktree that is gone is judged here; a live one
+ * is judged on its own commits.
+ */
+export function mergedLaneBranch(
+  root: string,
+  lane: string,
+  mergedPr: (root: string, branch: string) => boolean = ghMergedPr,
+): boolean {
+  return lane !== '' && mergedPr(root, lane);
+}
+
+function ghMergedPr(root: string, branch: string): boolean {
+  const listed = ghApiSync(
+    root,
+    `repos/{owner}/{repo}/pulls?state=closed&head={owner}:${encodeURIComponent(branch)}&per_page=5`,
+  );
+  if (listed.status !== 0) return false;
+  try {
+    return (JSON.parse(listed.stdout) as { merged_at?: unknown }[]).some(
+      (pr) => typeof pr.merged_at === 'string',
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * A krn-lane subagent shares the lead's session cwd, so the payload cwd may sit in the lead's worktree
  * or the main checkout. Its own worktree is the one under `<main>/.krn/worktrees` that its transcript last
  * edited a file in, else the worktree of the first live task claim its transcript names.
@@ -1505,6 +1592,7 @@ export function judgeStop(
   standards: StandardsRunner = standardsBlockers,
   outcomeJudge: JudgeCall = claudeJudge,
   headOf: (root: string, pr: number) => string | undefined = prHeadBranch,
+  mergedPrOf: (root: string, branch: string) => boolean = ghMergedPr,
 ): string | undefined {
   const fields = payload as {
     cwd?: unknown;
@@ -1523,6 +1611,7 @@ export function judgeStop(
   const root = ownerCheckout(start);
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
+  if (nonDeliveryBrief(env, payload)) return undefined;
   if (subagent && readOnlySession(payload)) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
@@ -1539,6 +1628,9 @@ export function judgeStop(
   if (subagent && shippedMerge(root, fields?.last_assistant_message))
     return undefined;
   if (recordedShip(root, env, branch, payload)) return undefined;
+  // A removed lane worktree whose branch merged needs no ship record: ship may have been detached or its record lost.
+  if (!existsSync(start) && lane && mergedLaneBranch(root, lane, mergedPrOf))
+    return undefined;
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
