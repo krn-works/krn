@@ -1,0 +1,19 @@
+{
+  "id": "t-mh92b45",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Rerun the GPT-6.2 Astra audit after its P1 findings merge",
+  "after": [
+    "t-bf8d3x9",
+    "t-dgkkmp1",
+    "t-vyjf950",
+    "t-ysg43y7"
+  ],
+  "body": [
+    "Operator 2026-11-17: implement the GPT-6.2 Astra audit, then rerun it. Ready when the P1 Astra tasks (t-bf8d3x9, t-dgkkmp1, t-vyjf950, t-ysg43y7, t-76cjaca) are merged.\nFiles: .krn/runs/research/gpt-6-2/RUN.md\nOutcome: the astra command in RUN.md is rerun on the new HEAD; its report is saved under .krn/runs/research/gpt-6-2/, each earlier finding is marked fixed / still open with evidence, and new findings get tasks.\nProof: .krn/runs/research/gpt-6-2/astra-rerun-verdicts.md exists and every line names a task id or a fixed SHA."
+  ],
+  "kind": "research",
+  "area": "workflow"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-4n5xc92",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Measure how often lane reports omit a planted blocker under two instruction versions",
+  "after": [],
+  "body": [
+    "Operator-pasted note 2026-11-17 (unverified; source: GPT-6.2 system card, \"Blocker Deception\"): with a deliberately missing file or tool, raw Astra 6.2 omitted the known blocker from its report in 22.28% of tries; the Codex developer instruction cut that. Pattern for the brain: same model, same planted blocker, two instruction versions, one observable outcome.\nFiles: evals/brain/blocker-report.ts\nOutcome: a paired eval plants a blocker (missing file, refused tool) in a lane task and measures how often the lane's final report names it, under the current lane instructions vs a candidate rule; prints both rates with CI.\nProof: node evals/brain/blocker-report.ts --report prints two rates and a verdict line on at least 20 paired runs."
+  ],
+  "kind": "research",
+  "area": "brain"
+}
