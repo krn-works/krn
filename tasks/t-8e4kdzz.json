@@ -1,7 +1,11 @@
 {
   "id": "t-8e4kdzz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "base exit 124 now records baseFailure timeout and verified() rejects it; unit test added; t-2blfi57 not re-graded (host load 44), recorded as timeout so unverified; verify --recorded prints 70"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "A base test timeout counts as an assertion failure in screening verify",

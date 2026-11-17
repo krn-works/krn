@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
 import { openerPaths } from '../../evals/units/no-browser.ts';
 import {
+  baseVerdict,
   cacheOverLimit,
   commandsFor,
   dirBytes,
@@ -98,6 +99,18 @@ test('commands name the runner the base tree shows and nothing when none is name
     ),
     null,
   );
+});
+
+test('a base test killed by its timeout is not verified, even when recorded as an assertion', () => {
+  assert.equal(baseVerdict(124, false), 'timeout');
+  assert.equal(baseVerdict(1, false), 'assertion');
+  assert.equal(baseVerdict(1, true), 'compile');
+  assert.equal(baseVerdict(0, false), 'none');
+  assert.equal(
+    verified({ ...good, testBase: 124, baseFailure: 'timeout' }),
+    false,
+  );
+  assert.equal(verified({ ...good, testBase: 124 }), false);
 });
 
 function recorded(rows: ManifestRow[]) {
