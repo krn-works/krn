@@ -1,7 +1,11 @@
 {
   "id": "t-fastrn7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "real-bwrap test: unlisted host refused (403), allowlisted api.anthropic.com connects (200); fails on pre-fix proxy"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Session egress is limited to named hosts, not the public internet",
