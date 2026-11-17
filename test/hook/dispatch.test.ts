@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -141,4 +141,67 @@ test('outputs of several routes merge into one hook output', () => {
     permissionDecision: 'allow',
     additionalContext: 'a\n\nb',
   });
+});
+
+test('a refused PreToolUse payload is refused again after a SessionStart resume or compact', () => {
+  const refused = bash('git stash');
+  assert.equal(hook('pre-tool', refused).status, 2);
+  for (const source of ['resume', 'compact']) {
+    const start = hook('session-start', {
+      hook_event_name: 'SessionStart',
+      source,
+    });
+    assert.equal(start.status, 0, start.stderr);
+    const again = hook('pre-tool', refused);
+    assert.equal(again.status, 2, `${source}: ${again.stderr}`);
+    assert.match(again.stderr, /git stash/u);
+  }
+});
+
+function hookAsync(
+  event: string,
+  payload: object,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  const { KRN_SESSION_CLASS, KRN_ROLE, KRN_SCOPE, KRN_TASK, ...env } =
+    process.env;
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [entry, event], {
+      cwd: root,
+      env: { ...env, CLAUDE_PROJECT_DIR: root },
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+    child.stdin.end(
+      JSON.stringify({
+        session_id: 'dispatch-test',
+        transcript_path: join(root, 'no-transcript.jsonl'),
+        cwd: root,
+        ...payload,
+      }),
+    );
+  });
+}
+
+test('parallel PreToolUse payloads get one decision each: the refused call does not drop the allowed one', async () => {
+  const [refused, allowed, rewritten] = await Promise.all([
+    hookAsync('pre-tool', bash('git stash')),
+    hookAsync('pre-tool', bash('ls')),
+    hookAsync('pre-tool', bash('npm test | tail -5')),
+  ]);
+  assert.equal(refused.status, 2, refused.stderr);
+  assert.match(refused.stderr, /git stash/u);
+  assert.equal(allowed.status, 0, allowed.stderr);
+  assert.equal(allowed.stdout, '');
+  assert.equal(rewritten.status, 0, rewritten.stderr);
+  assert.equal(
+    JSON.parse(rewritten.stdout).hookSpecificOutput.updatedInput.command,
+    'set -o pipefail; npm test | tail -5',
+  );
 });

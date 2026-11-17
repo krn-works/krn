@@ -25,9 +25,14 @@ async function doctor(options: string[]): Promise<void> {
     const host = await import('./doctor-host.ts');
     const facts = host.hostReport(host.readHostFacts(productRoot()));
     const packs = (await import('./doctor-packs.ts')).packsReport();
+    const claims = (await import('./doctor-claims.ts')).claimsReport(
+      productRoot(),
+      options,
+    );
     report = {
-      text: report.text + facts.text + packs.text,
-      exitCode: report.exitCode || facts.exitCode || packs.exitCode,
+      text: report.text + facts.text + packs.text + claims.text,
+      exitCode:
+        report.exitCode || facts.exitCode || packs.exitCode || claims.exitCode,
     };
   }
   process.stdout.write(report.text);

@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "modules": {
+    "src/cli/doctor-claims.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/doctor-claims.test.ts"
+    },
     "src/cli/doctor-hooks.ts": {
       "receivers": ["node"],
       "real": "test/cli/doctor-hooks.test.ts"

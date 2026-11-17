@@ -199,6 +199,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   claude: [],
   bw: [],
   git: [
+    'src/cli/doctor-claims.ts',
     'src/adopt/verify.ts',
     'evals/adoption/census.ts',
     'src/adopt/init.ts',
