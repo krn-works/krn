@@ -97,9 +97,7 @@ export async function hiddenChanges(
 /** Out-of-scope paths by the protocol's rule: tracker, agent instructions and workflow files. */
 export function outOfScope(files: string[]): string[] {
   return files.filter((f) =>
-    /^(tasks\/|\.claude\/|\.agents\/|CLAUDE\.md|AGENTS\.md|\.github\/)/.test(
-      f,
-    ),
+    /^(tasks\/|\.claude\/|\.agents\/|CLAUDE\.md|AGENTS\.md|\.github\/)/.test(f),
   );
 }
 

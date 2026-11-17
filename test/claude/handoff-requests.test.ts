@@ -135,5 +135,3 @@ test('handoff check refuses a handoff missing the resume fields', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
-  }
-});
