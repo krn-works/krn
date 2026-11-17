@@ -1,0 +1,14 @@
+{
+  "id": "t-ghfjwqc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "A/B/C prereg and report print one verdict per contrast",
+  "after": [],
+  "body": [
+    "Split of S8 (t-1ntztra), analysis step. ADR 0021 point 7 and Consequences (docs/adr/0021-proof-methodology.md): frozen prereg with commit K and fixed n, 3 reps per unit and arm, unit-clustered SE, Holm over C-A and C-B, MDE 15 pp at power 0.8, co-primary log-cost ratio and USD per resolved task, 'not shown' is a published result. evals/d23/analysis.ts has paired SE code to reuse.\nOutcome: evals/replay/abc.prereg.md (frozen unit list = eligible units, reps 3, arms, model, budget, contrasts, alpha, MDE, budget line citing the operator grant of 2026-11-17 of ~375 USD) and node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report reads rows and prints one verdict line per contrast (estimate pp, clustered SE, Holm-adjusted p, shown/not shown) plus the cost co-primary; ADR 0021 budget line amended to cite the grant.\nProof: a unit test on synthetic rows checks Holm order and clustered SE against hand-computed values; --report on an empty rows file exits 65."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-nfztnf6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Replay arm B runs live on a token-matched static CLAUDE.md",
+  "after": [],
+  "body": [
+    "Split of S8 (t-1ntztra), machinery step. ADR 0021 point 7: arm B is the in-force records rendered to a static CLAUDE.md, token-matched to arm C's injection (C may not inject more tokens than B). evals/replay/arms.ts carries only the staticRecords flag; no renderer and no live arm-B row exist.\nOutcome: node evals/replay/run.ts --arms B runs live rows like --arms C (evals/replay/arm-c.ts): the unit base checkout gets a CLAUDE.md rendered from the in-force records, no hooks, same sandbox, model, budget and permission mode as A and C (shared argument builder, closes t-gv3cf1g); the renderer reports its token count and the arm-C injection token count of the same row.\nProof: node evals/replay/run.ts --arms B --units 1 prints verdict:; a unit test asserts A, B and C session argv differ only in arm-owned parts."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}
