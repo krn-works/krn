@@ -45,8 +45,6 @@ export const answeredFailure = (stderr: string) =>
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
-/** Run statuses of a Check that exists but has not started. */
-const queuedRun = new Set(['queued', 'pending', 'waiting', 'requested']);
 const mergeTimeoutMs = 600_000;
 const concluded = z.enum([
   'SUCCESS',
@@ -650,7 +648,8 @@ ${syncMain()}`;
     }
     return undefined;
   };
-  // A run GitHub still queues for the head is a Check that has not started yet, not a missing one.
+  // Any run GitHub lists for the head that has not completed (queued, in progress or waiting) is a Check that
+  // exists but has not reached the PR rollup yet, not a missing one.
   const queued = async (at: string) => {
     const text = await gh([
       'run',
@@ -665,7 +664,7 @@ ${syncMain()}`;
     return z
       .array(z.object({ status: z.string() }))
       .parse(JSON.parse(text))
-      .some((run) => queuedRun.has(run.status.toLowerCase()));
+      .some((run) => run.status.toLowerCase() !== 'completed');
   };
   const outcome = await waitForMerge({
     view,

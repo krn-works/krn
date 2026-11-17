@@ -1,7 +1,11 @@
 {
   "id": "t-znk4ezc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship awaits any run listed for the head that is not completed; test on a verbatim gh run list capture with status varied; fast PASS"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Ship keeps waiting while the head Check run is queued",

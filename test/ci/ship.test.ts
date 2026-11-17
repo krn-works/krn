@@ -58,6 +58,7 @@ function receiver(options: {
   rebaseExit?: number;
   /** The `gh run list --commit` statuses of the head, per ask; the last one repeats. */
   runs?: string[][];
+  runList?: string;
 }) {
   let time = 0;
   let behind = options.baseMoves ?? 0;
@@ -69,6 +70,7 @@ function receiver(options: {
   const answer = (a: string[]): string => {
     calls.push(`gh ${a.join(' ')}`);
     if (a[0] === 'run' && a[1] === 'list') {
+      if (options.runList !== undefined) return options.runList;
       const next = runs.length > 1 ? runs.shift() : runs[0];
       return JSON.stringify((next ?? []).map((status) => ({ status })));
     }
@@ -1158,6 +1160,26 @@ test('a run queued past the start bound is awaited, not refused, and a Check tha
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.ok(r.now() > 300_000, `${r.now()} ms waited`);
   assert.ok(r.calls.some((c) => c.startsWith('gh run list')));
+});
+
+test('a run listed for the head with a not-completed status is awaited, not refused with 69', async () => {
+  // `gh run list --commit 3a71b7d... --json status,databaseId,createdAt,startedAt,event,workflowName` for
+  // run 44035472255 (real output); only status is varied, to the not-completed value under test.
+  const none = { ...auto, statusCheckRollup: [] };
+  for (const status of ['queued', 'in_progress']) {
+    const listed = JSON.parse(
+      capture(
+        'fixtures/gh',
+        'run-list-head-completed',
+      ).streams.stdout?.toString('utf8') ?? '',
+    ).map((run: object) => ({ ...run, status }));
+    const r = receiver({
+      pulls: [...Array(40).fill(none), auto, merged],
+      runList: JSON.stringify(listed),
+    });
+    const out = await shipCommand(args, r);
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  }
 });
 
 test('a head that moved while the PR waited exits 77', async () => {
