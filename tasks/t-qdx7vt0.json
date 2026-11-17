@@ -1,0 +1,14 @@
+{
+  "id": "t-qdx7vt0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "replay-live 'gh is not installed' case passes in every run, alone and in the full suite",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-17: in the full `npm test` of lane-start-slim (.krn/tmp/slim-npmtest.log) the replay-live case \"gh is not installed\" failed once with exit 69; it passed alone and in two later full runs (t-y0x67za lane report). An order- or environment-dependent test.\nOutcome: the case's dependence (PATH, a shared temp dir, or a parallel shard) is named and removed; 20 consecutive full-suite shard runs of test/evals/replay-live.test.ts exit 0.\nProof: a loop of 20 runs of the shard that holds the case prints 20 exit 0 lines.\nFiles: test/evals/replay-live.test.ts"
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

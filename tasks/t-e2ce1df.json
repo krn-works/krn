@@ -1,0 +1,14 @@
+{
+  "id": "t-e2ce1df",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship proves a defect's regression test is red on the base source before it pushes",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-17: lanes t-fx214x6 (#1361) and t-y0q3dyv (#1360) shipped defect fixes without running the new regression test against the pre-fix code, although the brief and KRN-14 require it; the lead proved both afterwards by hand (test files from the merge, source files from its first parent: 1 fail each before, 0 after). A hand check in a fresh worktree without node_modules gives a false red (ERR_MODULE_NOT_FOUND), so the gate must reuse the worktree's dependencies and refuse a file-level load error as proof.\nOutcome: for a task of kind defect, krn pr ship runs the changed or added test files with the base versions of the changed non-test files and refuses the push (exit 81) unless at least one test case fails there by assertion (a load or import error is not a pass of the gate); the PR body records the failing case names.\nProof: test/ci/ship.test.ts cases: a defect branch whose new test also passes on the base source is refused with exit 81; one whose test fails on the base by assertion ships; a base run that fails only by ERR_MODULE_NOT_FOUND is refused.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "gate",
+  "area": "ci"
+}
