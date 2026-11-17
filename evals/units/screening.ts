@@ -466,6 +466,7 @@ async function verify(
     .map((x) => x.r);
   let next = 0;
   const slow = new Set<string>();
+  const graded: { id: string; v: Verification }[] = [];
   // Caches are shared by in-flight units: when over a limit, hold new units until the running ones end, then prune.
   let active = 0;
   let pruning = false;
@@ -548,6 +549,7 @@ async function verify(
       if (v.installBase === 124 || v.installFix === 124 || v.testBase === 124)
         slow.add(row.repo);
       row.verification = v;
+      graded.push({ id: row.id, v });
       writeFileSync(manifestPath, `${JSON.stringify(rows, null, 2)}\n`);
       console.log(
         `${row.id} ${row.repo} ${verified(v) ? 'ok' : 'drop'} ${JSON.stringify(v)}`,
@@ -555,10 +557,32 @@ async function verify(
     }
   };
   await Promise.all(Array.from({ length: concurrency }, work));
+  const outcome = dropsToRemove(graded);
+  if (outcome === 'infrastructure') {
+    console.error(
+      `infrastructure: all ${graded.length} graded units failed install; no unit directory removed`,
+    );
+    process.exit(EXIT_INFRASTRUCTURE);
+  }
   // A dropped unit leaves the unit set: the screening counts every directory it finds.
-  for (const r of rows)
-    if (r.verification && !verified(r.verification))
-      rmSync(join(unitsDir, r.id), { recursive: true, force: true });
+  for (const id of outcome)
+    rmSync(join(unitsDir, id), { recursive: true, force: true });
+}
+
+/** Exit status of a verify run whose every grade failed install: the grading host broke, not the units. */
+export const EXIT_INFRASTRUCTURE = 75;
+
+/**
+ * Unit directories a verify run removes: only units this run graded and dropped. A row recorded as a drop by an
+ * earlier run, or skipped here (`--id`, slow repository), keeps its directory. When every graded unit failed install,
+ * the failure is the host's (sandbox, scratch path, network), so nothing is removed.
+ */
+export function dropsToRemove(
+  graded: readonly { id: string; v: Verification }[],
+): string[] | 'infrastructure' {
+  if (graded.length > 0 && graded.every((g) => g.v.installBase !== 0))
+    return 'infrastructure';
+  return graded.filter((g) => !verified(g.v)).map((g) => g.id);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

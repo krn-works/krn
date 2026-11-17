@@ -19,6 +19,8 @@ import {
   cacheOverLimit,
   commandsFor,
   dirBytes,
+  dropsToRemove,
+  EXIT_INFRASTRUCTURE,
   forceRemove,
   gradeWorktree,
   INSTALL_SECONDS,
@@ -584,5 +586,117 @@ test('without a working bwrap a grade is refused before any unit command runs', 
   } finally {
     process.env.PATH = path;
     rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('verify removes only the directories of units it graded and dropped, and none when every grade failed install (t-jjp67ch)', () => {
+  const failInstall = { ...good, installBase: 1, installFix: -1, testFix: -1 };
+  const drop = { ...good, testFix: 1 };
+  assert.equal(
+    dropsToRemove([
+      { id: 'a', v: failInstall },
+      { id: 'b', v: { ...failInstall, installBase: 124 } },
+    ]),
+    'infrastructure',
+  );
+  assert.deepEqual(
+    dropsToRemove([
+      { id: 'a', v: failInstall },
+      { id: 'b', v: drop },
+      { id: 'c', v: good },
+    ]),
+    ['a', 'b'],
+  );
+  assert.deepEqual(dropsToRemove([]), []);
+});
+
+test('verify --id keeps an earlier drop and every unit when its grade fails install, through the real CLI (t-jjp67ch)', (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const root = mkdtempSync(join(tmpdir(), 'verify-keep-'));
+  try {
+    const clone = join(root, 'sources', 'o__r');
+    mkdirSync(clone, { recursive: true });
+    const g = (...a: string[]) =>
+      spawnSync('git', ['-C', clone, ...a], { encoding: 'utf8' }).stdout.trim();
+    const commit = (m: string) =>
+      g(
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@t',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        m,
+      );
+    g('init', '-q');
+    commit('base');
+    const base = g('rev-parse', 'HEAD');
+    commit('fix');
+    const fix = g('rev-parse', 'HEAD');
+    const units = join(root, 'units');
+    const unit = (id: string, install: string) => {
+      mkdirSync(join(units, id), { recursive: true });
+      writeFileSync(join(units, id, 'hidden.txt'), 'x');
+      writeFileSync(
+        join(units, id, 'unit.json'),
+        JSON.stringify({
+          base,
+          reference: fix,
+          install,
+          test: 'false',
+          hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+        }),
+      );
+    };
+    // An earlier run recorded this unit as a drop; a run graded on another id must not remove it.
+    const earlier = { ...row(1, { ...good, testFix: 1 }), base, fix };
+    const target = { ...row(2, undefined), base, fix };
+    unit(earlier.id, 'true');
+    unit(target.id, 'exit 3');
+    const manifest = join(root, 'm.json');
+    writeFileSync(manifest, JSON.stringify([earlier, target]));
+    const verify = () =>
+      spawnSync(
+        process.execPath,
+        [
+          join(unitsDir, 'screening.ts'),
+          'verify',
+          '--id',
+          target.id,
+          '--manifest',
+          manifest,
+          '--units',
+          units,
+          '--sources',
+          join(root, 'sources'),
+          '--scratch',
+          join(root, 'scratch'),
+          '--log-dir',
+          join(root, 'logs'),
+        ],
+        { encoding: 'utf8' },
+      );
+    const broken = verify();
+    assert.equal(broken.status, EXIT_INFRASTRUCTURE, broken.stderr);
+    assert.match(broken.stderr, /infrastructure/);
+    assert.ok(
+      existsSync(join(units, target.id)),
+      'install failure removed the graded unit',
+    );
+    assert.ok(existsSync(join(units, earlier.id)), 'removed an earlier drop');
+    // A real drop (install passes, the fix stays red) removes the graded unit only.
+    unit(target.id, 'true');
+    const dropped = verify();
+    assert.match(
+      dropped.stdout,
+      new RegExp(`^${target.id} o/r drop `, 'm'),
+      dropped.stderr,
+    );
+    assert.equal(existsSync(join(units, target.id)), false);
+    assert.ok(existsSync(join(units, earlier.id)), 'removed an earlier drop');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

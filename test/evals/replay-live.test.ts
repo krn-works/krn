@@ -493,6 +493,21 @@ test('an arm session env reaches no desktop: stub openers first on PATH, no disp
   }
 });
 
+test('an arm session PATH drops the GitHub App gh wrapper and keeps every other entry (t-7n4hhgr)', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'arm-path-'));
+  try {
+    const env = armEnv(ARMS.A, scratch, {
+      PATH: '/r/scripts/app-bin:/usr/bin:/w/scripts/app-bin/:/opt/app-bin',
+    });
+    assert.equal(
+      env.PATH,
+      `${join(scratch, 'no-browser', 'bin')}:/usr/bin:/opt/app-bin`,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('an arm session env carries no GitHub identity: gh pr view -R fails with an auth error (t-k7gv1wt)', () => {
   // gh is on every host and runner that screens; a missing gh fails here instead of proving nothing.
   assert.equal(spawnSync('gh', ['--version']).status, 0, 'gh is not installed');
