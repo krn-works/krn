@@ -608,6 +608,12 @@ export async function startLane(
   // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
   pruneMergedLanes(main, base);
   checkLaneBudget(main, base);
+  const free = freeGb(main);
+  // Disk fills silently until the budget refuses: each start says what is left and how to reclaim it.
+  if (free !== undefined)
+    process.stderr.write(
+      `lane budget: ${free.toFixed(1)} GB free under ${main}; \`krn prune --dry-run\` lists what agent work can free\n`,
+    );
   checkOpenRedLimit(main, deps.openPrs);
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
   // An adoption committed only locally is invisible to a worktree cut from origin/<base>.

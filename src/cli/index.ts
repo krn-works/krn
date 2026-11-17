@@ -76,6 +76,7 @@ const commands: Record<CommandName, Handler> = {
   state: async (options) => (await import('./state.ts')).stateCommand(options),
   findings: async (options) =>
     (await import('./findings.ts')).findingsCommand(options),
+  prune: async (options) => (await import('./prune.ts')).pruneCommand(options),
   plan: async (options) => (await import('./plan.ts')).planCommand(options),
   repo: async (options) => (await import('./repo.ts')).repoCommand(options),
   hook: async (options) => (await import('./hook.ts')).hookCommand(options),

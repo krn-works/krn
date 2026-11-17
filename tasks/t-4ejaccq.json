@@ -1,7 +1,11 @@
 {
   "id": "t-4ejaccq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn prune [--days N] [--dry-run]: merged clean worktrees (merge-tree vs origin/<base>, covers squash), idle run scratch, old runs outside layout KEEP; lane start reports free disk. Run-end scratch removal and nested delivery-loop retention parked as t-g46qh18 (no run end exists in code)."
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "krn prune removes merged worktrees, finished run scratch and old runs in any adopted repo",
