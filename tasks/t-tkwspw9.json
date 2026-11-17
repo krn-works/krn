@@ -1,0 +1,14 @@
+{
+  "id": "t-tkwspw9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 0,
+  "title": "Ship pushes again once the operator unlocks Bitwarden and bw serve runs",
+  "after": [],
+  "body": [
+    "Since 2026-11-17 04:28 the transient unit bw-serve.service (systemd-run, 10 h RuntimeMaxSec) is stopped and `bw status` is locked, so `krn pr ship` and `krn task publish` fail: `push failed: github-app-token: bw serve unavailable at http://localhost:8087`. Unlocking needs the operator's master password (credential grant, not agent-recoverable). Waiting locally: worktree .krn/worktrees/s7-closeout (commit closing t-1p7dmw9) and pending task records on refs/krn/pending-tasks.\nFiles: src/ci/ship.ts\nOutcome: `curl -s localhost:8087/status` reports unlocked and `krn pr ship --worktree .krn/worktrees/s7-closeout ...` prints `verdict: merged`.\nProof: krn pr ship on the s7-closeout worktree exits 0 with a verdict: merged line."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

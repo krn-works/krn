@@ -1,0 +1,14 @@
+{
+  "id": "t-pv0j21y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "A screened session killed at its time limit keeps its spent cost",
+  "after": [],
+  "body": [
+    "S7 screen rows t-1182p41 and t-1mx3apz have cost 0 and no session result line: runClaude SIGKILLs the session group at the time limit, so no total_cost_usd is printed and the row records cost 0 though the session spent tokens. Cost per resolved task is co-primary in S8 (ADR 0021).\nFiles: evals/replay/live.ts, test/evals/screening-units.test.ts\nOutcome: a timed-out session row carries a cost read from the session transcript usage, or is marked unknown and never 0; a test with a fake claude that sleeps past the limit passes (exit 0).\nProof: node --test on the replay live test exits 0 with the timed-out-session cost test."
+  ],
+  "kind": "defect",
+  "area": "eval"
+}
