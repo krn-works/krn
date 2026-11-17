@@ -1,0 +1,14 @@
+{
+  "id": "t-s7fc4r2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "krn adopt takes 96 s on a large checkout after writing the conventions file",
+  "after": [],
+  "body": [
+    "On 2026-11-17 'krn adopt <checkout>' on the t-1182p41 unit checkout (microsoft/vscode-cosmosdb at unit.base) took 96 s (and exceeded 120 s under parallel load), stalling after 'wrote .krn/conventions.json'. Every live arm-C replay row (evals/replay/arm-c.ts) pays it before the session.\nOutcome: adopt of a large checkout finishes in under 15 s, or the slow step is named and skipped for eval checkouts.\nProof: time node src/cli/krn.mjs adopt on a t-1182p41 base checkout: < 15 s."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}
