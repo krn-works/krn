@@ -1,4 +1,3 @@
-import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -50,6 +49,7 @@ import {
   settledRun,
 } from '../../src/cli/lane-run/test-output.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
+import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
 import { rerunCommand } from '../../src/repo/contract.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.

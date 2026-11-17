@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -9,10 +8,10 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { briefClauses } from '../../brain/proof-line.ts';
+import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { laneAdvisor } from '../../outcome/lane-advisor.ts';
 import { effortHistory, laneEffort } from '../../outcome/lane-effort.ts';
 import { contractBase } from '../../repo/contract.ts';
-import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import {
   claimTask,
   inspectClaim,
@@ -183,12 +182,13 @@ export function reusableLane(
   path: string,
   slug: string,
 ): { path: string; slug: string } {
-  const branch = spawnSync(
-    'git',
-    ['-C', path, 'rev-parse', '--abbrev-ref', 'HEAD'],
-    { encoding: 'utf8' },
-  );
-  if (branch.status !== 0 || branch.stdout.trim() !== slug)
+  let branch: string | undefined;
+  try {
+    branch = git(path, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  } catch {
+    branch = undefined;
+  }
+  if (branch !== slug)
     throw new CliUsageError(
       `${path} exists but is not lane ${slug}'s worktree`,
     );
@@ -210,11 +210,12 @@ export function carryEditedRecord(
   const current = readFileSync(target, 'utf8');
   if (edited === current) return;
   const shown = (ref: string) => {
-    const result = spawnSync('git', ['show', `${ref}:${rel}`], {
-      cwd: path,
-      encoding: 'utf8',
-    });
-    return result.status === 0 ? result.stdout : undefined;
+    // git trims stdout; a task record ends in one newline.
+    try {
+      return `${git(path, ['show', `${ref}:${rel}`])}\n`;
+    } catch {
+      return undefined;
+    }
   };
   const original = shown(`origin/${base}`) ?? shown('HEAD');
   // The invoking checkout never moved from the base record: the worktree's own changes stand.
@@ -254,12 +255,13 @@ export function commitsSinceRed(
   red: RedCheck,
   task: string,
 ): string[] {
-  const log = spawnSync('git', ['log', '--format=%s', `${red.sha}..HEAD`], {
-    cwd: path,
-    encoding: 'utf8',
-  });
-  if (log.status !== 0) return ['history rewritten since the red Check'];
-  return log.stdout
+  let log: string;
+  try {
+    log = git(path, ['log', '--format=%s', `${red.sha}..HEAD`]);
+  } catch {
+    return ['history rewritten since the red Check'];
+  }
+  return log
     .split('\n')
     .filter((line) => line !== '' && line !== carrySubject(task));
 }
