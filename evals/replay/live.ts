@@ -1,33 +1,31 @@
 // Live arm-A screening: one headless claude session per unit in a fresh checkout of unit.base, the task text as the only
 // prompt, every session inside a host-wide session slot, then the unit's hidden test grades the result into a row.
 // KRN_EVAL_CLAUDE names the claude binary (default `claude`); KRN_EVAL_MAX_SESSIONS caps live sessions host-wide.
-import { spawn } from 'node:child_process';
 import {
   appendFileSync,
   existsSync,
   mkdirSync,
   realpathSync,
   symlinkSync,
-  writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import { dirname, isAbsolute, join } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
-import { SESSION_HOSTS, startEgress } from '../units/egress.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
-import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
+import { requireSandbox } from '../units/sandbox.ts';
 import {
   forceRemove,
   gradeWorktree,
   withoutAppGh,
 } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
+import { sandboxedSession } from './arm-session.ts';
 import { ARMS, type Arm } from './arms.ts';
 import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
 import { formatRow, type Row } from './rows.ts';
 import { eligible, readRows, type ScreenUnit } from './screen.ts';
-import { sessionCommand, settingsPath } from './session-args.ts';
+import { type DrivenSession, sessionRan } from './session.ts';
 
 export interface LiveOptions {
   /** Directory of clones named <owner>__<name>. */
@@ -43,6 +41,12 @@ export interface LiveOptions {
   reps?: number;
   /** Directory that receives each graded session's patch and grade (recording.ts); none when unset. */
   recordings?: string | undefined;
+  /** Runs the session; the default is the sandboxed driver. Tests pass a recorded one. */
+  session?: (
+    wt: string,
+    env: NodeJS.ProcessEnv,
+    log: string,
+  ) => Promise<DrivenSession>;
 }
 
 export interface LiveUnit {
@@ -128,29 +132,6 @@ export function isolatedEnv(
   return withoutBrowser(env, join(scratch, 'no-browser'));
 }
 
-interface Session {
-  /** Null when the session printed no numeric cost: unknown, never zero. */
-  cost: number | null;
-  /** False when the session never ran to a result (spawn error, usage limit, crash): its row stays ungraded. */
-  ran: boolean;
-}
-
-/**
- * Reads `claude -p --output-format json` output. A session ran when it printed a result that is not an error, or when
- * the time limit killed it (the arm had its full budget). Anything else, such as a usage-limit result, is not evidence
- * about the arm.
- */
-export function sessionOf(out: string, timedOut: boolean): Session {
-  let r: { total_cost_usd?: unknown; is_error?: unknown } | undefined;
-  try {
-    r = JSON.parse(out) as typeof r;
-  } catch {
-    // Not JSON: no result line.
-  }
-  const cost = typeof r?.total_cost_usd === 'number' ? r.total_cost_usd : null;
-  return { cost, ran: timedOut || (r !== undefined && r.is_error !== true) };
-}
-
 /**
  * The host paths a sandboxed session writes: its checkout, its scratch (config, TMPDIR, stub openers) and the host
  * login file the private config links to, so a token refresh still reaches the host login.
@@ -163,77 +144,6 @@ export function sessionWritable(cwd: string, env: NodeJS.ProcessEnv): string[] {
     if (existsSync(link)) w.push(realpathSync(link));
   }
   return w;
-}
-
-/**
- * Runs the arm's claude inside bubblewrap (sandbox.ts) with internet only through the egress proxy (egress.ts): no
- * host loopback service, no private network, no HOME credential but the login, no write outside the session's own
- * paths. The proxy passes CONNECT tunnels through untouched, so the session's API traffic is never terminated.
- */
-async function runClaude(
-  cwd: string,
-  prompt: string,
-  env: NodeJS.ProcessEnv,
-  ms: number,
-  log: string,
-): Promise<Session> {
-  const bin = env.KRN_EVAL_CLAUDE ?? 'claude';
-  const egress = await startEgress(tmpdir(), SESSION_HOSTS);
-  try {
-    return await sandboxedClaude(cwd, prompt, env, ms, log, bin, egress.socket);
-  } finally {
-    await egress.close();
-  }
-}
-
-function sandboxedClaude(
-  cwd: string,
-  prompt: string,
-  env: NodeJS.ProcessEnv,
-  ms: number,
-  log: string,
-  bin: string,
-  socket: string,
-): Promise<Session> {
-  const settings = settingsPath(ARMS.A.id, env, cwd);
-  mkdirSync(dirname(settings), { recursive: true });
-  writeFileSync(settings, '{}\n');
-  const cmd = sessionCommand({ bin, prompt, settings });
-  return new Promise((resolve) => {
-    const p = spawn(
-      'bwrap',
-      sandboxArgv(cmd, {
-        cwd,
-        writable: sessionWritable(cwd, env),
-        ...(isAbsolute(bin) ? { readable: [dirname(bin)] } : {}),
-        egress: socket,
-        env,
-      }),
-      { stdio: ['pipe', 'pipe', 'pipe'], detached: true },
-    );
-    let out = '';
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try {
-        if (p.pid) process.kill(-p.pid, 'SIGKILL');
-      } catch {
-        // Already gone.
-      }
-    }, ms);
-    p.stdout.on('data', (d) => {
-      out += d;
-    });
-    p.stderr.on('data', (d) => appendFileSync(log, d));
-    p.on('error', (e) => appendFileSync(log, `spawn error: ${e}\n`));
-    p.stdin.on('error', () => {});
-    p.stdin.end();
-    p.on('close', () => {
-      clearTimeout(timer);
-      appendFileSync(log, out);
-      resolve(sessionOf(out, timedOut));
-    });
-  });
 }
 
 const local = (repo: string, ...args: string[]) => outsideGit(repo, args);
@@ -252,22 +162,27 @@ export async function screenUnit(
   // upstream fix through a worktree's shared refs).
   const wt = baseCheckout(o.sources, unit, o.scratch);
   try {
-    const session = await withSessionSlot(
-      () => runClaude(wt, promptOf(unit), env, o.sessionMs ?? 30 * 60_000, log),
-      slotEnv,
-    );
+    const run =
+      o.session ??
+      ((w: string, e: NodeJS.ProcessEnv) =>
+        sandboxedSession(arm, w, promptOf(unit), e, {
+          sessionMs: o.sessionMs ?? 30 * 60_000,
+        }));
+    const session = await withSessionSlot(() => run(wt, env, log), slotEnv);
+    appendFileSync(log, `${session.stdout}\n${session.stderr}\n`);
+    const ran = sessionRan(session);
     // The grade sees the session's source change on a fresh install: ignored leftovers of the session's own installs
     // or builds (node_modules, .venv, dist) are not part of a change and can break the grading install.
-    if (session.ran) local(wt, 'clean', '-fdXq');
+    if (ran) local(wt, 'clean', '-fdXq');
     // The change is recorded before the grade writes the hidden test into the checkout; a failed recording keeps the row.
     let patch: string | undefined;
-    if (session.ran && o.recordings !== undefined)
+    if (ran && o.recordings !== undefined)
       try {
         patch = recordPatch(wt, o.recordings, unit.id, rep, unit.base);
       } catch (e) {
         appendFileSync(log, `record: ${String(e)}\n`);
       }
-    const g = session.ran
+    const g = ran
       ? await gradeWorktree(wt, unit, dir, log, o.scratch)
       : undefined;
     if (g && patch !== undefined && o.recordings !== undefined)
@@ -285,8 +200,9 @@ export async function screenUnit(
       arm: arm.id,
       rep,
       pass: g ? g.install === 0 && g.test === 0 : null,
-      cost: session.cost,
+      cost: session.result.cost ?? null,
       harness: o.harness,
+      model: session.result.model ?? null,
     };
   } finally {
     // A session may leave read-only trees (envtest binaries, a Go module cache); a failed removal never loses the row.

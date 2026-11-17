@@ -14,6 +14,8 @@ export interface Row {
   harness: string;
   /** The model the session realized (its usage keys, sorted and joined); null when unreported, absent on older rows. */
   model?: string | null;
+  /** Tokens the arm's instruction text carried into the session (arms B and C attest the same figure); absent for A. */
+  injection?: number;
 }
 
 /** Every file the harness runs: the replay directory and the d23 and units code its sessions and grades import. */

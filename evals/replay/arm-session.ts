@@ -1,7 +1,7 @@
 // A live replay row for an arm that runs through the session driver (arms B and C): the unit's base checkout is
 // prepared by the arm, one headless session runs in the same bubblewrap sandbox and egress proxy as arm A, and the
 // unit's hidden test grades the result into a row.
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
@@ -18,7 +18,7 @@ import {
 } from './live.ts';
 import { baseCheckout } from './recording.ts';
 import type { Row } from './rows.ts';
-import { type DrivenSession, driveSession } from './session.ts';
+import { type DrivenSession, driveSession, sessionRan } from './session.ts';
 import { sessionCommand, settingsPath } from './session-args.ts';
 
 export interface ArmOptions {
@@ -52,15 +52,16 @@ export function commitPreparation(wt: string, message: string): void {
 }
 
 /** The sandboxed session of an arm: the shared session command, the unit's task as the brief. */
-async function sandboxedSession(
+export async function sandboxedSession(
   arm: Arm,
   wt: string,
   prompt: string,
   env: NodeJS.ProcessEnv,
-  o: ArmOptions,
+  o: Pick<ArmOptions, 'sessionMs' | 'model' | 'budgetUsd'>,
 ): Promise<DrivenSession> {
   const bin = env.KRN_EVAL_CLAUDE ?? 'claude';
   const settings = settingsPath(arm.id, env, wt);
+  mkdirSync(dirname(settings), { recursive: true });
   writeFileSync(settings, '{}\n');
   const cmd = sessionCommand({
     bin,
@@ -114,10 +115,7 @@ export async function armRow<Note>(
         sandboxedSession(arm, w, promptOf(unit), e, o));
     const session = await withSessionSlot(() => run(wt, env, log), slotEnv);
     appendFileSync(log, `${session.stdout}\n${session.stderr}\n`);
-    // A session ran when it succeeded or used its whole time or budget; a usage-limit or crash result is no evidence.
-    const ran =
-      !session.notStarted &&
-      (session.timedOut || session.result.ok || session.result.capped === true);
+    const ran = sessionRan(session);
     if (ran) outsideGit(wt, ['clean', '-fdXq']);
     const g = ran
       ? await gradeWorktree(wt, unit, dir, log, o.scratch)
