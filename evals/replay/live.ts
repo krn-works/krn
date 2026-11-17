@@ -84,6 +84,18 @@ export function armEnv(
     throw new Error(
       `arm ${arm.id} is not a plain clone: live screening runs arm A only`,
     );
+  return isolatedEnv(scratch, base);
+}
+
+/**
+ * The isolated session environment every live arm shares: no KRN or GitHub variables, a private Claude config holding
+ * only the host login, scratch temporaries and no browser. An arm that adds KRN does so through the checkout's own
+ * project settings, which `--setting-sources project` still loads.
+ */
+export function isolatedEnv(
+  scratch: string,
+  base: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [k, v] of Object.entries(base))
     if (
@@ -141,7 +153,7 @@ export function sessionOf(out: string, timedOut: boolean): Session {
  * The host paths a sandboxed session writes: its checkout, its scratch (config, TMPDIR, stub openers) and the host
  * login file the private config links to, so a token refresh still reaches the host login.
  */
-function sessionWritable(cwd: string, env: NodeJS.ProcessEnv): string[] {
+export function sessionWritable(cwd: string, env: NodeJS.ProcessEnv): string[] {
   const w = [cwd];
   if (env.CLAUDE_CONFIG_DIR) {
     w.push(dirname(env.CLAUDE_CONFIG_DIR));

@@ -84,6 +84,8 @@ export interface HeadlessRun {
   advisor?: string;
   /** The reasoning effort of this turn (`--effort`); absent keeps the model default. */
   effort?: string;
+  /** The permission mode (`--permission-mode`); a lane keeps `acceptEdits`, a sandboxed replay row bypasses. */
+  permissionMode?: 'acceptEdits' | 'bypassPermissions';
 }
 
 export function headlessArgs(run: HeadlessRun): string[] {
@@ -95,7 +97,7 @@ export function headlessArgs(run: HeadlessRun): string[] {
     '--settings',
     run.settings,
     '--permission-mode',
-    'acceptEdits',
+    run.permissionMode ?? 'acceptEdits',
     '--model',
     run.model,
     '--fallback-model',

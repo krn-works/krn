@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import { driveSession } from '../../../evals/replay/session.ts';
 import { headlessArgs, laneBinary } from '../../harness/claude.ts';
 import { contractLaneBudget } from '../../repo/contract.ts';
 import { mainCheckoutPlaceholders } from '../../state/sandbox-placeholders.ts';
@@ -11,21 +11,7 @@ import {
 } from './environment.ts';
 import { prepareWorktree, settingsFailure } from './preflight.ts';
 import type { PreparedLane } from './prepare.ts';
-import {
-  exitCredentialUnavailable,
-  parseSessionResult,
-  type SessionResult,
-} from './result.ts';
-
-/** Kill every process the session left in its own process group (a Bash child can outlive claude). */
-export function killGroup(pid: number | undefined): void {
-  if (pid === undefined || pid <= 0) return;
-  try {
-    process.kill(-pid, 'SIGKILL');
-  } catch {
-    /* The group is already gone. */
-  }
-}
+import { exitCredentialUnavailable, type SessionResult } from './result.ts';
 
 /** What the session stage produced: the result, and why it did not start when the worktree or settings refused it. */
 export interface SessionOutcome {
@@ -36,24 +22,14 @@ export interface SessionOutcome {
   flaky: string[];
 }
 
-/** Stage three: spawn the headless session in the lane worktree and read its result. */
-export function runSession(lane: PreparedLane): SessionOutcome {
+/** Stage three: run the headless session in the lane worktree through the replay session driver. */
+export async function runSession(lane: PreparedLane): Promise<SessionOutcome> {
   const { worktree, model, environment, main, brief, origin, effort } = lane;
   const claude = laneBinary();
-  // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
-  const sessionOptions = {
-    cwd: worktree,
-    encoding: 'utf8' as const,
-    maxBuffer: 64 * 1024 * 1024,
-    env: environment,
-    timeout: sessionTimeoutMs(process.env),
-    killSignal: 'SIGKILL' as const,
-    // Its own process group, so the timeout kills the session's children with it.
-    detached: true,
-  };
-  const session = spawnSync(
-    claude,
-    headlessArgs({
+  const timeoutMs = sessionTimeoutMs(process.env);
+  const session = await driveSession({
+    command: claude,
+    argv: headlessArgs({
       brief,
       settings: laneSandboxSettings(worktree),
       model,
@@ -64,39 +40,25 @@ export function runSession(lane: PreparedLane): SessionOutcome {
         ? { advisor: laneAdvisorModel }
         : {}),
     }),
-    sessionOptions,
-  );
-  killGroup(session.pid);
-  const timedOut =
-    (session.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
-  const result = timedOut
-    ? {
-        ok: false,
-        detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s (capped below the App token lifetime)`,
-        cost: undefined,
-      }
-    : session.error !== undefined
-      ? {
-          ok: false,
-          detail:
-            (session.error as NodeJS.ErrnoException).code === 'ENOENT'
-              ? `session did not run: ${claude} not found (put claude on PATH or set KRN_LANE_CLAUDE)`
-              : `session did not run: ${session.error.message}`,
-          cost: undefined,
-        }
-      : parseSessionResult(session.stdout ?? '', session.stderr ?? '');
+    cwd: worktree,
+    env: environment,
+    timeoutMs,
+    claude,
+  });
   // The session's sandbox can leave empty placeholders in the main checkout and its git dir.
   for (const path of mainCheckoutPlaceholders(main)) rmSync(path);
   return {
-    result,
+    result: session.result,
     refusal: undefined,
-    notStarted: session.error !== undefined && !timedOut,
+    notStarted: session.notStarted,
     flaky: [],
   };
 }
 
 /** Stage three as the caller sees it: a delivered commit or a refused worktree skips the spawn. */
-export function sessionStage(lane: PreparedLane): SessionOutcome {
+export async function sessionStage(
+  lane: PreparedLane,
+): Promise<SessionOutcome> {
   const { worktree, base, main, delivered } = lane;
   if (delivered)
     return {
@@ -125,5 +87,5 @@ export function sessionStage(lane: PreparedLane): SessionOutcome {
       notStarted: false,
       flaky,
     };
-  return { ...runSession(lane), flaky };
+  return { ...(await runSession(lane)), flaky };
 }

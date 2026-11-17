@@ -4,13 +4,15 @@
 // --rows is not given);
 // --screen --replay <dir> grades every recorded patch on a fresh unit.base checkout with no model session and exits
 // 0 when each replayed grade equals the recorded one, 1 when one differs, 65 when none replays.
-// One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session.
+// One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session; without
+// --dry, --arms C runs each row live on a KRN-adopted checkout through the session driver (arm-c.ts).
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadUnits } from '../units/unit.ts';
+import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
-import { screenLive } from './live.ts';
+import { type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import { readRows, report, type ScreenUnit, screen } from './screen.ts';
@@ -99,7 +101,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const arms = parseArms(flag('arms') ?? 'A,B,C');
   const count = Number(flag('units') ?? 1);
   const reps = Number(flag('reps') ?? 1);
-  const ids = loadUnits(join(here, '..', 'units'))
+  const unitsDir = flag('units-dir') ?? join(here, '..', 'units');
+  const ids = loadUnits(unitsDir)
     .map((u) => u.unit.id)
     .sort()
     .slice(0, count);
@@ -108,10 +111,37 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(64);
   }
   if (!dry) {
-    console.error(
-      'live sessions need the session driver (lane run); use --dry',
+    // Live rows run arm C through the session driver; arms A and B live only under --screen.
+    if (arms.some((a) => a.id !== 'C')) {
+      console.error('live rows run arm C only; use --dry for arms A and B');
+      process.exit(69);
+    }
+    const byId = new Map(loadUnits(unitsDir).map((u) => [u.unit.id, u]));
+    const scratch = flag('scratch') ?? join(tmpdir(), 'krn-replay-live');
+    const harness = harnessSha(here);
+    const model = flag('model');
+    const modelOption = model === undefined ? {} : { model };
+    const rows: Row[] = [];
+    for (const id of ids)
+      for (let rep = 1; rep <= reps; rep++) {
+        const row = await armCRow(
+          byId.get(id) as LiveUnit,
+          {
+            sources: flag('sources') ?? '.krn/sources/screening',
+            scratch,
+            harness,
+            ...modelOption,
+          },
+          rep,
+        );
+        console.log(formatRow(row));
+        rows.push(row);
+      }
+    const graded = rows.filter((r) => r.pass !== null);
+    console.log(
+      `verdict: ${rows.length} rows, ${graded.length} graded, ${graded.filter((r) => r.pass).length} pass`,
     );
-    process.exit(69);
+    process.exit(graded.length === rows.length ? 0 : 1);
   }
   const rows = plan({ arms, units: ids, reps, harness: harnessSha(here) });
   for (const r of rows) console.log(formatRow(r));
