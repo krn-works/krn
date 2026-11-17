@@ -2,9 +2,15 @@ import { newestCheck } from '../ci/ship.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ghPrListOpenSync } from '../repo/gh.ts';
 
-type Run = { name?: string; startedAt?: string; conclusion?: string | null };
+type Run = {
+  name?: string;
+  startedAt?: string;
+  status?: string;
+  conclusion?: string | null;
+};
 export type OpenPr = {
   number: number;
+  updatedAt?: string;
   statusCheckRollup?: Run[] | null;
 };
 
@@ -17,13 +23,31 @@ const redConclusions = new Set([
   'STALE',
 ]);
 
-/** An open PR is red or missing when it has no aggregate Check run, or the newest one concluded red. */
-export function redOrMissing(pr: OpenPr): boolean {
-  const check = newestCheck(
-    (pr.statusCheckRollup ?? []) as Parameters<typeof newestCheck>[0],
-  );
-  if (check === undefined) return true;
-  return redConclusions.has(check.conclusion ?? '');
+/** A PR with no Check run counts as missing only once its last update is older than this. */
+const noRunGraceMs = 10 * 60_000;
+
+const runningStatuses = new Set([
+  'QUEUED',
+  'IN_PROGRESS',
+  'PENDING',
+  'WAITING',
+]);
+
+/**
+ * An open PR is red or missing when its newest aggregate Check concluded red, or when it has no
+ * run at all and is older than the grace period. A Check that is queued or in progress, or any
+ * job of the head still running before the aggregate appears, is pending and never counts.
+ */
+export function redOrMissing(pr: OpenPr, now: number = Date.now()): boolean {
+  const rollup = (pr.statusCheckRollup ?? []) as Run[];
+  const check = newestCheck(rollup as Parameters<typeof newestCheck>[0]);
+  if (check !== undefined) {
+    if (runningStatuses.has(check.status ?? '')) return false;
+    return redConclusions.has(check.conclusion ?? '');
+  }
+  if (rollup.some((run) => runningStatuses.has(run.status ?? ''))) return false;
+  const updated = Date.parse(pr.updatedAt ?? '');
+  return Number.isNaN(updated) || now - updated > noRunGraceMs;
 }
 
 /** Reads the open PRs of the repository; undefined when gh is unavailable, unauthenticated or slow. */
@@ -55,7 +79,7 @@ export function checkOpenRedLimit(
       : 3;
   const prs = read(main);
   if (prs === undefined) return;
-  const red = prs.filter(redOrMissing).map((pr) => `#${pr.number}`);
+  const red = prs.filter((pr) => redOrMissing(pr)).map((pr) => `#${pr.number}`);
   if (red.length >= max)
     throw new CliUsageError(
       `open-red limit: ${red.length} open PRs have a red or missing Check (maximum ${max}, KRN_OPEN_RED_MAX): ${red.join(', ')}; fix or close one before starting a lane`,

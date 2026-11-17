@@ -1,7 +1,11 @@
 // The open-red limit refuses a new lane while too many open PRs have a red or missing Check.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkOpenRedLimit, type OpenPr } from '../../src/cli/lane-open-red.ts';
+import {
+  checkOpenRedLimit,
+  type OpenPr,
+  redOrMissing,
+} from '../../src/cli/lane-open-red.ts';
 
 const red: OpenPr = {
   number: 1,
@@ -72,4 +76,65 @@ test('KRN_OPEN_RED_MAX moves the limit', () => {
 
 test('an unreadable PR list passes', () => {
   withMax(undefined, () => checkOpenRedLimit('.', () => undefined));
+});
+
+const now = Date.now();
+const stale = new Date(now - 3_600_000).toISOString();
+const fresh = new Date(now - 60_000).toISOString();
+
+test('only a failed Check and a stale PR with no run count; a pending Check and a fresh PR with no run do not', () => {
+  const pendingAggregate: OpenPr = {
+    number: 10,
+    updatedAt: stale,
+    statusCheckRollup: [
+      { name: 'Check', status: 'IN_PROGRESS', conclusion: '' },
+    ],
+  };
+  const pendingJobs: OpenPr = {
+    number: 11,
+    updatedAt: stale,
+    statusCheckRollup: [
+      { name: 'Test (12/13)', status: 'IN_PROGRESS', conclusion: '' },
+      { name: 'Lint', status: 'COMPLETED', conclusion: 'SUCCESS' },
+    ],
+  };
+  const queued: OpenPr = {
+    number: 12,
+    updatedAt: stale,
+    statusCheckRollup: [{ name: 'Check', status: 'QUEUED', conclusion: '' }],
+  };
+  const failed: OpenPr = {
+    number: 13,
+    updatedAt: stale,
+    statusCheckRollup: [
+      { name: 'Check', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+  };
+  const noRunStale: OpenPr = {
+    number: 14,
+    updatedAt: stale,
+    statusCheckRollup: [],
+  };
+  const noRunFresh: OpenPr = {
+    number: 15,
+    updatedAt: fresh,
+    statusCheckRollup: [],
+  };
+  const prs = [
+    pendingAggregate,
+    pendingJobs,
+    queued,
+    failed,
+    noRunStale,
+    noRunFresh,
+  ];
+  assert.deepEqual(
+    prs.filter((pr) => redOrMissing(pr, now)).map((pr) => pr.number),
+    [13, 14],
+  );
+  assert.throws(
+    () => withMax('2', () => checkOpenRedLimit('.', () => prs)),
+    /2 open PRs.*#13, #14/,
+  );
+  withMax('3', () => checkOpenRedLimit('.', () => prs));
 });

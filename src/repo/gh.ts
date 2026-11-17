@@ -65,7 +65,7 @@ export function ghPrListOpenSync(root: string): GhSyncReply {
       '--limit',
       '100',
       '--json',
-      'number,statusCheckRollup',
+      'number,updatedAt,statusCheckRollup',
     ],
     { cwd: root, encoding: 'utf8', timeout: 20_000 },
   );
