@@ -1,0 +1,14 @@
+{
+  "id": "t-qn3g4d8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Unit selection reports repository coverage across the 40-repository pool",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: no open task covers which of the 40 repositories the units sample.\nOutcome: the unit report prints repositories covered and uncovered.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "research",
+  "area": "evals"
+}

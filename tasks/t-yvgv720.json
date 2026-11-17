@@ -1,0 +1,14 @@
+{
+  "id": "t-yvgv720",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Session egress is limited to named hosts, not the public internet",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: Earlier Astra finding E6: t-jfg2npc limited mounts only; sessions still reach any public host.\nOutcome: a sandboxed session reaches only the allowlisted hosts; a test proves an unlisted host is refused.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

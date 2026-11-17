@@ -1,0 +1,14 @@
+{
+  "id": "t-fastrn7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Session egress is limited to named hosts, not the public internet",
+  "after": [],
+  "body": [
+    "Source: earlier Astra finding E6 (.krn/runs/research/gpt-6-2/astra-verdicts.md); t-jfg2npc limited mounts only.\nEvidence: sandboxed sessions still reach any public host.\nOutcome: a test in real bwrap exits 0 and asserts an unlisted host is refused while an allowlisted host connects.\nProof: the test fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}
