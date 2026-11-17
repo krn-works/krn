@@ -1,4 +1,5 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
+// --prereg evals/replay/abc.prereg.md --report [--rows <file>] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
@@ -6,11 +7,13 @@
 // 0 when each replayed grade equals the recorded one, 1 when one differs, 65 when none replays.
 // One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session; without
 // --dry, --arms C runs each row live on a KRN-adopted checkout through the session driver (arm-c.ts).
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
+import { analyze, parsePrereg, reportLines } from './abc.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { type LiveUnit, screenLive } from './live.ts';
@@ -59,6 +62,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const i = args.indexOf(`--${n}`);
     return i >= 0 ? args[i + 1] : undefined;
   };
+  const prereg = flag('prereg');
+  if (prereg !== undefined) {
+    // --prereg <file> --report [--rows <file>]: one verdict per contrast over recorded rows; 65 when none is graded.
+    const frozen = parsePrereg(readFileSync(prereg, 'utf8'));
+    const rows = readRows(flag('rows') ?? join(here, 'abc-rows.jsonl'));
+    const result = analyze(rows, frozen);
+    if (result.graded === 0) {
+      console.error('no graded rows for the frozen units');
+      process.exit(65);
+    }
+    for (const l of reportLines(result, frozen)) console.log(l);
+    process.exit(0);
+  }
   if (args.includes('--screen')) {
     const loaded = loadUnits(flag('units-dir') ?? join(here, '..', 'units'));
     const units = loaded.map((u) => u.unit as ScreenUnit);

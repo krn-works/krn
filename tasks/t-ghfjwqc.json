@@ -1,7 +1,11 @@
 {
   "id": "t-ghfjwqc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "unit tests: Holm order, clustered SE hand values, --report exit 65 on empty rows, one verdict per contrast on rows; prereg lists the 70 eligible units; ADR budget amended"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "A/B/C prereg and report print one verdict per contrast",

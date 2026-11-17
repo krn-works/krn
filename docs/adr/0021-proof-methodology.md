@@ -64,7 +64,7 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
    - Design: 3 reps per unit and arm, unit-clustered paired SE, Holm correction over C−A and C−B, MDE 15 pp at power 0.8.
    - Co-primary: paired log-cost ratio and USD per resolved task, with C at no more injected tokens than B.
    - Allowed outcome: "not shown" is a published result.
-   - Budget: about 630 sessions and 115 USD, in off-peak quota windows.
+   - Budget: about 630 sessions and about 375 USD notional (about 0.60 USD per session, as arm-A rows record), in off-peak quota windows. The operator approved this figure on 2026-11-17, replacing the 115 USD estimate, which assumed 0.18 USD per session.
    - Debt columns ride along as descriptive: lint delta and diff size against the upstream fix.
 8. **Freeze before running.** Every eval has a preregistration file, a fixed K commit and a fixed n. There is no interim grading without a written alpha-spending boundary. The runner guard of #756 extends to every eval. Units are never reused after a confirmatory run.
 9. **Predictions get a third source.** `Predicted: metric <name> <op> N`, where `<name>` is a row in `spec/metrics.json` mapping to a command that prints one number. `krn ledger --predictions` runs it at the task's merge commit and at HEAD. Every ADR's "Expected effect" command is registered there.
