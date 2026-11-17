@@ -27,6 +27,7 @@ import {
   type ManifestRow,
   pruneCache,
   readManifest,
+  toGrade,
   unitId,
   type Verification,
   verified,
@@ -699,4 +700,30 @@ test('verify --id keeps an earlier drop and every unit when its grade fails inst
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a grade refuses a scratch inside a git repository before any unit command runs (t-zk8cmrz)', async (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  // go-git finds the checkout above a temp dir under such a scratch and ignores GIT_CEILING_DIRECTORIES (t-1xtk34n).
+  const f = gradeFixture('grade-in-repo-', 'touch ran', 'true');
+  try {
+    assert.equal(spawnSync('git', ['init', '-q', f.root]).status, 0);
+    await assert.rejects(
+      gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch),
+      /inside the git repository/,
+    );
+    assert.equal(existsSync(join(f.wt, 'ran')), false);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('verify grades only unrecorded rows and only the named one under --id, so others skip the cache walk (t-zk8cmrz)', () => {
+  const recorded = row(1, good);
+  const open = row(2, undefined);
+  const other = row(3, undefined);
+  assert.equal(toGrade(recorded, undefined), false);
+  assert.equal(toGrade(open, undefined), true);
+  assert.equal(toGrade(open, open.id), true);
+  assert.equal(toGrade(other, open.id), false);
 });
