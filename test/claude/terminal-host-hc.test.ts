@@ -313,6 +313,15 @@ test('wait is true once the agent settles and false on a timeout or a block', (t
   assert.equal(gone.host.wait(gone.host.session('t9'), 1000), false);
 });
 
+function commandsOf(pid: number): string[] {
+  return spawnSync('ps', ['-o', 'comm=', '--ppid', String(pid)], {
+    encoding: 'utf8',
+  })
+    .stdout.split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function childrenOf(pid: number | undefined): string[] {
   return spawnSync('ps', ['-o', 'pid=', '--ppid', String(pid)], {
     encoding: 'utf8',
@@ -336,7 +345,9 @@ test('busy is false for a shell, a lone agent or a waiting job and true for anot
   // that runs a background job. A job that runs a program is work; a poll
   // loop caught in `sleep` is a waiter and holds nothing (t-r53fan0: a done
   // predecessor kept such a loop for eight hours).
-  const agentWith = (job: string) => {
+  // The setup waits for the job's own program by name: right after fork,
+  // before exec, the child is still `bash`, which reads as work (t-j9sbgjm).
+  const agentWith = (job: string, program: string) => {
     const parent = spawn('sh', ['-c', `bash -c '${job}' & wait`], {
       stdio: 'ignore',
     });
@@ -349,7 +360,9 @@ test('busy is false for a shell, a lone agent or a waiting job and true for anot
     const deadline = Date.now() + 5000;
     while (
       Date.now() < deadline &&
-      !childrenOf(parent.pid).some((shell) => childrenOf(Number(shell)).length)
+      !childrenOf(parent.pid).some((shell) =>
+        commandsOf(Number(shell)).includes(program),
+      )
     );
     const reply = json('get-claude-working.reply.jsonl');
     reply.foreground.pid = parent.pid;
@@ -357,9 +370,10 @@ test('busy is false for a shell, a lone agent or a waiting job and true for anot
   };
   const working = agentWith(
     `${process.execPath} -e "setTimeout(() => {}, 30000)"; true`,
+    'node',
   );
   assert.equal(working.busy(working.session('t6')), true);
-  const waiter = agentWith('while :; do sleep 30; done');
+  const waiter = agentWith('while :; do sleep 30; done', 'sleep');
   assert.equal(waiter.busy(waiter.session('t6')), false);
 
   const other = json('get-shell.reply.jsonl');

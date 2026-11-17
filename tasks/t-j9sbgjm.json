@@ -1,0 +1,18 @@
+{
+  "id": "t-j9sbgjm",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "agentWith waits until the job shell child is the named program (sleep/node), so the fork-before-exec bash child no longer reads as work; 23/23 three runs"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "hc busy test races the waiter fork before exec sleep",
+  "after": [],
+  "body": [
+    "CI on main ea5c0da (run 44062857802, Test 10/13) failed test/claude/terminal-host-hc.test.ts:363 `busy is false for ... a waiting job`: expected false, actual true. The setup loop in agentWith waits until the job shell has any child; right after fork, before exec, that child is still `bash`, so hasChildShell (src/successor/command.ts waiting()) sees a non-sleep child and reports busy. Passes 6/6 locally at low load.\nOutcome: the test waits until the job shell's child is the expected program (sleep for the waiter, node for the working job) before probing busy.\nProof: node --test test/claude/terminal-host-hc.test.ts exits 0 and the setup waits on the child command name"
+  ],
+  "kind": "defect",
+  "area": "successor"
+}
