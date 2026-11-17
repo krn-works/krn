@@ -1,7 +1,11 @@
 {
   "id": "t-658r0jh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/rules/shell-quoting.test.ts fails on sh -c with JSON.stringify fixtures (names shellWord) and passes on the repository"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "A check refuses JSON.stringify as shell quoting in TypeScript source",
