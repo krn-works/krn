@@ -31,6 +31,7 @@ import {
   type ManifestRow,
   pruneCache,
   readManifest,
+  regraded,
   toGrade,
   unitId,
   type Verification,
@@ -854,4 +855,17 @@ test('verify grades only unrecorded rows and only the named one under --id, so o
   assert.equal(toGrade(open, undefined), true);
   assert.equal(toGrade(open, open.id), true);
   assert.equal(toGrade(other, open.id), false);
+});
+
+test('a regrade keeps the recorded gold the grade does not own (t-g86syt0)', () => {
+  const prior: Verification = { ...good, gold: 1 };
+  const next: Verification = {
+    installBase: 0,
+    testBase: 1,
+    baseFailure: 'compile',
+    installFix: -1,
+    testFix: -1,
+  };
+  assert.deepEqual(regraded(prior, next), { ...next, gold: 1 });
+  assert.deepEqual(regraded(undefined, next), next);
 });

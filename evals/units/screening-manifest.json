@@ -319,7 +319,8 @@
       "testBase": 1,
       "baseFailure": "compile",
       "installFix": -1,
-      "testFix": -1
+      "testFix": -1,
+      "gold": 1
     }
   },
   {
