@@ -48,7 +48,8 @@ export interface ArmCOptions {
 export function adoptKrn(wt: string, log: string): void {
   const r = spawnSync(process.execPath, [krnEntry, 'adopt', wt], {
     encoding: 'utf8',
-    timeout: 120_000,
+    // Adoption of a large checkout took 96 s on 2026-11-17 (t-1182p41).
+    timeout: 600_000,
   });
   appendFileSync(log, `adopt: exit ${r.status}\n${r.stdout}${r.stderr}`);
   if (r.status !== 0)
