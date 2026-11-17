@@ -1,0 +1,167 @@
+[
+  {
+    "number": 1310,
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-17T12:59:38Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056476556",
+        "name": "Changes",
+        "startedAt": "2026-11-17T12:59:31Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-17T13:00:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566006",
+        "name": "Lint",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-17T13:00:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566167",
+        "name": "Typecheck",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566543",
+        "name": "Test (1/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566442",
+        "name": "Test (2/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566480",
+        "name": "Test (3/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566865",
+        "name": "Test (4/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566563",
+        "name": "Test (5/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566420",
+        "name": "Test (6/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566554",
+        "name": "Test (7/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566511",
+        "name": "Test (8/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566444",
+        "name": "Test (9/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566536",
+        "name": "Test (10/13)",
+        "startedAt": "2026-11-17T12:59:41Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566460",
+        "name": "Test (11/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566734",
+        "name": "Test (12/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44088293239/job/134056566487",
+        "name": "Test (13/13)",
+        "startedAt": "2026-11-17T12:59:42Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      }
+    ]
+  }
+]

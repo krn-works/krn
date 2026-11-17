@@ -25,6 +25,7 @@ s-ci-instruction-bytes [AGENTS.md+4]: Agent instruction bytes stay within spec/c
 s-ci-instruction-references [AGENTS.md+3]: Instruction text names only npm scripts and repository files that exist
 s-ci-lane-close-rule [AGENTS.md+1]: KRN-11 and the lane brief agree: a lane closes its own task in its own PR and names the close command and the Ticket trailer
 s-ci-lane-limit [.agents/skills/delivery-lead/**+1]: Lead surfaces state only the lane budget limit and never merge with gh pr merge
+s-ci-open-red-limit [src/cli/lane.ts+1]: A new lane is refused while KRN_OPEN_RED_MAX open PRs have a red or missing Check
 s-ci-lead-traps [.agents/skills/delivery-lead/**+1]: The open traps section of the lead loop is `none` or a list of ids that each have a workaround
 s-ci-lint-warnings [biome.json+1]: npm run lint fails on Biome warnings
 s-ci-local-settings-ignore [.gitignore+1]: The repository .gitignore ignores local Claude settings without relying on global excludes

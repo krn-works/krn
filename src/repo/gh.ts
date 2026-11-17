@@ -52,3 +52,27 @@ export function ghPrViewSync(root: string, fields: string): GhSyncReply {
     ...(reply.error ? { error: reply.error } : {}),
   };
 }
+
+/** One blocking `gh pr list` of the open PRs of `root` with their check rollups, for the open-red lane limit. */
+export function ghPrListOpenSync(root: string): GhSyncReply {
+  const reply = spawnSync(
+    'gh',
+    [
+      'pr',
+      'list',
+      '--state',
+      'open',
+      '--limit',
+      '100',
+      '--json',
+      'number,statusCheckRollup',
+    ],
+    { cwd: root, encoding: 'utf8', timeout: 20_000 },
+  );
+  return {
+    status: reply.status,
+    stdout: reply.stdout ?? '',
+    stderr: reply.stderr ?? '',
+    ...(reply.error ? { error: reply.error } : {}),
+  };
+}

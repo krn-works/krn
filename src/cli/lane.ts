@@ -35,6 +35,7 @@ import { repositoryRoot } from '../task/store.ts';
 import { laneBriefText } from './lane-brief.ts';
 import { finishLane, laneFinishUsage } from './lane-finish.ts';
 import { sleepSync } from './lane-lock.ts';
+import { checkOpenRedLimit, type OpenPr } from './lane-open-red.ts';
 import { gitWith } from './lane-run/git.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
 
@@ -518,7 +519,10 @@ export async function dropLane(rest: string[]): Promise<string> {
 type CeilingReading = { share: number; ceiling: number; over: boolean } | null;
 
 /** The ceiling reading of the last merged-PR window; tests inject a fixture. */
-export type LaneDeps = { ceiling?: (main: string) => Promise<CeilingReading> };
+export type LaneDeps = {
+  ceiling?: (main: string) => Promise<CeilingReading>;
+  openPrs?: (main: string) => OpenPr[] | undefined;
+};
 
 async function windowCeiling(main: string): Promise<CeilingReading> {
   return nonDeliveryCeiling(
@@ -589,6 +593,7 @@ export async function startLane(
   // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
   pruneMergedLanes(main, base);
   checkLaneBudget(main, base);
+  checkOpenRedLimit(main, deps.openPrs);
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
   // An adoption committed only locally is invisible to a worktree cut from origin/<base>.
   if (

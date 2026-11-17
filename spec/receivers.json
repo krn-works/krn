@@ -133,7 +133,8 @@
       "receivers": ["gh"],
       "capture": [
         "test/fixtures/outcome-ledger/pr-list.json",
-        "test/fixtures/gh/repo-krn-works-krn.stdout.json"
+        "test/fixtures/gh/repo-krn-works-krn.stdout.json",
+        "test/fixtures/gh/pr-list-open-rollup.stdout.json"
       ],
       "test": "test/repo/gh.test.ts"
     },
