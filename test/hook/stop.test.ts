@@ -14,7 +14,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { readExposures } from '../../src/brain/exposures.ts';
+import {
+  appendExposure,
+  readExposures,
+  servedExposure,
+} from '../../src/brain/exposures.ts';
 import {
   changedSinceBase,
   clausesOn,
@@ -1520,6 +1524,55 @@ test('a refused Stop names the violated record and why, and logs the violation t
     assert.deepEqual(exposure?.served, ['s-probe']);
     assert.equal(exposure?.run, 'sess-1');
     assert.equal(exposure?.outcome['s-probe'], 'violated');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a Stop that passes records the passing check of each record the session was served', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 3;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    mkdirSync(join(dir, '.agents'), { recursive: true });
+    writeFileSync(
+      join(dir, '.agents/standards.json'),
+      JSON.stringify([
+        {
+          id: 's-calm',
+          type: 'standard',
+          area: 'tests',
+          layer: 'universal',
+          audience: 'worker',
+          tier: 'floor',
+          text: 'A calm rule.',
+          why: 'Calm.',
+          provenance: {
+            origin: 'test',
+            evidence: ['README.md'],
+            proposals: [],
+          },
+          enforcement: { kind: 'command', run: 'true' },
+          applies: { stacks: [], needs: [], paths: [], terms: [] },
+          status: 'accepted',
+          supersedes: [],
+          recorded_at: '2026-01-01',
+          valid_from: '2026-01-01',
+          valid_to: null,
+        },
+      ]),
+    );
+    appendExposure(dir, servedExposure('sess-2', 'edit', ['s-calm']));
+    spawnSync(process.execPath, [hook], {
+      cwd: dir,
+      encoding: 'utf8',
+      input: JSON.stringify({ ...payload(dir), session_id: 'sess-2' }),
+      env: { ...process.env, ...lane(dir) },
+    });
+    const stopRow = readExposures(dir).find((row) => row.channel === 'stop');
+    assert.equal(stopRow?.violated['s-calm'], false);
+    assert.equal(stopRow?.outcome['s-calm'], 'followed');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
