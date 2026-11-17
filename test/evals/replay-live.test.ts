@@ -70,7 +70,7 @@ function fixture(root: string) {
   const stub = join(root, 'claude');
   writeFileSync(
     stub,
-    `#!/bin/sh\nprompt=$(cat)\necho +1 >> ${log}\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
+    `#!/bin/sh\nprompt="$*"\necho +1 >> ${log}\nshift 2\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
   );
   chmodSync(stub, 0o755);
   return { units, stub, log };
@@ -136,7 +136,7 @@ test('--screen runs one arm-A session per unit under the slot cap and records gr
       assert.equal(cfg, join(root, 'scratch', 'claude-config'));
       assert.equal(probe, '');
       assert.match(args as string, /--setting-sources project/);
-      assert.match(args as string, /--disallowedTools WebFetch,WebSearch /);
+      assert.match(args as string, /--disallowedTools WebFetch,WebSearch/);
     }
     assert.match(r.stdout, /verdict: no-go \(2 eligible units, 70 required\)/);
     assert.match(r.stdout, /^A pass rate: 50\.0% \(2 screened\)/m);

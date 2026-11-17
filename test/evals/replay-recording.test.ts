@@ -62,7 +62,7 @@ function fixture(root: string) {
   const stub = join(root, 'claude');
   writeFileSync(
     stub,
-    `#!/bin/sh\nprompt=$(cat)\nif echo "$prompt" | grep -q alpha; then printf 'x\\n' > fixed.txt; git add fixed.txt; git -c user.email=a@b.c -c user.name=n commit -qm fix; fi\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
+    `#!/bin/sh\nprompt="$*"\nif echo "$prompt" | grep -q alpha; then printf 'x\\n' > fixed.txt; git add fixed.txt; git -c user.email=a@b.c -c user.name=n commit -qm fix; fi\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
   );
   chmodSync(stub, 0o755);
   // Any model call during a replay leaves this marker.

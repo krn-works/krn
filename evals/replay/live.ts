@@ -8,11 +8,11 @@ import {
   mkdirSync,
   realpathSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
-import { shellWords } from '../../src/repo/shell-text.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { startEgress } from '../units/egress.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
@@ -27,6 +27,7 @@ import { ARMS, type Arm } from './arms.ts';
 import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
 import { formatRow, type Row } from './rows.ts';
 import { eligible, readRows, type ScreenUnit } from './screen.ts';
+import { sessionCommand, settingsPath } from './session-args.ts';
 
 export interface LiveOptions {
   /** Directory of clones named <owner>__<name>. */
@@ -193,18 +194,10 @@ function sandboxedClaude(
   bin: string,
   socket: string,
 ): Promise<Session> {
-  const cmd = shellWords([
-    bin,
-    '-p',
-    '--output-format',
-    'json',
-    '--permission-mode',
-    'bypassPermissions',
-    '--disallowedTools',
-    DENIED_TOOLS.join(','),
-    '--setting-sources',
-    'project',
-  ]);
+  const settings = settingsPath(ARMS.A.id, env, cwd);
+  mkdirSync(dirname(settings), { recursive: true });
+  writeFileSync(settings, '{}\n');
+  const cmd = sessionCommand({ bin, prompt, settings });
   return new Promise((resolve) => {
     const p = spawn(
       'bwrap',
@@ -233,7 +226,7 @@ function sandboxedClaude(
     p.stderr.on('data', (d) => appendFileSync(log, d));
     p.on('error', (e) => appendFileSync(log, `spawn error: ${e}\n`));
     p.stdin.on('error', () => {});
-    p.stdin.end(prompt);
+    p.stdin.end();
     p.on('close', () => {
       clearTimeout(timer);
       appendFileSync(log, out);

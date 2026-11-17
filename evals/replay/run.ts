@@ -6,7 +6,8 @@
 // --screen --replay <dir> grades every recorded patch on a fresh unit.base checkout with no model session and exits
 // 0 when each replayed grade equals the recorded one, 1 when one differs, 65 when none replays.
 // One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session; without
-// --dry, --arms C runs each row live on a KRN-adopted checkout through the session driver (arm-c.ts).
+// --dry, --arms B,C run each row live through the session driver: C on a KRN-adopted checkout (arm-c.ts), B on a
+// checkout with the in-force records as a static CLAUDE.md (arm-b.ts), which also prints its token counts.
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -14,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
 import { analyze, parsePrereg, reportLines } from './abc.ts';
+import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { type LiveUnit, screenLive } from './live.ts';
@@ -142,9 +144,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(64);
   }
   if (!dry) {
-    // Live rows run arm C through the session driver; arms A and B live only under --screen.
-    if (arms.some((a) => a.id !== 'C')) {
-      console.error('live rows run arm C only; use --dry for arms A and B');
+    // Live rows run arms B and C through the session driver; arm A lives only under --screen.
+    if (arms.some((a) => a.id === 'A')) {
+      console.error('live rows run arms B and C; arm A runs under --screen');
       process.exit(69);
     }
     const byId = new Map(loadUnits(unitsDir).map((u) => [u.unit.id, u]));
@@ -154,20 +156,27 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const modelOption = model === undefined ? {} : { model };
     const rows: Row[] = [];
     for (const id of ids)
-      for (let rep = 1; rep <= reps; rep++) {
-        const row = await armCRow(
-          byId.get(id) as LiveUnit,
-          {
+      for (const arm of arms)
+        for (let rep = 1; rep <= reps; rep++) {
+          const options = {
             sources: flag('sources') ?? defaultSources(),
             scratch,
             harness,
             ...modelOption,
-          },
-          rep,
-        );
-        console.log(formatRow(row));
-        rows.push(row);
-      }
+          };
+          const unit = byId.get(id) as LiveUnit;
+          let row: Row;
+          if (arm.id === 'B') {
+            const b = await armBRow(unit, options, rep);
+            row = b.row;
+            console.log(formatRow(row));
+            console.log(formatTokens(id, b.tokens));
+          } else {
+            row = await armCRow(unit, options, rep);
+            console.log(formatRow(row));
+          }
+          rows.push(row);
+        }
     const graded = rows.filter((r) => r.pass !== null);
     console.log(
       `verdict: ${rows.length} rows, ${graded.length} graded, ${graded.filter((r) => r.pass).length} pass`,

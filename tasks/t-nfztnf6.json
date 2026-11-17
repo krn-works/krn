@@ -1,7 +1,11 @@
 {
   "id": "t-nfztnf6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "live arm-B row proven: run.ts --arms B --units 1 printed verdict (1 row, cost 0.149); argv test asserts A/B/C differ only in settings file"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Replay arm B runs live on a token-matched static CLAUDE.md",
