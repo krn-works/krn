@@ -149,7 +149,25 @@ export function lanePacket(
   holdout = true,
   audience: PacketAudience = 'worker',
 ): Packet | null {
-  const candidates = laneCandidates(repo, audience);
+  return packetOver(
+    laneCandidates(repo, audience),
+    brief,
+    asOf,
+    task,
+    budget,
+    holdout,
+  );
+}
+
+/** The lane packet over a given candidate pool: the selection `lanePacket` makes, for a caller that holds the pool itself. */
+export function packetOver(
+  candidates: readonly BrainRecord[],
+  brief: string,
+  asOf: string,
+  task: string,
+  budget = LANE_BUDGET,
+  holdout = true,
+): Packet | null {
   if (candidates.length === 0) return null;
   return brainPacket({
     task,

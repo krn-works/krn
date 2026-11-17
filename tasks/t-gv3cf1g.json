@@ -1,7 +1,11 @@
 {
   "id": "t-gv3cf1g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "arm A and arm C share sessionArgv (session-args.ts); test asserts argv differs only in the arm settings file"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Replay arms A and C run the same model, budget and permission mode",
