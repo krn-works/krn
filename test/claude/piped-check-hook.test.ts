@@ -208,3 +208,25 @@ test('piped check hook refuses a wait loop on pgrep -f and allows a PID wait', (
     assert.equal(result.stderr, '', command);
   }
 });
+
+test('piped check hook refuses a wait loop on host-wide pgrep by name and allows PID, port and file waits', () => {
+  for (const command of [
+    'until grep -q DONE .krn/tmp/fast.log && ! pgrep -u $UID -x node; do sleep 3; done',
+    'while pgrep -x node >/dev/null; do sleep 5; done',
+    'until ! pgrep node; do sleep 1; done',
+  ]) {
+    const result = bash(command);
+    assert.equal(result.status, 2, command);
+    assert.match(result.stderr, /host-wide process absence/u, command);
+  }
+  for (const command of [
+    'node run.ts & pid=$!; while kill -0 $pid 2>/dev/null; do sleep 5; done',
+    'until grep -q DONE .krn/tmp/fast.log; do sleep 3; done',
+    'while pgrep -P $pid >/dev/null; do sleep 1; done',
+    'pgrep -x node',
+  ]) {
+    const result = bash(command);
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+});

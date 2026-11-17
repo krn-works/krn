@@ -16,6 +16,12 @@ const swallow = /\|\|\s*(?:true|:|exit 0)(?:\s|;|$)|;\s*(?:true|:)\s*$/u;
 const fullMatchWait =
   /\b(?:while|until)\b[^\n]*?\bpgrep\s+(?:-\w*f\w*|--full)\b/u;
 
+// A wait loop conditioned on host-wide absence of a process by name (`! pgrep -x node`) never
+// ends either: it matches every node on the host (other lanes, MCP servers); one such loop ran
+// 7h50m. Only `pgrep -P PID` (children of one PID) is keyed to a PID and stays allowed.
+const nameWait =
+  /\b(?:while|until)\b[^\n]*?\bpgrep\b(?!\s+(?:-\w*P\b|--parent\b))/u;
+
 const stage = (text: string) => text.trim().replace(prefix, '');
 
 export type Verdict = { refuse: string } | { rewrite: string } | undefined;
@@ -29,6 +35,10 @@ export function judge(payload: unknown): Verdict {
   if (fullMatchWait.test(command))
     return {
       refuse: `Refused: a \`while\`/\`until\` loop waits on \`pgrep -f\`, whose pattern also matches this loop's own shell command line, so the loop never ends (three lanes were left waiting forever). Nothing in this Bash call ran. Wait on a PID instead: start the job with \`cmd & pid=$!\` and \`wait $pid\` or \`while kill -0 $pid 2>/dev/null; do sleep 5; done\`; or run it with run_in_background and wait for the notification (scripts/claude/piped-check.ts).`,
+    };
+  if (nameWait.test(command))
+    return {
+      refuse: `Refused: a \`while\`/\`until\` loop waits on host-wide process absence by name (\`pgrep -x node\`), which matches every such process on the host (other lanes, MCP servers), so the loop never ends. Nothing in this Bash call ran. Key the wait on a PID (\`while kill -0 $pid 2>/dev/null; do sleep 5; done\`), a port, or a file verdict with a deadline (\`timeout 600 bash -c 'until grep -q DONE log; do sleep 3; done'\`) (scripts/claude/piped-check.ts).`,
     };
   for (const list of command.split(/&&|\|\||;|\n/u)) {
     const [first, ...rest] = list.split(/\|&?/u).map(stage);
