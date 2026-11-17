@@ -1224,6 +1224,7 @@ function logChecks(
   root: string,
   payload: unknown,
   blockers: readonly string[],
+  env: NodeJS.ProcessEnv,
 ): void {
   try {
     const refused = blockers.flatMap(
@@ -1235,18 +1236,23 @@ function logChecks(
       resolve(root, git(root, ['rev-parse', '--git-common-dir']).stdout),
     );
     const seen = new Set(refused);
-    const served = readExposures(main)
-      .filter((row) => row.run === run && row.channel !== 'stop')
-      .flatMap((row) => row.served)
-      .filter((id) => !seen.has(id));
-    const rest = [...new Set(served)];
+    const earlier = readExposures(main).filter(
+      (row) => row.run === run && row.channel !== 'stop',
+    );
+    const rest = [...new Set(earlier.flatMap((row) => row.served))].filter(
+      (id) => !seen.has(id),
+    );
+    const withheld = [
+      ...new Set(earlier.flatMap((row) => row.withheld)),
+    ].filter((id) => !seen.has(id) && !rest.includes(id));
     if (refused.length === 0 && rest.length === 0) return;
     const exposure = exposureOf({
       run,
-      task: undefined,
+      task: sessionTaskIds(env, payload)[0],
       channel: 'stop',
-      served: [...refused, ...rest],
-      withheld: [],
+      served: rest,
+      withheld,
+      refused,
       laneOk: refused.length === 0,
       violated: {
         ...recordChecks(root, rest),
@@ -1688,7 +1694,7 @@ export function judgeStop(
     const asOf = new Date().toISOString().slice(0, 10);
     const failing = standards(root, asOf);
     if (failing.length === 0) {
-      logChecks(root, payload, []);
+      logChecks(root, payload, [], env);
       return settled();
     }
     // A standard already red at the merge base is not this branch's doing: it is reported, never blocking.
@@ -1699,7 +1705,7 @@ export function judgeStop(
         )
       : new Set<string>();
     const blockers = failing.filter((line) => !red.has(standardKey(line)));
-    logChecks(root, payload, blockers);
+    logChecks(root, payload, blockers, env);
     if (blockers.length === 0) return settled();
     const inherited = failing.length - blockers.length;
     const preExisting =

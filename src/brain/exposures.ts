@@ -32,6 +32,8 @@ export type Exposure = {
   /** The n-th run of this task on this channel (1 for the first). */
   attempt: number;
   served: string[];
+  /** Records a Stop refused the session over: refusals, never served exposures. */
+  refused?: string[];
   /** Exactly the records the packet would have served without the holdout that the holdout kept out. */
   withheld: string[];
   /** Tokens of the packet the run was served. */
@@ -75,6 +77,7 @@ export function exposureOf(input: {
   channel: string;
   served: readonly string[];
   withheld: readonly string[];
+  refused?: readonly string[];
   laneOk: boolean;
   attempt?: number;
   tokens?: number;
@@ -85,7 +88,7 @@ export function exposureOf(input: {
   evidence?: CloseEvidence;
 }): Exposure {
   const violated = Object.fromEntries(
-    [...input.served, ...input.withheld].map((id) => [
+    [...input.served, ...input.withheld, ...(input.refused ?? [])].map((id) => [
       id,
       input.violated?.[id] ?? null,
     ]),
@@ -99,6 +102,9 @@ export function exposureOf(input: {
     attempt: input.attempt ?? 1,
     served: [...input.served],
     withheld: [...input.withheld],
+    ...(input.refused === undefined || input.refused.length === 0
+      ? {}
+      : { refused: [...input.refused] }),
     tokens: input.tokens ?? 0,
     violated,
     outcome: outcomeOf(input.served, violated),
@@ -113,6 +119,7 @@ export function appendExposure(main: string, exposure: Exposure): void {
   if (
     exposure.served.length === 0 &&
     exposure.withheld.length === 0 &&
+    (exposure.refused ?? []).length === 0 &&
     exposure.proof === undefined &&
     exposure.evidence === undefined
   )
@@ -144,6 +151,7 @@ function normalized(row: Partial<Exposure>): Exposure {
     attempt: row.attempt ?? 1,
     served: [...served],
     withheld: [...(row.withheld ?? [])],
+    ...(row.refused === undefined ? {} : { refused: [...row.refused] }),
     tokens: row.tokens ?? 0,
     violated,
     outcome: outcomeOf(served, violated),
