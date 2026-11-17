@@ -431,11 +431,8 @@ export function parseResearchCandidate(
     c.build_because === undefined
       ? undefined
       : field(where, c, 'build_because');
-  if ((reuse === undefined) === (because === undefined))
-    fail(
-      where,
-      'name exactly one of reuse (an existing tool with its https URL) or build_because',
-    );
+  if (reuse !== undefined && because !== undefined)
+    fail(where, 'name at most one of reuse or build_because');
   if (reuse !== undefined && !/https:\/\/\S+/u.test(reuse))
     fail(`${where}.reuse`, 'expected the https URL of the existing tool');
   const recordedAt = field(where, c, 'recorded_at');

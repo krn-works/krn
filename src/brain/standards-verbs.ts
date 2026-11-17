@@ -14,8 +14,9 @@ export const standardsVerbs = {
   propose: {
     synopsis: [
       'propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR]',
+      'propose --from-candidate FILE [--root DIR]',
     ],
-    help: 'propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR]: write one tracked retro lesson to .agents/standards-proposals/ (an equal lesson is kept, not duplicated).',
+    help: 'propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR]: write one tracked retro lesson to .agents/standards-proposals/ (an equal lesson is kept, not duplicated). propose --from-candidate FILE [--root DIR]: ingest one krn.candidate/v1 research file into .agents/research-candidates/ and its record_draft into .agents/records.json as a trial record; exit 65 when motivated_by is missing or the file is malformed, 78 on an unknown schema major, 75 past the weekly cap of one candidate experiment and 10 USD of krn.verdict/v1 cost (.agents/standards-proposals/verdicts/).',
   },
   harvest: {
     synopsis: [

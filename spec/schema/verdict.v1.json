@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.verdict/v1",
+  "title": "krn.verdict/v1: the answer to one research candidate, kept under .agents/standards-proposals/verdicts/",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "n",
+    "delta",
+    "p",
+    "cost_usd",
+    "decision",
+    "recorded_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "enum": ["krn.verdict/v1"] },
+    "id": { "type": "string", "minLength": 1 },
+    "n": { "type": "integer", "minimum": 0 },
+    "delta": { "type": "number" },
+    "p": { "type": "number", "minimum": 0 },
+    "cost_usd": { "type": "number", "minimum": 0 },
+    "decision": { "enum": ["accept", "reject", "inconclusive"] },
+    "recorded_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+  }
+}

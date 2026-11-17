@@ -216,7 +216,7 @@ const plainCandidate = `{
   "recorded_at": "2026-11-01"
 }`;
 
-test('parseResearchCandidate accepts reuse or build_because and refuses neither or both', () => {
+test('parseResearchCandidate accepts reuse, build_because or neither and refuses both', () => {
   const base = () => JSON.parse(plainCandidate) as Record<string, unknown>;
   assert.equal(parseResearchCandidate(base()).id, 'c-1');
   const built = base();
@@ -228,13 +228,13 @@ test('parseResearchCandidate accepts reuse or build_because and refuses neither 
   );
   const neither = base();
   delete neither.reuse;
+  assert.equal(parseResearchCandidate(neither).reuse, undefined);
   const both = { ...base(), build_because: 'x' };
   const noUrl = { ...base(), reuse: 'ripgrep' };
   const noFailure = base();
   delete noFailure.motivated_by;
   for (const [bad, pattern] of [
-    [neither, /exactly one of reuse/u],
-    [both, /exactly one of reuse/u],
+    [both, /at most one of reuse/u],
     [noUrl, /candidate\.reuse/u],
     [noFailure, /candidate\.motivated_by/u],
   ] as const)

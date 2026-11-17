@@ -16,6 +16,8 @@
     "krn.contract/v1",
     "krn.task/v1",
     "krn.record/v1",
-    "krn.exposure/v1"
+    "krn.exposure/v1",
+    "krn.candidate/v1",
+    "krn.verdict/v1"
   ]
 }
