@@ -1,5 +1,5 @@
 // Handoff request check.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { resumeProblems } from '../memory/handoff-resume.ts';
 import {
@@ -85,9 +85,6 @@ export function handoffProblems(
   const failures: string[] = [];
   for (const problem of resumeProblems(text))
     failures.push(`FAIL ${handoff}: ${problem}`);
-
-  const file = (path: string) =>
-    statSync(path, { throwIfNoEntry: false })?.isFile() === true;
 
   // Carry-over: an open task that records an operator utterance must be named in the section,
   // so a hand-written handoff cannot silently drop a request the operator already made.

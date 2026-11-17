@@ -114,14 +114,8 @@ test('handoff check refuses a handoff missing the resume fields', () => {
     assert.equal(bare.status, 1);
     assert.match(bare.stderr, /no "## Resume" section/u);
     for (const [field, resume] of [
-      [
-        'Task',
-        '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n',
-      ],
-      [
-        'SHAs',
-        '- Task: t-abc1234\n- Verify: `npm run fast`\n',
-      ],
+      ['Task', '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n'],
+      ['SHAs', '- Task: t-abc1234\n- Verify: `npm run fast`\n'],
       [
         'Verify',
         '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n',
