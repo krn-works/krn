@@ -191,6 +191,9 @@ test('a lane that closed before its PR existed gets the PR and Check written ont
       if (line === 'rev-parse --show-toplevel') return out(`${repo}/lane\n`);
       if (a.includes('--git-common-dir')) return out(`${repo}/.git\n`);
       if (line === 'rev-parse HEAD') return out(`${'a'.repeat(40)}\n`);
+      // The merged lane's worktree and branch removal.
+      if (['worktree', 'show-ref', 'branch'].includes(a[0] ?? ''))
+        return out('');
       throw new Error(`unexpected git ${line}`);
     };
     const args = [

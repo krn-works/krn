@@ -197,7 +197,11 @@ function receiver(options: {
         stderr: '',
       };
     }
-    if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
+    if (
+      ['push', 'fetch', 'worktree', 'branch', 'ls-tree', 'show-ref'].includes(
+        a[0] ?? '',
+      )
+    )
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
   };
@@ -218,9 +222,9 @@ function receiver(options: {
 const auto = { autoMergeRequest: { mergeMethod: 'SQUASH' }, state: 'OPEN' };
 const merged = { state: 'MERGED', mergeCommit: { oid: merge } };
 
-test('ship pushes, creates, merges explicitly, waits through the merge and leaves the lane in place', async () => {
+test('ship --drop pushes, creates, merges explicitly, waits through the merge and removes the lane no process works in', async () => {
   const r = receiver({ pulls: [auto, merged] });
-  const out = await shipCommand(args, {
+  const out = await shipCommand([...args, '--drop'], {
     ...r,
     completeClose: completeCloseExposure,
   });
@@ -228,15 +232,16 @@ test('ship pushes, creates, merges explicitly, waits through the merge and leave
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.match(
     out,
-    /^lane: worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x kept; /mu,
+    /^lane: worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x removed$/mu,
   );
-  // The lane ends at the merge: the worktree and branch stay for the next lane start to prune.
   assert.match(out, /^main checkout: \/r$/mu);
   const order = [
     'push origin feat-x',
     'gh pr list',
     'gh pr create',
     `gh pr merge 7 --repo o/r --squash --match-head-commit ${head}`,
+    'worktree remove --force /r/.krn/worktrees/feat-x',
+    'branch -D feat-x',
   ];
   let at = -1;
   for (const step of order) {
@@ -245,6 +250,31 @@ test('ship pushes, creates, merges explicitly, waits through the merge and leave
     at = found;
   }
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
+});
+
+test('a merged ship --drop keeps the lane while another process works inside it, and a ship without --drop keeps it', async () => {
+  const plain = receiver({ pulls: [auto, merged] });
+  const kept = await shipCommand(args, { ...plain, worktreeUsers: () => [] });
+  assert.match(
+    kept,
+    /^lane: worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x kept \(no --drop\); the next krn lane start prunes merged lanes$/mu,
+  );
+  assert.ok(!plain.calls.some((c) => c.includes('worktree remove')));
+  const r = receiver({ pulls: [auto, merged] });
+  const asked: string[] = [];
+  const out = await shipCommand([...args, '--drop'], {
+    ...r,
+    worktreeUsers: (path) => {
+      asked.push(path);
+      return [4242];
+    },
+  });
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.deepEqual(asked, ['/r/.krn/worktrees/feat-x']);
+  assert.match(
+    out,
+    /^lane: worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x kept \(process 4242 still works inside it\); the next krn lane start prunes merged lanes$/mu,
+  );
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
 });
@@ -535,7 +565,7 @@ test('a rerun after the PR merged only records it and pushes nothing', async () 
     completeClose: completeCloseExposure,
   });
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-  assert.match(out, /^lane: worktree .* kept; /mu);
+  assert.match(out, /^lane: worktree .* kept \(no --drop\); /mu);
   assert.ok(!r.calls.some((c) => c.includes('branch -D')));
   for (const step of ['push', 'pr create', 'pr merge', 'node --test'])
     assert.ok(!r.calls.some((c) => c.includes(step)), step);

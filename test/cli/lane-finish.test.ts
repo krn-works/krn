@@ -79,6 +79,7 @@ function fixture(trailer: string) {
 
 function fakeGh(worktree: string) {
   const calls: string[][] = [];
+  const bodies: string[] = [];
   let views = 0;
   const gh = async (a: string[]): Promise<string> => {
     calls.push(a);
@@ -100,20 +101,21 @@ function fakeGh(worktree: string) {
             },
       );
     }
-    if (a[0] === 'pr' && a[1] === 'create')
+    if (a[0] === 'pr' && a[1] === 'create') {
+      // The body lives in the worktree, which the merged ship removes: read it while it exists.
+      bodies.push(
+        readFileSync(a[a.indexOf('--body-file') + 1] as string, 'utf8'),
+      );
       return 'https://github.com/o/r/pull/7\n';
+    }
     return '';
   };
-  return { calls, gh };
+  return { calls, gh, bodies };
 }
 
-function bodyOf(calls: string[][]): string {
-  const create = calls.find((a) => a[0] === 'pr' && a[1] === 'create');
-  assert.ok(create, 'gh pr create was called');
-  return readFileSync(
-    create[create.indexOf('--body-file') + 1] as string,
-    'utf8',
-  );
+function bodyOf(bodies: string[]): string {
+  assert.equal(bodies.length, 1, 'gh pr create was called once');
+  return bodies[0] as string;
 }
 
 const sleep = async () => {};
@@ -130,13 +132,13 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
         verified: 'npm run fast: pass',
       }),
     );
-    const { calls, gh } = fakeGh(worktree);
+    const { calls, gh, bodies } = fakeGh(worktree);
     const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
       gh,
       sleep,
     });
     assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-    const body = bodyOf(calls);
+    const body = bodyOf(bodies);
     assert.match(body, /Ticket: t-abc1234/u);
     assert.match(body, /Lane: krn lane brief/u);
     assert.match(body, /- notes live in lane-notes\.json/u);
@@ -155,13 +157,13 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
 test('finish without notes derives Refs from the commit trailer and still ships', async () => {
   const { base, repo, worktree } = fixture('Refs');
   try {
-    const { calls, gh } = fakeGh(worktree);
+    const { gh, bodies } = fakeGh(worktree);
     const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
       gh,
       sleep,
     });
     assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
-    const body = bodyOf(calls);
+    const body = bodyOf(bodies);
     assert.match(body, /Refs: t-abc1234/u);
     assert.doesNotMatch(body, /Ticket:|Weakens-tests|## Assumptions/u);
   } finally {

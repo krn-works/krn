@@ -1,0 +1,18 @@
+{
+  "id": "t-gv984e8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "A lane writing scratch output outside its worktree is refused",
+  "after": [],
+  "body": [
+    "On 2026-11-17 the t-8e4kdzz lane wrote its ship output to /tmp/x, outside its worktree, although its brief carries the scratch rule (.krn/tmp inside the worktree). Nothing refused it; the lane reported it itself.\nOutcome: a lane session's Bash command that redirects output to a path outside its worktree and outside the session scratchpad is refused (or flagged at Stop) with the scratch rule named.\nProof: a hook test with a lane command 'cmd > /tmp/x' is refused; the same command writing .krn/tmp/x passes."
+  ],
+  "kind": "gate",
+  "area": "hook",
+  "from": {
+    "kind": "task",
+    "ref": "t-8e4kdzz"
+  }
+}
