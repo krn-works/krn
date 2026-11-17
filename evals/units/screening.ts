@@ -1,7 +1,7 @@
 // Screening unit set (ADR 0021 point 7): outside open-source fixes dated after June 2026 whose issue body is the only task text.
 // Usage:
 //   node evals/units/screening.ts build --candidates <jsonl> --sources <dir> [--limit N]   units + manifest rows, unverified
-//   node evals/units/screening.ts verify [--concurrency 2] [--log-dir <dir>] [--id <id>]   run base and fix, record exit codes
+//   node evals/units/screening.ts verify [--concurrency 2] [--log-dir <dir>] [--id <id>]   run base and fix, record exit codes; --id re-grades a recorded unit
 //   node evals/units/screening.ts verify --recorded [--manifest <file>]                                       count recorded verifications only
 // verify prints `units: N verified` and exits 0 when N >= 70. No model runs.
 import { spawn, spawnSync } from 'node:child_process';
@@ -445,6 +445,12 @@ async function verify(
   scratch = resolve(scratch);
   logDir = resolve(logDir);
   const rows = readManifest();
+  // A named unit is re-graded even when its row is recorded: a targeted re-verify after a grading change must run.
+  if (only) {
+    const row = rows.find((r) => r.id === only);
+    if (!row) throw new Error(`verify --id ${only}: no such manifest row`);
+    row.verification = undefined;
+  }
   mkdirSync(logDir, { recursive: true });
   mkdirSync(scratch, { recursive: true });
   cacheRoot = join(scratch, 'cache');
@@ -575,7 +581,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (!rest.includes('--recorded'))
       await verify(
         sources,
-        here,
+        flag('units') ?? here,
         flag('scratch') ?? '.krn/tmp/screen-scratch',
         flag('log-dir') ?? '.krn/runs/lane/screening-verify',
         Number(flag('concurrency') ?? 2),
