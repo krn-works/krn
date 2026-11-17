@@ -13,6 +13,8 @@ export interface SessionResult {
   ok: boolean;
   detail: string;
   cost: number | undefined;
+  /** The model(s) the session realized, from the result's usage keys, sorted and joined by a comma. */
+  model?: string;
   turns?: number;
   /** The session ended at its spend cap. */
   capped?: boolean;
@@ -228,10 +230,18 @@ export function parseSessionResult(
     ok: !failed,
     detail: `session ${subtype}`,
     cost,
+    ...modelOf(record.modelUsage),
     ...(stopRefusals === undefined ? {} : { stopRefusals }),
     ...(noProgress === undefined ? {} : { noProgress }),
     ...(turns === undefined ? {} : { turns }),
     ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),
     ...blockerOf(record.result),
   };
+}
+
+/** The realized model names from a result's `modelUsage` object, or nothing when it names none. */
+function modelOf(usage: unknown): { model?: string } {
+  if (typeof usage !== 'object' || usage === null) return {};
+  const names = Object.keys(usage).sort();
+  return names.length === 0 ? {} : { model: names.join(',') };
 }
