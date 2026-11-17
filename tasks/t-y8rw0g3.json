@@ -1,0 +1,18 @@
+{
+  "id": "t-y8rw0g3",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "13 confirmed findings became tasks; verdicts in .krn/runs/research/gpt-6-2/astra-verdicts.md"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Verify the GPT-6.2 Astra audit and turn confirmed findings into tasks",
+  "after": [],
+  "body": [
+    "Operator request 2026-11-17: deep research of KRN with GPT-6.2 models. Prompts: .krn/runs/research/gpt-6-2/astra-design-audit.md and sol-friction-measure.md (run commands in RUN.md). The Sol report was pasted into the lead session and verified by a reader (claims 1, 3, 4 confirmed; 2 confirmed on a 5-PR sample with ruleset strict=false; 5 unconfirmed); it became t-sy4qhg1, t-aa6xy6t, t-n2vghdf. The Astra report had not arrived; the operator runs Codex without -o, so it arrives pasted into chat or as a file in .krn/runs/research/gpt-6-2/.\nOutcome: every Astra finding has a written disposition in .krn/runs/research/gpt-6-2/astra-verdicts.md (confirmed -> task id, refuted -> the command that refuted it), verified by a read-only reader independent of the report.\nProof: `grep -c '^- ' .krn/runs/research/gpt-6-2/astra-verdicts.md` is at least the number of ranked changes in the report, and each confirmed line names an existing task id (`krn task show <id>` exits 0).\nFiles: .krn/runs/research/gpt-6-2/astra-verdicts.md"
+  ],
+  "kind": "research",
+  "area": "research"
+}

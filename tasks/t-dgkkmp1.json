@@ -1,0 +1,14 @@
+{
+  "id": "t-dgkkmp1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "A mixed outside batch exits non-zero and its doctor checks the target root",
+  "after": [],
+  "body": [
+    "Astra audit C4/C5 (verified): krn lane run --ready (src/cli/lane-run/drain.ts:125-146) returns the last task's exit, so a batch [74, 0] exits 0; its doctor call (drain.ts:82-85) drops --root, so doctor-unattended checks process.cwd() instead of the target repository.\nFiles: src/cli/lane-run/drain.ts, test/cli/outside-batch.test.ts\nOutcome: a mixed batch exits non-zero and names every failed task; the batch doctor receives --root; the test exits 0 and fails on the old drain.\nProof: node --test test/cli/outside-batch.test.ts passes with a [74, 0] batch and a --root assertion."
+  ],
+  "kind": "defect",
+  "area": "cli"
+}

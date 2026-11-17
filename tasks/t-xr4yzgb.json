@@ -1,0 +1,14 @@
+{
+  "id": "t-xr4yzgb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Routing report counts all assigned-task dollars per accepted merge",
+  "after": [],
+  "body": [
+    "Astra audit routing (E5 verified: rows lack realized model): routing trials count merged tasks only (src/outcome/dollars.ts), not all assigned-task dollars per independently accepted merge.\nFiles: evals/routing/report.ts, src/outcome/dollars.ts\nOutcome: node evals/routing/report.ts --all-attempts prints dollars per accepted merge per role and model including retries, reviewer and abandoned work.\nProof: node evals/routing/report.ts --all-attempts exits 0 on the recorded outcome ledger."
+  ],
+  "kind": "feature",
+  "area": "outcome"
+}

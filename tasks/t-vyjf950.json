@@ -1,0 +1,14 @@
+{
+  "id": "t-vyjf950",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "One merge verdict serves lane status, prune and Stop",
+  "after": [],
+  "body": [
+    "Astra audit C6 (verified): lane status calls a lane merged when any old ship SHA is an ancestor of the base (src/cli/lane-status.ts:58, lane.ts:166-171) and maps every non-MERGED PR state, including CLOSED, to pr-open (lane-status.ts:71); prune (lane.ts:282-296) also requires tipBelongsToRecord and Stop (src/hook/stop.ts:1158) checks head and branch. Three callers, three merge verdicts.\nFiles: src/cli/lane-status.ts, src/cli/lane.ts, src/hook/stop.ts, test/cli/lane-merge-verdict.test.ts\nOutcome: one exported function decides merged/pr-open/closed/unshipped from (repo, task, head, PR state); lane status, prune and Stop call it; a fixture that advances the branch after a successful ship gets the same verdict from all three.\nProof: node --test test/cli/lane-merge-verdict.test.ts passes, including the advanced-branch and closed-PR cases."
+  ],
+  "kind": "defect",
+  "area": "cli"
+}

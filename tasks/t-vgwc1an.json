@@ -1,0 +1,14 @@
+{
+  "id": "t-vgwc1an",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Stop records refusals as refusals, not served exposures",
+  "after": [],
+  "body": [
+    "Astra audit B2/B3 (verified): Stop logs refused records as served exposures with no task id and an empty withheld list (src/hook/stop.ts:1208-1211), so a refusal counts as an exposure; worker packets drop enforced records (src/brain/worker-packet.ts:68-73) and advisory checks return null (src/brain/standards-cli.ts:275-277), so exposure rows cannot compare served against withheld.\nFiles: src/hook/stop.ts, src/brain/exposures.ts, test/hook/stop-exposure.test.ts\nOutcome: Stop records refusals as refusals (not served exposures) with the claimed task id; exposure rows carry served and withheld ids; the test exits 0 and fails on the old logging.\nProof: node --test test/hook/stop-exposure.test.ts passes."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}

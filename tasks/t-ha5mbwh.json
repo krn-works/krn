@@ -1,0 +1,14 @@
+{
+  "id": "t-ha5mbwh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Stop ends a loop of three identical no-edit refusals",
+  "after": [],
+  "body": [
+    "Astra audit B7 (verified): repeated identical Stop refusals are classified only after the session process ends (evals/replay/session-result.ts:114,225); src/hook/stop.ts has no loop counter, so a session that cannot satisfy Stop burns budget until its timeout.\nFiles: src/hook/stop.ts, test/hook/stop-loop-limit.test.ts\nOutcome: after three identical no-edit refusals in one session, Stop allows the stop and records a stop-loop verdict; the test exits 0.\nProof: node --test test/hook/stop-loop-limit.test.ts passes."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
