@@ -1,0 +1,14 @@
+{
+  "id": "t-50vfb03",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Measure a reuse-ladder rule against a one-line YAGNI rule on screened units",
+  "after": [],
+  "body": [
+    "Source: operator link 2026-11-17 (Ponytail, https://github.com/DietrichGebert/ponytail); disposition in .krn/runs/research/rss-dispositions.md. The vendor claims -53% code and -26% cost, self-measured, and a 7-word YAGNI prompt nearly matched it.\nOutcome: one screen run over the S7 screened units compares three arm-A variants: no rule, a one-line YAGNI rule, and the Ponytail-style reuse ladder. It reports the median added lines per diff and the hidden-test pass rate per arm, with a per-unit table. The ladder goes to the brain only if it cuts added lines by at least 25% with a pass rate no lower than no rule.\nProof: the screen report prints both metrics per arm over at least 30 units, plus a keep/drop verdict line.\nFiles: evals/replay/arms.ts"
+  ],
+  "kind": "research",
+  "area": "eval"
+}
