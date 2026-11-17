@@ -1106,9 +1106,9 @@ function onBase(root: string, sha: string): boolean {
 /**
  * Where `krn pr ship` recorded a merged ship for this session's lane, whose branch and worktree it then
  * removed. The last message need not repeat the verdict: lanes ended "the branch was deleted after merge"
- * and were refused. The record counts only while the lane branch is gone (the hook runs in a removed
- * worktree or the main checkout) and its merge commit is on the base. It is found by branch, worktree
- * directory name or the session's KRN_TASK.
+ * and were refused. The record counts when its merge commit is on the base and the hook runs in a removed
+ * worktree, the main checkout, or a kept lane worktree whose branch and tip are the recorded ones. It is
+ * found by branch, worktree directory name or the session's KRN_TASK.
  */
 export function recordedShip(
   root: string,
@@ -1117,7 +1117,10 @@ export function recordedShip(
   payload: unknown = undefined,
 ): boolean {
   const named = loadContract(root).contract?.base ?? 'main';
-  if (branch !== '' && branch !== named) return false;
+  const current = branch.trim();
+  // On a lane branch the record counts only for a kept worktree whose tip is still the shipped head:
+  // a lane agent's ship keeps worktree and branch for the next lane start to prune (t-hswt15n).
+  const onLane = current !== '' && current !== named;
   let main: string | undefined;
   if (existsSync(root)) {
     const common = git(root, [
@@ -1132,6 +1135,10 @@ export function recordedShip(
   if (main === undefined && at >= 0) main = root.slice(0, at);
   if (main === undefined) return false;
   const lane = at >= 0 ? root.slice(at + marker.length).split(sep)[0] : '';
+  // A lane worktree still on disk counts only while its tip is the shipped head: later work there is unshipped.
+  const kept = lane !== '' && existsSync(join(root, '.git'));
+  const tip =
+    kept || onLane ? git(root, ['rev-parse', 'HEAD']).stdout.trim() : '';
   const dir = join(main, shipRecordDir);
   let names: string[];
   try {
@@ -1146,7 +1153,10 @@ export function recordedShip(
         branch?: unknown;
         task?: unknown;
         sha?: unknown;
+        head?: unknown;
       };
+      if ((kept || onLane) && record.head !== tip) continue;
+      if (onLane && record.branch !== current) continue;
       const ours =
         (lane !== '' && record.branch === lane) ||
         (typeof record.branch === 'string' &&
@@ -1744,7 +1754,7 @@ export function main() {
     const code = (error as NodeJS.ErrnoException).code;
     if (code !== 'EAGAIN' && code !== 'EOF' && code !== 'ENXIO') throw error;
   }
-  const branch = git(root, ['branch', '--show-current']).stdout;
+  const branch = git(root, ['branch', '--show-current']).stdout.trim();
   const { code, stderr } = stopHook(input, process.env, branch);
   if (stderr) process.stderr.write(stderr);
   process.exitCode = code;

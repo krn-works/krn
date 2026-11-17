@@ -1,0 +1,18 @@
+{
+  "id": "t-hswt15n",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "recordedShip honours a kept lane worktree whose tip is the shipped head; main() trims the branch; regression test red before, green after"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Stop hook honours the ship record inside a kept lane worktree",
+  "after": [],
+  "body": [
+    "Seen 2026-11-17: lane t-nfztnf6 shipped PR #1341 (merged 16c85d2), its worktree kept on branch replay-arm-b (a lane agent's ship keeps it), and SubagentStop refused twice: \"there is no commit on this branch yet\" (src/hook/stop.ts inspectTests, ahead === 0 after the squash).\nCause: src/hook/stop.ts main() passes `git branch --show-current` stdout untrimmed, and recordedShip() returns false for any branch other than the base, so a ship record of the lane's own branch is never honoured while the lane worktree exists.\nOutcome: a Stop inside a kept lane worktree whose tip equals the ship record's head and whose merge commit is on the base is allowed; the branch is trimmed.\nProof: a regression test calls recordedShip from a lane worktree on its branch with a matching record and gets true; with a different tip it gets false."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
