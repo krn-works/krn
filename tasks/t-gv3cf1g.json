@@ -1,0 +1,14 @@
+{
+  "id": "t-gv3cf1g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Replay arms A and C run the same model, budget and permission mode",
+  "after": [],
+  "body": [
+    "evals/replay/arm-c.ts runs arm C with --model sonnet, a 5 USD budget and KRN's headless lane arguments, while arm A (live.ts) runs claude defaults with bypassPermissions and no budget. Rows of the two arms differ in model and budget, not only in KRN.\nOutcome: arms A and C share one session argument builder (model, budget, permission mode, denied tools); only the KRN adoption differs.\nProof: a unit test asserts the argv of an arm-A and an arm-C session differ only in the KRN-owned parts."
+  ],
+  "kind": "debt",
+  "area": "evals"
+}

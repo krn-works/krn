@@ -1,0 +1,14 @@
+{
+  "id": "t-2w5b94c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Write-scope hook misjudges lane commands that use shell variables or run beside another worktree",
+  "after": [],
+  "body": [
+    "On 2026-11-17 the t-g86syt0 lane (#1335) reported two PreToolUse write-scope refusals while it worked in its own worktree (.krn/worktrees/screening-verify-keeps-fields) and the lead session's cwd was another worktree (replay-session-driver):\n1. a Bash command naming a path through a shell variable ($B/...) was refused as a main-checkout write: the hook does not expand variables before resolving the path.\n2. while krn pr ship ran, the hook refused the lane's read-only PR polling; the scope check appeared to judge against the lead's cwd worktree rather than the lane's.\nOutcome: the write-scope hook resolves variable paths it can expand (or treats unexpandable ones as unknown, not main-checkout) and judges a lane by its own worktree.\nProof: hook unit tests with a captured payload for each case (KRN-12, KRN-14)."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
