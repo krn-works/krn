@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
+import { requireSandbox } from '../units/sandbox.ts';
 import { forceRemove, gradeWorktree } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
 import { ARMS, type Arm } from './arms.ts';
@@ -209,6 +210,8 @@ export async function screenLive(
   units: LiveUnit[],
   o: LiveOptions,
 ): Promise<Row[]> {
+  // Refuse before any paid session when the grade could not run sandboxed.
+  requireSandbox();
   const ok = new Set(
     eligible(units.map((u) => u.unit as ScreenUnit)).map((u) => u.id),
   );
