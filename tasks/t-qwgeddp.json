@@ -1,7 +1,11 @@
 {
   "id": "t-qwgeddp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/task/pending-records.test.ts: publish --dry-run drops a pending record the base closed and keeps one edited after publication; fails on old code, passes now"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Task publish would revert a record that a lane PR already published and closed",
