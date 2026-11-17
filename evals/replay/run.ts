@@ -1,5 +1,9 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
+// --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
+// --rows is not given);
+// --screen --replay <dir> grades every recorded patch on a fresh unit.base checkout with no model session and exits
+// 0 when each replayed grade equals the recorded one, 1 when one differs, 65 when none replays.
 // One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session.
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -7,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { loadUnits } from '../units/unit.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { screenLive } from './live.ts';
+import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import { readRows, report, type ScreenUnit, screen } from './screen.ts';
 
@@ -43,11 +48,41 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const loaded = loadUnits(flag('units-dir') ?? join(here, '..', 'units'));
     const units = loaded.map((u) => u.unit as ScreenUnit);
     const rowsFile = flag('rows') ?? join(here, 'screen-rows.jsonl');
+    const sources = flag('sources') ?? '.krn/sources/screening';
+    const scratch = flag('scratch') ?? join(tmpdir(), 'krn-screen-live');
+    const replay = flag('replay');
+    if (replay !== undefined) {
+      const byId = new Map(loaded.map((u) => [u.unit.id, u]));
+      const results = [];
+      for (const r of readRecordings(replay)) {
+        const u = byId.get(r.unit);
+        if (!u) {
+          results.push({ recording: r, pass: null, error: 'no such unit' });
+          continue;
+        }
+        results.push(
+          await replayRecording(r, u.unit, u.dir, {
+            sources,
+            scratch,
+            dir: replay,
+          }),
+        );
+      }
+      const v = replayVerdict(results);
+      for (const l of v.lines) console.log(l);
+      process.exit(v.code);
+    }
     if (!args.includes('--report') && flag('metric') === undefined)
       await screenLive(loaded, {
-        sources: flag('sources') ?? '.krn/sources/screening',
-        scratch: flag('scratch') ?? join(tmpdir(), 'krn-screen-live'),
+        sources,
+        scratch,
         rowsFile,
+        // The tracked screening run records by default; a run into another rows file records only when asked.
+        recordings:
+          flag('record') ??
+          (flag('rows') === undefined
+            ? join(here, '..', '..', '.krn', 'runs', 'screen-recordings')
+            : undefined),
         harness: harnessSha(here),
         reps: Number(flag('reps') ?? 1),
       });
