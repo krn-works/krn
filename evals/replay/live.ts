@@ -86,6 +86,11 @@ export function armEnv(
   // No GitHub identity: with no token and an empty gh config, `gh pr view -R <upstream>` fails with an auth error
   // instead of handing the session the upstream fix (S7: t-1d7k0sg read `gh pr diff -R` and passed).
   env.GH_CONFIG_DIR = join(scratch, 'gh-config');
+  // scripts/app-bin/gh mints a GitHub App token on every call: on the session's PATH it would undo the empty config.
+  if (env.PATH !== undefined)
+    env.PATH = env.PATH.split(':')
+      .filter((dir) => !/(^|\/)scripts\/app-bin\/?$/.test(dir))
+      .join(':');
   mkdirSync(env.GH_CONFIG_DIR, { recursive: true });
   const dir = join(scratch, 'claude-config');
   mkdirSync(dir, { recursive: true });

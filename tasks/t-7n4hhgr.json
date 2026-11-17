@@ -1,0 +1,18 @@
+{
+  "id": "t-7n4hhgr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "armEnv drops scripts/app-bin PATH entries; replay-live gh identity test passes on a host whose PATH starts with app-bin"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Arm sessions inherit the GitHub App gh wrapper from PATH",
+  "after": [],
+  "body": [
+    "On 2026-11-17 test/evals/replay-live.test.ts 'an arm session env carries no GitHub identity' fails on main on this host: armEnv (evals/replay/live.ts) keeps the host PATH, whose first entry is scripts/app-bin, the gh wrapper that mints a GitHub App installation token. So an arm A session can run gh pr view/diff -R <upstream> authenticated and read the upstream fix (the S7 leak the test guards), and every fast check touching replay-live is red on the host.\nOutcome: armEnv drops every PATH entry that is a scripts/app-bin directory, so gh in an arm session is the real gh with an empty config.\nProof: node --test test/evals/replay-live.test.ts passes on a host whose PATH starts with scripts/app-bin; a unit test asserts the arm PATH has no app-bin entry."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

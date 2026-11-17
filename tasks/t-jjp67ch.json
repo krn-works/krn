@@ -1,7 +1,11 @@
 {
   "id": "t-jjp67ch",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify removes only dirs of units graded and dropped in this run; all-install-fail exits 75 naming infrastructure; CLI test through real verify"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Screening verify keeps unit directories when every grade fails install",
