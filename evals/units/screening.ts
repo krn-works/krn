@@ -21,6 +21,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withoutBrowser } from './no-browser.ts';
 import type { Unit } from './unit.ts';
 
 export const MIN_VERIFIED = 70;
@@ -309,26 +310,29 @@ const cacheLimits = (): CacheLimits => ({
   capBytes: Number(process.env.KRN_SCREEN_CACHE_MAX_GB ?? 8) * GB,
   freeFloorBytes: Number(process.env.KRN_SCREEN_MIN_FREE_GB ?? 6) * GB,
 });
-/** Third-party install and test commands see no tokens: PATH, HOME and caches inside scratch only. */
+/** Third-party install and test commands see no tokens and no desktop: PATH, HOME and caches inside scratch only. */
 function cleanEnv(): NodeJS.ProcessEnv {
   const c = (n: string) => join(cacheRoot, n);
-  return {
-    PATH: process.env.PATH,
-    HOME: process.env.HOME,
-    LANG: 'C.UTF-8',
-    CI: '1',
-    MISE_GO_VERSION: '1.27.3',
-    GOCACHE: c('go-build'),
-    GOMODCACHE: c('go-mod'),
-    GOFLAGS: '-mod=mod',
-    npm_config_cache: c('npm'),
-    COMPOSER_HOME: c('composer'),
-    PIP_CACHE_DIR: c('pip'),
-    XDG_CACHE_HOME: c('xdg'),
-    // Builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs that parallel Go builds exhaust.
-    TMPDIR: c('tmp'),
-    GOTMPDIR: c('tmp'),
-  };
+  return withoutBrowser(
+    {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+      LANG: 'C.UTF-8',
+      CI: '1',
+      MISE_GO_VERSION: '1.27.3',
+      GOCACHE: c('go-build'),
+      GOMODCACHE: c('go-mod'),
+      GOFLAGS: '-mod=mod',
+      npm_config_cache: c('npm'),
+      COMPOSER_HOME: c('composer'),
+      PIP_CACHE_DIR: c('pip'),
+      XDG_CACHE_HOME: c('xdg'),
+      // Builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs that parallel Go builds exhaust.
+      TMPDIR: c('tmp'),
+      GOTMPDIR: c('tmp'),
+    },
+    c('no-browser'),
+  );
 }
 
 const run = (cmd: string, cwd: string, log: string): Promise<number> =>
