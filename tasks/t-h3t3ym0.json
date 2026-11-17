@@ -1,0 +1,18 @@
+{
+  "id": "t-h3t3ym0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "planted-records stack timeout scales with host load per core, two stacks at a time; load-budget unit test"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship scoped check fails planted-records init stacks on host load timeouts",
+  "after": [],
+  "body": [
+    "On 2026-11-17 `krn pr ship` for t-41d0vze refused the push: the scoped fast check failed 4 subtests of test/scripts/planted-records.test.ts (\"every applicable enforced record bites in each init stack\": ts, python, php, wp-plugin), each at the 240000 ms timeout, while host load average was ~100 (screening re-verify plus another lane fast check). The same file passed alone in 78 s (6/6). A ship refusal caused by host load costs a 25-minute rerun.\nOutcome: the ship scoped check does not fail on load-bound timeouts: either planted-records runs its init stacks within budget under load (measured), or fast-check runs heavy files with bounded parallelism / reports a timeout as load, not as a red test.\nProof: node --test test/scripts/planted-records.test.ts passes under a synthetic load (e.g. stress with nproc workers) within its timeout, or fast-check reports a timeout separately; a test covers the chosen behavior."
+  ],
+  "kind": "defect",
+  "area": "ship"
+}
