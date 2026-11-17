@@ -182,6 +182,7 @@ test('parseSessionResult reads the captured result', () => {
     ok: true,
     detail: 'session success',
     cost: 0.08594,
+    model: 'claude-sonnet-5-5',
   });
   assert.equal(parseSessionResult('not json').ok, false);
   assert.equal(

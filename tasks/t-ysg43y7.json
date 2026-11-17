@@ -1,7 +1,11 @@
 {
   "id": "t-ysg43y7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "frozen-matrix test: 12-row rep-99 mixed-harness fixture refused (exit 65), complete not-shown fixture accepted; fails without the source change"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "A/B/C report refuses an incomplete or mixed matrix before significance",

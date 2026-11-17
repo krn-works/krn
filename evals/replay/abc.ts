@@ -62,7 +62,7 @@ const observation = (r: Row): Observation => ({
   correct: r.pass === true,
   scopeClean: true,
   refusal: false,
-  costUsd: r.cost,
+  costUsd: r.cost ?? Number.NaN,
 });
 
 export interface Contrast {
@@ -84,6 +84,8 @@ export interface AbcReport {
   contrasts: Contrast[];
   /** Total USD over passing rows per arm, null with no pass. */
   usdPerResolved: Record<ArmId, number | null>;
+  /** Frozen-unit rows per arm whose cost is unknown (null); their spend is missing from the dollars, not zero. */
+  unknownCost: Record<ArmId, number>;
 }
 
 /** Graded rows of frozen units only. A contrast is shown when its Holm-adjusted p is below alpha and C is better. */
@@ -91,7 +93,7 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
   const frozen = new Set(prereg.units);
   const graded = rows.filter((r) => r.pass !== null && frozen.has(r.unit));
   const obs = graded.map(observation);
-  const costObs = obs.filter((o) => o.costUsd > 0);
+  const costObs = obs.filter((o) => o.costUsd > 0); // NaN (unknown cost) fails this
   const raw = prereg.contrasts.map(([t, c]) => pairedDifference(obs, t, c));
   const adjusted = holm(raw.map((r) => r.p));
   const contrasts = prereg.contrasts.map(([t, c], i): Contrast => {
@@ -110,16 +112,67 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       logCostSe: cost.se,
     };
   });
+  // Dollars per resolution count every session's spend, graded or not; unknown costs add nothing and are counted.
+  const spent = rows.filter((r) => frozen.has(r.unit));
   const usd = (arm: ArmId): number | null => {
-    const mine = graded.filter((r) => r.arm === arm);
-    const passes = mine.filter((r) => r.pass).length;
-    return passes === 0 ? null : mine.reduce((s, r) => s + r.cost, 0) / passes;
+    const passes = graded.filter((r) => r.arm === arm && r.pass).length;
+    return passes === 0
+      ? null
+      : spent
+          .filter((r) => r.arm === arm)
+          .reduce((s, r) => s + (r.cost ?? 0), 0) / passes;
   };
+  const unknown = (arm: ArmId): number =>
+    spent.filter((r) => r.arm === arm && r.cost === null).length;
   return {
     graded: graded.length,
     contrasts,
     usdPerResolved: { A: usd('A'), B: usd('B'), C: usd('C') },
+    unknownCost: { A: unknown('A'), B: unknown('B'), C: unknown('C') },
   };
+}
+
+/**
+ * Why `rows` are not the preregistered matrix: a missing, ungraded or duplicated (unit, arm, rep) cell, a rep outside
+ * 1..reps, a unit outside the frozen list, or rows from more than one harness or realized model. Empty when complete.
+ */
+export function matrixProblems(rows: Row[], prereg: Prereg): string[] {
+  const problems: string[] = [];
+  const arms = [...new Set(prereg.contrasts.flat())].sort();
+  const frozen = new Set(prereg.units);
+  const cells = new Map<string, Row[]>();
+  for (const r of rows) {
+    if (!frozen.has(r.unit)) {
+      problems.push(`row for unit ${r.unit} outside the frozen list`);
+      continue;
+    }
+    if (!Number.isInteger(r.rep) || r.rep < 1 || r.rep > prereg.reps)
+      problems.push(
+        `${r.unit} ${r.arm} rep ${r.rep} outside 1..${prereg.reps}`,
+      );
+    const k = `${r.unit} ${r.arm} ${r.rep}`;
+    cells.set(k, [...(cells.get(k) ?? []), r]);
+  }
+  for (const unit of prereg.units)
+    for (const arm of arms)
+      for (let rep = 1; rep <= prereg.reps; rep++) {
+        const got = cells.get(`${unit} ${arm} ${rep}`) ?? [];
+        if (got.length === 0)
+          problems.push(`missing ${unit} ${arm} rep ${rep}`);
+        else if (got.length > 1)
+          problems.push(
+            `duplicate ${unit} ${arm} rep ${rep} (${got.length} rows)`,
+          );
+        else if ((got[0] as Row).pass === null)
+          problems.push(`ungraded ${unit} ${arm} rep ${rep}`);
+      }
+  const harnesses = new Set(rows.map((r) => r.harness));
+  if (harnesses.size > 1)
+    problems.push(`mixed harness: ${[...harnesses].sort().join(', ')}`);
+  const models = new Set(rows.map((r) => r.model ?? 'unknown'));
+  if (models.size > 1)
+    problems.push(`mixed realized model: ${[...models].sort().join(', ')}`);
+  return problems;
 }
 
 const signed = (x: number) => `${x >= 0 ? '+' : ''}${x.toFixed(1)}`;
@@ -139,5 +192,10 @@ export function reportLines(r: AbcReport, prereg: Prereg): string[] {
   lines.push(
     `cost: USD per resolved task A ${money(u.A)}, B ${money(u.B)}, C ${money(u.C)}`,
   );
+  const k = r.unknownCost;
+  if (k.A + k.B + k.C > 0)
+    lines.push(
+      `cost: rows with unknown cost A ${k.A}, B ${k.B}, C ${k.C} (their spend is missing from the dollars above)`,
+    );
   return lines;
 }

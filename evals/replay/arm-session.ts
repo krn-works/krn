@@ -128,8 +128,9 @@ export async function armRow<Note>(
         arm: arm.id,
         rep,
         pass: g ? g.install === 0 && g.test === 0 : null,
-        cost: session.result.cost ?? 0,
+        cost: session.result.cost ?? null,
         harness: o.harness,
+        model: session.result.model ?? null,
       },
       note,
     };

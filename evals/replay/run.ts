@@ -1,5 +1,5 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
-// --prereg evals/replay/abc.prereg.md --report [--rows <file>] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
+// --prereg evals/replay/abc.prereg.md --report [--rows <file>] [--strict] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
@@ -14,7 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
-import { analyze, parsePrereg, reportLines } from './abc.ts';
+import { analyze, matrixProblems, parsePrereg, reportLines } from './abc.ts';
 import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
@@ -52,7 +52,7 @@ export function plan(opts: {
           arm: arm.id,
           rep,
           pass: null,
-          cost: 0,
+          cost: null,
           harness: opts.harness,
         });
   return rows;
@@ -69,6 +69,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     // --prereg <file> --report [--rows <file>]: one verdict per contrast over recorded rows; 65 when none is graded.
     const frozen = parsePrereg(readFileSync(prereg, 'utf8'));
     const rows = readRows(flag('rows') ?? join(here, 'abc-rows.jsonl'));
+    if (args.includes('--strict')) {
+      // Before any significance test: the rows must be the whole preregistered matrix from one harness and model.
+      const problems = matrixProblems(rows, frozen);
+      if (problems.length > 0) {
+        for (const p of problems.slice(0, 20)) console.error(`matrix: ${p}`);
+        console.error(
+          `verdict: matrix incomplete or mixed (${problems.length} problems)`,
+        );
+        process.exit(65);
+      }
+    }
     const result = analyze(rows, frozen);
     if (result.graded === 0) {
       console.error('no graded rows for the frozen units');

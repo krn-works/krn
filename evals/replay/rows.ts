@@ -1,7 +1,7 @@
-// The one results format: (unit, arm, rep, pass, cost, harness sha). `pass` is null until a session is graded.
+// The one results format: (unit, arm, rep, pass, cost, harness sha, realized model). `pass` is null until a session is graded.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import type { ArmId } from './arms.ts';
 
 export interface Row {
@@ -9,18 +9,35 @@ export interface Row {
   arm: ArmId;
   rep: number;
   pass: boolean | null;
-  /** USD for the session, 0 for a dry row. */
-  cost: number;
+  /** USD for the session; null when the session reported none (unknown, never 0) and for a dry row. */
+  cost: number | null;
   harness: string;
+  /** The model the session realized (its usage keys, sorted and joined); null when unreported, absent on older rows. */
+  model?: string | null;
 }
 
-/** Content hash of every file under the replay directory: the harness a row was produced by. */
+/** Every file the harness runs: the replay directory and the d23 and units code its sessions and grades import. */
+const harnessDirs = (dir: string): string[] => [
+  dir,
+  join(dir, '..', 'd23'),
+  join(dir, '..', 'units'),
+];
+
+/** Content hash of every .ts file the replay harness runs, so a change to a grader or analysis changes it. */
 export function harnessSha(dir: string): string {
   const h = createHash('sha256');
-  for (const f of readdirSync(dir).sort()) {
-    if (!f.endsWith('.ts')) continue;
-    h.update(f);
-    h.update(readFileSync(join(dir, f)));
+  for (const d of harnessDirs(dir)) {
+    let names: string[];
+    try {
+      names = readdirSync(d).sort();
+    } catch {
+      continue;
+    }
+    for (const f of names) {
+      if (!f.endsWith('.ts')) continue;
+      h.update(`${basename(d)}/${f}`);
+      h.update(readFileSync(join(d, f)));
+    }
   }
   return h.digest('hex').slice(0, 12);
 }
