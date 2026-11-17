@@ -517,6 +517,45 @@
     "supersedes": []
   },
   {
+    "id": "s-ci-shell-quoting",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Shell text is quoted with shellWord (src/repo/shell-text.ts), never `sh -c ${JSON.stringify(x)}`. CI runs `node --test test/rules/shell-quoting.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "scripts/**", "evals/**"],
+      "terms": [
+        "shell",
+        "quote",
+        "quoting",
+        "JSON.stringify",
+        "shellWord",
+        "sh -c"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/shell-quoting.test.ts'"
+    },
+    "provenance": {
+      "origin": "t-xasrw18 found sh -c with JSON.stringify in evals/units/screening.ts",
+      "evidence": [
+        "src/repo/shell-text.ts",
+        "test/rules/shell-quoting.test.ts"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-17",
+    "valid_from": "2026-11-17",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-ci-host-path-guard",
     "type": "standard",
     "area": "ci",

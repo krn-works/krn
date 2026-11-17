@@ -19,6 +19,7 @@ s-ci-docs-referenced [docs/**]: Every file under docs/ is named by a rule, test,
 s-ci-flag-value-reader [src/cli/**+1]: CLI value flags read their value through the shared reader, never a `startsWith("--")` missing-value check
 s-ci-format-contract [spec/schema/**+2]: Every format the build reads has a schema file under spec/schema, krn.json declares it, and every task file conforms to krn.task/v1
 s-ci-harness-literals [src/**]: Outside src/harness no string literal names the `.claude` directory or the `claude` binary
+s-ci-shell-quoting [src/**+2]: Shell text is quoted with shellWord (src/repo/shell-text.ts), never `sh -c ${JSON.stringify(x)}`
 s-ci-host-path-guard [src/**+2]: Tracked tests, scripts and sources name no host-specific path; captures use the redaction placeholder
 s-ci-instruction-bytes [AGENTS.md+4]: Agent instruction bytes stay within spec/context-budget.json; growth is a reviewed edit of that file with its reason in the PR body
 s-ci-instruction-references [AGENTS.md+3]: Instruction text names only npm scripts and repository files that exist
