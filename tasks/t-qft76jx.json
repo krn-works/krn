@@ -1,0 +1,18 @@
+{
+  "id": "t-qft76jx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Lanes start at low effort and escalate to high only after a red check",
+  "after": [],
+  "body": [
+    "Source: operator rss digest 2026-11-17, Addy Osmani Claude playbook (https://x.com/addyosmani/status/2121732470118965298): Opus low effort with failures rerun at high reached ~97%% at $0.17/task vs 95.3%% at $0.29 all-high on a SWE-bench Pro subset.\nOutcome: krn lane start runs the lane at low effort; a red Check (ship exit 74) reruns the fix turn at high; krn ledger prints first-push-green share and cost per PR for 10 lanes under the policy vs the 10 before it.\nProof: the ledger report file under .krn/runs/research/ lists both arms with first-push-green and cost per PR."
+  ],
+  "kind": "feature",
+  "area": "lane",
+  "from": {
+    "kind": "inbox",
+    "ref": "operator-2026-11-17"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "t-tpkc9xz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Every rss digest item from 2026-11-17 is tried on this host with a verdict",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-17 \"resztę z rss news proszę testować\" — the digest items noted without a task in .krn/runs/research/rss-dispositions.md (2026-11-17 section).\nOutcome: each item has a hands-on trial on this host with command, exit code and a keep/drop verdict in .krn/runs/research/rss-trials-2026-11-17.md: (a) Claude Code 2.1.326 startup warning against our lane brief --allowedTools/--tools, (b) Woolly shared memory vs krn standards query on one KRN question, (c) Agent-Otel-Kit traces of one krn lane session (cost, tokens), (d) an external sandbox (Wasm, container or QEMU) running one screen unit grade so third-party tests cannot reach the desktop (feeds t-nsk5wca), (e) OpenCode 2.3 background subagents vs krn lanes UX, (f) arXiv 2611.19237 authorization layers mapped onto KRN hooks and grants, (g) arXiv 2611.19700 numbers checked in the paper and written into the S8 preregistration note, (h) the 1000-agent Lean coordination and poteto 11k-PR claims read at source with any mechanical check KRN lacks filed as a task.\nProof: the trials file lists all eight with command, exit code and verdict."
+  ],
+  "kind": "research",
+  "area": "research",
+  "from": {
+    "kind": "inbox",
+    "ref": "operator-2026-11-17"
+  }
+}

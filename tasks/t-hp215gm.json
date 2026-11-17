@@ -1,0 +1,18 @@
+{
+  "id": "t-hp215gm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Eval regressions replay recorded model calls instead of spending quota",
+  "after": [],
+  "body": [
+    "Source: operator rss digest 2026-11-17, Attest (https://www.reddit.com/r/LocalLLaMA/comments/1xwy5ia/): record agent model calls once through a proxy, replay in CI at zero calls, local judge only when needed.\nOutcome: a research note under .krn/runs/research/ decides reuse or build for record/replay of screen and brain-regression sessions, with one replayed screen unit whose grade matches the recorded run (pass/fail equal).\nProof: the note names the replay command and its exit code on one recorded unit."
+  ],
+  "kind": "research",
+  "area": "eval",
+  "from": {
+    "kind": "inbox",
+    "ref": "operator-2026-11-17"
+  }
+}

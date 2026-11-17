@@ -1,0 +1,14 @@
+{
+  "id": "t-k7gv1wt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Screened sessions cannot reach the upstream repository through gh, curl or the web",
+  "after": [],
+  "body": [
+    "S7 arm-A screen (rows .krn/runs/lead/s7/screen-rows.jsonl, audit .krn/runs/lead/s7/contam-detail.log): the depth-1 no-remote checkout did not isolate sessions. t-1d7k0sg ran `gh pr diff 94 -R changesets/bot` and passed with the upstream fix in hand; t-4wtymyn ran `gh issue view 16 -R ...` and `gh pr view 100 -R ...`. Both used the host's authenticated gh via Bash; other sessions curl'd product URLs and worked in /tmp. Amend ADR 0021: every arm's session env carries no gh/GitHub credentials (GH_TOKEN/GITHUB_TOKEN unset, GH_CONFIG_DIR empty), WebFetch/WebSearch disallowed, and the contamination scan reads tool results (a failed `gh` is not contamination) instead of names-repo matches on Go import paths.\nOutcome: in a real screen session env, `gh pr view 1 -R cli/cli` exits non-zero with an auth error and WebFetch is refused; the scan flags t-1d7k0sg and not t-1bfdvot on the recorded transcripts.\nProof: node --test on the replay live test exits 0 with a test that spawns the session env and asserts `gh pr view -R` fails."
+  ],
+  "kind": "defect",
+  "area": "eval"
+}
