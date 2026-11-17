@@ -1,0 +1,14 @@
+{
+  "id": "t-tx2xcby",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Edit-standards holdout arm is keyed by task, not session id",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: src/hook/edit-standards.ts:125,128 key the holdout by session id, so a retried session can land in the other arm.\nOutcome: a test with two session ids for the same task exits 0 and asserts both get the same arm.\nProof: the test fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

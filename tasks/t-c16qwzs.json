@@ -1,0 +1,14 @@
+{
+  "id": "t-c16qwzs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Strict A/B/C report refuses a uniform wrong base SHA or an unknown model",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: evals/replay/abc.ts:169-172 check only mixed harness and missing model; a uniformly wrong SHA or unknown model passes.\nOutcome: --report --strict exits 65 when every row uses a SHA other than the preregistered one or a model outside the pinned set.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

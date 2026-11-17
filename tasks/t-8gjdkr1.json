@@ -1,0 +1,14 @@
+{
+  "id": "t-8gjdkr1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Adopt verify refuses, not skips, a non-GitHub host or non-default base",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: src/adopt/verify.ts:193-214 skips the required-check gate for non-GitHub hosts.\nOutcome: verify exits non-zero with a named reason when it cannot check the required gate.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "adopt"
+}

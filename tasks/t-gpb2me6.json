@@ -1,0 +1,14 @@
+{
+  "id": "t-gpb2me6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Drain stop-streak counts consecutive failures of the same task only",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: src/cli/lane-run/drain.ts:157 counts streak exit codes regardless of which task failed.\nOutcome: the streak resets when a different task fails; a test with [74 on t-a, 74 on t-b] does not stop the drain.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

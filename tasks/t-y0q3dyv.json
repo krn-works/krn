@@ -1,0 +1,14 @@
+{
+  "id": "t-y0q3dyv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship reports a merge only when the merged PR's head is the shipped head",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: src/ci/ship.ts:769 accepts state MERGED and returns the merge commit with no head comparison.\nOutcome: a MERGED PR whose headRefOid differs from the local shipped HEAD is refused (exit 77), never reported as merged.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

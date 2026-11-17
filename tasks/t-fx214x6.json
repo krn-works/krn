@@ -1,0 +1,14 @@
+{
+  "id": "t-fx214x6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Replay arms record an unknown session cost as unknown, never zero",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/gpt-6-2/astra-rerun-report.md (GPT-6.2 Astra rerun on 075e12b), verified by a read-only reader 2026-11-17.\nEvidence: evals/replay/live.ts:149 maps an unknown cost to 0 (distinct from t-pv0j21y).\nOutcome: a row with no cost is excluded from cost totals and counted as unknown in the report.\nProof: a regression test at the lowest layer fails before the fix and passes after."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}
