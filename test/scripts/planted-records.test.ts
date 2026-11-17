@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import test, { describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { loadScaledTimeoutMs } from '../../scripts/lib/load-budget.ts';
 import { PLANTS } from '../../scripts/lib/record-plants.ts';
 import {
   biteReport,
@@ -48,11 +49,13 @@ function run(stack: string): Promise<{ status: number | null; out: string }> {
 // composer install): the receiver itself, so it stays. One stack takes 13-18 s on an idle host and 68-84 s
 // with six side by side at host load 56 (adopt alone 44-45 s), past the runner's 60 s ceiling. A matrix
 // that runs a whole stack therefore carries its own ceiling, about three times the loaded measurement.
-const stackTimeoutMs = 240_000;
+// On a host busier than its cores (load ~100 on 16 cores timed out four stacks at 240 s) the ceiling grows
+// with the load per core, and only two stacks install side by side so the matrix adds less to the load.
+const stackTimeoutMs = loadScaledTimeoutMs(240_000);
 
-// One test per stack, run side by side.
+// One test per stack, two at a time.
 describe('every applicable enforced record bites in each init stack', {
-  concurrency: true,
+  concurrency: 2,
 }, () => {
   for (const stack of INIT_STACK_NAMES)
     test(stack, { timeout: stackTimeoutMs }, async () => {
