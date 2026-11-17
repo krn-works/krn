@@ -58,14 +58,23 @@ test('drain stops at max', async () => {
   assert.equal(ran.length, 2);
 });
 
-test('drain stops after two consecutive failures of the same exit class', async () => {
+test('drain goes on when two different tasks fail with the same exit class', async () => {
   const { seams: s, ran } = seams(['t-a', 't-b', 't-c', 't-d'], {
     't-a': 74,
     't-b': 74,
   });
   const result = await drainReady(request(4), s);
-  assert.equal(ran.length, 2);
+  assert.equal(ran.length, 4);
   assert.equal(result.exitCode, 74);
+  assert.doesNotMatch(result.lines.join('\n'), /stopped after/u);
+});
+
+test('drain stops after two consecutive failures of the same task and exit class', async () => {
+  const { seams: s, ran } = seams(['t-a', 't-b'], { 't-a': 74 });
+  // The queue offers t-a again, as a retry of one task would.
+  s.nextReady = async () => 't-a';
+  const result = await drainReady(request(4), s);
+  assert.equal(ran.length, 2);
   assert.match(
     result.lines.at(-1) ?? '',
     /stopped after 2 consecutive exit 74/u,

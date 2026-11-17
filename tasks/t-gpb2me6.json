@@ -1,7 +1,11 @@
 {
   "id": "t-gpb2me6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "streak keys on task id; test [74 t-a, 74 t-b] runs all four, fails on pre-fix source"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Drain stop-streak counts consecutive failures of the same task only",
