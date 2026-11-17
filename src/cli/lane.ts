@@ -43,6 +43,7 @@ export const laneUsage = [
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session a preflight checks origin with the lane credentials and the sandbox settings file (exit 69 in seconds), then it runs the krn.json `install` command (exit 71 when it fails) and the contract test on the clean base, one lane at a time per repository (a red run reruns only its failing test files once; exit 72 when they fail again, naming them), starting no session in any of these cases; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   laneFinishUsage,
+  'krn lane status [--root DIR]  one line per lane worktree: `live` (its `krn pr ship` runs, pid alive), `merged` (its ship merged on the base), `orphaned` (committed past the base, no pull request and no live ship: run `krn pr ship` or `krn lane finish`), `pr-open` (a pull request exists, no live ship), `empty` (no commit past the base) or `unknown` (gh cannot say)',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records, followed by the in-force worker standards of .agents/standards.json (inherited ones marked)',
 ].join('\n');
 
@@ -141,7 +142,7 @@ function laneState(main: string, name: string, base?: string): string {
   return 'shipped, merge not on base';
 }
 
-function shipRecord(
+export function shipRecord(
   main: string,
   branch: string,
 ): { branch: string; sha: string } | undefined {
@@ -160,7 +161,7 @@ function shipRecord(
   return undefined;
 }
 
-function isMergedOn(main: string, base: string, sha: string): boolean {
+export function isMergedOn(main: string, base: string, sha: string): boolean {
   return (
     gitRun(main, ['merge-base', '--is-ancestor', sha, `origin/${base}`])
       .status === 0
@@ -219,7 +220,7 @@ export function fetchBase(
   }
 }
 
-function gitRun(cwd: string, args: string[]) {
+export function gitRun(cwd: string, args: string[]) {
   return spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
 }
 
@@ -409,6 +410,11 @@ export async function laneCommand(args: string[]): Promise<void> {
   if (verb === 'brief') return briefCommand(rest);
   if (verb === 'drop') {
     process.stdout.write(`${await dropLane(rest)}\n`);
+    return;
+  }
+  if (verb === 'status') {
+    const { laneStatusCommand } = await import('./lane-status.ts');
+    process.stdout.write(laneStatusCommand(rest));
     return;
   }
   if (verb === 'finish') {

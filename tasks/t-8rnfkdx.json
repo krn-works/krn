@@ -1,0 +1,19 @@
+{
+  "id": "t-8rnfkdx",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship --detach survives the starting process (pid+log under .krn/tmp), krn lane status prints live/merged/orphaned/pr-open; proved by test/cli/lane-status.test.ts against real krn and a gh stand-in"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "A lane ship started in the background dies with the lane agent and leaves no PR",
+  "after": [],
+  "body": [
+    "On 2026-11-17 two of three krn-lane agents (t-41d0vze, t-qft76jx) started `krn pr ship` as a background job, then stopped (stream watchdog stall; 90-turn limit) while it ran; the ship process died with the agent, leaving a committed branch, an empty .krn/tmp/ship.log and no pull request. The lead had to find and reship both.\nOutcome: a lane ship survives the end of the agent that started it (detached, e.g. setsid/nohup with its log and a pid file under the worktree), or the lane brief/hook forbids backgrounding ship and the Stop check refuses to end while a committed lane branch has no PR; the lead sees an orphaned lane in one command.\nProof: a test shows a lane whose agent ends mid-ship still produces the PR (or the Stop check refuses with a named reason)",
+    "Correction 2026-11-17: only t-41d0vze lost its ship (agent stopped by a stream-watchdog stall, empty ship.log, no PR; the lead reshipped as #1302). t-qft76jx stopped at its turn limit while its ship ran, then resumed and merged #1303 itself; the lead started a duplicate ship of the same worktree before seeing that. So the defect is: (1) a stalled lane loses a background ship; (2) the lead has no one-command view of whether a lane ship is still live, which led to a duplicate ship."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
