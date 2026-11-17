@@ -1,0 +1,14 @@
+{
+  "id": "t-g3za2xj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Default verify scratch under os.tmpdir() can land on a size-capped tmpfs",
+  "after": [],
+  "body": [
+    "Since #1312 the default screening verify scratch is join(os.tmpdir(), 'krn-screen-scratch'); on a host without TMPDIR that is /tmp, a size-capped tmpfs, while the cache cap is 8 GB.\nOutcome: verify exits non-zero with a named reason (or relocates) when the scratch filesystem is tmpfs or has less free space than the cache cap plus floor.\nProof: a test with a stubbed fs probe asserts the refusal message (pass/fail).\nFiles: evals/units/screening.ts, test/evals/screening-units.test.ts"
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

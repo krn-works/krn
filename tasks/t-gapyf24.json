@@ -1,0 +1,14 @@
+{
+  "id": "t-gapyf24",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Hook refuses kill fed by pgrep -f, which can match the caller's own shell",
+  "after": [],
+  "body": [
+    "On 2026-11-17 the lead ran kill $(pgrep -f zk8-regrade2.sh) and killed its own shell (exit 144): pgrep -f matched the calling command line. The hook refuses pgrep wait loops (t-avtyjt7) but not kill fed by pgrep -f.\nOutcome: the PreToolUse Bash hook refuses (exit code 2 decision deny) a command that feeds kill from pgrep -f or runs pkill -f, naming PIDs from ps as the alternative; pass/fail in one dispatch test.\nProof: node --test test/hook/dispatch.test.ts with 'kill $(pgrep -f x.sh)' asserts the refusal.\nFiles: src/hook/, test/hook/dispatch.test.ts"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

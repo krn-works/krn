@@ -1,0 +1,14 @@
+{
+  "id": "t-qwgeddp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Task publish would revert a record that a lane PR already published and closed",
+  "after": [],
+  "body": [
+    "On 2026-11-17 the lead created t-7n4hhgr with krn task create (held on refs/krn/pending-tasks), then a lane PR (#1306) carried and closed the record. krn task publish --dry-run still listed t-7n4hhgr: stillPending (src/task/pending.ts) treats any pending blob that differs from the published one as an edit, so publish would write the older open record over the closed one.\nOutcome: krn task publish --dry-run prints no id for a pending record that a later base commit published and closed, and still prints the id of an edit made after publication (pass/fail in one test).\nProof: node --test on a test/task publish test with both fixtures exits 0."
+  ],
+  "kind": "defect",
+  "area": "task"
+}
