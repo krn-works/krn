@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { ARMS, parseArms } from '../../evals/replay/arms.ts';
-import { plan } from '../../evals/replay/run.ts';
+import { defaultSources, plan } from '../../evals/replay/run.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const run = (...a: string[]) =>
@@ -52,4 +54,20 @@ test('reps multiply rows per unit and arm', () => {
     harness: 'x',
   });
   assert.equal(rows.length, 6);
+});
+
+test('default screening sources resolve to the main checkout from a linked worktree', () => {
+  const main = execFileSync(
+    'git',
+    ['-C', repo, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' },
+  ).trim();
+  const expected = join(
+    realpathSync(dirname(main)),
+    '.krn',
+    'sources',
+    'screening',
+  );
+  assert.equal(defaultSources(repo), expected);
+  assert.equal(defaultSources(join(repo, 'evals', 'replay')), expected);
 });

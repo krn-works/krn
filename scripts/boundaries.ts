@@ -39,6 +39,9 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     'repo',
     'state',
     'task',
+    // `krn lane run` delegates its session to the replay driver until the verb goes (S24).
+    'evals/replay/session.ts',
+    'evals/replay/session-result.ts',
   ],
 };
 

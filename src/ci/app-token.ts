@@ -40,8 +40,11 @@ function reuseMarginSeconds(env: Env): number {
 
 export class Unavailable extends Error {}
 
-/** A GitHub installation token is ghs_ plus 36 alphanumerics; anything else is a stub or a plant. */
-const INSTALLATION_TOKEN = /^ghs_[A-Za-z0-9]{36}$/u;
+/**
+ * A GitHub installation token is ghs_ plus at least 36 token characters: the classic form is 36 alphanumerics, the
+ * current form (seen 2026-11-17) is about 390 characters with `.`, `_` and `-`. Anything shorter is a stub or a plant.
+ */
+const INSTALLATION_TOKEN = /^ghs_[A-Za-z0-9._-]{36,2048}$/u;
 
 type Env = NodeJS.ProcessEnv;
 type Cached = { token: string; expires_at: string };
@@ -104,7 +107,7 @@ function readCache(env: Env, now: number): string | undefined {
     const expires = Date.parse(String(cached?.expires_at));
     if (typeof token === 'string' && !INSTALLATION_TOKEN.test(token)) {
       process.stderr.write(
-        'github-app-token: discarded a cached token that is not a 40-character ghs_ installation token\n',
+        'github-app-token: discarded a cached token that is not a ghs_ installation token\n',
       );
       return undefined;
     }

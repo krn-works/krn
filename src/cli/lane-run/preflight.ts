@@ -137,6 +137,19 @@ export function settingsFailure(settings: string): string | undefined {
  * Whether the session's own git credentials reach origin and its base branch: an unreachable
  * remote or a token the remote refuses fails here in seconds, not after a model session.
  */
+/**
+ * Every stderr line of a refused ls-remote, joined: the credential helper's lines say why git then failed, and the
+ * first line alone was a cache warning that hid the cause (2026-11-17).
+ */
+export function remoteDetail(stderr: string): string {
+  return stderr
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '')
+    .join(' | ')
+    .slice(0, 600);
+}
+
 export function remoteFailure(
   repo: string,
   base: string,
@@ -155,7 +168,7 @@ export function remoteFailure(
   if (result.status === 2) return `origin has no branch ${base}`;
   const said =
     result.error?.message ??
-    (result.stderr.trim().split('\n')[0] || `exit ${result.status}`);
+    (remoteDetail(result.stderr) || `exit ${result.status}`);
   return `origin unreachable with the lane credentials (git ls-remote: ${said}); add the GitHub remote (git remote add origin URL) and push the default branch, or check the lane credentials`;
 }
 

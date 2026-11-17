@@ -18,5 +18,5 @@ export async function laneRunCommand(
   const request = parseLaneRequest(args);
   const lane = await prepareLane(request, steps);
   if ('line' in lane) return lane;
-  return laneVerdict(lane, sessionStage(lane), steps);
+  return laneVerdict(lane, await sessionStage(lane), steps);
 }

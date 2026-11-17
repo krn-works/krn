@@ -652,3 +652,24 @@ test('a short ghs_ token planted in the cache is discarded and replaced by a fre
     stubToken('token1'),
   );
 });
+
+test('a current-format installation token (390 characters with . _ -) is cached and served to a lane session', async (t) => {
+  const f = await fakes(t);
+  const path = join(f.env.KRN_APP_CACHE_DIR as string, 'krn-app-token.json');
+  // Shape of the token GitHub minted for krn-works/seo-audit-harness on 2026-11-17: ghs_, 386 characters, 3 '-',
+  // 2 '.', 2 '_' (the classic 40-character regex refused to cache it and every pilot lane preflight failed).
+  const token = `ghs_${'A1b2'.repeat(48)}-x.y_z-${'C3d4'.repeat(46)}.e_f-g`;
+  assert.ok(token.length > 380);
+  writeCache(f.env, {
+    token,
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+  });
+  assert.equal(JSON.parse(readFileSync(path, 'utf8')).token, token);
+  const lane = await exec(helper, ['token'], {
+    ...f.env,
+    KRN_SESSION_CLASS: 'lane',
+  });
+  assert.equal(lane.code, 0, lane.stderr);
+  assert.equal(lane.stdout, `${token}\n`);
+  assert.equal(f.minted(), 0);
+});

@@ -59,6 +59,8 @@ function receiver(options: {
   /** The `gh run list --commit` statuses of the head, per ask; the last one repeats. */
   runs?: string[][];
   runList?: string;
+  /** The origin URL `git remote get-url origin` prints; none exits 2. */
+  origin?: string;
 }) {
   let time = 0;
   let behind = options.baseMoves ?? 0;
@@ -197,6 +199,10 @@ function receiver(options: {
         stderr: '',
       };
     }
+    if (line === 'remote get-url origin')
+      return options.origin === undefined
+        ? { code: 2, stdout: '', stderr: 'error: No such remote' }
+        : out(`${options.origin}\n`);
     if (
       ['push', 'fetch', 'worktree', 'branch', 'ls-tree', 'show-ref'].includes(
         a[0] ?? '',
@@ -221,6 +227,21 @@ function receiver(options: {
 }
 const auto = { autoMergeRequest: { mergeMethod: 'SQUASH' }, state: 'OPEN' };
 const merged = { state: 'MERGED', mergeCommit: { oid: merge } };
+
+test('ship without --repo names the repository from the origin URL, never through gh repo view', async () => {
+  // gh repo view ran on the default App token, which cannot see a private outside repository: the pilot lane
+  // t-h2yjgx3 failed with "Could not resolve to a Repository with the name 'krn-works/seo-audit-harness'" (2026-11-17).
+  const r = receiver({
+    pulls: [auto, merged],
+    origin: 'https://github.com/krn-works/seo-audit-harness.git',
+  });
+  const out = await shipCommand(
+    ['--title', title, '--body-file', 'body.md'],
+    r,
+  );
+  assert.match(out, /^pr: #7 krn-works\/seo-audit-harness a{40}$/mu);
+  assert.ok(!r.calls.some((c) => c.startsWith('gh repo view')));
+});
 
 test('ship --drop pushes, creates, merges explicitly, waits through the merge and removes the lane no process works in', async () => {
   const r = receiver({ pulls: [auto, merged] });

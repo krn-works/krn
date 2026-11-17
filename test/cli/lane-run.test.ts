@@ -15,6 +15,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import {
+  parseSessionResult,
+  repeatedStopRefusal,
+  transcriptTurns,
+} from '../../evals/replay/session-result.ts';
 import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 import { readExposures } from '../../src/brain/exposures.ts';
 import { startLane } from '../../src/cli/lane.ts';
@@ -38,6 +43,7 @@ import {
   baselineReason,
   failingTests,
   prepareWorktree,
+  remoteDetail,
   remoteFailure,
   rerunCommand,
   settingsFailure,
@@ -48,11 +54,6 @@ import {
   redCheckFinding,
   redCheckOf,
 } from '../../src/cli/lane-run/red-check.ts';
-import {
-  parseSessionResult,
-  repeatedStopRefusal,
-  transcriptTurns,
-} from '../../src/cli/lane-run/result.ts';
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
@@ -2299,4 +2300,16 @@ test('clause 8: a merged lane prints the proof of the tree it shipped, though sh
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
+});
+
+test('a refused ls-remote names every stderr line, so a helper warning never hides the cause', () => {
+  // Verbatim stderr of the pilot preflight on 2026-11-17 (lane session, no cached App token).
+  const stderr =
+    'github-app-token: discarded a cached token that is not a 40-character ghs_ installation token\n' +
+    'github-app-token: no cached App token in a lane session (the launcher mints it before the session)\n' +
+    "fatal: could not read Username for 'https://github.com': terminal prompts disabled\n";
+  const detail = remoteDetail(stderr);
+  assert.match(detail, /no cached App token in a lane session/u);
+  assert.match(detail, /fatal: could not read Username/u);
+  assert.equal(remoteDetail(''), '');
 });

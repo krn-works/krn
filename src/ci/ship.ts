@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
+import { repositoryOfRemote } from '../repo/remote.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
@@ -222,8 +223,13 @@ async function shipRun(
     );
   if (git(['status', '--porcelain']) !== '')
     throw usageError('worktree has uncommitted changes; commit them first');
+  // The origin names the repository without a GitHub call: `gh repo view` would run on the default App token, which
+  // cannot see a private outside repository (pilot seo-audit-harness, 2026-11-17).
   const repo =
     values.repo ??
+    repositoryOfRemote(
+      runner('git', ['remote', 'get-url', 'origin'], cwd).stdout ?? '',
+    ) ??
     (
       await gh([
         'repo',

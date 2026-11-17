@@ -8,8 +8,8 @@ import {
   appCredentialArgs,
   outsideCredentialArgs,
   outsideGit,
-  repositoryOfRemote,
 } from '../../src/cli/outside-git.ts';
+import { repositoryOfRemote } from '../../src/repo/remote.ts';
 
 test('a remote URL names its owner/name in every GitHub form', () => {
   for (const url of [

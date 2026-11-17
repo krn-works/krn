@@ -50,7 +50,7 @@ test('jsonObject accepts objects only', () => {
 test('lane and state readers accept captured files and reject look-alikes', async () => {
   const { claimFileSchema } = await import('../src/cli/lane.ts');
   const { transcriptLineSchema } = await import(
-    '../src/cli/lane-run/result.ts'
+    '../evals/replay/session-result.ts'
   );
   const { redCheckSchema, testSummarySchema } = await import(
     '../src/cli/lane-run/red-check.ts'
