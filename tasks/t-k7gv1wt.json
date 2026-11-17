@@ -1,7 +1,11 @@
 {
   "id": "t-k7gv1wt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Arm env: no GH_TOKEN/GITHUB_TOKEN, empty GH_CONFIG_DIR (gh pr view -R exits 4 with gh auth login, live claude session too); WebFetch/WebSearch disallowed; grading bwrap hides HOME; contamination scan in evals/replay/contamination.ts flags t-1d7k0sg, not t-1bfdvot (8/73 on S7 rows). Follow-ups t-xasrw18, t-te4w4zr, t-tqg3gbb."
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Screened sessions cannot reach the upstream repository through gh, curl or the web",

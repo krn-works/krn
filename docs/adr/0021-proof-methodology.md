@@ -56,6 +56,11 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
 7. **A/B/C, preregistered as a large-effect detector with cost co-primary.**
    - Units: at least 70, drawn from public fix commits dated after June 2026. Bodies are written from the issue text only. A unit is excluded when a hidden test asserts an identifier the body does not state.
    - Screening: a separate screening run. The confirmatory run starts only if arm A passes at most 85% of units.
+   - Isolation (amended after the S7 screen, where a session read the upstream fix with the host's `gh`):
+     - Every arm's session carries no GitHub identity: `GH_TOKEN` and `GITHUB_TOKEN` are unset and `GH_CONFIG_DIR` is an empty directory, so `gh pr view -R <upstream>` fails with an auth error.
+     - `WebFetch` and `WebSearch` are disallowed.
+     - Third-party install and test commands run in bubblewrap with HOME hidden: only the toolchains under it are visible, so no credential file is readable, even while the install has network.
+     - Residual risk: a public upstream stays reachable without credentials through curl or `git clone`. That route is detected, not blocked. `node evals/replay/contamination.ts <rows> <scratch>` reads each call's result. It flags a row when a gh, git-remote, curl/wget or web call returned content. A refused `gh` is not contamination, and a repository path in an import or a grep pattern is not a call.
    - Design: 3 reps per unit and arm, unit-clustered paired SE, Holm correction over C−A and C−B, MDE 15 pp at power 0.8.
    - Co-primary: paired log-cost ratio and USD per resolved task, with C at no more injected tokens than B.
    - Allowed outcome: "not shown" is a published result.

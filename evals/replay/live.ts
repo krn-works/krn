@@ -46,10 +46,26 @@ export interface LiveUnit {
 export const promptOf = (u: Unit): string =>
   `${u.task.title}\n\n${u.task.body}`;
 
+/** GitHub credentials and repository pointers an arm session never inherits. */
+const GITHUB_VARS = new Set([
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_ENTERPRISE_TOKEN',
+  'GITHUB_ENTERPRISE_TOKEN',
+  'GH_HOST',
+  'GH_REPO',
+  'GH_CONFIG_DIR',
+]);
+
+/** Tools a screened session may not call: the web holds the upstream issue, pull request and fix. */
+export const DENIED_TOOLS = ['WebFetch', 'WebSearch'] as const;
+
 /**
  * The session environment of an arm. Arm A is a plain clone (krn: false, staticRecords: false): it gets no KRN
  * variables and a private Claude config directory holding only a link to the host's login, so neither user hooks,
  * user settings nor the user CLAUDE.md load; `--setting-sources project` keeps only what the checkout itself carries.
+ * The session carries no GitHub credentials (ADR 0021): a public upstream stays reachable unauthenticated through curl
+ * or git, which the contamination scan (contamination.ts) detects from the session transcript.
  */
 export function armEnv(
   arm: Arm,
@@ -62,7 +78,15 @@ export function armEnv(
     );
   const env: NodeJS.ProcessEnv = {};
   for (const [k, v] of Object.entries(base))
-    if (!k.startsWith('KRN_') || k.startsWith('KRN_EVAL_')) env[k] = v;
+    if (
+      (!k.startsWith('KRN_') || k.startsWith('KRN_EVAL_')) &&
+      !GITHUB_VARS.has(k)
+    )
+      env[k] = v;
+  // No GitHub identity: with no token and an empty gh config, `gh pr view -R <upstream>` fails with an auth error
+  // instead of handing the session the upstream fix (S7: t-1d7k0sg read `gh pr diff -R` and passed).
+  env.GH_CONFIG_DIR = join(scratch, 'gh-config');
+  mkdirSync(env.GH_CONFIG_DIR, { recursive: true });
   const dir = join(scratch, 'claude-config');
   mkdirSync(dir, { recursive: true });
   const login = join(
@@ -118,6 +142,8 @@ function runClaude(
         'json',
         '--permission-mode',
         'bypassPermissions',
+        '--disallowedTools',
+        DENIED_TOOLS.join(','),
         '--setting-sources',
         'project',
       ],

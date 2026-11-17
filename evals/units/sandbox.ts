@@ -1,12 +1,14 @@
 // Third-party install and test commands run inside bubblewrap: the host is
 // read-only, /run and /tmp are empty (no Wayland or X11 socket, no session
-// bus), the environment holds only what the grader passes, and only the named
+// bus), HOME is an empty tmpfs that shows only the toolchains back (no gh,
+// Claude, SSH or .netrc credentials, even while the install has network), the
+// environment holds only what the grader passes, and only the named
 // directories are writable. Stub URL openers on PATH (no-browser.ts) do not
 // stop a real browser binary from starting; the sandbox does.
 
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 
 export interface SandboxOptions {
   /** Directory the command starts in. */
@@ -55,6 +57,7 @@ export function sandboxArgv(cmd: string, o: SandboxOptions): string[] {
   // /etc/resolv.conf usually links into /run, which the tmpfs above hides: name resolution needs its target back.
   const resolv = resolvTarget();
   if (o.net && resolv.startsWith('/run/')) a.push('--ro-bind', resolv, resolv);
+  a.push(...hiddenHome(o.env));
   // Binds come after the tmpfs mounts, so a writable directory under /tmp stays visible.
   for (const w of o.writable) a.push('--bind', resolve(w), resolve(w));
   a.push('--chdir', resolve(o.cwd), '--clearenv');
@@ -62,6 +65,51 @@ export function sandboxArgv(cmd: string, o: SandboxOptions): string[] {
     if (v !== undefined) a.push('--setenv', k, v);
   a.push('--', 'sh', '-c', cmd);
   return a;
+}
+
+const under = (p: string, dir: string) => p === dir || p.startsWith(dir + sep);
+
+/**
+ * The directories under HOME a command still sees, read-only: the mise data and config directories and every PATH
+ * entry inside HOME, so toolchains and their shims run while credential files stay hidden.
+ */
+export function homeToolchains(env: NodeJS.ProcessEnv): string[] {
+  const home = env.HOME;
+  if (!home) return [];
+  const wanted = [
+    env.MISE_DATA_DIR ?? join(home, '.local', 'share', 'mise'),
+    env.MISE_CONFIG_DIR ?? join(home, '.config', 'mise'),
+    ...(env.PATH ?? '').split(':').filter(Boolean),
+  ];
+  const real = realOr(home);
+  const keep: string[] = [];
+  for (const w of wanted) {
+    if (!existsSync(w)) continue;
+    const p = realOr(resolve(w));
+    if (p === real || !under(p, real) || keep.some((k) => under(p, k)))
+      continue;
+    for (let i = keep.length - 1; i >= 0; i--)
+      if (under(keep[i] as string, p)) keep.splice(i, 1);
+    keep.push(p);
+  }
+  return keep;
+}
+
+/** Hides the host HOME behind an empty tmpfs and binds the toolchains back read-only. */
+function hiddenHome(env: NodeJS.ProcessEnv): string[] {
+  if (!env.HOME || !existsSync(env.HOME)) return [];
+  const home = realOr(env.HOME);
+  const a = ['--tmpfs', home];
+  for (const k of homeToolchains(env)) a.push('--ro-bind', k, k);
+  return a;
+}
+
+function realOr(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
 }
 
 function resolvTarget(): string {

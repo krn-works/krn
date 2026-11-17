@@ -1,0 +1,18 @@
+{
+  "id": "t-tqg3gbb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Grading sandbox binds whole toolchain roots under HOME, not only PATH bin directories",
+  "after": [],
+  "body": [
+    "The grading sandbox (evals/units/sandbox.ts homeToolchains) hides HOME and binds back only the mise data/config directories and PATH entries under HOME. On hosts with nvm, cargo/rustup or pyenv layouts the libraries live beside `bin` (~/.nvm/versions/node/X/lib, ~/.rustup/toolchains), so a PATH-only bind breaks those toolchains inside the sandbox.\nAcceptance: a toolchain root (the parent of a PATH `bin` entry, plus ~/.rustup when ~/.cargo/bin is on PATH) is bound read-only, still without credential files; test with a fake HOME holding an nvm-style layout.\nProof: node --test test/evals/screening-units.test.ts exits 0 with an nvm-layout toolchain test"
+  ],
+  "kind": "defect",
+  "area": "eval",
+  "from": {
+    "kind": "task",
+    "ref": "t-k7gv1wt"
+  }
+}

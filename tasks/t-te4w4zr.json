@@ -1,0 +1,18 @@
+{
+  "id": "t-te4w4zr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "screening verify --id re-grades a recorded unit instead of skipping it with exit 0",
+  "after": [],
+  "body": [
+    "`node evals/units/screening.ts verify --id <id>` silently skips a unit whose manifest row already has `verification` and still prints `units: N verified` with exit 0, so a targeted re-verify (t-k7gv1wt, after a sandbox change) runs nothing and looks green.\nAcceptance: `verify --id <id>` re-verifies that unit even when recorded (or `--force`), and prints which ids it graded; a test asserts a recorded row is re-graded.\nProof: node --test test/evals/screening-units.test.ts exits 0 with a recorded-row re-grade test"
+  ],
+  "kind": "defect",
+  "area": "eval",
+  "from": {
+    "kind": "task",
+    "ref": "t-k7gv1wt"
+  }
+}
