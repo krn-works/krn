@@ -11,6 +11,7 @@ import {
   collectContextGate,
   renderContextGate,
 } from '../outcome/context-gate.ts';
+import { collectDollars, renderDollars } from '../outcome/dollars.ts';
 import {
   collectEffortTrial,
   renderEffortTrial,
@@ -46,6 +47,8 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   let reverts = false;
   let advisorTrial = false;
   let effortPolicy = false;
+  let dollars = false;
+  let minUnits: number | undefined;
   let band: BandName | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -63,6 +66,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     }
     if (flag === '--advisor-trial') {
       advisorTrial = true;
+      continue;
+    }
+    if (flag === '--dollars') {
+      dollars = true;
       continue;
     }
     if (flag === '--effort-policy') {
@@ -109,6 +116,7 @@ export async function ledgerCommand(args: string[]): Promise<void> {
         '--repo',
         '--root',
         '--transcripts',
+        '--min-units',
       ].includes(flag ?? '')
     )
       throw new CliUsageError(`Unknown ledger flag: ${flag}`);
@@ -126,6 +134,10 @@ export async function ledgerCommand(args: string[]): Promise<void> {
         throw new CliUsageError('Invalid --last');
       window.last = Number(value);
       windowMode = true;
+    } else if (flag === '--min-units') {
+      if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
+        throw new CliUsageError('Invalid --min-units');
+      minUnits = Number(value);
     } else if (flag === '--pr' || flag === '--limit') {
       if (
         !/^\d+$/.test(value) ||
@@ -160,13 +172,25 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     );
     return;
   }
+  if (dollars) {
+    const report = await collectDollars(options);
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderDollars(report),
+    );
+    return;
+  }
   if (advisorTrial) {
     const report = await collectAdvisorTrial({
       ...(options.limit === undefined ? {} : { limit: options.limit }),
       ...(options.repo === undefined ? {} : { repo: options.repo }),
     });
     process.stdout.write(
-      json ? `${JSON.stringify(report)}\n` : renderAdvisorTrial(report),
+      json
+        ? `${JSON.stringify(report)}\n`
+        : renderAdvisorTrial(
+            report,
+            minUnits === undefined ? {} : { minUnits },
+          ),
     );
     return;
   }
