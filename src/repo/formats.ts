@@ -9,6 +9,8 @@ export const FORMAT_MAJORS: Readonly<Record<string, number>> = {
   'krn.task': 1,
   'krn.record': 1,
   'krn.exposure': 1,
+  'krn.candidate': 1,
+  'krn.verdict': 1,
 };
 
 export type FormatName = keyof typeof FORMAT_MAJORS;

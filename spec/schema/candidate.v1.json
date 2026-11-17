@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "krn.candidate/v1",
+  "title": "krn.candidate/v1: one research candidate file, ingested by krn standards propose --from-candidate",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "source",
+    "pillar",
+    "claim",
+    "record_draft",
+    "experiment",
+    "expires",
+    "motivated_by"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "enum": ["krn.candidate/v1"] },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "arxiv_id": { "type": "string", "minLength": 1 },
+        "quote": { "type": "string" },
+        "sha256": { "type": "string" }
+      }
+    },
+    "pillar": { "type": "string", "minLength": 1 },
+    "claim": { "type": "string", "minLength": 1 },
+    "record_draft": { "type": "object" },
+    "experiment": {
+      "type": "object",
+      "required": ["population", "metric", "predicted_delta", "min_n"],
+      "additionalProperties": false,
+      "properties": {
+        "population": { "type": "string", "minLength": 1 },
+        "metric": { "type": "string", "minLength": 1 },
+        "predicted_delta": { "type": "number" },
+        "min_n": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "expires": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "motivated_by": { "type": "string", "minLength": 1 },
+    "recorded_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "reuse": { "type": "string" },
+    "build_because": { "type": "string" },
+    "merged_pr": { "type": "string" },
+    "retire": { "type": "string" }
+  }
+}

@@ -24,6 +24,7 @@ import {
   detectStack,
 } from '../repo/contract.ts';
 import { pruneRegistry, registryPath } from './adopted-registry.ts';
+import { ingestCandidate } from './candidate-ingest.ts';
 import { isUnservedType } from './decisions.ts';
 import {
   appendExposure,
@@ -771,8 +772,25 @@ export function proposeCommand(rest: readonly string[]): void {
   const { values, positional } = flags(
     rest,
     new Set(['--evidence']),
-    new Set(['--root', '--text', '--kind']),
+    new Set(['--root', '--text', '--kind', '--from-candidate']),
   );
+  const candidateFile = values.get('--from-candidate')?.[0];
+  if (candidateFile !== undefined) {
+    if (positional.length > 0 || values.size > (values.has('--root') ? 2 : 1))
+      throw new CliUsageError(usage);
+    const root = repositoryRoot(
+      resolve(values.get('--root')?.[0] ?? process.cwd()),
+    );
+    const { file, created } = ingestCandidate(
+      root,
+      resolve(candidateFile),
+      new Date().toISOString().slice(0, 10),
+    );
+    process.stdout.write(
+      `${created ? 'ingested' : 'already ingested'} ${file}; commit it with the slice\n`,
+    );
+    return;
+  }
   const text = values.get('--text')?.[0];
   const kind = values.get('--kind')?.[0];
   const evidence = values.get('--evidence') ?? [];

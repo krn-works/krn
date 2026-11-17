@@ -1,7 +1,11 @@
 {
   "id": "t-d8wt16e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "candidate-ingest.test.ts passes: schemas, --from-candidate refuses missing motivated_by (65), unknown major (78), weekly cap (75); radar ritual lines already absent from src"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "A research candidate enters by file and leaves with a verdict (S30)",
