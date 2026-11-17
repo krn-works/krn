@@ -153,7 +153,7 @@ function maskQuotes(command: string): string {
 }
 
 // Write targets a Bash command shows cheaply: redirections, tee and sed -i operands.
-function segmentTargets(segment: string): string[] {
+function segmentTargets(segment: string, redirectsOnly = false): string[] {
   const found: string[] = [];
   for (const match of segment.matchAll(
     /(?:^|[^>&\d<])\d*>>?\s*([^\s|;&<>()]+)/gu,
@@ -161,6 +161,7 @@ function segmentTargets(segment: string): string[] {
     found.push(match[1] as string);
   for (const match of segment.matchAll(/\btee\s+(?:-\w+\s+)*([^\s|;&<>]+)/gu))
     found.push(match[1] as string);
+  if (redirectsOnly) return found.filter((target) => target !== '/dev/null');
   for (const match of segment.matchAll(
     /\bsed\s+(?:-\w+\s+)*-i\S*\s+(?:-e\s+)?\S+\s+(\S+)/gu,
   ))
@@ -173,7 +174,11 @@ function segmentTargets(segment: string): string[] {
  * Write targets with the directory each one is relative to: a `cd DIR` segment moves the
  * directory for the segments after it, so `cd <worktree> && echo x > out` writes the worktree.
  */
-export function bashTargets(command: string, cwd: string): string[] {
+export function bashTargets(
+  command: string,
+  cwd: string,
+  redirectsOnly = false,
+): string[] {
   const text = maskQuotes(stripHeredocs(command));
   const found: string[] = [];
   let dir = cwd;
@@ -184,7 +189,7 @@ export function bashTargets(command: string, cwd: string): string[] {
       dir = to.startsWith('~') || to === '-' ? dir : resolve(dir, to);
       continue;
     }
-    for (const target of segmentTargets(segment))
+    for (const target of segmentTargets(segment, redirectsOnly))
       found.push(isAbsolute(target) ? target : resolve(dir, target));
   }
   return found;
@@ -238,6 +243,35 @@ export function inMainCheckout(root: string, target: string): boolean {
     return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
   };
   return inside(root) && !inside(join(root, '.krn'));
+}
+
+/**
+ * Output a worker redirects (`>`, `>>`, `tee`) to an absolute path belongs in its worktree: the scratch rule
+ * keeps logs under <worktree>/.krn/tmp. A lane redirected `krn pr ship` to /tmp/x (2026-11-17, t-gv984e8).
+ * Outside the worktree stay allowed: /dev/* and the harness scratchpad, which lives under CLAUDE_CODE_TMPDIR.
+ */
+export function strayRedirect(
+  command: string,
+  cwd: string,
+  root: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const inside = (base: string, target: string) => {
+    const rel = relative(base, target);
+    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
+  };
+  const marker = `${sep}.krn${sep}worktrees${sep}`;
+  const at = root.indexOf(marker);
+  const allowed = [
+    root,
+    ...(at < 0 ? [] : [join(root.slice(0, at), '.krn', 'runs')]),
+    ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
+  ];
+  return bashTargets(command, cwd, true).find(
+    (target) =>
+      !target.startsWith('/dev/') &&
+      !allowed.some((base) => inside(base, target)),
+  );
 }
 
 export interface Verdict {
@@ -295,6 +329,13 @@ export function judge(
     return {
       refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (src/hook/scope.ts).`,
     };
+  if (fields.tool_name === 'Bash' && typeof input.command === 'string') {
+    const stray = strayRedirect(input.command, resolve(cwd), root, env);
+    if (stray !== undefined)
+      return {
+        refusal: `Refused: ${stray} is outside this lane's worktree (${root}). Nothing in this call ran. Scratch rule: write logs and drafts under ${join(root, '.krn', 'tmp')}, never /tmp or another outside path (src/hook/scope.ts).`,
+      };
+  }
   if (isLaneSubagent(payload)) {
     const absolute = (target: string) =>
       isAbsolute(target) ? target : resolve(cwd, target);
