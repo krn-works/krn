@@ -74,15 +74,21 @@ export const defaultDrainSeams: DrainSeams = {
   now: Date.now,
 };
 
+/** The `doctor --unattended` arguments of a drain: the window and the target repository root. */
+export function doctorArgs(windowHours?: string, root?: string): string[] {
+  return [
+    '--unattended',
+    ...(windowHours === undefined ? [] : ['--window-hours', windowHours]),
+    ...(root === undefined ? [] : ['--root', root]),
+  ];
+}
+
 export async function defaultDoctor(
   windowHours?: string,
+  root?: string,
 ): Promise<DrainSeams['doctor']> {
   const { unattendedReport } = await import('../doctor-unattended.ts');
-  return () =>
-    unattendedReport([
-      '--unattended',
-      ...(windowHours === undefined ? [] : ['--window-hours', windowHours]),
-    ]);
+  return () => unattendedReport(doctorArgs(windowHours, root));
 }
 
 export interface DrainResult {
@@ -93,8 +99,8 @@ export interface DrainResult {
 /**
  * Deliver ready tasks one after another: the doctor check first (a failure stops before any
  * claim), then up to `max` single-task runs, one summary line each. It stops early when the
- * queue is empty or two consecutive runs end with the same non-zero exit. The exit is 0 when the
- * last run merged or nothing failed, else the exit of the last failure.
+ * queue is empty or two consecutive runs end with the same non-zero exit. The exit is 0 only when
+ * no run failed, else the exit of the last failure; a line names every failed task.
  */
 export async function drainReady(
   request: DrainRequest,
@@ -118,6 +124,13 @@ export async function drainReady(
   let lastFailure = 0;
   let streak = 0;
   let exitCode = 0;
+  const failed: string[] = [];
+  let summarised = false;
+  const summarise = () => {
+    if (failed.length === 0 || summarised) return;
+    summarised = true;
+    say(`drain: failed ${failed.join(', ')}`);
+  };
   for (let run = 0; run < request.max; run += 1) {
     const id = await seams.nextReady(root, tried);
     if (id === undefined) {
@@ -132,7 +145,10 @@ export async function drainReady(
     // The verdict line carries the merge or the blocker's reason; an unattended drain has no other record of it.
     say(verdict.line);
     if (verdict.proof !== undefined) say(verdict.proof);
-    exitCode = verdict.exitCode;
+    if (verdict.exitCode !== 0) {
+      exitCode = verdict.exitCode;
+      failed.push(`${id} (exit ${verdict.exitCode})`);
+    }
     if (verdict.exitCode === 0) {
       streak = 0;
       lastFailure = 0;
@@ -141,9 +157,11 @@ export async function drainReady(
     streak = verdict.exitCode === lastFailure ? streak + 1 : 1;
     lastFailure = verdict.exitCode;
     if (streak >= repeatedClassLimit) {
+      summarise();
       say(`drain: stopped after ${streak} consecutive exit ${lastFailure}`);
       break;
     }
   }
+  summarise();
   return { lines, exitCode };
 }

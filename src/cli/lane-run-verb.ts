@@ -5,7 +5,7 @@ import { laneRunCommand } from './lane-run.ts';
 
 async function drainCommand(args: string[]): Promise<void> {
   const request = drain.parseDrainRequest(args);
-  const doctor = await drain.defaultDoctor(request.windowHours);
+  const doctor = await drain.defaultDoctor(request.windowHours, request.root);
   const result = await drain.drainReady(
     request,
     { ...drain.defaultDrainSeams, doctor },

@@ -1,7 +1,11 @@
 {
   "id": "t-dgkkmp1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "mixed [74,0] batch exits 74 and names failed tasks; doctor gets --root; test fails on old drain"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "A mixed outside batch exits non-zero and its doctor checks the target root",
