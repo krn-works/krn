@@ -1,0 +1,14 @@
+{
+  "id": "t-658r0jh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "A check refuses JSON.stringify as shell quoting in TypeScript source",
+  "after": [],
+  "body": [
+    "Command text wrapped with `sh -c ${JSON.stringify(x)}` gets expanded by the outer shell (t-xasrw18 found it in evals/units/screening.ts). Add a guard or lint check that refuses JSON.stringify as shell quoting in TypeScript source; point to src/repo/shell-text.ts shellWord.\nAcceptance: the check fails on a fixture containing `sh -c ${JSON.stringify(cmd)}` and passes on the repository.\nProof: the check test exits 0 with a refusing fixture"
+  ],
+  "kind": "debt",
+  "area": "guard"
+}

@@ -1,7 +1,11 @@
 {
   "id": "t-xasrw18",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "install wrapped with single-quote escaping (shellWord); relative scratch/worktree paths resolved; nested-dollar and relative-path regression tests at gradeWorktree level; t-g6esr1v and t-ubnq9ps re-verified ok with real extras"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Grading passes unit commands to sh -c in double quotes, so the outer shell expands $ before the unit runs",
