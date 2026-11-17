@@ -1,0 +1,14 @@
+{
+  "id": "t-76cjaca",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Records retire only when a confidence bound rules out worthwhile benefit",
+  "after": [],
+  "body": [
+    "Astra audit B1 (verified by running Fisher on 1/30 vs 2/10: p=0.1488, retire=true): src/brain/retire.ts:49-63 retires a record when the effect is not significant (RETIRE_P=0.1), which retires records with a plausible benefit on thin data.\nFiles: src/brain/retire.ts, test/brain/retirement-margin.test.ts\nOutcome: a record retires only when the upper confidence bound of its benefit is below a stated margin; 1/30 served vs 2/10 withheld is kept; a large sample with no effect retires.\nProof: node --test test/brain/retirement-margin.test.ts passes with both cases."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-t463dps",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 3,
+  "title": "Retrieval eval reports reachable and total denominators",
+  "after": [],
+  "body": [
+    "Astra audit B4 (mechanism verified): evals/retrieval/run.ts:105-106 drops labels no channel can reach from the denominator and skips cases with none, so recall at edit time is overstated.\nFiles: evals/retrieval/run.ts, test/evals/retrieval-denominator.test.ts\nOutcome: the retrieval report prints reachable and total denominators per moment; the test exits 0.\nProof: node --test test/evals/retrieval-denominator.test.ts passes and node evals/retrieval/run.ts prints both denominators."
+  ],
+  "kind": "debt",
+  "area": "evals"
+}

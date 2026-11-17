@@ -1,0 +1,14 @@
+{
+  "id": "t-s92p1r6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "All replay arms parse sessions through one driver and arm C claims before SessionStart",
+  "after": [],
+  "body": [
+    "Astra audit E3/E4 (verified partly): arm A interprets its session through evals/replay/live.ts:142-151 (sessionOf) with a different \"ran\" rule than arm-session.ts:118-120 and session-result.ts:212-234 (budget cap counts as ran in B/C only if is_error is false in A); arm C (evals/replay/arm-c.ts:17-28) adopts KRN without claiming the task, and src/hook/session-standards.ts:24-25 serves nothing without a claim; arm B counts only the initial packet (arm-b.ts:42-45).\nFiles: evals/replay/live.ts, evals/replay/arm-session.ts, evals/replay/arm-c.ts, test/evals/arm-parity.test.ts\nOutcome: all arms parse sessions through session-result.ts; arm C claims its task before the session so SessionStart serves standards; each row attests the injected token total; the parity test exits 0.\nProof: node --test test/evals/arm-parity.test.ts passes: one budget-capped fixture yields the same ran/graded status in A, B and C, and arm C's SessionStart serves a non-empty packet."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

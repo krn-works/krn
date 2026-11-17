@@ -1,0 +1,14 @@
+{
+  "id": "t-gnz6vfe",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "An interrupted outside batch resumes exactly once from adoption to verified merge",
+  "after": [],
+  "body": [
+    "Astra audit top-1 (C4 verified; live recovery unverified): an interrupted outside batch cannot resume from the last verified head exactly once; three readers decide whether a lane finished.\nFiles: evals/adoption/recovery.ts, src/cli/lane-run/drain.ts\nOutcome: node evals/adoption/recovery.ts --live recovers an interrupted batch on an authorized outside repository, merges each task exactly once and passes independent acceptance on each merged SHA.\nProof: node evals/adoption/recovery.ts --live prints PASS with one merge per task."
+  ],
+  "kind": "feature",
+  "area": "adopt"
+}

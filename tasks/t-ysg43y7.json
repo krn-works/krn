@@ -1,0 +1,14 @@
+{
+  "id": "t-ysg43y7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "A/B/C report refuses an incomplete or mixed matrix before significance",
+  "after": [],
+  "body": [
+    "Astra audit E1/E2/E5 (verified): evals/replay/abc.ts analyze (90-108) declares a contrast shown without checking matrix completeness, reps, harness or model; missing cost becomes 0 (evals/replay/arm-session.ts:131) and ungraded spend drops out of dollars per resolution (abc.ts:113-117); rows carry no realized model (evals/replay/rows.ts:7-15) and the revision hash covers replay-directory .ts only (rows.ts:17-26).\nFiles: evals/replay/abc.ts, evals/replay/rows.ts, evals/replay/arm-session.ts, evals/replay/run.ts, test/evals/frozen-matrix.test.ts\nOutcome: --report --strict exits non-zero on an incomplete or mixed matrix (missing cells, duplicate reps, mixed harness or realized model) before any significance test; unknown cost stays null and is reported, never 0; rows record the realized model; a complete matrix whose result is not shown is accepted.\nProof: node --test test/evals/frozen-matrix.test.ts passes, rejecting a 12-row rep-99 mixed-harness fixture and accepting a complete not-shown fixture."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

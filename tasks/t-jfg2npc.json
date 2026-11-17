@@ -1,0 +1,14 @@
+{
+  "id": "t-jfg2npc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Editing sessions cannot read host paths outside the unit base",
+  "after": [],
+  "body": [
+    "Astra audit E6 (confirmed, by design): the grading and session sandbox binds the host root read-only (evals/units/sandbox.ts:48-60), so a session can read host paths outside masked /tmp, /run and HOME, including other checkouts that may hold reference fixes.\nFiles: evals/units/sandbox.ts, test/evals/grader-isolation.test.ts\nOutcome: an editing session sees only the unit base, the toolchain and scratch; hidden graders and reference fixes are unreadable from it; the test exits 0.\nProof: node --test test/evals/grader-isolation.test.ts passes, reading a planted host file fails inside the sandbox."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

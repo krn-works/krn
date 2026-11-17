@@ -1,0 +1,14 @@
+{
+  "id": "t-8s3zt60",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Measure inherited standards on each adopter's first ten tasks against a static control",
+  "after": [],
+  "body": [
+    "Astra audit top-2 (B1/B2 verified): there is no measurement of what inherited standards change on an adopter's first ten tasks against a matched static control.\nFiles: evals/adoption/first-ten.ts\nOutcome: node evals/adoption/first-ten.ts --report compares the first ten consecutive tasks per adopter with paired static-control replays from the same pre-task SHA and prints PASS, FAIL or INSUFFICIENT against frozen thresholds.\nProof: node evals/adoption/first-ten.ts --report prints one of PASS/FAIL/INSUFFICIENT on a recorded cohort fixture."
+  ],
+  "kind": "research",
+  "area": "brain"
+}

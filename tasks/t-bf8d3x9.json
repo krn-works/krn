@@ -1,0 +1,14 @@
+{
+  "id": "t-bf8d3x9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Ship and verify select the required check by name and App id; neutral and skipped are not green",
+  "after": [],
+  "body": [
+    "Astra audit C1/C3 (verified 2026-11-17): ship's newestCheck matches the required check by name only (src/ci/ship.ts:85,91-103), never by App id, and treats NEUTRAL and SKIPPED as green (ship.ts:790-792,807-809); adopt verify (src/adopt/verify.ts:103-132) accepts any App-15368 context without checking the aggregate name. A same-named check from another app or a skipped aggregate can merge.\nFiles: src/ci/ship.ts, src/adopt/verify.ts, test/ci/target-checks.test.ts\nOutcome: ship and verify select the required check by name and App id from one shared selector; NEUTRAL/SKIPPED/missing count as not green; the new test exits 0 and fails on the old selector.\nProof: node --test test/ci/target-checks.test.ts passes, with cases for a foreign-app same-name check and a skipped aggregate."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
