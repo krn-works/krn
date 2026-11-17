@@ -4,6 +4,7 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -131,6 +132,7 @@ test('--screen runs one arm-A session per unit under the slot cap and records gr
       assert.equal(cfg, join(root, 'scratch', 'claude-config'));
       assert.equal(probe, '');
       assert.match(args as string, /--setting-sources project/);
+      assert.match(args as string, /--disallowedTools WebFetch,WebSearch /);
     }
     assert.match(r.stdout, /verdict: no-go \(2 eligible units, 70 required\)/);
     assert.match(r.stdout, /^A pass rate: 50\.0% \(2 screened\)/m);
@@ -486,6 +488,36 @@ test('an arm session env reaches no desktop: stub openers first on PATH, no disp
       readFileSync(openerPaths(join(scratch, 'no-browser')).log, 'utf8'),
       'xdg-open https://example.invalid\n',
     );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('an arm session env carries no GitHub identity: gh pr view -R fails with an auth error (t-k7gv1wt)', () => {
+  // gh is on every host and runner that screens; a missing gh fails here instead of proving nothing.
+  assert.equal(spawnSync('gh', ['--version']).status, 0, 'gh is not installed');
+  const scratch = mkdtempSync(join(tmpdir(), 'arm-gh-'));
+  try {
+    // The host env, so the host's own gh login (hosts.yml, keyring) is what the session would otherwise inherit.
+    const env = armEnv(ARMS.A, scratch, {
+      ...process.env,
+      GH_TOKEN: 'gho_planted',
+      GITHUB_TOKEN: 'ghp_planted',
+      GH_ENTERPRISE_TOKEN: 'gho_planted',
+      GH_CONFIG_DIR: join(scratch, 'host-gh'),
+    });
+    for (const k of ['GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN'])
+      assert.equal(env[k], undefined, k);
+    assert.equal(env.GH_CONFIG_DIR, join(scratch, 'gh-config'));
+    assert.deepEqual(readdirSync(env.GH_CONFIG_DIR as string), []);
+    const r = spawnSync('gh', ['pr', 'view', '1', '-R', 'cli/cli'], {
+      env,
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    assert.notEqual(r.status, 0);
+    // An auth refusal, not a network failure that would pass offline for the wrong reason.
+    assert.match(r.stderr, /gh auth login|GH_TOKEN/);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

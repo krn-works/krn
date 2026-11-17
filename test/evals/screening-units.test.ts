@@ -408,6 +408,47 @@ test('a grade runs inside bubblewrap: no desktop, no host tokens, host read-only
   }
 });
 
+test('a grade sees no host HOME credentials, even with network, and still runs toolchains under HOME (t-k7gv1wt)', async (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const home = mkdtempSync(join(tmpdir(), 'grade-home-'));
+  for (const d of ['.config/gh', '.ssh', 'tools/bin'])
+    mkdirSync(join(home, d), { recursive: true });
+  writeFileSync(join(home, '.netrc'), 'machine github.com password planted\n');
+  writeFileSync(join(home, '.config/gh/hosts.yml'), 'github.com: planted\n');
+  writeFileSync(join(home, '.ssh/id_ed25519'), 'planted\n');
+  writeFileSync(join(home, 'tools/bin/hometool'), '#!/bin/sh\necho ran\n');
+  chmodSync(join(home, 'tools/bin/hometool'), 0o755);
+  const saved = { HOME: process.env.HOME, PATH: process.env.PATH };
+  process.env.HOME = home;
+  process.env.PATH = `${join(home, 'tools/bin')}:${process.env.PATH}`;
+  const probe = (phase: string) =>
+    [
+      // No `$?`: the unit command is nested in a double-quoted `sh -c`, which would expand it early.
+      `cat ~/.netrc ~/.config/gh/hosts.yml ~/.ssh/id_ed25519 > ${phase}-secrets 2> /dev/null && echo read > ${phase}-read || echo hidden > ${phase}-read`,
+      `hometool > ${phase}-tool`,
+    ].join('; ');
+  const f = gradeFixture('grade-home-', probe('install'), probe('test'));
+  try {
+    const g = await gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch);
+    assert.equal(g.install, 0, readFileSync(f.log, 'utf8'));
+    assert.equal(g.test, 0, readFileSync(f.log, 'utf8'));
+    const read = (n: string) => readFileSync(join(f.wt, n), 'utf8').trim();
+    for (const phase of ['install', 'test']) {
+      assert.equal(
+        read(`${phase}-read`),
+        'hidden',
+        `${phase} read a credential`,
+      );
+      assert.doesNotMatch(read(`${phase}-secrets`), /planted/);
+      assert.equal(read(`${phase}-tool`), 'ran', `${phase} lost the toolchain`);
+    }
+  } finally {
+    Object.assign(process.env, saved);
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('without a working bwrap a grade is refused before any unit command runs', async () => {
   const f = gradeFixture('grade-no-bwrap-', 'touch installed', 'touch tested');
   const path = process.env.PATH;

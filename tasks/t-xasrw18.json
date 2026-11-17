@@ -1,0 +1,18 @@
+{
+  "id": "t-xasrw18",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Grading passes unit commands to sh -c in double quotes, so the outer shell expands $ before the unit runs",
+  "after": [],
+  "body": [
+    "Grading wraps unit commands as `timeout N sh -c ${JSON.stringify(cmd)}` (evals/units/screening.ts:390 and the test call). The double-quoted nesting lets the outer shell expand `$x`, `$?` and `$(...)` before the inner shell runs: the python install `for x in test tests dev; do ... -e \".[$x]\"` installs `.[]` (no test extras). 2 committed units carry `$` in install/test. Found while writing the t-k7gv1wt HOME test (its probe's `$?` read the outer shell's status).\nAcceptance: a unit command containing `$x` and `$?` sees them in the inner shell (regression test in test/evals/screening-units.test.ts at gradeWorktree level); quoting by single-quote escaping, never JSON.stringify. Re-verify the 2 affected units; this must land before t-zk8cmrz re-verifies all 73.\nProof: node --test test/evals/screening-units.test.ts exits 0 with a nested-dollar regression test"
+  ],
+  "kind": "defect",
+  "area": "eval",
+  "from": {
+    "kind": "task",
+    "ref": "t-k7gv1wt"
+  }
+}

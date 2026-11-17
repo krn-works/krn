@@ -1,0 +1,9 @@
+{
+  "text": "Never nest a command into sh -c with JSON.stringify or double quotes: the outer shell expands $ first; quote it with single-quote escaping or pass argv",
+  "kind": "check",
+  "evidence": [
+    "evals/units/screening.ts",
+    "tasks/t-xasrw18.json"
+  ],
+  "recorded_at": "2026-11-17"
+}
