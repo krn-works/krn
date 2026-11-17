@@ -10,7 +10,7 @@ import {
   statfsSync,
   statSync,
 } from 'node:fs';
-import { dirname, join, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
@@ -288,6 +288,58 @@ export function pruneMergedLanes(
   return removed;
 }
 
+/** Git's race under load: another process pruned the new worktree's admin dir before `locked` was written. */
+const worktreeLockRace =
+  /could not open '[^']*\/worktrees\/([^/']+)\/locked' for writing/u;
+
+type WorktreeAdd = (
+  main: string,
+  args: string[],
+) => { status: number | null; stderr: string };
+
+/**
+ * `git worktree add` for a lane, retried when git reports the worktree lock-file race: the half-made
+ * admin dir and the branch git already created are removed first, so the retry starts clean.
+ */
+export function addLaneWorktree(
+  main: string,
+  slug: string,
+  path: string,
+  base: string,
+  run: WorktreeAdd = gitRun,
+  attempts = 5,
+  delayMs = 200,
+): void {
+  const args = [
+    'worktree',
+    'add',
+    '-q',
+    '--no-track',
+    '-b',
+    slug,
+    path,
+    `origin/${base}`,
+  ];
+  for (let attempt = 1; ; attempt += 1) {
+    const result = run(main, args);
+    if (result.status === 0) return;
+    const said = result.stderr.trim();
+    const race = worktreeLockRace.exec(said);
+    if (attempt >= attempts || race === null)
+      throw new CliUsageError(`git ${args.join(' ')} failed: ${said}`);
+    const common = gitRun(main, [
+      'rev-parse',
+      '--git-common-dir',
+    ]).stdout.trim();
+    const admin = join(resolve(main, common), 'worktrees', race[1] ?? slug);
+    rmSync(admin, { recursive: true, force: true });
+    rmSync(path, { recursive: true, force: true });
+    gitOk(main, ['worktree', 'prune']);
+    gitOk(main, ['branch', '-D', slug]);
+    sleepSync(delayMs);
+  }
+}
+
 /** A recorded head must equal the worktree tip; a record without one needs a tip no newer than the ship. */
 function tipBelongsToRecord(
   path: string,
@@ -547,16 +599,7 @@ export async function startLane(
   // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
   // the shared git dir, so any config write (upstream tracking) fails while a lane runs.
   try {
-    git(main, [
-      'worktree',
-      'add',
-      '-q',
-      '--no-track',
-      '-b',
-      slug,
-      path,
-      `origin/${base}`,
-    ]);
+    addLaneWorktree(main, slug, path, base);
   } catch (error) {
     // git creates the branch before the worktree directory; a failed add would leave it behind
     // and every retry would refuse with "branch already exists".

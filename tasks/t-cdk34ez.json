@@ -1,0 +1,18 @@
+{
+  "id": "t-cdk34ez",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "addLaneWorktree retries once on the verbatim lock-file race stderr (unit test), npm run fast PASS"
+  },
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Concurrent lane starts survive git's worktree lock-file race",
+  "after": [],
+  "body": [
+    "Observed 2026-11-17 under host load (npm run fast in ship-sync-main): test/cli/lane.test.ts \"concurrent lane starts in one repository all succeed\" failed once with `git worktree add -q --no-track -b p3 ... origin/main failed: fatal: could not open '.git/worktrees/p3/locked' for writing: No such file or directory` (exit 64); 3 isolated reruns passed. Concurrent `krn lane start` is the lead's normal parallel-lane path.\nOutcome: lane start retries `git worktree add` when git reports the worktree lock-file race (cleaning the half-made admin dir), so the concurrent test passes 20 of 20 runs under parallel load.\nProof: a unit test feeding the verbatim stderr above to the lane-start retry path exits 0 and shows one retry."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
