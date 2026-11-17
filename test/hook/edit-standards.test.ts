@@ -1,7 +1,7 @@
 // KRN-12: the real `krn adopt` and `krn hook edit` entries against a fresh adopted PHP repository, fed the
 // verbatim PreToolUse payloads Claude Code sent for an Edit and a Write of two PHP files in one session
 // (fixtures/pretooluse-edit-write-php.jsonl, host paths redacted): the first PHP edit brings the PHP-scoped records and logs
-// an edit exposure, the second PHP edit of the session adds nothing.
+// an edit exposure, the second adds only records not yet shown.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -16,9 +16,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { editStandardsCommand } from '../../src/adopt/stop-hook.ts';
+import { appendExposure, servedExposure } from '../../src/brain/exposures.ts';
 import { ruleViolations } from '../../src/hook/edit-rules.ts';
 import {
   commandFiles,
+  editContext,
   editedFile,
   fileKind,
 } from '../../src/hook/edit-standards.ts';
@@ -74,7 +76,7 @@ const replay = (root: string, line: string) =>
     line.split(capturedRoot).join(root),
   );
 
-test('the first PHP edit of a session brings the PHP records, the second adds nothing', () => {
+test('the first PHP edit of a session brings the PHP records, the second adds only records not yet shown', () => {
   const root = adoptedPhp();
   try {
     const settings = JSON.parse(
@@ -109,7 +111,15 @@ test('the first PHP edit of a session brings the PHP records, the second adds no
     assert.ok(logged[0].served.length > 0);
     const second = replay(root, write);
     assert.equal(second.status, 0, second.stderr);
-    assert.equal(second.stdout, '');
+    const ids = (text: string) =>
+      [...text.matchAll(/\[(s-[^\]]+)\]/gu)].map((m) => m[1]);
+    const later = second.stdout
+      ? ids(JSON.parse(second.stdout).hookSpecificOutput.additionalContext)
+      : [];
+    assert.ok(
+      later.every((id) => !ids(context).includes(id)),
+      'the second PHP edit repeats no record',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -136,11 +146,16 @@ test('a lane that edits PHP through a Bash one-liner gets the PHP records and lo
       ['php'],
     );
     const again = replay(root, bashCapture);
-    assert.equal(
-      again.stdout,
-      '',
-      'the second PHP command of the session adds nothing',
-    );
+    const repeated = again.stdout
+      ? [
+          ...JSON.parse(
+            again.stdout,
+          ).hookSpecificOutput.additionalContext.matchAll(/\[(s-[^\]]+)\]/gu),
+        ]
+          .map((m) => m[1])
+          .filter((id) => context.includes(`[${id}]`))
+      : [];
+    assert.deepEqual(repeated, [], 'the second PHP command repeats no record');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -220,6 +235,26 @@ test('a file kind is its stack, else its extension, else its name', () => {
   assert.equal(fileKind('src/a.php'), 'php');
   assert.equal(fileKind('web/app/themes/t/style.CSS'), '*.css');
   assert.equal(fileKind('Makefile'), 'Makefile');
+});
+
+test('an earlier edit exposure of a kind hides only the records it served, never later rules of the kind', () => {
+  const root = adoptedPhp();
+  try {
+    const ids = (text: string | undefined) =>
+      [...(text ?? '').matchAll(/\[(s-[^\]]+)\]/gu)].map((m) => m[1] ?? '');
+    const all = ids(editContext(root, root, 'probe', 'src/a.php'));
+    assert.ok(all.length > 1, 'the PHP kind has several records');
+    const [first = ''] = all;
+    appendExposure(root, {
+      ...servedExposure('session', 'edit', [first]),
+      scope: 'php',
+    });
+    const later = ids(editContext(root, root, 'session', 'src/a.php'));
+    assert.ok(!later.includes(first), 'the served record is not repeated');
+    assert.ok(later.length > 0, 'later rules of the kind are still printed');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 // Built from parts so this file does not itself trip the clock and timeout rules it seeds.
