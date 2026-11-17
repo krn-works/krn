@@ -1,7 +1,11 @@
 {
   "id": "t-zt6d2de",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify refuses duplicate ids (test); manifest deduped, verify --recorded prints 70"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Screening manifest holds duplicate unit ids with different fix PRs",

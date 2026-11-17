@@ -375,23 +375,6 @@
     }
   },
   {
-    "id": "t-ehzy3ue",
-    "repo": "mem9-ai/drive9",
-    "issue": "https://github.com/mem9-ai/drive9/issues/898",
-    "fixPr": "https://github.com/mem9-ai/drive9/pull/900",
-    "base": "1bc5c2c8f8e71469eaba4c27eae40ae0756dc799",
-    "fix": "fdadeea44c19f813bfd09f1cf7c358a072b8d777",
-    "committed": "2026-09-08",
-    "test": "timeout 240 go test -count=1 ./pkg/fuse/",
-    "verification": {
-      "installBase": 124,
-      "testBase": -1,
-      "baseFailure": "none",
-      "installFix": -1,
-      "testFix": -1
-    }
-  },
-  {
     "id": "t-14d2qhu",
     "repo": "mem9-ai/drive9",
     "issue": "https://github.com/mem9-ai/drive9/issues/894",
@@ -3388,23 +3371,6 @@
     }
   },
   {
-    "id": "t-eg7cms5",
-    "repo": "Automattic/woocommerce-payments",
-    "issue": "https://github.com/Automattic/woocommerce-payments/issues/12126",
-    "fixPr": "https://github.com/Automattic/woocommerce-payments/pull/12128",
-    "base": "22e1dcf6885ac3548fc2db93c79f31ebc1066745",
-    "fix": "e52b576bd622e7298119f742c7a223f65ae73054",
-    "committed": "2026-09-22",
-    "test": "timeout 240 vendor/bin/phpunit \"tests/unit/subscriptions/test-class-wc-payments-subscription-service.php\"",
-    "verification": {
-      "installBase": 0,
-      "testBase": 1,
-      "baseFailure": "assertion",
-      "installFix": 0,
-      "testFix": 1
-    }
-  },
-  {
     "id": "t-1gl9jx6",
     "repo": "Automattic/woocommerce-payments",
     "issue": "https://github.com/Automattic/woocommerce-payments/issues/12116",
@@ -3479,23 +3445,6 @@
     "fixPr": "https://github.com/coregx/coregex/pull/187",
     "base": "94b20cd62544200651e92af235eb659f4fcbec83",
     "fix": "6145950f2e155b13e179d2423417edff6a727f66",
-    "committed": "2026-10-10",
-    "test": "timeout 240 go test -count=1 ./meta/",
-    "verification": {
-      "installBase": 0,
-      "testBase": 0,
-      "baseFailure": "none",
-      "installFix": -1,
-      "testFix": -1
-    }
-  },
-  {
-    "id": "t-1xwyjlv",
-    "repo": "coregx/coregex",
-    "issue": "https://github.com/coregx/coregex/issues/183",
-    "fixPr": "https://github.com/coregx/coregex/pull/185",
-    "base": "8a0c8e0fc36cf0fc7ae706f7e95a3105f3116bed",
-    "fix": "94b20cd62544200651e92af235eb659f4fcbec83",
     "committed": "2026-10-10",
     "test": "timeout 240 go test -count=1 ./meta/",
     "verification": {
