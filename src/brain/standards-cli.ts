@@ -272,6 +272,36 @@ export function enforcer(root: string, timeoutMs: number): Enforce {
   };
 }
 
+/**
+ * Per record, whether its own enforcement fails in `root`: true on a non-zero exit, false on exit 0,
+ * null when the record is unknown, advisory, or its run timed out or was killed (it proves nothing).
+ */
+export function recordChecks(
+  root: string,
+  ids: readonly string[],
+  timeoutMs: number = ENFORCEMENT_TIMEOUT_MS,
+): Record<string, boolean | null> {
+  const known = new Map<string, Standard>();
+  try {
+    for (const standard of readPack()) known.set(standard.id, standard);
+  } catch {
+    /* No readable pack: only the project's records can be checked. */
+  }
+  for (const standard of readProject(root)) known.set(standard.id, standard);
+  const enforce = enforcer(root, timeoutMs);
+  return Object.fromEntries(
+    [...new Set(ids)].map((id) => {
+      const enforcement = known.get(id)?.enforcement;
+      if (enforcement === undefined || enforcement.kind === 'advisory')
+        return [id, null] as const;
+      const outcome = enforce(enforcement);
+      if (outcome.timedOut === true || outcome.exit === null)
+        return [id, null] as const;
+      return [id, outcome.exit !== 0] as const;
+    }),
+  );
+}
+
 export type Verdict = { readonly exitCode: number; readonly lines: string[] };
 
 type Evaluation =

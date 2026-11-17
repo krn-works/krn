@@ -26,8 +26,12 @@ import {
   splitClauses,
   TEST_FILE,
 } from '../brain/acceptance-clauses.ts';
-import { appendExposure, violatedExposure } from '../brain/exposures.ts';
-import { standardsBlockers } from '../brain/standards-cli.ts';
+import {
+  appendExposure,
+  exposureOf,
+  readExposures,
+} from '../brain/exposures.ts';
+import { recordChecks, standardsBlockers } from '../brain/standards-cli.ts';
 import { hookStdin } from '../harness/claude.ts';
 import {
   armOn,
@@ -1150,22 +1154,45 @@ const standardKey = (line: string): string => line.split(' (')[0] ?? line;
 
 export type StandardsRunner = (root: string, asOf: string) => string[];
 
-/** Logs the refused records to the exposure log; the log is evidence, never a reason to fail a Stop. */
-function logViolations(
+/**
+ * Logs the session's records to the exposure log: each refused record is violated, each other
+ * record the session was served gets its own check result on the final tree (null when it has none).
+ * The log is evidence, never a reason to fail a Stop.
+ */
+function logChecks(
   root: string,
   payload: unknown,
   blockers: readonly string[],
 ): void {
   try {
-    const ids = blockers.flatMap((line) => /^(\S+) \(/u.exec(line)?.[1] ?? []);
+    const refused = blockers.flatMap(
+      (line) => /^(\S+) \(/u.exec(line)?.[1] ?? [],
+    );
     const session = (payload as { session_id?: unknown } | null)?.session_id;
-    if (ids.length > 0)
-      appendExposure(
-        dirname(
-          resolve(root, git(root, ['rev-parse', '--git-common-dir']).stdout),
-        ),
-        violatedExposure(typeof session === 'string' ? session : 'stop', ids),
-      );
+    const run = typeof session === 'string' ? session : 'stop';
+    const main = dirname(
+      resolve(root, git(root, ['rev-parse', '--git-common-dir']).stdout),
+    );
+    const seen = new Set(refused);
+    const served = readExposures(main)
+      .filter((row) => row.run === run && row.channel !== 'stop')
+      .flatMap((row) => row.served)
+      .filter((id) => !seen.has(id));
+    const rest = [...new Set(served)];
+    if (refused.length === 0 && rest.length === 0) return;
+    const exposure = exposureOf({
+      run,
+      task: undefined,
+      channel: 'stop',
+      served: [...refused, ...rest],
+      withheld: [],
+      laneOk: refused.length === 0,
+      violated: {
+        ...recordChecks(root, rest),
+        ...Object.fromEntries(refused.map((id) => [id, true])),
+      },
+    });
+    appendExposure(main, exposure);
   } catch {
     /* Evidence only. */
   }
@@ -1521,7 +1548,10 @@ export function judgeStop(
       outcomeRefusal(root, env, payload, taskBody(root, env), outcomeJudge);
     const asOf = new Date().toISOString().slice(0, 10);
     const failing = standards(root, asOf);
-    if (failing.length === 0) return settled();
+    if (failing.length === 0) {
+      logChecks(root, payload, []);
+      return settled();
+    }
     // A standard already red at the merge base is not this branch's doing: it is reported, never blocking.
     const from = base(root, loadContract(root).contract);
     const red = from
@@ -1530,8 +1560,8 @@ export function judgeStop(
         )
       : new Set<string>();
     const blockers = failing.filter((line) => !red.has(standardKey(line)));
+    logChecks(root, payload, blockers);
     if (blockers.length === 0) return settled();
-    logViolations(root, payload, blockers);
     const inherited = failing.length - blockers.length;
     const preExisting =
       inherited > 0

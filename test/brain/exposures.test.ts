@@ -18,6 +18,7 @@ import {
   readExposures,
   violatedExposure,
 } from '../../src/brain/exposures.ts';
+import { recordChecks } from '../../src/brain/standards-cli.ts';
 
 const input = {
   run: 'lane-a',
@@ -145,4 +146,68 @@ test('effect counts a task once per record and arm (latest attempt) and rates th
     'r-b: served 1 (scoped 1, violated 100%) withheld 0 (scoped 0, violated -)',
     'r-c: served 1 (scoped 1, violated 0%) withheld 1 (scoped 0, violated -)',
   ]);
+});
+
+const probe = (id: string, run: string, kind = 'command') => ({
+  id,
+  type: 'standard',
+  area: 'tests',
+  layer: 'universal',
+  audience: 'worker',
+  tier: 'floor',
+  text: 'A probe rule.',
+  why: 'Probe.',
+  provenance: { origin: 'test', evidence: ['README.md'], proposals: [] },
+  enforcement: kind === 'advisory' ? { kind } : { kind, run },
+  applies: { stacks: [], needs: [], paths: [], terms: [] },
+  status: 'accepted',
+  supersedes: [],
+  recorded_at: '2026-01-01',
+  valid_from: '2026-01-01',
+  valid_to: null,
+});
+
+test('a lane exposure on a clean diff records false for a passing served record, true for a failing one, null for advisory or unknown', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-record-checks-'));
+  try {
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents/standards.json'),
+      JSON.stringify([
+        probe('s-clean', 'true'),
+        probe('s-dirty', 'false'),
+        probe('s-held', 'true'),
+        probe('s-note', '', 'advisory'),
+      ]),
+    );
+    const violated = recordChecks(root, [
+      'r-r-1',
+      's-clean',
+      's-dirty',
+      's-held',
+      's-note',
+    ]);
+    const row = exposureOf({
+      run: 't-04ewf93',
+      task: 't-04ewf93',
+      channel: 'lane',
+      served: ['s-clean', 's-dirty', 's-note'],
+      withheld: ['s-held', 'r-r-1'],
+      laneOk: true,
+      violated,
+    });
+    assert.deepEqual(row.violated, {
+      's-clean': false,
+      's-dirty': true,
+      's-note': null,
+      's-held': false,
+      'r-r-1': null,
+    });
+    assert.deepEqual(row.outcome, {
+      's-clean': 'followed',
+      's-dirty': 'violated',
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

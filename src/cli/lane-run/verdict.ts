@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   lstatSync,
   mkdirSync,
   readFileSync,
@@ -15,6 +16,7 @@ import {
   readExposures,
 } from '../../brain/exposures.ts';
 import { proofLine, proofOf } from '../../brain/proof-line.ts';
+import { recordChecks } from '../../brain/standards-cli.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
 import { renderPrBody } from '../pr-body.ts';
@@ -114,7 +116,19 @@ export async function laneVerdict(
       );
     }
   };
-  const expose = (laneOk: boolean, proved: string): void => {
+  // Each served and withheld record's own check on the lane's final tree; taken while the worktree exists.
+  const checkRecords = (): Record<string, boolean | null> => {
+    try {
+      return recordChecks(path, [...lane.servedIds, ...lane.withheldIds]);
+    } catch {
+      return {};
+    }
+  };
+  const expose = (
+    laneOk: boolean,
+    proved: string,
+    violated: Record<string, boolean | null> = {},
+  ): void => {
     try {
       appendExposure(
         main,
@@ -131,6 +145,7 @@ export async function laneVerdict(
               (row) => row.task === task && row.channel === 'lane',
             ).length + 1,
           proof: proved,
+          violated,
         }),
       );
     } catch {
@@ -144,7 +159,7 @@ export async function laneVerdict(
     exitCode = exitNoDelivery,
   ): Promise<LaneVerdict> => {
     const proved = proofOfLane();
-    expose(false, proved);
+    expose(false, proved, existsSync(path) ? checkRecords() : {});
     if (task !== undefined)
       try {
         await releaseClaim(main, task);
@@ -292,6 +307,7 @@ export async function laneVerdict(
     }
     // Ship removes the worktree of a merged lane, so the proof is counted from the tree before it ships.
     const proved = proofOfLane();
+    const checked = checkRecords();
     const shipped = await steps.ship([
       '--worktree',
       path,
@@ -313,7 +329,7 @@ export async function laneVerdict(
       rmSync(redFile, { force: true });
       rmSync(parkedFile(main, slug), { force: true });
     }
-    expose(merged, proved);
+    expose(merged, proved, checked);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,
       exitCode: merged ? 0 : exitNoDelivery,

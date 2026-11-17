@@ -1,7 +1,11 @@
 {
   "id": "t-zdxmwkj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "recordChecks runs each served/withheld record's enforcement; lane verdict and Stop write non-null violated; tests in exposures.test.ts and stop.test.ts pass"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Exposure rows record violated=false: run each record's own check on the final lane diff (ADR 0021 point 3)",
