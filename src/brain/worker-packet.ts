@@ -226,7 +226,7 @@ export const QUERY_LIMIT = 5;
 /** Token budget of one query answer. */
 export const QUERY_BUDGET = 400;
 
-/** The task id a query's holdout is keyed by when the caller names none. */
+/** The task id a query is logged under when the caller names none; an unnamed query has no holdout, since the caller asked for the answer. */
 export const QUERY_TASK = 'query';
 
 export const NO_MATCH = 'no matching record';
@@ -308,7 +308,10 @@ export function queryStandards(root: string, query: Query): Hit[] {
   });
   const byId = new Map(pool.map((standard) => [standard.id, standard]));
   const records: BrainRecord[] = pool
-    .filter((standard) => unserved || !heldOut(task, standard.id))
+    .filter(
+      (standard) =>
+        unserved || query.task === undefined || !heldOut(task, standard.id),
+    )
     .map(packetRecord);
   const ranked = brainPacket({
     task,
