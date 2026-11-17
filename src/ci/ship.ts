@@ -5,6 +5,13 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { repositoryOfRemote } from '../repo/remote.ts';
+import {
+  CHECK_FACT_FILTER,
+  type CheckFact,
+  isGreen,
+  isRequiredCheckName,
+  selectRequiredCheck,
+} from '../repo/required-check.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
@@ -49,17 +56,6 @@ const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
 const mergeTimeoutMs = 600_000;
-const concluded = z.enum([
-  'SUCCESS',
-  'FAILURE',
-  'CANCELLED',
-  'TIMED_OUT',
-  'NEUTRAL',
-  'SKIPPED',
-  'STARTUP_FAILURE',
-  'ACTION_REQUIRED',
-  'STALE',
-]);
 const prView = z.object({
   state: z.enum(['OPEN', 'CLOSED', 'MERGED']),
   headRefOid: z.string(),
@@ -81,9 +77,6 @@ const prView = z.object({
     .transform((rollup) => rollup ?? []),
 });
 type PrView = z.infer<typeof prView>;
-/** The aggregate Check, whether its job is named `Check` or `<caller job> / Check`. */
-const aggregateCheck = /(?:^|\/ )Check$/u;
-
 /**
  * The newest aggregate Check of the head: a rerun or a superseded run leaves older runs in the
  * rollup, and only the latest one speaks for the head. Ordered by start time, later entry on a tie.
@@ -93,7 +86,7 @@ export function newestCheck(
 ): PrView['statusCheckRollup'][number] | undefined {
   let newest: PrView['statusCheckRollup'][number] | undefined;
   for (const run of rollup) {
-    if (!aggregateCheck.test(run.name ?? '')) continue;
+    if (!isRequiredCheckName(run.name)) continue;
     if (
       newest === undefined ||
       (run.startedAt ?? '') >= (newest.startedAt ?? '')
@@ -699,8 +692,18 @@ ${synced}`;
       .parse(JSON.parse(text))
       .some((run) => run.status.toLowerCase() !== 'completed');
   };
+  const checks = async (at: string): Promise<CheckFact[]> =>
+    JSON.parse(
+      await gh([
+        'api',
+        `repos/${repo}/commits/${at}/check-runs?filter=all&per_page=100`,
+        '--jq',
+        CHECK_FACT_FILTER,
+      ]),
+    ) as CheckFact[];
   const outcome = await waitForMerge({
     view,
+    checks,
     queued,
     head,
     mergeCurrent,
@@ -737,6 +740,8 @@ ${synced}`;
  */
 async function waitForMerge(options: {
   view: () => Promise<PrView>;
+  /** The check runs of the head with their App ids: the required check is selected by name and App. */
+  checks: (head: string) => Promise<CheckFact[]>;
   /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
   queued: (head: string) => Promise<boolean>;
   head: string;
@@ -791,14 +796,12 @@ async function waitForMerge(options: {
         76,
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
-    const check = newestCheck(pull.statusCheckRollup);
-    const conclusion = concluded.safeParse(check?.conclusion).data;
+    const check = selectRequiredCheck(await options.checks(head));
+    const conclusion = check?.conclusion || undefined;
     if (
       check?.status === 'COMPLETED' &&
       conclusion !== undefined &&
-      conclusion !== 'SUCCESS' &&
-      conclusion !== 'NEUTRAL' &&
-      conclusion !== 'SKIPPED'
+      !isGreen(conclusion)
     ) {
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
@@ -811,13 +814,7 @@ async function waitForMerge(options: {
         `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }
-    if (
-      !requested &&
-      check?.status === 'COMPLETED' &&
-      (conclusion === 'SUCCESS' ||
-        conclusion === 'NEUTRAL' ||
-        conclusion === 'SKIPPED')
-    ) {
+    if (!requested && check?.status === 'COMPLETED' && isGreen(conclusion)) {
       const updated = await options.mergeCurrent(head);
       if (updated === undefined) requested = true;
       else {

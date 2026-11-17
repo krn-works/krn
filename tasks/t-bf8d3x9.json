@@ -1,7 +1,11 @@
 {
   "id": "t-bf8d3x9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "target-checks.test.ts and ship.test.ts cover foreign-app same-name check, skipped and neutral aggregate; fast PASS"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Ship and verify select the required check by name and App id; neutral and skipped are not green",

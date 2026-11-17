@@ -72,6 +72,7 @@ function receiver(options: {
   const calls: string[] = [];
   const dirs: string[] = [];
   const pulls = [...options.pulls];
+  let lastView: { statusCheckRollup?: unknown[] | null } = {};
   const runs = [...(options.runs ?? [[]])];
   const answer = (a: string[]): string => {
     calls.push(`gh ${a.join(' ')}`);
@@ -79,6 +80,11 @@ function receiver(options: {
       if (options.runList !== undefined) return options.runList;
       const next = runs.length > 1 ? runs.shift() : runs[0];
       return JSON.stringify((next ?? []).map((status) => ({ status })));
+    }
+    if (a[0] === 'api' && /\/commits\/[^/]+\/check-runs/u.test(a[1] ?? '')) {
+      // The check-runs answer of the PR view just served: a rollup entry is a run of the required App unless it names another.
+      const rollup = (lastView.statusCheckRollup ?? []) as object[];
+      return JSON.stringify(rollup.map((run) => ({ appId: 15368, ...run })));
     }
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('--search'))
       return options.carrier ?? '';
@@ -104,7 +110,7 @@ function receiver(options: {
     if (a[0] === 'pr' && a[1] !== 'view') return '';
     if (a[0] === 'pr' && a[1] === 'view') {
       const next = pulls.length > 1 ? pulls.shift() : pulls[0];
-      return JSON.stringify({
+      lastView = {
         headRefOid: head,
         mergeable: 'MERGEABLE',
         autoMergeRequest: null,
@@ -117,7 +123,8 @@ function receiver(options: {
           },
         ],
         ...next,
-      });
+      } as typeof lastView;
+      return JSON.stringify(lastView);
     }
     assert.fail(`unexpected gh call ${a.join(' ')}`);
   };
@@ -1387,5 +1394,51 @@ test('a Proof command that starts with krn runs the worktree bin/krn, not the on
     assert.equal(bare.stdout.trim(), 'path-krn');
   } finally {
     process.env.PATH = saved;
+  }
+});
+
+test('a same-named Check of another App never lets ship merge, and a skipped or neutral aggregate stops it', async () => {
+  const check = (conclusion: string, appId?: number) => ({
+    name: 'Check',
+    status: 'COMPLETED',
+    conclusion,
+    ...(appId === undefined ? {} : { appId }),
+  });
+  // A foreign green Check is not the required one: with no required run the Check never started (69).
+  const foreign = receiver({
+    pulls: [{ ...auto, statusCheckRollup: [check('SUCCESS', 99)] }],
+  });
+  await assert.rejects(shipCommand(args, foreign), (e: Failure) => {
+    assert.equal(e.exitCode, 69);
+    return true;
+  });
+  // A foreign green Check beside a required red one: the red one speaks.
+  const red = receiver({
+    pulls: [
+      {
+        ...auto,
+        statusCheckRollup: [
+          { ...check('FAILURE'), startedAt: '2026-11-16T06:01:00Z' },
+          { ...check('SUCCESS', 99), startedAt: '2026-11-16T06:09:00Z' },
+        ],
+      },
+    ],
+  });
+  await assert.rejects(shipCommand(args, red), (e: Failure) => {
+    assert.equal(e.exitCode, 74);
+    return true;
+  });
+  for (const conclusion of ['SKIPPED', 'NEUTRAL']) {
+    const r = receiver({
+      pulls: [{ ...auto, statusCheckRollup: [check(conclusion)] }],
+    });
+    await assert.rejects(shipCommand(args, r), (e: Failure) => {
+      assert.equal(e.exitCode, 74);
+      assert.match(
+        e.message,
+        new RegExp(`concluded ${conclusion.toLowerCase()}`, 'u'),
+      );
+      return true;
+    });
   }
 });
