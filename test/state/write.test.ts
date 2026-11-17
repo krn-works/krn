@@ -42,19 +42,8 @@ function krn(root: string, ...args: string[]) {
   }
 }
 
-function openRoadmap(root: string) {
-  mkdirSync(join(root, 'tasks'), { recursive: true });
-  writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
-  mkdirSync(join(root, 'docs/program'), { recursive: true });
-  writeFileSync(
-    join(root, 'docs/program/roadmap.md'),
-    '| Id | Task |\n|---|---|\n| R1 | t-open000 |\n',
-  );
-}
-
 test('set, accept and handoff round-trip through state check and handoff-requests', () => {
   const root = realpathSync(buildCaseRepo('active'));
-  openRoadmap(root);
   try {
     const set = krn(
       root,
@@ -193,7 +182,6 @@ test('set refuses a cleanup value that drops entries unless --replace; add-clean
 
 test('handoff lists merged commits since the previous SHA and retro measures the task', () => {
   const root = realpathSync(buildCaseRepo('active'));
-  openRoadmap(root);
   const commit = (subject: string) => {
     const result = spawnSync(
       'git',

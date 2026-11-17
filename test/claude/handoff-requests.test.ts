@@ -25,15 +25,10 @@ function fixture() {
   mkdirSync(join(root, 'tasks'));
   writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
   writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
-  mkdirSync(join(root, 'docs/program'), { recursive: true });
-  writeFileSync(
-    join(root, 'docs/program/roadmap.md'),
-    '| Id | Opportunity | Task |\n|---|---|---|\n| R1 | open work | t-open000 |\n',
-  );
   const check = (
     body: string,
     extra: string[] = [],
-    header = '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n## Priorities\n- t-zzzzzzz later\n',
+    header = '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n## Priorities\n- t-zzzzzzz later\n',
   ) => {
     const handoff = join(root, 'handoff.md');
     writeFileSync(handoff, `${header}${body}`);
@@ -69,7 +64,7 @@ test('the handoff layout is free: any prose passes while no open operator task i
     const bom = check(
       'free text\n',
       [],
-      '\uFEFF## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `x`\n- Roadmap: unchanged (fixture)\n\n',
+      '\uFEFF## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `x`\n\n',
     );
     assert.equal(bom.status, 0, bom.stderr);
     const usage = check('x', ['--root']);
@@ -121,19 +116,15 @@ test('handoff check refuses a handoff missing the resume fields', () => {
     for (const [field, resume] of [
       [
         'Task',
-        '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n',
+        '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n',
       ],
       [
         'SHAs',
-        '- Task: t-abc1234\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n',
+        '- Task: t-abc1234\n- Verify: `npm run fast`\n',
       ],
       [
         'Verify',
-        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n- Roadmap: unchanged (fixture)\n',
-      ],
-      [
-        'Roadmap',
-        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged\n',
+        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n',
       ],
     ] as const) {
       const result = lacking(`# Handoff\n\n## Resume\n${resume}\n`);
@@ -144,27 +135,5 @@ test('handoff check refuses a handoff missing the resume fields', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
-
-test('handoff Roadmap line must name real task ids', () => {
-  const { root, check } = fixture();
-  try {
-    const none = '## Operator requests\n- none\n';
-    const header = (line: string) =>
-      `# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: \`npm run fast\`\n- Roadmap: ${line}\n\n`;
-    const missing = check(none, [], header('t-nofile0 reranked'));
-    assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /names t-nofile0, which has no task file/u);
-    assert.equal(check(none, [], header('t-open000 reranked')).status, 0);
-    // A closed task is still a named change: its row left the generated roadmap.
-    assert.equal(check(none, [], header('t-abc1234 closed')).status, 0);
-    assert.equal(check(none, [], header('t-open000 and t-nofile0')).status, 1);
-    // The retired row ids no longer satisfy the field.
-    assert.equal(check(none, [], header('R2 reranked')).status, 1);
-    assert.equal(
-      check(none, [], header('unchanged (no new evidence)')).status,
-      0,
-    );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
   }
 });

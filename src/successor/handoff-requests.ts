@@ -1,7 +1,7 @@
 // Handoff request check.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { resumeProblems, roadmapIds } from '../memory/handoff-resume.ts';
+import { resumeProblems } from '../memory/handoff-resume.ts';
 import {
   markHandoff,
   oneLine,
@@ -89,13 +89,6 @@ export function handoffProblems(
   const file = (path: string) =>
     statSync(path, { throwIfNoEntry: false })?.isFile() === true;
 
-  // A named roadmap change is a task id: the roadmap is generated from tasks/,
-  // so a closed task still names a change but an unknown id does not.
-  for (const id of roadmapIds(text))
-    if (!file(join(root, 'tasks', `${id}.json`)))
-      failures.push(
-        `FAIL ${handoff}: Roadmap names ${id}, which has no task file in tasks/`,
-      );
   // Carry-over: an open task that records an operator utterance must be named in the section,
   // so a hand-written handoff cannot silently drop a request the operator already made.
   const operator = operatorTasks(root);

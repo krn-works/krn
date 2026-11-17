@@ -24,8 +24,7 @@ const documents = [
   'AGENTS.md',
   'CLAUDE.md',
   'CONTEXT.md',
-  // proposals.md is the history register of retired mechanisms.
-  ...listed('docs/program').filter((file) => !file.endsWith('/proposals.md')),
+  ...listed('docs/program'),
   ...listed('.claude/agents'),
   ...walk('.claude/skills').filter((file) => !generatedIndex.test(file)),
   // The generated standards indexes quote rules about other repositories' paths.

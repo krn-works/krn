@@ -123,7 +123,7 @@ echo "commits=$(git rev-list --count $base..HEAD)" >> $OUT/$tag.meas
 echo "dirty=$(git status --short | grep -v node_modules | wc -l)" >> $OUT/$tag.meas
 git diff --name-only $base HEAD > $OUT/$tag.files
 git diff $base HEAD > $OUT/$tag.patch
-echo "outscope: $(grep -E '^(tasks/|docs/program/roadmap.md|\.claude/|\.agents/|CLAUDE.md|AGENTS.md|\.github/)' $OUT/$tag.files | tr '\n' ' ')" >> $OUT/$tag.meas
+echo "outscope: $(grep -E '^(tasks/|\.claude/|\.agents/|CLAUDE.md|AGENTS.md|\.github/)' $OUT/$tag.files | tr '\n' ' ')" >> $OUT/$tag.meas
 own=$(grep -E '^test/.*\.test\.' $OUT/$tag.files | grep -v '^$')
 echo "own_tests: $(echo $own)" >> $OUT/$tag.meas
 # gate runs on the commit with stripped harness files restored (arm P deleted them only as an arm treatment)

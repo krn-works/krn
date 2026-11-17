@@ -94,10 +94,10 @@ export async function hiddenChanges(
     });
 }
 
-/** Out-of-scope paths by the protocol's rule: tracker, roadmap, agent instructions and workflow files. */
+/** Out-of-scope paths by the protocol's rule: tracker, agent instructions and workflow files. */
 export function outOfScope(files: string[]): string[] {
   return files.filter((f) =>
-    /^(tasks\/|docs\/program\/roadmap\.md|\.claude\/|\.agents\/|CLAUDE\.md|AGENTS\.md|\.github\/)/.test(
+    /^(tasks\/|\.claude\/|\.agents\/|CLAUDE\.md|AGENTS\.md|\.github\/)/.test(
       f,
     ),
   );
