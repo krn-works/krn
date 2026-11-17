@@ -1,7 +1,11 @@
 {
   "id": "t-8gjdkr1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify now exits 1 with a named gap for a non-GitHub host and a non-default lane base; regression tests in test/adopt/verify.test.ts fail on pre-fix code (exit 1), pass after"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Adopt verify refuses, not skips, a non-GitHub host or non-default base",
