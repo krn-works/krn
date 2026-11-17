@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { TASKS_DIR } from '../task/paths.ts';
 
-// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
-// the roadmap unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
-// tracker state). D23 arm K, running as the lead, edited tasks/, the roadmap and harness files outside Scope
+// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker
+// unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
+// tracker state). D23 arm K, running as the lead, edited tasks/ and harness files outside Scope
 // in 11 of 20 units.
 // A session is a worker when `krn lane run` started it (KRN_SESSION_CLASS=lane) or the launcher set
 // KRN_ROLE=worker. The lead sets neither, so it is never refused here.

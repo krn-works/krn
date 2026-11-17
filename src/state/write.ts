@@ -290,7 +290,6 @@ interface HandoffOptions {
   task?: string | undefined;
   sha?: string | undefined;
   verify?: string | undefined;
-  roadmap?: string | undefined;
   requests: string[];
   priorities: string[];
 }
@@ -378,7 +377,6 @@ export function writeHandoff(
     /`/g,
     '',
   );
-  const roadmap = options.roadmap ?? 'unchanged (no roadmap edit this session)';
   for (const request of options.requests)
     if (/operator\s+requests/i.test(request))
       throw new Error(
@@ -388,7 +386,6 @@ export function writeHandoff(
     `- Task: ${task}`,
     `- SHAs: ${oneLine(sha)}`,
     `- Verify: \`${oneLine(verify)}\``,
-    `- Roadmap: ${oneLine(roadmap)}`,
   ].join('\n');
   const file = join(directory, 'handoff.md');
   const name = directory.split('/').pop();

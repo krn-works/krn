@@ -12,22 +12,7 @@ export const resumeFields = [
     pattern: /^\s*-\s+SHAs?:\s*.*\b[0-9a-f]{7,40}\b/imu,
   },
   { name: 'Verify', pattern: /^\s*-\s+Verify:\s*`[^`\n]+`/imu },
-  // Every handoff reranks docs/program/roadmap.md or says why not.
-  {
-    name: 'Roadmap',
-    pattern:
-      /^\s*-\s+Roadmap:\s*(?:unchanged\s+\(\s*[^)\s][^)]*\)|.*\bt-[a-z0-9]{7}\b)/imu,
-  },
 ];
-
-// Task ids (t-xxxxxxx) a handoff's "- Roadmap:" line names as changed.
-export function roadmapIds(text: string): string[] {
-  const line = /^\s*-\s+Roadmap:(.*)$/imu.exec(section(text, 'Resume') ?? '');
-  if (!line || /^\s*unchanged\b/iu.test(line[1] ?? '')) return [];
-  return [...(line[1] ?? '').matchAll(/\bt-[a-z0-9]{7}\b/gu)].map(
-    (match) => match[0],
-  );
-}
 
 function lines(text: string): string[] {
   return text.replace(/^﻿/u, '').split(/\r\n|\r|\n/u);
@@ -60,13 +45,13 @@ export function resumeProblems(text: string): string[] {
   const resume = section(text, 'Resume');
   if (resume === undefined)
     return [
-      'no "## Resume" section with "- Task: <id>", "- SHAs: <sha...>", "- Verify: `<command>`" and "- Roadmap: <task ids changed> | unchanged (<reason>)"',
+      'no "## Resume" section with "- Task: <id>", "- SHAs: <sha...>", "- Verify: `<command>`"',
     ];
   return resumeFields
     .filter((field) => !field.pattern.test(resume))
     .map(
       (field) =>
-        `"## Resume" lacks "- ${field.name}:" (Task: t-id; SHAs: hex 7-40; Verify: backticked command; Roadmap: task ids changed in docs/program/roadmap.md or "unchanged (<reason>)")`,
+        `"## Resume" lacks "- ${field.name}:" (Task: t-id; SHAs: hex 7-40; Verify: backticked command)`,
     );
 }
 

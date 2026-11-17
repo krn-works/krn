@@ -55,11 +55,6 @@ function fixture() {
   mkdirSync(join(root, 'tasks'));
   writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
   writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
-  mkdirSync(join(root, 'docs/program'), { recursive: true });
-  writeFileSync(
-    join(root, 'docs/program/roadmap.md'),
-    '| Id | Task |\n|---|---|\n| R1 | t-open000 |\n',
-  );
   const submit = (
     prompt: string,
     session = sessionId,
@@ -85,7 +80,7 @@ function fixture() {
     const file = join(root, 'handoff.md');
     writeFileSync(
       file,
-      '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n\n## Operator requests\n- none\n',
+      '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n\n## Operator requests\n- none\n',
     );
     return spawnSync(process.execPath, [handoffCheck, file, '--root', root], {
       encoding: 'utf8',
