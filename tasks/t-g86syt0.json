@@ -1,7 +1,11 @@
 {
   "id": "t-g86syt0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "regraded() keeps gold across verify --id; unit test regraded keeps gold; gold: 1 restored on t-2blfi57"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Screening verify keeps manifest fields it does not own when it re-grades a unit",

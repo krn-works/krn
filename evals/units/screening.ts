@@ -107,6 +107,14 @@ export function verified(v: Verification | undefined): boolean {
   );
 }
 
+/** A regrade replaces the fields the grade owns and keeps every other recorded field (the screen's `gold`). */
+export function regraded(
+  prior: Verification | undefined,
+  graded: Verification,
+): Verification {
+  return { ...prior, ...graded };
+}
+
 /** Ids that more than one row carries: two fix PRs of one issue share an id, so verify --id could not tell them apart. */
 export function duplicateIds(rows: ManifestRow[]): string[] {
   const seen = new Set<string>();
@@ -513,10 +521,12 @@ async function verify(
   scratch = resolve(scratch);
   logDir = resolve(logDir);
   const rows = readManifest();
+  let prior: Verification | undefined;
   // A named unit is re-graded even when its row is recorded: a targeted re-verify after a grading change must run.
   if (only) {
     const row = rows.find((r) => r.id === only);
     if (!row) throw new Error(`verify --id ${only}: no such manifest row`);
+    prior = row.verification;
     row.verification = undefined;
   }
   mkdirSync(logDir, { recursive: true });
@@ -616,6 +626,7 @@ async function verify(
       }
       if (v.installBase === 124 || v.installFix === 124 || v.testBase === 124)
         slow.add(row.repo);
+      v = row.id === only ? regraded(prior, v) : v;
       row.verification = v;
       graded.push({ id: row.id, v });
       writeFileSync(manifestPath, `${JSON.stringify(rows, null, 2)}\n`);
