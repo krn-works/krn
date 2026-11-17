@@ -1,0 +1,14 @@
+{
+  "id": "t-djde6e9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 0,
+  "title": "Live eval arm sessions run claude unsandboxed on the host network and filesystem",
+  "after": [],
+  "body": [
+    "Split from t-qjf9g6c (2026-11-17). evals/replay/live.ts runClaude spawns the arm's claude session with spawn(bin, ...) directly on the host: no bubblewrap, host network namespace, host filesystem readable and writable outside the scratch worktree, only env scrubbed by armEnv. A session under --permission-mode bypassPermissions on an outside repository can reach host loopback services (local Bitwarden REST at [::1]:8087, any dev server), read ~/.ssh and other HOME credentials, and write anywhere the user can. The screening install phase got its own network namespace with a filtering egress proxy (evals/units/egress.ts) in t-qjf9g6c; the live arm has no sandbox at all.\nOutcome: the live arm session runs inside bubblewrap like screening: own network namespace, internet only through the egress proxy (CONNECT pass-through, no TLS termination, so the session's Anthropic credential is never routed anywhere else), HOME hidden except toolchains and the arm's own claude config dir, writable only its worktree and scratch.\nProof: a test through the live arm runner with a stub KRN_EVAL_CLAUDE asserts the stub cannot reach a listener on 127.0.0.1 or [::1], cannot read a planted HOME credential, and cannot write outside scratch (pass/fail). Until fixed: run no live screen."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

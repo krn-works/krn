@@ -1,0 +1,19 @@
+{
+  "id": "t-qjf9g6c",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "install phase: own network namespace, internet only via filtering egress proxy (evals/units/egress.ts); scripts/app-bin stripped from PATH; regression test through gradeWorktree. Live arm split to t-djde6e9."
+  },
+  "created": "2026-11-17",
+  "priority": 0,
+  "title": "Screening install phase reaches host loopback services (bw serve vault, gh App wrapper)",
+  "after": [],
+  "body": [
+    "On 2026-11-17 a probe through gradeWorktree (evals/units/screening.ts) ran `gh api user` as a unit install command: command -v gh resolved to scripts/app-bin/gh inside bubblewrap and the call returned 'Resource not accessible by integration' (HTTP 403), i.e. a minted GitHub App installation token. cleanEnv passes the host PATH, and the install phase runs third-party code with network, so screened repositories' install scripts can act as the KRN GitHub App.\nOutcome: a grade's install and test phases resolve gh to a real gh with no token (or none): no PATH entry is a scripts/app-bin directory, and the App key is not readable in the sandbox; probe exits non-zero with an auth error.\nProof: a test through gradeWorktree with scripts/app-bin first on PATH asserts command -v gh is not the wrapper (pass/fail).",
+    "Update 2026-11-17: the same probe shows the install phase (network on, host netns) reaches the local Bitwarden REST server: curl http://[::1]:8087/status returned 200 inside bubblewrap (test phase: 000). Any screened repository's install script can read the unlocked vault. Stripping scripts/app-bin from PATH (branch grade-no-app-gh, uncommitted) does not close this. The install phase needs its own network namespace with outbound internet but no host loopback (pasta or slirp4netns: neither is installed; system packages via pacman), or install runs offline against pre-fetched caches. Live arm sessions (evals/replay/live.ts) run claude with host network and are exposed the same way. Until fixed: run no screening verify or live screen. Proof addition: a test asserts an install command cannot reach a listener on [::1] or 127.0.0.1 started by the test."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

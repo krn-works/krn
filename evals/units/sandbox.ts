@@ -3,20 +3,26 @@
 // bus), HOME is an empty tmpfs that shows only the toolchains back (no gh,
 // Claude, SSH or .netrc credentials, even while the install has network), the
 // environment holds only what the grader passes, and only the named
-// directories are writable. Stub URL openers on PATH (no-browser.ts) do not
+// directories are writable. Every command gets a network namespace of its own:
+// the install reaches the internet only through the filtering proxy in
+// egress.ts, never a host loopback or private address. Stub URL openers on PATH (no-browser.ts) do not
 // stop a real browser binary from starting; the sandbox does.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
+import { FORWARDER, proxyEnv, SANDBOX_PROXY_PORT } from './egress.ts';
 
 export interface SandboxOptions {
   /** Directory the command starts in. */
   cwd: string;
   /** The only host paths the command may write. */
   writable: readonly string[];
-  /** Network for the install phase; the test phase runs offline. */
-  net: boolean;
+  /**
+   * Internet for the install phase, through the egress.ts proxy listening on this unix socket; the test phase runs
+   * offline. There is no host-network mode: the host namespace would expose every loopback listener.
+   */
+  egress?: string;
   /** The complete environment the command sees. */
   env: NodeJS.ProcessEnv;
 }
@@ -25,7 +31,7 @@ export interface SandboxOptions {
 export function requireSandbox(): void {
   const r = spawnSync(
     'bwrap',
-    sandboxArgv('true', { cwd: '/', writable: [], net: false, env: {} }),
+    sandboxArgv('true', { cwd: '/', writable: [], env: {} }),
     { encoding: 'utf8', timeout: 10_000 },
   );
   if (r.status === 0) return;
@@ -39,7 +45,6 @@ export function requireSandbox(): void {
 export function sandboxArgv(cmd: string, o: SandboxOptions): string[] {
   const a = [
     '--unshare-all',
-    ...(o.net ? ['--share-net'] : []),
     '--die-with-parent',
     '--new-session',
     '--ro-bind',
@@ -54,16 +59,24 @@ export function sandboxArgv(cmd: string, o: SandboxOptions): string[] {
     '--tmpfs',
     '/run',
   ];
-  // /etc/resolv.conf usually links into /run, which the tmpfs above hides: name resolution needs its target back.
-  const resolv = resolvTarget();
-  if (o.net && resolv.startsWith('/run/')) a.push('--ro-bind', resolv, resolv);
   a.push(...hiddenHome(o.env));
   // Binds come after the tmpfs mounts, so a writable directory under /tmp stays visible.
   for (const w of o.writable) a.push('--bind', resolve(w), resolve(w));
+  const env = o.egress ? { ...o.env, ...proxyEnv() } : o.env;
+  if (o.egress) a.push('--bind', dirname(o.egress), dirname(o.egress));
   a.push('--chdir', resolve(o.cwd), '--clearenv');
-  for (const [k, v] of Object.entries(o.env))
+  for (const [k, v] of Object.entries(env))
     if (v !== undefined) a.push('--setenv', k, v);
-  a.push('--', 'sh', '-c', cmd);
+  if (o.egress)
+    a.push(
+      '--',
+      process.execPath,
+      FORWARDER,
+      o.egress,
+      String(SANDBOX_PROXY_PORT),
+      cmd,
+    );
+  else a.push('--', 'sh', '-c', cmd);
   return a;
 }
 
@@ -109,13 +122,5 @@ function realOr(p: string): string {
     return realpathSync(p);
   } catch {
     return p;
-  }
-}
-
-function resolvTarget(): string {
-  try {
-    return realpathSync('/etc/resolv.conf');
-  } catch {
-    return '';
   }
 }

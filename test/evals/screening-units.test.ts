@@ -9,7 +9,9 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { networkInterfaces, tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -454,7 +456,7 @@ function gradeFixture(prefix: string, install: string, testCmd: string) {
   return { root, wt, unitDir, scratch, unit, log: join(root, 'log') };
 }
 
-test('a grade runs inside bubblewrap: no desktop, no host tokens, host read-only, network for install only', async (t) => {
+test('a grade runs inside bubblewrap: no desktop, no host tokens, host read-only, own network namespace in both phases', async (t) => {
   requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
   const outside = mkdtempSync(join(tmpdir(), 'grade-outside-'));
   const runtime = ['', 'run', 'user', String(process.getuid?.() ?? 0)].join(
@@ -501,13 +503,76 @@ test('a grade runs inside bubblewrap: no desktop, no host tokens, host read-only
     );
     assert.equal(existsSync(join(outside, 'escaped')), false);
     assert.equal(read('test-ifaces'), '1', 'the test phase has only loopback');
-    assert.ok(Number(read('install-ifaces')) > 1, 'install keeps the network');
+    assert.equal(
+      read('install-ifaces'),
+      '1',
+      'install reaches the internet only through the egress proxy, in a namespace of its own',
+    );
   } finally {
     for (const [k, v] of Object.entries(saved))
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
     rmSync(f.root, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('an install reaches no host loopback listener, directly or through the proxy, and no host gh wrapper (t-qjf9g6c)', async (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const servers = await Promise.all(
+    ['127.0.0.1', '::1'].map(
+      (host) =>
+        new Promise<Server>((resolve) => {
+          const s = createServer((_q, r) => r.end('host-secret'));
+          s.listen(0, host, () => resolve(s));
+        }),
+    ),
+  );
+  const [v4, v6] = servers.map((s) => (s.address() as AddressInfo).port);
+  const lan = Object.values(networkInterfaces())
+    .flat()
+    .find((i) => i && i.family === 'IPv4' && !i.internal)?.address;
+  const urls = [
+    `http://127.0.0.1:${v4}/`,
+    `http://localhost:${v4}/`,
+    `http://[::ffff:127.0.0.1]:${v4}/`,
+    `http://[::1]:${v6}/`,
+    `https://localhost:${v6}/`,
+    ...(lan ? [`http://${lan}:${v4}/`] : []),
+  ];
+  const appBin = mkdtempSync(join(tmpdir(), 'grade-appbin-'));
+  const wrapperDir = join(appBin, 'scripts', 'app-bin');
+  mkdirSync(wrapperDir, { recursive: true });
+  writeFileSync(join(wrapperDir, 'gh'), '#!/bin/sh\necho app-token\n');
+  chmodSync(join(wrapperDir, 'gh'), 0o755);
+  const saved = process.env.PATH;
+  process.env.PATH = `${wrapperDir}:${process.env.PATH}`;
+  const probes = urls.flatMap((u) => [
+    `curl -s -m 5 --noproxy '*' ${JSON.stringify(u)} >> bodies 2>&1`,
+    `curl -s -m 5 ${JSON.stringify(u)} >> bodies 2>&1`,
+  ]);
+  const f = gradeFixture(
+    'grade-loopback-',
+    [
+      'touch bodies',
+      ...probes,
+      'command -v gh > gh-path || echo none > gh-path',
+      'echo "$HTTPS_PROXY" > proxy',
+    ].join('; '),
+    'true',
+  );
+  try {
+    const g = await gradeWorktree(f.wt, f.unit, f.unitDir, f.log, f.scratch);
+    assert.equal(g.install, 0, readFileSync(f.log, 'utf8'));
+    const read = (n: string) => readFileSync(join(f.wt, n), 'utf8');
+    assert.doesNotMatch(read('bodies'), /host-secret/);
+    assert.match(read('proxy'), /^http:\/\/127\.0\.0\.1:\d+/);
+    assert.doesNotMatch(read('gh-path'), /scripts\/app-bin/);
+  } finally {
+    process.env.PATH = saved;
+    for (const s of servers) s.close();
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(appBin, { recursive: true, force: true });
   }
 });
 

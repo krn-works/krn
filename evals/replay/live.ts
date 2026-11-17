@@ -9,7 +9,11 @@ import { outsideGit } from '../../src/cli/outside-git.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
 import { requireSandbox } from '../units/sandbox.ts';
-import { forceRemove, gradeWorktree } from '../units/screening.ts';
+import {
+  forceRemove,
+  gradeWorktree,
+  withoutAppGh,
+} from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
 import { ARMS, type Arm } from './arms.ts';
 import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
@@ -83,10 +87,7 @@ export function armEnv(
   // instead of handing the session the upstream fix (S7: t-1d7k0sg read `gh pr diff -R` and passed).
   env.GH_CONFIG_DIR = join(scratch, 'gh-config');
   // scripts/app-bin/gh mints a GitHub App token on every call: on the session's PATH it would undo the empty config.
-  if (env.PATH !== undefined)
-    env.PATH = env.PATH.split(':')
-      .filter((dir) => !/(^|\/)scripts\/app-bin\/?$/.test(dir))
-      .join(':');
+  env.PATH = withoutAppGh(env.PATH);
   mkdirSync(env.GH_CONFIG_DIR, { recursive: true });
   const dir = join(scratch, 'claude-config');
   mkdirSync(dir, { recursive: true });
