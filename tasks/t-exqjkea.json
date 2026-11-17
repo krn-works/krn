@@ -1,7 +1,11 @@
 {
   "id": "t-exqjkea",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "driver evals/replay/session.ts + session-result.ts; live arm C row graded (t-1182p41); pilot t-h2yjgx3 shipped 8350c9c unattended, hidden test 5/5"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "The headless session driver runs under evals/replay and the pilot uses it",
