@@ -18,8 +18,27 @@ const capture = (name: string) =>
   );
 const secret = 'ghs_SECRETTOKENVALUE';
 
-function stub(options: { mint?: number; etimes?: number | null }): Probe {
+function stub(options: {
+  mint?: number;
+  etimes?: number | null;
+  status?: string;
+  unit?: string;
+}): Probe {
   return (command, args) => {
+    if (command === 'curl')
+      return {
+        status: 0,
+        stdout: capture(options.status ?? 'status-unlocked.json'),
+        stderr: '',
+      };
+    if (command === 'systemctl')
+      return {
+        status: 0,
+        stdout: capture(options.unit ?? 'systemctl-show-failed.txt'),
+        stderr: '',
+      };
+    if (command === 'journalctl')
+      return { status: 0, stdout: capture('journal-failed.txt'), stderr: '' };
     if (command === 'ss') {
       assert.deepEqual(args, ['-H', '-ltnp', 'sport = :8087']);
       return options.etimes === null
@@ -68,6 +87,47 @@ test('exits 69 naming bw-up when the mint fails', () => {
   );
   assert.equal(report.exitCode, 69);
   assert.match(report.text, /bw serve unavailable.*bw-up/u);
+});
+
+test('a failed mint names the failed bw-serve unit, its EADDRINUSE journal line and that bw-up is an operator command', () => {
+  const report = unattendedReport(
+    ['--unattended'],
+    {},
+    stub({ mint: 1, etimes: 10 }),
+  );
+  assert.equal(report.exitCode, 69);
+  assert.match(report.text, /bw-serve\.service is failed/u);
+  assert.match(report.text, /EADDRINUSE/u);
+  assert.match(report.text, /operator.*interactive shell/u);
+});
+
+test('an absent bw-serve unit is named absent with no journal line', () => {
+  const report = unattendedReport(
+    ['--unattended'],
+    {},
+    stub({ mint: 1, unit: 'systemctl-show-absent.txt' }),
+  );
+  assert.match(report.text, /bw-serve\.service is absent;/u);
+});
+
+test('an inactive bw-serve unit is named inactive', () => {
+  const report = unattendedReport(
+    ['--unattended'],
+    {},
+    stub({ mint: 1, unit: 'systemctl-show-inactive.txt' }),
+  );
+  assert.match(report.text, /bw-serve\.service is inactive/u);
+});
+
+test('fails vault with exit 75 when the captured /status body is locked, though the mint is served from cache', () => {
+  const report = unattendedReport(
+    ['--unattended'],
+    {},
+    stub({ etimes: 60, status: 'status-locked.json' }),
+  );
+  assert.equal(report.exitCode, 75);
+  assert.match(report.text, /^FAIL vault: .*locked.*not unlocked/u);
+  assert.ok(!report.text.includes(secret));
 });
 
 test('exits 75 with the remedy when the session ends inside the window', () => {

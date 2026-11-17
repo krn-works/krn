@@ -1,9 +1,11 @@
 // GitHub App token minting.
+
 import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { readJson } from '../repo/json-text.ts';
+import { describeBwServe } from './bw-serve-state.ts';
 
 // Mints a GitHub App installation token scoped to one repository: krn-works/krn,
 // or the owner/name in KRN_APP_REPOSITORY. The App id, the krn-works/krn
@@ -169,7 +171,9 @@ async function readCredential(env: Env): Promise<Credential> {
     if (!response.ok) throw new Error(`status ${response.status}`);
     body = await response.json();
   } catch {
-    throw new Unavailable(`bw serve unavailable at ${base}`);
+    throw new Unavailable(
+      `bw serve unavailable at ${base} (${describeBwServe()})`,
+    );
   }
   const items = bwListSchema.safeParse(body).data?.data.data;
   const item = items

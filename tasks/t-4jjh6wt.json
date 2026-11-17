@@ -1,7 +1,11 @@
 {
   "id": "t-4jjh6wt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "captured failed-unit systemctl/journal fixtures name failed + EADDRINUSE; captured locked /status fails doctor vault"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Doctor and ship name a dead bw-serve unit and its journal reason instead of a bare unavailable",

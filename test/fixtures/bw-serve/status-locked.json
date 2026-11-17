@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "data": {
+    "object": "template",
+    "template": { "serverUrl": null, "lastSync": null, "status": "locked" }
+  }
+}

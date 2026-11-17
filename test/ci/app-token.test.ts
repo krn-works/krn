@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import test from 'node:test';
 import { mintToken, Unavailable } from '../../src/ci/app-token.ts';
@@ -84,4 +85,23 @@ test('a network failure that never clears gives up after three retries', async (
   const fake = await environment(t, 99, 201);
   await assert.rejects(mintToken(fake.env), Unavailable);
   assert.equal(fake.calls(), 4);
+});
+
+test('the bw serve unavailable error names the unit state from captured systemctl and journal output', async () => {
+  const { describeBwServe } = await import('../../src/ci/bw-serve-state.ts');
+  const capture = (name: string) =>
+    readFileSync(
+      new URL(`../fixtures/bw-serve/${name}`, import.meta.url),
+      'utf8',
+    );
+  const message = describeBwServe((command) =>
+    capture(
+      command === 'systemctl'
+        ? 'systemctl-show-failed.txt'
+        : 'journal-failed.txt',
+    ),
+  );
+  assert.match(message, /bw-serve\.service is failed/u);
+  assert.match(message, /EADDRINUSE/u);
+  assert.match(message, /bw-up is an operator command/u);
 });
