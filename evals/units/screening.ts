@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shellWord } from '../../src/repo/shell-text.ts';
+import { startEgress } from './egress.ts';
 import { withoutBrowser } from './no-browser.ts';
 import { requireSandbox, sandboxArgv } from './sandbox.ts';
 import type { Unit } from './unit.ts';
@@ -315,12 +316,23 @@ const cacheLimits = (): CacheLimits => ({
   capBytes: Number(process.env.KRN_SCREEN_CACHE_MAX_GB ?? 8) * GB,
   freeFloorBytes: Number(process.env.KRN_SCREEN_MIN_FREE_GB ?? 6) * GB,
 });
+/**
+ * PATH without scripts/app-bin: its gh mints a GitHub App installation token on every call, so a unit's install
+ * script (network on) or an eval session would act as the App.
+ */
+export function withoutAppGh(path: string | undefined): string | undefined {
+  return path
+    ?.split(':')
+    .filter((dir) => !/(^|\/)scripts\/app-bin\/?$/.test(dir))
+    .join(':');
+}
+
 /** Third-party install and test commands see no tokens and no desktop: PATH, HOME and caches inside scratch only. */
 function cleanEnv(): NodeJS.ProcessEnv {
   const c = (n: string) => join(cacheRoot, n);
   return withoutBrowser(
     {
-      PATH: process.env.PATH,
+      PATH: withoutAppGh(process.env.PATH),
       HOME: process.env.HOME,
       LANG: 'C.UTF-8',
       CI: '1',
@@ -341,36 +353,43 @@ function cleanEnv(): NodeJS.ProcessEnv {
 }
 
 /**
- * Runs one third-party command inside bubblewrap (sandbox.ts): only `writable` and the cache are writable, and the
- * network is there only when `net` is set. The log is written by this process, so it may live outside the sandbox.
+ * Runs one third-party command inside bubblewrap (sandbox.ts): only `writable` and the cache are writable. With `net`
+ * the command reaches the internet through the filtering egress proxy (egress.ts), never a host loopback or private
+ * address; without it the command is offline. The log is written by this process, so it may live outside the sandbox.
  */
-const run = (
+async function run(
   cmd: string,
   cwd: string,
   log: string,
   writable: readonly string[],
   net: boolean,
-): Promise<number> =>
-  new Promise((resolve) => {
-    mkdirSync(join(cacheRoot, 'tmp'), { recursive: true });
-    appendFileSync(log, `\n$ ${cmd}\n`);
-    const fd = openSync(log, 'a');
-    const p = spawn(
-      'bwrap',
-      sandboxArgv(cmd, {
-        cwd,
-        writable: [...writable, cacheRoot],
-        net,
-        env: cleanEnv(),
-      }),
-      { stdio: ['ignore', fd, fd] },
-    );
-    p.on('error', () => resolve(127));
-    p.on('close', (c) => {
-      closeSync(fd);
-      resolve(c ?? 1);
+): Promise<number> {
+  mkdirSync(join(cacheRoot, 'tmp'), { recursive: true });
+  appendFileSync(log, `\n$ ${cmd}\n`);
+  const egress = net ? await startEgress(tmpdir()) : undefined;
+  try {
+    return await new Promise((resolve) => {
+      const fd = openSync(log, 'a');
+      const p = spawn(
+        'bwrap',
+        sandboxArgv(cmd, {
+          cwd,
+          writable: [...writable, cacheRoot],
+          ...(egress ? { egress: egress.socket } : {}),
+          env: cleanEnv(),
+        }),
+        { stdio: ['ignore', fd, fd] },
+      );
+      p.on('error', () => resolve(127));
+      p.on('close', (c) => {
+        closeSync(fd);
+        resolve(c ?? 1);
+      });
     });
-  });
+  } finally {
+    await egress?.close();
+  }
+}
 
 /** Copy the hidden test into a prepared worktree, install and run it: the grade of whatever state the worktree holds. */
 export async function gradeWorktree(
