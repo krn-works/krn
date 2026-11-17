@@ -30,6 +30,61 @@ const fullMatchKill = new RegExp(
   'u',
 );
 
+// Quoted text and heredoc bodies are data, not commands: an `echo` of the kill pattern into a
+// notes file must run. Drops single-quoted spans, double-quoted spans with no command
+// substitution, and heredoc bodies; a double-quoted span holding `$(` or a backtick stays,
+// because it can execute.
+export function executableText(command: string): string {
+  let out = '';
+  const pending: { word: string; strip: boolean }[] = [];
+  let i = 0;
+  while (i < command.length) {
+    const ch = command[i] as string;
+    if (ch === "'") {
+      const end = command.indexOf("'", i + 1);
+      i = end < 0 ? command.length : end + 1;
+      out += "''";
+    } else if (ch === '"') {
+      let j = i + 1;
+      while (j < command.length && command[j] !== '"')
+        j += command[j] === '\\' ? 2 : 1;
+      const span = command.slice(i, j + 1);
+      out += /\$\(|`/u.test(span) ? span : '""';
+      i = j + 1;
+    } else if (ch === '\\') {
+      out += command.slice(i, i + 2);
+      i += 2;
+    } else if (ch === '\n' && pending.length > 0) {
+      out += '\n';
+      i += 1;
+      for (const { word, strip } of pending.splice(0)) {
+        while (i < command.length) {
+          const eol = command.indexOf('\n', i);
+          const line = command.slice(i, eol < 0 ? command.length : eol);
+          i = eol < 0 ? command.length : eol + 1;
+          if ((strip ? line.trim() : line) === word) break;
+        }
+      }
+    } else {
+      const heredoc = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/u.exec(
+        command.slice(i),
+      );
+      if (heredoc && command[i + 2] !== '<') {
+        pending.push({
+          word: (heredoc[2] ?? heredoc[3] ?? heredoc[4]) as string,
+          strip: heredoc[1] === '-',
+        });
+        out += heredoc[0];
+        i += heredoc[0].length;
+      } else {
+        out += ch;
+        i += 1;
+      }
+    }
+  }
+  return out;
+}
+
 const stage = (text: string) => text.trim().replace(prefix, '');
 
 export type Verdict = { refuse: string } | { rewrite: string } | undefined;
@@ -44,7 +99,7 @@ export function judge(payload: unknown): Verdict {
     return {
       refuse: `Refused: a \`while\`/\`until\` loop waits on \`pgrep -f\`, whose pattern also matches this loop's own shell command line, so the loop never ends (three lanes were left waiting forever). Nothing in this Bash call ran. Wait on a PID instead: start the job with \`cmd & pid=$!\` and \`wait $pid\` or \`while kill -0 $pid 2>/dev/null; do sleep 5; done\`; or run it with run_in_background and wait for the notification (scripts/claude/piped-check.ts).`,
     };
-  if (fullMatchKill.test(command))
+  if (fullMatchKill.test(executableText(command)))
     return {
       refuse: `Refused: \`kill\` fed by \`pgrep -f\` (or \`pkill -f\`) matches full command lines, including this Bash call's own shell, so it can kill the caller (exit 144). Nothing in this Bash call ran. Read the PIDs from \`ps -eo pid,args\` and filter argv with awk: \`ps -eo pid,args | awk '$2 == "bash" && $3 == "x.sh" {print $1}'\`, then \`kill\` those PIDs (scripts/claude/piped-check.ts).`,
     };
