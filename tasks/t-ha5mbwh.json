@@ -1,7 +1,11 @@
 {
   "id": "t-ha5mbwh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop-loop test: 3 refusals then allow + verdict; red on origin/main stop.ts"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Stop ends a loop of three identical no-edit refusals",
