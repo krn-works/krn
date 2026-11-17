@@ -83,6 +83,15 @@
       }
     },
     {
+      "name": "run-list-head-completed",
+      "command": "gh run list --repo krn-works/krn --commit 3a71b7d0cdaad0550c36b5fd714febbb2603d272 --json status,databaseId,createdAt,startedAt,event,workflowName",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-list-head-completed.stdout.json",
+        "sha256": "082022a87f4474a3a7931a5f74d45ad547bfd4941d6002eecc81b6d5296fc259"
+      }
+    },
+    {
       "name": "pr-1158-superseded-rollup",
       "command": "gh pr view 1158 --repo krn-works/krn --json headRefOid,statusCheckRollup",
       "exitCode": 0,
