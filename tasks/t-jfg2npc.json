@@ -1,7 +1,11 @@
 {
   "id": "t-jfg2npc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "sandbox mounts only system dirs, toolchain and named paths; test plants a host file and a checkout file unreadable inside bwrap, fails on the old ro-bind of /"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Editing sessions cannot read host paths outside the unit base",
