@@ -10,8 +10,11 @@ export const RETIRE_SERVED = 30;
 /** Withheld scoped diffs a record needs: with fewer there is nothing to compare the served diffs with. */
 export const RETIRE_WITHHELD = 10;
 
-/** A record retires when the one-sided chance of a benefit this large by luck is at least this. */
-export const RETIRE_P = 0.1;
+/** A record retires only when the upper confidence bound of its benefit (withheld minus served violation rate) is below this. */
+export const RETIRE_MARGIN = 0.25;
+
+/** One-sided 90% normal quantile for the upper bound of the benefit. */
+export const RETIRE_Z = 1.2816;
 
 const logFactorial = (n: number): number => {
   let sum = 0;
@@ -45,7 +48,23 @@ export function fisherBenefitP(
   return Math.min(1, p);
 }
 
-/** True when the record has enough scoped diffs in both arms and serving it shows no benefit under Fisher's exact test. */
+/** One-sided 90% Wald upper bound of the benefit: the withheld violation rate minus the served one, plus z standard errors. */
+export function benefitUpperBound(
+  servedViolated: number,
+  servedTotal: number,
+  withheldViolated: number,
+  withheldTotal: number,
+): number {
+  const served = servedViolated / servedTotal;
+  const withheld = withheldViolated / withheldTotal;
+  const se = Math.sqrt(
+    (served * (1 - served)) / servedTotal +
+      (withheld * (1 - withheld)) / withheldTotal,
+  );
+  return withheld - served + RETIRE_Z * se;
+}
+
+/** True when the record has enough scoped diffs in both arms and the data rule out a benefit of RETIRE_MARGIN or more. */
 export function showsNoEffect(totals: EffectTotals): boolean {
   if (
     totals.servedScoped < RETIRE_SERVED ||
@@ -53,12 +72,12 @@ export function showsNoEffect(totals: EffectTotals): boolean {
   )
     return false;
   return (
-    fisherBenefitP(
+    benefitUpperBound(
       totals.servedViolated,
       totals.servedScoped,
       totals.withheldViolated,
       totals.withheldScoped,
-    ) >= RETIRE_P
+    ) < RETIRE_MARGIN
   );
 }
 

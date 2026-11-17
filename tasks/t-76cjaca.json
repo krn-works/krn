@@ -1,7 +1,11 @@
 {
   "id": "t-76cjaca",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "retirement now needs the one-sided 90% Wald upper bound of benefit below 0.25; 1/30 vs 2/10 kept, 150/300 vs 50/100 retired; existing 15/30 vs 5/10 still retires"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Records retire only when a confidence bound rules out worthwhile benefit",
