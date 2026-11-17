@@ -457,13 +457,26 @@ ${synced}`;
   const tree = hasFile(cwd, scopedCheck)
     ? runner('git', ['rev-parse', 'HEAD^{tree}'], cwd).stdout.trim()
     : '';
+  // PR_BODY as CI sets it: a check that reads the body (weak-tests' Weakens-tests line) sees
+  // the same text before the push as on the PR, in the scoped check and in every Proof command.
+  let bodyText: string | undefined;
+  const prBody = (): string => {
+    bodyText ??= readFileSync(body, 'utf8');
+    return bodyText;
+  };
   const recorded = (runtime.fastPass ?? readFastPass)(cwd);
   if (tree !== '' && recorded === tree && git(['status', '--porcelain']) === '')
     process.stdout.write(`pre-push: fast PASS reused for tree ${tree}\n`);
   else if (hasFile(cwd, scopedCheck)) {
     const scoped = runner(
-      'node',
-      [scopedCheck, '--base', `origin/${target}`],
+      'env',
+      [
+        ...proofEnvironment(cwd, prBody()),
+        'node',
+        scopedCheck,
+        '--base',
+        `origin/${target}`,
+      ],
       cwd,
     );
     const rewritten = scoped.code === 0 ? git(['status', '--porcelain']) : '';
@@ -478,15 +491,12 @@ ${synced}`;
       );
   }
 
-  // PR_BODY as CI sets it: a check that reads the body (weak-tests' Weakens-tests line) sees
-  // the same text before the push as on the PR.
   const proofCommands = (runtime.proofOf ?? (() => []))(cwd, title);
-  const prBody = proofCommands.length === 0 ? '' : readFileSync(body, 'utf8');
   const proofs = proofCommands.map((command) => ({
     command,
     result: runner(
       'env',
-      [...proofEnvironment(cwd, prBody), 'sh', '-c', command],
+      [...proofEnvironment(cwd, prBody()), 'sh', '-c', command],
       cwd,
     ),
   }));
@@ -503,7 +513,7 @@ ${synced}`;
       ? body
       : (runtime.publish ?? publishBody)(
           cwd,
-          `${prBody.trimEnd()}\n\n## Proof run\n\n${proofs.map(({ command, result }) => `- \`${command}\`: exit ${result.code}`).join('\n')}\n`,
+          `${prBody().trimEnd()}\n\n## Proof run\n\n${proofs.map(({ command, result }) => `- \`${command}\`: exit ${result.code}`).join('\n')}\n`,
         );
 
   const pushed = runner(

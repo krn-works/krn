@@ -23,7 +23,11 @@ const base = 'b'.repeat(40);
 const merge = 'c'.repeat(40);
 const newHead = 'e'.repeat(40);
 const title = 'feat(ci): ship a PR in one call (t-3ag9eqn)';
-const args = ['--title', title, '--body-file', 'body.md', '--repo', 'o/r'];
+const weakensBody =
+  '## Problem\n\nx\n\nWeakens-tests: test/x.test.ts drops a dead assertion\n';
+const bodyFile = join(mkdtempSync(join(tmpdir(), 'ship-body-')), 'body.md');
+writeFileSync(bodyFile, weakensBody);
+const args = ['--title', title, '--body-file', bodyFile, '--repo', 'o/r'];
 type Failure = Error & { exitCode?: number };
 
 const line0 = (a: string[]) => a.join(' ');
@@ -122,11 +126,13 @@ function receiver(options: {
     calls.push(`${command} ${a.join(' ')}`);
     dirs.push(`${at} ${command} ${a[0]}`);
     const out = (stdout: string) => ({ code: 0, stdout, stderr: '' });
-    if (command === 'node' && a[0] === 'scripts/fast-check.ts') {
+    const fast = a.indexOf('scripts/fast-check.ts');
+    if (command === 'env' && fast > 0 && a[fast - 1] === 'node') {
       assert.equal(
-        line0(a),
+        line0(a.slice(fast)),
         `scripts/fast-check.ts --base origin/${options.target ?? 'main'}`,
       );
+      assert.ok(a[0]?.startsWith('PR_BODY='), 'the scoped check gets PR_BODY');
       return { code: 0, stderr: '', stdout: '', ...options.scoped };
     }
     if (command === 'node') {
@@ -235,10 +241,7 @@ test('ship without --repo names the repository from the origin URL, never throug
     pulls: [auto, merged],
     origin: 'https://github.com/krn-works/seo-audit-harness.git',
   });
-  const out = await shipCommand(
-    ['--title', title, '--body-file', 'body.md'],
-    r,
-  );
+  const out = await shipCommand(['--title', title, '--body-file', bodyFile], r);
   assert.match(out, /^pr: #7 krn-works\/seo-audit-harness a{40}$/mu);
   assert.ok(!r.calls.some((c) => c.startsWith('gh repo view')));
 });
@@ -457,9 +460,20 @@ test('a refused title, main branch or dirty tree exits 64 before any push', asyn
 
 test('ship --worktree runs from the repository root and cleans up the named worktree', async () => {
   const r = { ...receiver({ pulls: [auto, merged] }), cwd: '/r' };
+  // The relative body.md resolves against /r, which does not exist: a reused fast PASS keeps
+  // the scoped check (which reads the body for PR_BODY) out of this case.
   const out = await shipCommand(
-    [...args, '--worktree', '.krn/worktrees/feat-x'],
-    r,
+    [
+      '--title',
+      title,
+      '--body-file',
+      'body.md',
+      '--repo',
+      'o/r',
+      '--worktree',
+      '.krn/worktrees/feat-x',
+    ],
+    { ...r, fastPass: () => '7'.repeat(40) },
   );
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   for (const step of ['git status', 'git push'])
@@ -703,6 +717,20 @@ test('a fast PASS record for another tree runs the scoped check', async () => {
   const printed = await shipCapturingStdout(r, 'b'.repeat(40));
   assert.doesNotMatch(printed, /fast PASS reused/u);
   assert.ok(r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
+});
+
+test('the scoped check runs with the PR body as PR_BODY, as the Proof commands do', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  await shipCapturingStdout(r, undefined);
+  assert.ok(
+    r.calls.some(
+      (c) =>
+        c.startsWith(`env PR_BODY=${weakensBody} `) &&
+        c.includes(' node scripts/fast-check.ts --base origin/main'),
+    ),
+    'a declared Weakens-tests line reaches weak-tests inside the scoped check',
+  );
+  assert.ok(r.calls.some((c) => c.includes('git push')));
 });
 
 test('a dirty worktree never reuses a fast PASS record', async () => {
@@ -1028,7 +1056,7 @@ for (const declared of [true, false]) {
       {
         ...r,
         run: (command, a, at, input, timeoutMs) =>
-          command === 'env'
+          command === 'env' && !a.includes('scripts/fast-check.ts')
             ? run(command, a, repo, input, timeoutMs)
             : r.run(command, a, at),
         proofOf: () => [proof],
