@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { request } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
-import { egressAllowed, vet } from '../../evals/units/egress.ts';
+import { egressAllowed, startEgress, vet } from '../../evals/units/egress.ts';
 
 test('the egress filter refuses loopback, private, link-local and host addresses in every form (t-qjf9g6c)', () => {
   const host = ['192.168.0.47', 'fd7a:115c:a1e0::1', '203.0.113.9'];
@@ -37,4 +41,29 @@ test('a name that resolves to loopback is refused before any connection', async 
   const v = await vet('localhost');
   assert.ok('refused' in v, JSON.stringify(v));
   assert.ok('refused' in (await vet('[::ffff:127.0.0.1]')));
+});
+
+test('startEgress under a parent too deep for a unix socket still serves on a short socket (t-txywvhe)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'egress-deep-'));
+  const deep = join(root, 'x'.repeat(60), 'y'.repeat(60));
+  mkdirSync(deep, { recursive: true });
+  const egress = await startEgress(deep);
+  try {
+    assert.ok(Buffer.byteLength(egress.socket) <= 107, egress.socket);
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request(
+        { socketPath: egress.socket, method: 'GET', path: 'http://127.0.0.1/' },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+    assert.ok(status !== undefined && status >= 400, String(status));
+  } finally {
+    await egress.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
