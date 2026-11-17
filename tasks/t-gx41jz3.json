@@ -1,0 +1,14 @@
+{
+  "id": "t-gx41jz3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Hooks never run a main checkout older than the lane worktree they judge",
+  "after": [],
+  "body": [
+    "Observed 2026-11-17: project hooks run `$CLAUDE_PROJECT_DIR/src/dispatch/main.ts` from the main checkout. The main checkout stayed at 6f474d2 while lanes were started from origin/main after #1282 (cabbc24) added `krn.candidate/v1` to krn.json; a lane's SubagentStop then failed with exit 78 `krn.json formats: unknown format \"krn.candidate/v1\"` until the lead ran `git pull --ff-only` on main. `krn pr ship` merges but does not fast-forward the clean main checkout.\nOutcome: after `krn pr ship` merges, a clean main checkout on the base branch is fast-forwarded to the merge commit (dirty or diverged: one warning line, no change); a regression test proves a ship leaves main at the merge SHA.\nProof: node --test on the ship test file exits 0 with a test asserting the main checkout HEAD equals the merge SHA after ship."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

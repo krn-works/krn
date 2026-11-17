@@ -1,0 +1,16 @@
+{
+  "id": "t-wxg2k34",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Re-verifying screening units keeps the recorded gold verdict",
+  "after": [
+    "t-1p7dmw9"
+  ],
+  "body": [
+    "`node evals/units/screening.ts verify` without `--recorded` overwrites `row.verification` with a fresh object, dropping the `gold` field added in #1281 (6f474d2). The 5 units dropped for gold≠0 (t-27osi9b, t-8niclvu, t-bi8r80b, t-1myowwn, t-2blfi57) would then count as verified again although their unit directories are gone. Do not merge while an S7 screen run is live (harness hash).\nOutcome: a re-verify of a row with gold=1 keeps gold=1 and the row stays unverified; the regression test passes (exit 0).\nProof: node --test test/evals/screening-units.test.ts exits 0 with a gold-carry-over test."
+  ],
+  "kind": "defect",
+  "area": "eval"
+}
