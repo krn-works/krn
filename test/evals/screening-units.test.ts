@@ -123,6 +123,81 @@ test('verify prints the verified count and exits 0 only from 70 units', () => {
   assert.equal(enough.status, 0);
 });
 
+test('verify --id re-grades a recorded unit and refuses an id the manifest lacks (t-te4w4zr)', (t) => {
+  requiresIsolation(t, 'screening grade sandbox', ['bwrap']);
+  const root = mkdtempSync(join(tmpdir(), 'verify-id-'));
+  try {
+    const clone = join(root, 'sources', 'o__r');
+    mkdirSync(clone, { recursive: true });
+    const g = (...a: string[]) =>
+      spawnSync('git', ['-C', clone, ...a], { encoding: 'utf8' }).stdout.trim();
+    g('init', '-q');
+    g(
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'base',
+    );
+    const base = g('rev-parse', 'HEAD');
+    writeFileSync(join(clone, 'fixed'), 'x');
+    g('add', 'fixed');
+    g('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'fix');
+    const fix = g('rev-parse', 'HEAD');
+    // Recorded as a drop: a plain verify skips it, --id must grade it again.
+    const r = { ...row(1, { ...good, testFix: 1 }), base, fix };
+    const units = join(root, 'units');
+    mkdirSync(join(units, r.id), { recursive: true });
+    writeFileSync(join(units, r.id, 'hidden.txt'), 'x');
+    writeFileSync(
+      join(units, r.id, 'unit.json'),
+      JSON.stringify({
+        base,
+        reference: fix,
+        install: 'true',
+        test: 'test -f fixed',
+        hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+      }),
+    );
+    const manifest = join(root, 'm.json');
+    writeFileSync(manifest, JSON.stringify([r]));
+    const verify = (id: string) =>
+      spawnSync(
+        process.execPath,
+        [
+          join(unitsDir, 'screening.ts'),
+          'verify',
+          '--id',
+          id,
+          '--manifest',
+          manifest,
+          '--units',
+          units,
+          '--sources',
+          join(root, 'sources'),
+          '--scratch',
+          join(root, 'scratch'),
+          '--log-dir',
+          join(root, 'logs'),
+        ],
+        { encoding: 'utf8' },
+      );
+    const run = verify(r.id);
+    assert.match(run.stdout, new RegExp(`^${r.id} o/r ok `, 'm'), run.stderr);
+    const [after] = JSON.parse(readFileSync(manifest, 'utf8')) as ManifestRow[];
+    assert.deepEqual(after?.verification, good);
+    const missing = verify('t-0000000');
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /no such manifest row/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('every committed screening unit is verified, loads, and is eligible for the screen', () => {
   const rows = readManifest();
   const live = rows.filter((r) => verified(r.verification));

@@ -1,7 +1,11 @@
 {
   "id": "t-te4w4zr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify --id clears the named row before grading and refuses an unknown id; --units names the unit directory; CLI test re-grades a recorded drop row in bubblewrap"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "screening verify --id re-grades a recorded unit instead of skipping it with exit 0",
