@@ -1,7 +1,11 @@
 {
   "id": "t-1p7dmw9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Arm-A screen on 73 isolated units: A passes 39/73 = 53.4%, verdict go (<= 85%). Worst-case bound with 3 cost-0 suspects, all 7 contamination-flagged fails and 4 unclassified fails counted against: 53/73 = 72.6%, go stands. Confirmed upstream access: t-1d7k0sg (pass, gh pr diff -R) and t-4wtymyn (fail, gh pr view -R) via host-authenticated gh; the 10-row stop gate was superseded by the preregistered step-4 bound (contamination only raises A). Rows carry two harness hashes (1335d77f0237 x65, 74ec7f352323 x8) differing only in session-tree cleanup (#1288). The A rate is an upper bound under contamination and host load, not a baseline for S8; S8 needs t-k7gv1wt (session isolation) first."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Screening shows whether correctness can be proven (S7)",
