@@ -57,6 +57,7 @@ import {
   outcomeRefusal,
 } from './outcome-judge.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
+import { stuckInStopLoop } from './stop-loop.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
@@ -1743,9 +1744,26 @@ export function stopHook(
   }
   try {
     const refusal = judge(payload, env, runTests, branch);
-    return refusal === undefined
-      ? { code: 0, stderr: '' }
-      : { code: 2, stderr: `${refusal}\n` };
+    if (refusal === undefined) return { code: 0, stderr: '' };
+    // The same refusal on an unchanged tree three times in a row can never be met: allow the stop.
+    const fields = payload as { cwd?: unknown; session_id?: unknown } | null;
+    const dir =
+      env.CLAUDE_PROJECT_DIR ??
+      (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd());
+    const cwd = resolve(dir);
+    const tree = [
+      'rev-parse HEAD',
+      'status --porcelain -- . :!.krn',
+      'diff HEAD',
+    ]
+      .map((command) => git(cwd, command.split(' ')).stdout)
+      .join('\n');
+    if (stuckInStopLoop(cwd, fields?.session_id, refusal, tree))
+      return {
+        code: 0,
+        stderr: `Stop allowed: stop-loop, the same refusal three times with no edit between:\n${refusal}\n`,
+      };
+    return { code: 2, stderr: `${refusal}\n` };
   } catch (error) {
     const message = `Stop check crashed: ${(error as Error)?.stack ?? String(error)}`;
     if ((payload as { stop_hook_active?: unknown })?.stop_hook_active === true)
