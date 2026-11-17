@@ -1,0 +1,14 @@
+{
+  "id": "t-avtyjt7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Wait loops never condition on host-wide pgrep by process name",
+  "after": [],
+  "body": [
+    "Source: t-r53fan0 evidence 2026-11-17: predecessor t1z ran a Monitor-style loop `until grep -q ... .krn/tmp/fast.log && ! pgrep -u $UID -x node; do sleep 3; done` for 7h50m. `pgrep -x node` matches any node on the host (other lanes, MCP servers), so the loop never ends.\nOutcome: lead/lane guidance and a guard reject wait loops conditioned on host-wide process absence (pgrep/pkill by name); waits key on a PID, a port, or a file verdict with a deadline.\nProof: a guard test rejects a fixture wait loop that polls pgrep -x node and accepts a PID-keyed one."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

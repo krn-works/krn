@@ -69,6 +69,8 @@ export type TerminalHost = {
   close(session: SessionRef): HostFailure | undefined;
   closeTab(tab: TabRef): HostFailure | undefined;
   rename(tab: TabRef, label: string): HostFailure | undefined;
+  /** Removes the finished sessions whose folder lies under `root`; answers the removed ids. */
+  removeFinished(root: string): string[];
 };
 
 export function isFailure(value: unknown): value is HostFailure {

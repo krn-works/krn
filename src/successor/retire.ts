@@ -133,6 +133,8 @@ export function retireMode(
       );
     else process.stderr.write(`retire: kept tab ${tab.tab}\n`);
   }
+  for (const removed of host.removeFinished(cwd))
+    process.stderr.write(`retire: removed finished ${removed}\n`);
   return 0;
 }
 

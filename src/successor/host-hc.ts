@@ -5,7 +5,7 @@
 // the terminal label `krn-tab`. Every reader answers an empty or undefined
 // value for a reply it cannot parse.
 
-import { basename } from 'node:path';
+import { basename, isAbsolute, relative, sep } from 'node:path';
 import { claudeAgent } from '../harness/claude.ts';
 import { readJson } from '../repo/json-text.ts';
 import {
@@ -132,8 +132,8 @@ function windowSpace(
     : undefined;
 }
 
-function listing(): Array<Record<string, unknown>> | HostFailure {
-  const list = run('hc', ['ls']);
+function listing(all = false): Array<Record<string, unknown>> | HostFailure {
+  const list = run('hc', all ? ['ls', '--all'] : ['ls']);
   if (!succeeded(list)) return hostFailure(list);
   const terminals = record(readJson(list.stdout))?.terminals;
   if (!Array.isArray(terminals))
@@ -261,5 +261,26 @@ export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
     closeTab: (tab) => outcome(run('hc', ['kill', tab])),
     rename: (tab, label) =>
       outcome(run('hc', ['label', tab, `${TAB_LABEL}=${label}`])),
+    // A finished terminal stays listed until `hc rm`; only the ones started in
+    // the project folder belong to this project.
+    removeFinished(root) {
+      const terminals = listing(true);
+      if (!Array.isArray(terminals)) return [];
+      const removed: string[] = [];
+      for (const summary of terminals) {
+        const address = text(summary.address);
+        const cwd = text(summary.cwd);
+        if (!address || !cwd || summary.state !== 'finished') continue;
+        const inside = relative(root, cwd);
+        if (
+          inside === '..' ||
+          inside.startsWith(`..${sep}`) ||
+          isAbsolute(inside)
+        )
+          continue;
+        if (succeeded(run('hc', ['rm', address]))) removed.push(address);
+      }
+      return removed;
+    },
   };
 }

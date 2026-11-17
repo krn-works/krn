@@ -1,0 +1,22 @@
+{
+  "id": "t-r53fan0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "retire removes finished project terminals (hc rm) and treats a sleep-only poll shell as a waiter, so a done predecessor with a stale monitor closes; the label and ledger paths already closed a predecessor without env"
+  },
+  "created": "2026-11-17",
+  "priority": 1,
+  "title": "Successor retire closes the predecessor tab and removes finished terminals",
+  "after": [],
+  "body": [
+    "Source: operator question 2026-11-17 (why are historical Herdr tabs not closed). My retire at session start printed only \"kept tab t1y\"/\"kept tab t1z\": the predecessor t1y (done, work committed) stayed because retire closes only tabs labelled \"handed off → \" and the predecessor pane only when KRN_PREDECESSOR_PANE/SESSION are set, and it never runs hc rm on finished terminals (13 finished krn terminals had piled up).\nOutcome: node scripts/claude/successor-launch.ts --retire closes a done predecessor launched without the label or env pair when its launch record names this successor, and removes finished terminals of the project; a test with a captured hc ls fixture exits 0.\nProof: the retire test reads a verbatim hc ls capture and asserts the close and rm calls."
+  ],
+  "kind": "defect",
+  "area": "successor",
+  "from": {
+    "kind": "inbox",
+    "ref": "operator-2026-11-17"
+  }
+}

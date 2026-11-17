@@ -15,6 +15,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { hcHost } from '../../src/successor/host-hc.ts';
 import { herdrHost } from '../../src/successor/host-herdr.ts';
+import { retireMode } from '../../src/successor/retire.ts';
 import {
   announcement,
   isFailure,
@@ -312,7 +313,16 @@ test('wait is true once the agent settles and false on a timeout or a block', (t
   assert.equal(gone.host.wait(gone.host.session('t9'), 1000), false);
 });
 
-test('busy is false for a shell or a lone agent and true for another program or an agent with a child shell', (t) => {
+function childrenOf(pid: number | undefined): string[] {
+  return spawnSync('ps', ['-o', 'pid=', '--ppid', String(pid)], {
+    encoding: 'utf8',
+  })
+    .stdout.split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+test('busy is false for a shell, a lone agent or a waiting job and true for another program or an agent running a job', (t) => {
   const shell = withHc(t, { 'get t7': captured('get-shell.reply.jsonl') });
   assert.equal(shell.host.busy(shell.host.session('t7')), false);
 
@@ -323,27 +333,34 @@ test('busy is false for a shell or a lone agent and true for another program or 
   assert.equal(lone.host.busy(lone.host.session('t6')), false);
 
   // A real process table: a parent with a child shell stands for the agent
-  // that runs a background monitor.
-  const parent = spawn('sh', ['-c', 'bash -c "sleep 30; true" & wait'], {
-    stdio: 'ignore',
-  });
-  t.after(() => {
-    spawnSync('pkill', ['-P', String(parent.pid)]);
-    parent.kill();
-  });
-  const deadline = Date.now() + 5000;
-  while (
-    Date.now() < deadline &&
-    !spawnSync('ps', ['-o', 'comm=', '--ppid', String(parent.pid)], {
-      encoding: 'utf8',
-    }).stdout.includes('bash')
+  // that runs a background job. A job that runs a program is work; a poll
+  // loop caught in `sleep` is a waiter and holds nothing (t-r53fan0: a done
+  // predecessor kept such a loop for eight hours).
+  const agentWith = (job: string) => {
+    const parent = spawn('sh', ['-c', `bash -c '${job}' & wait`], {
+      stdio: 'ignore',
+    });
+    t.after(() => {
+      for (const shell of childrenOf(parent.pid))
+        spawnSync('pkill', ['-P', shell]);
+      spawnSync('pkill', ['-P', String(parent.pid)]);
+      parent.kill();
+    });
+    const deadline = Date.now() + 5000;
+    while (
+      Date.now() < deadline &&
+      !childrenOf(parent.pid).some((shell) => childrenOf(Number(shell)).length)
+    );
+    const reply = json('get-claude-working.reply.jsonl');
+    reply.foreground.pid = parent.pid;
+    return withHc(t, { 'get t6': ok(`${JSON.stringify(reply)}\n`) }).host;
+  };
+  const working = agentWith(
+    `${process.execPath} -e "setTimeout(() => {}, 30000)"; true`,
   );
-  const withMonitor = json('get-claude-working.reply.jsonl');
-  withMonitor.foreground.pid = parent.pid;
-  const monitored = withHc(t, {
-    'get t6': ok(`${JSON.stringify(withMonitor)}\n`),
-  });
-  assert.equal(monitored.host.busy(monitored.host.session('t6')), true);
+  assert.equal(working.busy(working.session('t6')), true);
+  const waiter = agentWith('while :; do sleep 30; done');
+  assert.equal(waiter.busy(waiter.session('t6')), false);
 
   const other = json('get-shell.reply.jsonl');
   other.foreground.name = 'vim';
@@ -394,6 +411,79 @@ test('list leaves an unlabelled terminal without a label and skips finished ones
   );
   const empty = withHc(t, { ls: captured('ls-empty.reply.jsonl') });
   assert.deepEqual(empty.host.list('hc' as never), []);
+});
+
+test('removeFinished removes only the finished terminals started under the project folder (t-r53fan0)', (t) => {
+  // A verbatim `hc ls --all` with one finished terminal in the project (t25)
+  // beside live ones, plus a finished terminal of another folder.
+  const project = json('ls-all-project-finished.reply.jsonl');
+  const root = project.terminals.find(
+    (terminal: { state: string }) => terminal.state === 'finished',
+  ).cwd as string;
+  const { host, calls } = withHc(t, {
+    'ls --all': ok(
+      `${JSON.stringify({
+        ...project,
+        terminals: [
+          ...project.terminals,
+          ...json('ls-all-finished.reply.jsonl').terminals,
+        ],
+      })}\n`,
+    ),
+    'rm t25': captured('rm-project.reply.jsonl'),
+  });
+  assert.deepEqual(host.removeFinished(root), ['t25']);
+  assert.deepEqual(
+    calls().filter((call) => call[0] === 'rm'),
+    [['rm', 't25']],
+  );
+  assert.deepEqual(host.removeFinished(`${root}-other`), []);
+  const unreadable = withHc(t, { 'ls --all': ok('not json\n') });
+  assert.deepEqual(unreadable.host.removeFinished(root), []);
+});
+
+test('retire closes the settled handed-off terminal and removes the finished terminals of the project (t-r53fan0)', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'retire-hc-'));
+  // A relay started this process with its own predecessor pair; this retire
+  // runs without one.
+  const pair = ['KRN_PREDECESSOR_PANE', 'KRN_PREDECESSOR_SESSION'] as const;
+  const saved = pair.map((name) => process.env[name]);
+  for (const name of pair) delete process.env[name];
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    pair.forEach((name, index) => {
+      if (saved[index] !== undefined) process.env[name] = saved[index];
+    });
+  });
+  // The `hc ls --all` capture, its project folder moved to this test's root.
+  const project = json('ls-all-project-finished.reply.jsonl');
+  const listed = JSON.stringify(project).replaceAll(
+    project.terminals[0].cwd,
+    root,
+  );
+  const { host, calls } = withHc(
+    t,
+    {
+      'get t7': captured('get-shell.reply.jsonl'),
+      ls: captured('ls-claude.reply.jsonl'),
+      'get t6': captured('get-claude-labelled.reply.jsonl'),
+      'kill t6': captured('kill.reply.jsonl'),
+      'ls --all': ok(`${listed}\n`),
+      'rm t25': captured('rm-project.reply.jsonl'),
+    },
+    { HC_TERMINAL_ID: 't7' },
+  );
+  assert.equal(
+    retireMode(['--cwd', root], () => {}, Date.now, host),
+    0,
+  );
+  assert.deepEqual(
+    calls().filter((call) => call[0] === 'kill' || call[0] === 'rm'),
+    [
+      ['kill', 't6'],
+      ['rm', 't25'],
+    ],
+  );
 });
 
 test('list answers the failure of an unreadable list', (t) => {

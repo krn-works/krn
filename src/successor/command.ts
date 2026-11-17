@@ -67,15 +67,38 @@ export function exitFailure(result: CommandResult): number {
 
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 
-// Whether the process has a live child shell (a background monitor), which the
-// host cannot list as a foreground process: the answer comes from the process table.
+// Whether the process has a live child shell doing work (a background job),
+// which the host cannot list as a foreground process: the answer comes from
+// the process table. A shell whose only children are `sleep` is a waiter (a
+// poll loop between probes) and holds no work: a done predecessor kept a
+// `until ...; do sleep 3; done` loop for eight hours and retire never closed
+// it (t-r53fan0).
 export function hasChildShell(pid: number): boolean {
-  const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);
-  for (const line of children.stdout.split('\n')) {
-    const command = line.trim().split(/\s+/u).pop();
-    if (command && SHELLS.has(command)) return true;
-  }
+  for (const child of childrenOf(pid))
+    if (SHELLS.has(child.command) && !waiting(child.pid)) return true;
   return false;
+}
+
+function childrenOf(pid: number): Array<{ pid: string; command: string }> {
+  const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);
+  const found = [];
+  for (const line of children.stdout.split('\n')) {
+    const words = line.trim().split(/\s+/u);
+    const command = words.pop();
+    const child = words[0];
+    if (command && child) found.push({ pid: child, command });
+  }
+  return found;
+}
+
+// A sample between two probes can show no child at all, so only a shell
+// caught in `sleep` counts as waiting.
+function waiting(shellPid: string): boolean {
+  if (!/^\d+$/u.test(shellPid)) return false;
+  const children = childrenOf(Number(shellPid));
+  return (
+    children.length > 0 && children.every((child) => child.command === 'sleep')
+  );
 }
 
 /** Whether a program name is an interactive shell. */
