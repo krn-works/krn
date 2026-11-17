@@ -1,7 +1,11 @@
 {
   "id": "t-ph1meah",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger --dollars joins slice cost with first-push-green; test/outcome/dollars.test.ts asserts $4.00 per merged and $8.00 per first-push-green PR; --min-units wired to advisor trial with CLI test"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Report dollars per merged and per first-push-green PR",
