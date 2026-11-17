@@ -226,6 +226,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/hook/outcome-judge.ts',
     'src/hook/scope.ts',
     'src/hook/session-start.ts',
+    'src/hook/stop-loop.ts',
     'src/hook/stop.ts',
     'src/hook/unpushed-delete.ts',
     'src/memory/memory-refs.ts',
