@@ -1,7 +1,7 @@
 // PreToolUse hook on Edit|Write|MultiEdit|Bash (`krn hook edit`): the first edit of a file kind (its stack, else
 // its extension) in a session brings the records scoped to that file (its stack or a path pattern it
-// matches) as additional context, at most EDIT_BUDGET tokens. Later edits of the same kind add nothing; a
-// record the session was already shown or withheld (any exposure of this session's run in the log) never
+// matches) as additional context, at most EDIT_BUDGET tokens. A later edit of the same kind adds only records not yet
+// shown; a record the session was already shown or withheld (any exposure of this session's run in the log) never
 // repeats; one in 10 is withheld by the holdout and logged as such, so `krn standards effect` counts the
 // edit moment. Headless lane sessions edit through Bash (a python or sed one-liner) as often as through
 // Edit, so a Bash command that names a repository file of a kind counts as touching that kind. Any failure
@@ -105,13 +105,6 @@ export function editContext(
   const own = readExposures(main).filter(
     (exposure) => exposure.run === sessionId,
   );
-  if (
-    own.some(
-      (exposure) =>
-        exposure.channel === EDIT_CHANNEL && exposure.scope === kind,
-    )
-  )
-    return undefined;
   const shown = new Set(
     own.flatMap((exposure) => [...exposure.served, ...exposure.withheld]),
   );
