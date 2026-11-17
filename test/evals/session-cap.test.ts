@@ -31,7 +31,7 @@ function stubClaude(dir: string, log: string) {
   const path = join(dir, 'claude');
   writeFileSync(
     path,
-    `#!/bin/sh\ncat >/dev/null\necho +1 >> ${log}\nsleep 0.4\necho -1 >> ${log}\necho '{"result":"ok"}'\n`,
+    `#!/bin/sh\ncat >/dev/null\necho +1 >> ${log}\nsleep 0.4\necho -1 >> ${log}\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok"}'\n`,
   );
   chmodSync(path, 0o755);
   return path;

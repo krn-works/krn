@@ -132,5 +132,5 @@ export async function armBRow(
     writeStatic(wt, render);
     return { static: render.tokens, injection };
   });
-  return { row, tokens: note };
+  return { row: { ...row, injection: note.injection }, tokens: note };
 }

@@ -1,0 +1,154 @@
+// Every replay arm reads its session through one rule and arm C holds a claim when SessionStart runs: one budget-capped
+// session must be graded in A, B and C alike, and arm C's SessionStart must serve a packet.
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { armBRow } from '../../evals/replay/arm-b.ts';
+import { armCRow } from '../../evals/replay/arm-c.ts';
+import { screenUnit } from '../../evals/replay/live.ts';
+import { sessionContext } from '../../src/hook/session-start.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
+
+const git = (cwd: string, ...a: string[]) =>
+  execFileSync('git', a, { cwd, encoding: 'utf8' }).trim();
+
+/** Verbatim shape of `claude -p --output-format json` stopped by --max-budget-usd: an error result that spent its budget. */
+const budgetCapped =
+  '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"duration_ms":91000,"num_turns":31,"total_cost_usd":1.02,"session_id":"00000000-0000-4000-8000-000000000001","modelUsage":{"claude-sonnet-5-5":{"costUSD":1.02}}}';
+
+function fixture(root: string) {
+  const clone = join(root, 'sources', 'o__r');
+  mkdirSync(clone, { recursive: true });
+  git(clone, 'init', '-q');
+  git(clone, 'config', 'user.email', 'a@b.c');
+  git(clone, 'config', 'user.name', 'n');
+  writeFileSync(join(clone, 'a.txt'), '1\n');
+  git(clone, 'add', '.');
+  git(clone, 'commit', '-q', '-m', 'base');
+  const base = git(clone, 'rev-parse', 'HEAD');
+  writeFileSync(join(clone, 'fixed.txt'), 'x\n');
+  git(clone, 'add', '.');
+  git(clone, 'commit', '-q', '-m', 'fix');
+  const reference = git(clone, 'rev-parse', 'HEAD');
+  const dir = join(root, 'units', 't-aaaaaaa');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'hidden.txt'), 'present\n');
+  const unit = {
+    id: 't-aaaaaaa',
+    repo: 'o/r',
+    base,
+    reference,
+    task: { title: 'Fix the test command', body: 'Why: npm test is broken' },
+    spec: 's',
+    hidden: { file: 'hidden.txt', dest: 'hidden.check' },
+    install: 'true',
+    test: 'test -f fixed.txt',
+    committed: '2026-08-01',
+    issue: 'https://github.com/o/r/issues/1',
+  };
+  writeFileSync(join(dir, 'unit.json'), JSON.stringify(unit));
+  const stub = join(root, 'claude');
+  writeFileSync(stub, `#!/bin/sh\necho '${budgetCapped}'\n`);
+  chmodSync(stub, 0o755);
+  const env = {
+    ...process.env,
+    KRN_EVAL_CLAUDE: stub,
+    KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+  };
+  return {
+    live: { unit: unit as never, dir },
+    options: {
+      sources: join(root, 'sources'),
+      scratch: join(root, 'scratch'),
+      harness: 'h',
+      env,
+    },
+  };
+}
+
+/** An adopted repository ships only enforced standards; the one advisory record is what SessionStart can serve. */
+function seedAdvisoryStandard(wt: string): void {
+  const file = join(wt, '.agents', 'standards.json');
+  writeFileSync(
+    file,
+    JSON.stringify([
+      ...(JSON.parse(readFileSync(file, 'utf8')) as unknown[]),
+      {
+        id: 's-test-command-works',
+        type: 'standard',
+        area: 'tests',
+        layer: 'universal',
+        audience: 'worker',
+        tier: 'reflex',
+        text: 'Fix the test command only after the failing test is reproduced.',
+        why: 'A guessed fix costs a CI round.',
+        provenance: { origin: 'test', evidence: ['a.txt'], proposals: [] },
+        enforcement: { kind: 'advisory' },
+        applies: { stacks: [], needs: [], paths: [], terms: [] },
+        status: 'accepted',
+        supersedes: [],
+        recorded_at: '2026-01-01',
+        valid_from: '2026-01-01',
+        valid_to: null,
+      },
+    ]),
+  );
+}
+
+test('one budget-capped session is graded in arms A, B and C alike', async (t) => {
+  requiresIsolation(t, 'live arm sandbox', ['bwrap']);
+  const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
+  try {
+    const { live, options } = fixture(root);
+    const a = await screenUnit(live, { ...options, rowsFile: join(root, 'r') });
+    const b = (await armBRow(live, options)).row;
+    const c = await armCRow(live, options);
+    assert.deepEqual(
+      [a, b, c].map((row) => [row.arm, row.pass, row.cost]),
+      [
+        ['A', false, 1.02],
+        ['B', false, 1.02],
+        ['C', false, 1.02],
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('arm C claims its task before the session, so SessionStart serves a packet and the row attests the injection', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
+  try {
+    const { live, options } = fixture(root);
+    let served: string | undefined;
+    const row = await armCRow(live, {
+      ...options,
+      session: async (wt) => {
+        seedAdvisoryStandard(wt);
+        served = sessionContext(wt, 'parity-session', {});
+        return {
+          result: { ok: false, detail: 'capped', cost: 1.02, capped: true },
+          notStarted: false,
+          timedOut: false,
+          stdout: budgetCapped,
+          stderr: '',
+        };
+      },
+    });
+    assert.match(served ?? '', /^Standards for this task \(\d+\):/u);
+    assert.ok((row.injection ?? 0) > 0);
+    assert.equal(row.pass, false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

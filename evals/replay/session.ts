@@ -37,6 +37,13 @@ export interface DrivenSession {
   stderr: string;
 }
 
+/**
+ * Whether the arm's session ran: it succeeded or used its whole time or budget. A usage-limit or crash result is no
+ * evidence about the arm. Every replay arm decides through this one rule.
+ */
+export const sessionRan = (s: DrivenSession): boolean =>
+  !s.notStarted && (s.timedOut || s.result.ok || s.result.capped === true);
+
 const maxOutput = 64 * 1024 * 1024;
 
 /** Runs one headless session to its end and reads its result. */

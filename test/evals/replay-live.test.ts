@@ -17,8 +17,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { ARMS } from '../../evals/replay/arms.ts';
-import { armEnv, sessionOf } from '../../evals/replay/live.ts';
+import { armEnv } from '../../evals/replay/live.ts';
 import { parseRows } from '../../evals/replay/screen.ts';
+import { type DrivenSession, sessionRan } from '../../evals/replay/session.ts';
+import { parseSessionResult } from '../../evals/replay/session-result.ts';
 import { openerPaths } from '../../evals/units/no-browser.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
@@ -70,7 +72,7 @@ function fixture(root: string) {
   const stub = join(root, 'claude');
   writeFileSync(
     stub,
-    `#!/bin/sh\nprompt="$*"\necho +1 >> ${log}\nshift 2\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"result":"ok","total_cost_usd":0.25}'\n`,
+    `#!/bin/sh\nprompt="$*"\necho +1 >> ${log}\nshift 2\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.25}'\n`,
   );
   chmodSync(stub, 0o755);
   return { units, stub, log };
@@ -223,19 +225,38 @@ test('--reps 2 records two graded rows per eligible unit and a unit passes when 
 const usageLimit =
   '{"is_error":true,"num_turns":9,"subtype":"success","api_error_status":429,"api_error":"usage_limit_reached","result":"You\'ve hit your weekly limit · resets Nov 13, 7pm (Europe/Warsaw)","type":"result","duration_ms":27467,"total_cost_usd":0.41}';
 
+const driven = (stdout: string, timedOut = false): DrivenSession => ({
+  result: parseSessionResult(stdout, ''),
+  notStarted: false,
+  timedOut,
+  stdout,
+  stderr: '',
+});
+
 test('a usage-limited, crashed or silent session did not run; a result or the time limit did', () => {
-  assert.deepEqual(sessionOf(usageLimit, false), { cost: 0.41, ran: false });
-  assert.deepEqual(sessionOf('', false), { cost: null, ran: false });
-  assert.deepEqual(sessionOf('Error: boom', false), { cost: null, ran: false });
-  assert.deepEqual(sessionOf('{"result":"ok","total_cost_usd":0.25}', false), {
-    cost: 0.25,
-    ran: true,
-  });
-  assert.deepEqual(sessionOf('', true), { cost: null, ran: true });
-  assert.deepEqual(sessionOf('{"result":"ok"}', false), {
-    cost: null,
-    ran: true,
-  });
+  assert.equal(sessionRan(driven(usageLimit)), false);
+  assert.equal(sessionRan(driven('')), false);
+  assert.equal(sessionRan(driven('Error: boom')), false);
+  assert.equal(
+    sessionRan(
+      driven('{"subtype":"success","result":"ok","total_cost_usd":0.25}'),
+    ),
+    true,
+  );
+  assert.equal(sessionRan(driven('', true)), true);
+  assert.equal(sessionRan(driven('{"subtype":"success","result":"ok"}')), true);
+  assert.equal(
+    sessionRan(
+      driven(
+        '{"subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":1}',
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    sessionRan({ ...driven('{"subtype":"success"}'), notStarted: true }),
+    false,
+  );
 });
 
 test('--screen records a usage-limited session ungraded and the next run screens it again', () => {
@@ -303,7 +324,7 @@ test('--screen grades the session change without the ignored leftovers of its ow
     const messy = join(root, 'messy');
     writeFileSync(
       messy,
-      `#!/bin/sh\ncat >/dev/null\ntouch fixed.txt\nmkdir -p build && touch build/poison\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+      `#!/bin/sh\ncat >/dev/null\ntouch fixed.txt\nmkdir -p build && touch build/poison\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.1}'\n`,
     );
     chmodSync(messy, 0o755);
     const rowsFile = join(root, 'rows.jsonl');
@@ -349,7 +370,7 @@ test('a screened session reaches only the unit base: no reference fix, no later 
     const probe = join(root, 'probe');
     writeFileSync(
       probe,
-      `#!/bin/sh\ncat >/dev/null\ngit log --all --format=%H >> ${seen}\nfor r in $(cat ${join(root, 'refs')}); do git cat-file -e "$r^{commit}" 2>/dev/null && echo "reach $r" >> ${seen}; done\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+      `#!/bin/sh\ncat >/dev/null\ngit log --all --format=%H >> ${seen}\nfor r in $(cat ${join(root, 'refs')}); do git cat-file -e "$r^{commit}" 2>/dev/null && echo "reach $r" >> ${seen}; done\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.1}'\n`,
     );
     chmodSync(probe, 0o755);
     const unit = JSON.parse(
@@ -437,7 +458,7 @@ test('a screened session writes its temporaries under scratch', () => {
     const probe = join(root, 'probe');
     writeFileSync(
       probe,
-      `#!/bin/sh\ncat >/dev/null\necho "$TMPDIR" >> ${seen}\necho "$CLAUDE_CODE_TMPDIR" >> ${seen}\necho '{"result":"ok","total_cost_usd":0.1}'\n`,
+      `#!/bin/sh\ncat >/dev/null\necho "$TMPDIR" >> ${seen}\necho "$CLAUDE_CODE_TMPDIR" >> ${seen}\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.1}'\n`,
     );
     chmodSync(probe, 0o755);
     const r = spawnSync(
@@ -511,7 +532,7 @@ test('a screened session reaches no host loopback listener, no HOME credential a
         `cat ${join(home, '.ssh', 'id_ed25519')} >> ${seen} 2>&1`,
         `touch ${join(outside, 'escaped')} 2>/dev/null`,
         `echo probed >> ${seen}`,
-        `echo '{"result":"ok","total_cost_usd":0.1}'`,
+        `echo '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.1}'`,
         '',
       ].join('\n'),
     );
