@@ -1,0 +1,14 @@
+{
+  "id": "t-5ka86d5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Replenish the screening pool above the 70-unit floor",
+  "after": [],
+  "body": [
+    "After t-zk8cmrz (#1312) exactly 70 units are verified, the MIN_VERIFIED floor: any further drop makes verify exit 1.\nOutcome: at least 80 verified units, screened after t-qjf9g6c makes the install phase safe.\nProof: node evals/units/screening.ts verify --recorded prints units: N verified with N >= 80, exit 0.\nFiles: evals/units/screening-manifest.json, evals/units/"
+  ],
+  "kind": "chore",
+  "area": "evals"
+}

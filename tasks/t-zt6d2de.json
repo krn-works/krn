@@ -1,0 +1,14 @@
+{
+  "id": "t-zt6d2de",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-17",
+  "priority": 2,
+  "title": "Screening manifest holds duplicate unit ids with different fix PRs",
+  "after": [],
+  "body": [
+    "evals/units/screening-manifest.json holds several ids twice with different fixPr/base/fix (seen 2026-11-17: t-ehzy3ue, t-eg7cms5, t-1xwyjlv); unitId hashes the issue URL, so two fix PRs of one issue share an id and verify --id grades whichever row find() hits first.\nOutcome: verify refuses a manifest with a duplicate id (exit non-zero naming the ids), and the committed manifest has none (one row per id kept, the choice recorded).\nProof: a test with a duplicate-id manifest asserts the refusal; verify --recorded on the committed manifest still prints >= 70."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}
