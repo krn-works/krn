@@ -22,6 +22,14 @@ const fullMatchWait =
 const nameWait =
   /\b(?:while|until)\b[^\n]*?\bpgrep\b(?!\s+(?:-\w*P\b|--parent\b))/u;
 
+// `kill $(pgrep -f x)`, `pgrep -f x | xargs kill` and `pkill -f x` match against full command
+// lines, including this command's own shell, so they can kill the caller (exit 144).
+const full = String.raw`(?:-\w*f\w*|--full)`;
+const fullMatchKill = new RegExp(
+  String.raw`\bpkill\s+(?:-\w+\s+)*${full}\b|\bkill\b[^\n|]*(?:\$\(|\x60)\s*pgrep\s+(?:-\w+\s+)*${full}\b|\bpgrep\s+(?:-\w+\s+)*${full}\b[^\n]*\|\s*(?:xargs\s+(?:-\S+\s+)*)kill\b`,
+  'u',
+);
+
 const stage = (text: string) => text.trim().replace(prefix, '');
 
 export type Verdict = { refuse: string } | { rewrite: string } | undefined;
@@ -35,6 +43,10 @@ export function judge(payload: unknown): Verdict {
   if (fullMatchWait.test(command))
     return {
       refuse: `Refused: a \`while\`/\`until\` loop waits on \`pgrep -f\`, whose pattern also matches this loop's own shell command line, so the loop never ends (three lanes were left waiting forever). Nothing in this Bash call ran. Wait on a PID instead: start the job with \`cmd & pid=$!\` and \`wait $pid\` or \`while kill -0 $pid 2>/dev/null; do sleep 5; done\`; or run it with run_in_background and wait for the notification (scripts/claude/piped-check.ts).`,
+    };
+  if (fullMatchKill.test(command))
+    return {
+      refuse: `Refused: \`kill\` fed by \`pgrep -f\` (or \`pkill -f\`) matches full command lines, including this Bash call's own shell, so it can kill the caller (exit 144). Nothing in this Bash call ran. Read the PIDs from \`ps -eo pid,args\` and filter argv with awk: \`ps -eo pid,args | awk '$2 == "bash" && $3 == "x.sh" {print $1}'\`, then \`kill\` those PIDs (scripts/claude/piped-check.ts).`,
     };
   if (nameWait.test(command))
     return {
