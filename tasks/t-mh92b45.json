@@ -1,7 +1,11 @@
 {
   "id": "t-mh92b45",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Astra rerun on 075e12b: .krn/runs/research/gpt-6-2/astra-rerun-verdicts.md in the main checkout (7 fixed, 11 open with tasks, 1 refuted, 9 new tasks t-y0q3dyv..t-qn3g4d8, E6 -> t-fastrn7)"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Rerun the GPT-6.2 Astra audit after its P1 findings merge",
