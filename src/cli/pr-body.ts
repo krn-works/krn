@@ -89,6 +89,14 @@ export function proofOfTitle(cwd: string, title: string): string[] {
   return task === undefined ? [] : proofCommands(task);
 }
 
+/** The kind of the task a PR title names (`... (t-id)`), read from the worktree; none when the title, record or kind is absent. */
+export function kindOfTitle(cwd: string, title: string): string | undefined {
+  const id = titleTaskId(title);
+  if (id === undefined || !isTaskId(id)) return undefined;
+  const root = repositoryRoot(cwd);
+  return loadTaskIndex(taskLookupRoot(root, id)).get(id)?.kind;
+}
+
 export function renderPrBody(input: BodyInput): string {
   const { task } = input;
   const problem = bodyField(task, 'Why') ?? task.title;
