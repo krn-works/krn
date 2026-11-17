@@ -205,3 +205,21 @@ test('parallel PreToolUse payloads get one decision each: the refused call does 
     'set -o pipefail; npm test | tail -5',
   );
 });
+
+test('one pre-tool process refuses kill fed by pgrep -f and pkill -f, naming ps as the alternative', () => {
+  for (const command of [
+    'kill $(pgrep -f x.sh)',
+    'kill -9 `pgrep -f x.sh`',
+    'pgrep -f x | xargs kill',
+    'pkill -f x.sh',
+  ]) {
+    const result = hook('pre-tool', bash(command));
+    assert.equal(result.status, 2, command);
+    assert.match(result.stderr, /ps -eo pid,args/u, command);
+  }
+  for (const command of ['kill 1234', 'pgrep -f x', 'kill $(cat pidfile)']) {
+    const result = hook('pre-tool', bash(command));
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+});

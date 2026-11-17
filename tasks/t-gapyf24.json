@@ -1,7 +1,11 @@
 {
   "id": "t-gapyf24",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pre-tool hook refuses kill fed by pgrep -f and pkill -f; dispatch test proves it"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Hook refuses kill fed by pgrep -f, which can match the caller's own shell",
