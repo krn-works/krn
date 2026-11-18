@@ -40,6 +40,8 @@ export interface LiveOptions {
   sessionMs?: number;
   /** Sessions per unit; a unit passes when any rep passes. */
   reps?: number;
+  /** The session model; a Codex model runs on `codex exec` (session-args.ts). Unset keeps the shared default. */
+  model?: string | undefined;
   /** Directory that receives each graded session's patch and grade (recording.ts); none when unset. */
   recordings?: string | undefined;
   /** Runs the session; the default is the sandboxed driver. Tests pass a recorded one. */
@@ -175,6 +177,7 @@ export async function screenUnit(
       ((w: string, e: NodeJS.ProcessEnv) =>
         sandboxedSession(arm, w, promptOf(unit), e, {
           sessionMs: o.sessionMs ?? 30 * 60_000,
+          ...(o.model === undefined ? {} : { model: o.model }),
         }));
     const session = await withSessionSlot(() => run(wt, env, log), slotEnv);
     appendFileSync(log, `${session.stdout}\n${session.stderr}\n`);

@@ -1,6 +1,7 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
 // --prereg evals/replay/abc.prereg.md --report [--rows <file>] [--strict] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
+// --screen --model <m> --rows <file> runs them on another model; a Codex model (gpt-6.2-sol) runs on `codex exec`.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
 // --screen --replay <dir> grades every recorded patch on a fresh unit.base checkout with no model session and exits
@@ -129,6 +130,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             : undefined),
         harness: harnessSha(here),
         reps: Number(flag('reps') ?? 1),
+        model: flag('model'),
       });
     const s = screen(units, readRows(rowsFile));
     if (flag('metric') === 'screen-a-pass-rate') {

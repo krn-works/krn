@@ -1,10 +1,22 @@
 // A live replay row for an arm that runs through the session driver (arms B and C): the unit's base checkout is
 // prepared by the arm, one headless session runs in the same bubblewrap sandbox and egress proxy as arm A, and the
 // unit's hidden test grades the result into a row.
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
+import {
+  CODEX_HOSTS,
+  codexSessionEnv,
+  isCodexModel,
+  parseCodexResult,
+  rolloutFiles,
+} from '../../src/harness/codex.ts';
 import { withSessionSlot } from '../session-slot.ts';
 import { SESSION_HOSTS, startEgress } from '../units/egress.ts';
 import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
@@ -19,7 +31,12 @@ import {
 import { baseCheckout } from './recording.ts';
 import type { Row } from './rows.ts';
 import { type DrivenSession, driveSession, sessionRan } from './session.ts';
-import { sessionCommand, settingsPath } from './session-args.ts';
+import {
+  SESSION_MODEL,
+  sessionBinary,
+  sessionCommand,
+  settingsPath,
+} from './session-args.ts';
 
 export interface ArmOptions {
   sources: string;
@@ -59,7 +76,7 @@ export async function sandboxedSession(
   env: NodeJS.ProcessEnv,
   o: Pick<ArmOptions, 'sessionMs' | 'model' | 'budgetUsd'>,
 ): Promise<DrivenSession> {
-  const bin = env.KRN_EVAL_CLAUDE ?? 'claude';
+  const bin = sessionBinary(o.model, env);
   const settings = settingsPath(arm.id, env, wt);
   mkdirSync(dirname(settings), { recursive: true });
   writeFileSync(settings, '{}\n');
@@ -70,21 +87,50 @@ export async function sandboxedSession(
     ...(o.model === undefined ? {} : { model: o.model }),
     ...(o.budgetUsd === undefined ? {} : { budgetUsd: o.budgetUsd }),
   });
-  const egress = await startEgress(tmpdir(), SESSION_HOSTS);
+  // A Codex session gets a private home holding only the host's ChatGPT login (refused when it would bill an API key),
+  // the ChatGPT hosts on top of the shared egress list, and its result read from its own rollouts.
+  const codex = isCodexModel(o.model ?? SESSION_MODEL)
+    ? codexSessionEnv(
+        join(dirname(settings), `codex-${basename(wt)}`),
+        env,
+        process.env,
+      )
+    : undefined;
+  const sessionEnv = codex?.env ?? env;
+  const egress = await startEgress(
+    tmpdir(),
+    codex ? [...SESSION_HOSTS, ...CODEX_HOSTS] : SESSION_HOSTS,
+  );
   try {
     return await driveSession({
       command: 'bwrap',
       argv: sandboxArgv(cmd, {
         cwd: wt,
-        writable: [...sessionWritable(wt, env), dirname(settings)],
+        writable: [
+          ...sessionWritable(wt, sessionEnv),
+          dirname(settings),
+          ...(codex?.writable ?? []),
+        ],
         ...(isAbsolute(bin) ? { readable: [dirname(bin)] } : {}),
         egress: egress.socket,
-        env,
+        env: sessionEnv,
       }),
       cwd: wt,
-      env,
+      env: sessionEnv,
       timeoutMs: o.sessionMs ?? 30 * 60_000,
       claude: bin,
+      ...(codex && sessionEnv.CODEX_HOME
+        ? {
+            parse: (stdout: string, stderr: string) =>
+              parseCodexResult(
+                stdout,
+                stderr,
+                rolloutFiles(sessionEnv.CODEX_HOME as string).map((f) =>
+                  readFileSync(f, 'utf8'),
+                ),
+              ),
+          }
+        : {}),
     });
   } finally {
     await egress.close();
