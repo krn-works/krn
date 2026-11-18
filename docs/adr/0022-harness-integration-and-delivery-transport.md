@@ -66,6 +66,7 @@ Accepted. Amends [ADR 0015](0015-repository-task-tracker.md) section "Routing": 
    - `krn lane start` becomes `krn task claim` plus the harness's worktree isolation (`isolation: worktree` on `krn-lane`).
    - `krn lane brief` stays; it is the task-start packet.
    - Headless `krn lane run` stays only as the session driver of the replay harness (ADR 0021). It uses `claude -p --worktree --max-budget-usd` in place of its own worktree, preflight and git code.
+   - Amendment (lead, under the operator's full-project-control grant, t-aa6xy6t): before the session, a lane on a GitHub origin reads its receiver with three `gh api` calls (`src/cli/lane-run/receiver.ts`). It exits 72 with no session when the base has no single required Check or that Check failed on the base head. It runs no install and no local tests, so the deleted local preflight stays deleted. The bootstrap and green-base tasks skip it.
    - `lane-canary` and `lane-lock` are deleted.
 7. **Evidence layer kept:** Stop proof, the proof line, the `krn ledger`, the repo contract and the `Ticket:` check in CI.
 8. **Session relay stays in the repository as workshop code** (ADR 0017).

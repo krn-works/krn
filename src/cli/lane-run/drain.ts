@@ -13,16 +13,18 @@ import {
   exitMintFailed,
   exitVaultShort,
 } from '../doctor-unattended.ts';
+import { exitReceiverNotReady } from './result.ts';
 import type { LaneVerdict } from './steps.ts';
 
 export const drainUsage =
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]';
 
-/** Exits of the host, not of the task: the doctor's mint (69), vault (75) and App install (67) codes and the ship push failure (70). A task that ends in one says nothing about the next task; two in a row mean every queued task would fail the same way. */
+/** Exits of the host, not of the task: the doctor's mint (69), vault (75) and App install (67) codes, the ship push failure (70) and the receiver probe (72). A task that ends in one says nothing about the next task; two in a row mean every queued task would fail the same way. */
 export const infrastructureExits: readonly number[] = [
   exitAppNotInstalled,
   exitMintFailed,
   70,
+  exitReceiverNotReady,
   exitVaultShort,
 ];
 

@@ -172,6 +172,51 @@
         "file": "pr-list-merged-reused-branch.stdout.json",
         "sha256": "76bf9b8b36c0418935aac588750159cc2605c6b1770f00cfb5ddf6b716c52a95"
       }
+    },
+    {
+      "name": "check-runs-main-green",
+      "command": "gh api repos/krn-works/krn/commits/980e3a40931039e06598b3c239336f3c3e9c1c84/check-runs",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-main-green.stdout.json",
+        "sha256": "3d5d0f2875f49ac54f3f56d35a8d45028856de4d988aa0bacc18429f1a2329c3"
+      }
+    },
+    {
+      "name": "check-runs-main-red",
+      "command": "gh api repos/krn-works/krn/commits/67b736d8cfd8eb3232ae59bb98b9bad4858c55da/check-runs",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-main-red.stdout.json",
+        "sha256": "297c22ae37c82f631a15997ca944b2285715a9bafdee22444925bd661b59c1ab"
+      }
+    },
+    {
+      "name": "branch-unprotected-krn-works-krn",
+      "command": "gh api repos/krn-works/krn/branches/doctor-skill-perms --jq '{name, commit: {sha: .commit.sha}, protected, protection}'",
+      "exitCode": 0,
+      "stdout": {
+        "file": "branch-unprotected-krn-works-krn.stdout.json",
+        "sha256": "dd35cde5f91a68164445a3755ddec03a797a042a1836c6d96c06c12f971b19fd"
+      }
+    },
+    {
+      "name": "rules-branches-unprotected-krn-works-krn",
+      "command": "gh api repos/krn-works/krn/rules/branches/doctor-skill-perms",
+      "exitCode": 0,
+      "stdout": {
+        "file": "rules-branches-unprotected-krn-works-krn.stdout.json",
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "name": "branch-main-krn-works-krn",
+      "command": "gh api repos/krn-works/krn/branches/main --jq '{name, commit: {sha: .commit.sha}, protected, protection}'",
+      "exitCode": 0,
+      "stdout": {
+        "file": "branch-main-krn-works-krn.stdout.json",
+        "sha256": "dd6db750022bccd687c4e00070d08349a4450cd97563eec40158e08e55fe1f92"
+      }
     }
   ]
 }

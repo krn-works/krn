@@ -23,6 +23,7 @@ import { getTask } from '../../task/store.ts';
 import { git } from '../git-with.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
+import { isBootstrapTask, isGreenBaseTask } from './bootstrap.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
 import { sessionEnvironment } from './environment.ts';
@@ -32,7 +33,7 @@ import {
   redCheckFile,
   redCheckSchema,
 } from './red-check.ts';
-import { exitCredentialUnavailable } from './result.ts';
+import { exitCredentialUnavailable, exitReceiverNotReady } from './result.ts';
 import { defaultSteps, type LaneRunSteps, type LaneVerdict } from './steps.ts';
 
 /** Everything the session and verdict stages need: the request plus the prepared lane. */
@@ -131,6 +132,19 @@ export async function prepareLane(
       line: `lane ${label}: GitHub App credential unavailable (${unavailable})`,
       exitCode: exitCredentialUnavailable,
     };
+  // A GitHub receiver that cannot merge a delivery fails every session: probe it before one starts.
+  // The bootstrap task installs the gate and the green-base task fixes a red base, so they skip the probe.
+  const exempt =
+    task !== undefined &&
+    (isBootstrapTask(main, task) || isGreenBaseTask(main, task));
+  if (repository !== undefined && !exempt) {
+    const gaps = await (steps.receiver ?? defaultSteps.receiver)(origin, base);
+    if (gaps.length > 0)
+      return {
+        line: `lane ${label}: receiver not ready, no session started: ${gaps.join('; ')}`,
+        exitCode: exitReceiverNotReady,
+      };
+  }
 
   const existing = join(main, '.krn', 'worktrees', lane);
   const holder = actor ?? `lane-${lane}`;
