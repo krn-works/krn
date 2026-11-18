@@ -966,6 +966,40 @@ test('lane run exits non-zero when the ship verdict is not merged', async () => 
   }
 });
 
+test('a rerun that reuses a worktree holding a failed attempt commit names that commit in the session prompt', async () => {
+  const { base, repo, claude } = fixture(
+    'git commit -q --allow-empty -m "wip: earlier attempt"',
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'unreachable',
+    mint: async () => undefined,
+  };
+  const argv = join(base, 'argv');
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    writeFileSync(
+      claude,
+      `#!/bin/sh\nprintf '%s\\n' "$@" > '${argv}'\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    const prompt = readFileSync(argv, 'utf8');
+    assert.match(
+      prompt,
+      /Reused worktree: this lane branch already holds 1 commit\(s\) from a failed attempt \([0-9a-f]+ wip: earlier attempt\)/u,
+    );
+    assert.match(prompt, /last-refusal\.txt/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('a failed run releases the claim, keeps the worktree and a rerun claims it again', async () => {
   const { base, repo, claude } = fixture('true');
   process.env.KRN_LANE_CLAUDE = claude;

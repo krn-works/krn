@@ -1,7 +1,11 @@
 {
   "id": "t-71ct6rg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "With no related command the red-at-base arm runs the suite once, blames a changed file only when a failure names it (also package-relative) and settles by one rerun; node-runner base runs carry missing-package stderr so a base worktree without node_modules is a broken environment; reuse note proven in the lane session prompt"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "The Stop red-at-base arm stops blaming a changed file for suite-wide failures when no related command exists",

@@ -28,6 +28,7 @@ import {
   judgeStop,
   linkPackageModules,
   recordedShip,
+  redTestsAtBase,
   relatedTests,
   runTests,
   selectTests,
@@ -2435,6 +2436,7 @@ test('a test root that does not exist is named by its directory, not by the node
     assert.doesNotMatch(stopped.stderr, /spawnSync|ENOENT/u);
     // The runner itself, the layer that spawned in the missing directory, names it too.
     const ran = runTests(gone, ['test/a.test.ts']);
+    assert.ok(Array.isArray(ran));
     assert.equal(ran.length, 1);
     assert.ok(ran[0]?.includes(gone), ran[0]);
     assert.doesNotMatch(ran[0] ?? '', /spawnSync|ENOENT/u);
@@ -2697,5 +2699,212 @@ test('a verbatim Stop check refusal from a copy of the pilot commit under host l
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** The pilot receiver's contract, verbatim, with no `related` command: every changed test reruns the whole suite. */
+const PILOT_SUITE =
+  'npm --prefix packages/seo run build && npm --prefix packages/seo test';
+const PILOT_TEST = 'packages/seo/tests/cli/recovery-note.test.ts';
+const pilotCapture = () =>
+  readFileSync(
+    new URL('./fixtures/stop-refusal-pilot-worktree.txt', import.meta.url),
+    'utf8',
+  );
+
+/** A pilot-shaped branch: the contract has no related command, the base holds the suite's other tests, the branch adds one. */
+function suiteBranch(added: string[] = [PILOT_TEST]) {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({ test: PILOT_SUITE, install: 'npm ci' }),
+    'packages/seo/src/cli/main.ts': 'export const run = 1;\n',
+    'packages/seo/tests/cli/url-language.test.ts': 'it("a", () => {});\n',
+    'packages/seo/tests/cli/url-plan.test.ts': 'it("b", () => {});\n',
+  });
+  writeFileSync(
+    join(dir, 'packages/seo/src/cli/main.ts'),
+    'export const run = 2;\n',
+  );
+  for (const file of added)
+    writeFileSync(join(dir, file), 'it("recovers", () => {});\n');
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+  return dir;
+}
+
+const VITEST_PASS = ' Test Files  274 passed (274)\n';
+const vitestFail = (file: string) =>
+  ` FAIL  ${file} > recovers\nAssertionError: expected 1 to be 2\n Test Files  1 failed | 273 passed (274)\n`;
+
+/** A shell stub answering the base worktree and the head checkout from their own queues; an empty queue passes. */
+function queuedShell(dir: string, base: string[], head: string[] = []) {
+  const calls: { at: 'base' | 'head'; command: string }[] = [];
+  const shell = (root: string, command: string) => {
+    const at = root === dir ? 'head' : 'base';
+    calls.push({ at, command });
+    const output = (at === 'head' ? head : base).shift() ?? VITEST_PASS;
+    return {
+      failures: failuresIn(output, output === VITEST_PASS ? 0 : 1),
+      output,
+    };
+  };
+  return { shell, calls };
+}
+
+const testFirst = (dir: string) => ({
+  ...lane(dir),
+  KRN_TEST_FIRST: '1',
+  KRN_ACCEPTANCE_CLAUSES: '0',
+});
+
+test('red-at-base with no related command: one flaky suite failure at the base names no changed file as red', () => {
+  const dir = suiteBranch();
+  try {
+    const { shell, calls } = queuedShell(dir, [pilotCapture()]);
+    assert.deepEqual(
+      redTestsAtBase(dir, () => [], shell),
+      [],
+    );
+    // The suite ran once at the base; the failures named no changed file, so nothing was rerun.
+    assert.deepEqual(calls, [{ at: 'base', command: PILOT_SUITE }]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('red-at-base with no related command runs the suite once for every changed test, not once per file', () => {
+  const second = 'packages/seo/tests/cli/recovery-plan.test.ts';
+  const dir = suiteBranch([PILOT_TEST, second]);
+  try {
+    const { shell, calls } = queuedShell(dir, [pilotCapture()]);
+    assert.deepEqual(
+      redTestsAtBase(dir, () => [], shell),
+      [],
+    );
+    assert.equal(calls.filter((call) => call.at === 'base').length, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('red-at-base with no related command: a failure naming the changed test that passes on one rerun is flaky, not red', () => {
+  const dir = suiteBranch();
+  try {
+    const { shell, calls } = queuedShell(dir, [
+      vitestFail('tests/cli/recovery-note.test.ts'),
+    ]);
+    assert.deepEqual(
+      redTestsAtBase(dir, () => [], shell),
+      [],
+    );
+    assert.deepEqual(
+      calls.map((call) => call.command),
+      [PILOT_SUITE, `${PILOT_SUITE} -- 'tests/cli/recovery-note.test.ts'`],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('red-at-base with no related command: a failure naming the changed test, package-relative, that fails again is red', () => {
+  const dir = suiteBranch();
+  try {
+    const failing = vitestFail('tests/cli/recovery-note.test.ts');
+    const { shell } = queuedShell(dir, [failing, failing]);
+    assert.deepEqual(
+      redTestsAtBase(dir, () => [], shell),
+      [PILOT_TEST],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a verbatim pilot refusal on head is settled by one rerun: a test red at the base and green on head stops', () => {
+  const dir = suiteBranch();
+  try {
+    const failing = vitestFail('tests/cli/recovery-note.test.ts');
+    // Head: the suite-wide run hits the pilot's load-timed failures, its rerun passes, the proof run hits them again.
+    const { shell } = queuedShell(
+      dir,
+      [failing, failing],
+      [pilotCapture(), VITEST_PASS, pilotCapture()],
+    );
+    assert.equal(
+      judgeStop(payload(dir), testFirst(dir), () => [], '', shell),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/**
+ * A real node:test branch whose new test imports a package that only an ancestor directory of the checkout holds:
+ * head resolves it, the temporary base worktree (outside that ancestor) has no node_modules to find it in.
+ */
+function outerModulesBranch(
+  testSource: string,
+  extra: Record<string, string> = {},
+) {
+  const outer = mkdtempSync(join(tmpdir(), 'worker-stop-outer-'));
+  const dep = join(outer, 'node_modules', 'krn-stop-probe-dep');
+  mkdirSync(dep, { recursive: true });
+  writeFileSync(
+    join(dep, 'package.json'),
+    '{"name":"krn-stop-probe-dep","type":"module","exports":"./index.js"}\n',
+  );
+  writeFileSync(join(dep, 'index.js'), 'export const one = 1;\n');
+  const dir = join(outer, 'repo');
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  sh(outer, 'init', '-q', '-b', 'main', dir);
+  sh(dir, 'config', 'user.email', 'a@b.c');
+  sh(dir, 'config', 'user.name', 'a');
+  writeFileSync(
+    join(dir, 'krn.json'),
+    JSON.stringify({ test: 'node --test', related: 'node --test {files}' }),
+  );
+  writeFileSync(join(dir, 'package.json'), '{"type":"module"}\n');
+  writeFileSync(join(dir, 'src/a.ts'), 'export const a = 1;\n');
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'base');
+  sh(dir, 'checkout', '-q', '-b', 'work');
+  mkdirSync(join(dir, 'test'));
+  writeFileSync(join(dir, 'test/a.test.ts'), testSource);
+  for (const [path, text] of Object.entries(extra))
+    writeFileSync(join(dir, path), text);
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+  return { outer, dir };
+}
+
+test('test-first through the node runner: a real base worktree without node_modules is a broken base environment, not a red test', () => {
+  const { outer, dir } = outerModulesBranch(
+    "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { one } from 'krn-stop-probe-dep';\ntest('one', () => assert.equal(one, 1));\n",
+  );
+  try {
+    const reason = judgeStop(payload(dir), testFirst(dir)) ?? '';
+    assert.match(reason, /base environment is broken/u);
+    assert.match(reason, /test\/a\.test\.ts/u);
+    assert.match(
+      readFileSync(
+        join(dir, '.krn/runs/stop-check/base-environment.log'),
+        'utf8',
+      ),
+      /Cannot find package 'krn-stop-probe-dep'/u,
+    );
+  } finally {
+    rmSync(outer, { recursive: true, force: true });
+  }
+});
+
+test('test-first through the node runner: a base missing a new source file of the repository is still a red test', () => {
+  const { outer, dir } = outerModulesBranch(
+    "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { b } from '../src/b.ts';\ntest('b', () => assert.equal(b, 2));\n",
+    { 'src/b.ts': 'export const b = 2;\n' },
+  );
+  try {
+    assert.equal(judgeStop(payload(dir), testFirst(dir)), undefined);
+  } finally {
+    rmSync(outer, { recursive: true, force: true });
   }
 });
