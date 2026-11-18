@@ -1,0 +1,17 @@
+{
+  "id": "t-wc54000",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "CI change detection and fast share one test-plan description",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: t-m1gv5fj (PR #1404) gave fast a reason per selected test and writes the plan to .krn/cache/fast-plan.json, but left scripts/ci-changes.mjs unchanged; its Outcome clause \"fast and CI observation share the description\" is not done.",
+    "Outcome: CI change detection (scripts/ci-changes.mjs) and fast describe a selection with the same plan description (shared module): selected test, reason (owner, import consumer, spawns entry, widened) and dependency path, and CI prints it in the Changes job summary.",
+    "Proof: a test feeds one changed-file list to both fast planning and ci-changes and asserts identical selection and reasons.",
+    "Files: scripts/ci-changes.mjs, scripts/fast-check.ts, scripts/lib/"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}
