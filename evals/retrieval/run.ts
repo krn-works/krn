@@ -6,14 +6,19 @@
 // (the check teaches them), the query and the edit moment omit lead records, and the edit moment
 // serves only records with stack or path keys, so a violated record without them is not scored there.
 // The report prints both denominators: the reachable one (recall) and the total one (recall of all).
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseUnified } from '../../src/brain/record.ts';
+import { readPack, readProject } from '../../src/brain/standards-cli.ts';
 import {
   editRecords,
   laneCandidates,
   lanePacket,
   queryStandards,
 } from '../../src/brain/worker-packet.ts';
+import { editRecordsFor } from '../../src/hook/edit-standards.ts';
+import { contractConventions } from '../../src/repo/contract.ts';
 
 export const RECALL_AT = 5;
 
@@ -90,7 +95,7 @@ function served(
   const top = new Set<string>();
   const reachable = new Set<string>();
   for (const file of item.files) {
-    const records = editRecords(root, file, asOf);
+    const records = editRecordsFor(root, file, asOf, item.task);
     for (const record of records) reachable.add(record.id);
     for (const record of records.slice(0, RECALL_AT)) top.add(record.id);
   }
@@ -138,6 +143,63 @@ export function readCases(root: string): Casefile {
   ) as Casefile;
 }
 
+/** Why the edit moment cannot serve record `id` for `files`: the one reason that keeps it out of every file's scope list. */
+export function unreachableReason(
+  root: string,
+  id: string,
+  files: readonly string[],
+): string {
+  const conventions = join(root, contractConventions(root));
+  const record = [
+    ...readPack(),
+    ...readProject(root),
+    ...(existsSync(conventions)
+      ? parseUnified(JSON.parse(readFileSync(conventions, 'utf8')))
+      : []),
+  ].find((standard) => standard.id === id);
+  if (record === undefined) return 'no record of this id exists in the pools';
+  if (record.audience === 'lead' || record.audience === 'adopt')
+    return `addressed to ${record.audience}, never served at an edit`;
+  const { stacks, paths } = record.applies;
+  if (stacks.length === 0 && paths.length === 0)
+    return 'names no stack or path key, so it is session-start material';
+  return `scoped to ${[...stacks, ...paths].join(' ')}, which none of ${files.join(' ')} matches`;
+}
+
+/** One line per unreachable edit label with its reason, the label's cases listed. */
+export function unreachableLines(root: string, file: Casefile): string[] {
+  const reasons = new Map<string, { why: string; cases: string[] }>();
+  for (const item of file.cases) {
+    if (item.audience === 'lead' || item.files.length === 0) continue;
+    const reach = new Set(
+      item.files.flatMap((path) =>
+        editRecords(root, path, file.asOf).map((record) => record.id),
+      ),
+    );
+    for (const id of item.violated) {
+      if (reach.has(id)) continue;
+      const entry = reasons.get(id) ?? {
+        why: unreachableReason(root, id, item.files),
+        cases: [],
+      };
+      entry.cases.push(item.id);
+      reasons.set(id, entry);
+    }
+  }
+  const lines = [...reasons].map(
+    ([id, { why, cases }]) =>
+      `unreachable edit ${id} (${cases.join(' ')}): ${why}`,
+  );
+  const blind = file.cases.filter(
+    (item) => item.audience !== 'lead' && item.files.length === 0,
+  );
+  if (blind.length > 0)
+    lines.push(
+      `unreachable edit ${blind.flatMap((item) => item.violated).length} labels of ${blind.length} cases that name no file (${blind.map((item) => item.id).join(' ')}): no edited file to scope by`,
+    );
+  return lines;
+}
+
 export function line(score: Score): string {
   return `recall@${RECALL_AT} ${score.moment} ${score.recall.toFixed(2)} (${score.hits}/${score.total} reachable violated records, ${score.cases} cases); of all ${score.labels} violated records ${score.recallOfAll.toFixed(2)} (${score.hits}/${score.labels}, ${score.applicable} cases)`;
 }
@@ -161,5 +223,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   } else {
     for (const moment of MOMENTS)
       console.log(line(scoreMoment(moment, root, file)));
+    for (const text of unreachableLines(root, file)) console.log(text);
   }
 }

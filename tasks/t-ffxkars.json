@@ -1,7 +1,11 @@
 {
   "id": "t-ffxkars",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "edit recall 3/12 -> 12/12 reachable (0.25 -> 1.00), unreachable labels named with reasons"
+  },
   "created": "2026-11-18",
   "priority": 2,
   "title": "Edit-time standards retrieval recalls the standards the edit needs",

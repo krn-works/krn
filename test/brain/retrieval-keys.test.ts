@@ -78,7 +78,10 @@ test('cases.json holds 30 mined cases that name records in force', () => {
 test('the eval prints recall@5 per moment and reaches 0.6 at task start', () => {
   const run = spawnSync('node', [evalRun], { encoding: 'utf8' });
   assert.equal(run.status, 0, run.stderr);
-  const lines = run.stdout.trim().split('\n');
+  const lines = run.stdout
+    .trim()
+    .split('\n')
+    .filter((line) => line.startsWith('recall@5 '));
   assert.deepEqual(
     lines.map((line) => line.split(' ')[1]),
     ['task-start', 'query', 'edit'],
