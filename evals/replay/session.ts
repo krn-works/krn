@@ -33,6 +33,13 @@ export interface HeadlessSession {
    * so far and kills the session at `usd`, which then ends capped like a Claude session at `--max-budget-usd`.
    */
   budget?: { usd: number; spent: () => number | undefined; everyMs?: number };
+  /**
+   * The wall clock the time limit is measured on (default Date.now). Node timers run on a monotonic clock that stops
+   * while the host sleeps; the driver also checks this clock every `tickMs`, so a session that outlived its limit across
+   * a host suspend is killed as soon as the host wakes.
+   */
+  now?: () => number;
+  tickMs?: number;
 }
 
 /** What the driver saw: the parsed result, and whether the session never started. */
@@ -68,18 +75,42 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
       // Its own process group, so the timeout kills the session's children with it.
       detached: true,
     });
-    const timer = setTimeout(() => {
-      timedOut = true;
+    const now = s.now ?? Date.now;
+    const deadline = now() + s.timeoutMs;
+    let closed = false;
+    let drain: NodeJS.Timeout | undefined;
+    // SIGKILL to the whole group: a session (or its child) that ignores SIGTERM still ends. A descendant that left the
+    // group and holds the output pipes open would keep 'close' from firing, so the pipes are cut a moment later.
+    const kill = () => {
       killGroup(child.pid);
-    }, s.timeoutMs);
+      drain ??= setTimeout(() => {
+        if (closed) return;
+        child.stdout.destroy();
+        child.stderr.destroy();
+      }, 2_000);
+    };
+    const timeUp = () => {
+      if (timedOut || capped) return;
+      timedOut = true;
+      kill();
+    };
+    const timer = setTimeout(timeUp, s.timeoutMs);
+    const tick = setInterval(() => {
+      if (now() >= deadline) timeUp();
+    }, s.tickMs ?? 1_000);
     const poll =
       s.budget === undefined
         ? undefined
         : setInterval(() => {
             const spent = s.budget?.spent();
-            if (spent !== undefined && spent >= (s.budget?.usd ?? Infinity)) {
+            if (
+              !timedOut &&
+              !capped &&
+              spent !== undefined &&
+              spent >= (s.budget?.usd ?? Infinity)
+            ) {
               capped = true;
-              killGroup(child.pid);
+              kill();
             }
           }, s.budget.everyMs ?? 10_000);
     child.stdout.on('data', (d: Buffer) => {
@@ -94,7 +125,10 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
       error = e;
     });
     child.on('close', () => {
+      closed = true;
       clearTimeout(timer);
+      clearInterval(tick);
+      if (drain) clearTimeout(drain);
       if (poll) clearInterval(poll);
       killGroup(child.pid);
       const result = resultOf(s, { stdout, stderr, timedOut, error });

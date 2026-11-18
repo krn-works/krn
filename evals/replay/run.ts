@@ -2,6 +2,7 @@
 // --prereg evals/replay/abc.prereg.md --report [--rows <file>] [--strict] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
 // --screen --model <m> --rows <file> runs them on another model; a Codex model (gpt-6.2-sol) runs on `codex exec`.
+// --screen --session-minutes <n> lowers every attempt's time cap (default 30), the gate's re-prompt included.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
 // --screen --grade-preflight grades every eligible unit's base and reference with its exact grader and starts no
@@ -155,6 +156,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         harness: harnessSha(here),
         reps: Number(flag('reps') ?? 1),
         model: flag('model'),
+        ...(flag('session-minutes') === undefined
+          ? {}
+          : { sessionMs: Number(flag('session-minutes')) * 60_000 }),
       });
     const s = screen(units, readRows(rowsFile));
     if (flag('metric') === 'screen-a-pass-rate') {

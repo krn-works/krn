@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { gatedAttempt } from '../../evals/replay/arm-session.ts';
+import { gatedAttempt, spentSince } from '../../evals/replay/arm-session.ts';
 import {
   attemptVerdict,
   claudeFacts,
@@ -161,7 +161,7 @@ test('a capped or timed-out session is not re-prompted, and its stop reason says
     },
   );
   assert.equal(calls, 1);
-  assert.equal(capped.fields.stopReason, 'budget');
+  assert.equal(capped.fields.stopReason, 'cap');
   assert.equal(capped.ran, true);
 });
 
@@ -242,4 +242,151 @@ test('the driver kills a session at its dollar cap when the harness has none of 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+/** Whether `pid` still runs; a killed orphan may answer until it is reaped, so this waits briefly for it to go. */
+async function stillRuns(pid: number): Promise<boolean> {
+  for (let i = 0; i < 40; i++) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return false;
+    }
+    if (!readFileSync(`/proc/${pid}/stat`, 'utf8').includes(') Z ')) {
+      await new Promise((r) => setTimeout(r, 50));
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+test('an attempt whose session ignores SIGTERM and spawns a child ends at its time cap with stop reason cap and no live descendant', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-cap-'));
+  try {
+    const stub = join(dir, 'codex');
+    const pids = join(dir, 'pids');
+    writeFileSync(
+      stub,
+      `#!/bin/sh\ntrap '' TERM\nsleep 60 &\necho "$$ $!" > ${pids}\nwait\n`,
+    );
+    chmodSync(stub, 0o755);
+    const a = await gatedAttempt(
+      'codex',
+      'Fix it',
+      { ms: 1_000, usd: 5 },
+      (t) =>
+        driveSession({
+          command: stub,
+          argv: [],
+          cwd: dir,
+          env: process.env,
+          timeoutMs: t.ms,
+          claude: stub,
+          parse: () => ({ ok: true, detail: 'x', cost: 0.1 }),
+        }),
+    );
+    assert.equal(a.fields.stopReason, 'cap');
+    assert.equal(a.fields.reprompted, false);
+    for (const pid of readFileSync(pids, 'utf8').trim().split(' ').map(Number))
+      assert.equal(await stillRuns(pid), false, `pid ${pid} outlived the cap`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a session that outlives its time cap while the host sleeps is killed on waking, by the wall clock', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-cap-'));
+  try {
+    const stub = join(dir, 'hang');
+    writeFileSync(stub, '#!/bin/sh\nsleep 30\n');
+    chmodSync(stub, 0o755);
+    // The host "sleeps" an hour a few clock reads in: the wall clock jumps while the 30-minute timer barely moves, so only
+    // the wall-clock check can end the session before the stub's own end.
+    let reads = 0;
+    const wall = () => (reads++ > 3 ? 3_600_000 : 0);
+    const a = await gatedAttempt(
+      'codex',
+      'Fix it',
+      { ms: 30 * 60_000, usd: 5 },
+      (t) =>
+        driveSession({
+          command: stub,
+          argv: [],
+          cwd: dir,
+          env: process.env,
+          timeoutMs: t.ms,
+          claude: stub,
+          now: wall,
+          tickMs: 50,
+        }),
+      wall,
+    );
+    assert.equal(a.fields.stopReason, 'cap');
+    assert.equal(
+      a.session.timedOut,
+      true,
+      'killed on waking, not by its own end',
+    );
+    assert.ok(
+      (a.fields.hostSleepMs ?? 0) >= 3_500_000,
+      'the row shows the sleep inside its duration',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the re-prompt shares the attempt budget: it gets the time and dollars the first session left', async () => {
+  const untested =
+    '{"type":"thread.started","thread_id":"th-1"}\n{"type":"turn.completed"}';
+  let clock = 0;
+  const turns: { ms: number; usd: number }[] = [];
+  const a = await gatedAttempt(
+    'codex',
+    'Fix it',
+    { ms: 60_000, usd: 5 },
+    async (t) => {
+      turns.push({ ms: t.ms, usd: t.usd });
+      clock += turns.length === 1 ? 40_000 : 20_000;
+      return driven(untested, turns.length === 1 ? 1.5 : 2);
+    },
+    () => clock,
+    () => clock,
+  );
+  assert.deepEqual(turns, [
+    { ms: 60_000, usd: 5 },
+    { ms: 20_000, usd: 3.5 },
+  ]);
+  assert.equal(
+    a.fields.durationMs,
+    60_000,
+    'one duration from the first start',
+  );
+  assert.equal(a.fields.hostSleepMs, undefined);
+  // A first session that used the whole time leaves nothing to re-prompt with.
+  clock = 0;
+  let calls = 0;
+  await gatedAttempt(
+    'codex',
+    'Fix it',
+    { ms: 60_000, usd: 5 },
+    async () => {
+      calls++;
+      clock += 60_000;
+      return driven(untested, 1);
+    },
+    () => clock,
+    () => clock,
+  );
+  assert.equal(calls, 1);
+});
+
+test("a resumed Codex session's dollar cap counts only its own spend, not the cumulative rollout", () => {
+  let cumulative: number | undefined = 1.5;
+  const spent = spentSince(() => cumulative);
+  cumulative = 3;
+  assert.equal(spent(), 1.5);
+  cumulative = undefined;
+  assert.equal(spent(), undefined);
 });

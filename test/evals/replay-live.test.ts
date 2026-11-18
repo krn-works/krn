@@ -135,7 +135,11 @@ test('--screen runs one arm-A session per unit under the slot cap and records gr
     for (const x of rows) {
       assert.equal(x.arm, 'A');
       assert.equal(x.cost, 0.25);
+      // Queue wait and session time are recorded apart.
+      assert.equal(typeof x.queueMs, 'number');
+      assert.equal(typeof x.durationMs, 'number');
     }
+    assert.match(r.stdout, /^attempt t-aaaaaaa .* queue=\d+s tools=/m);
     assert.equal(peak(log), 1);
     // Arm A: private config dir, no KRN variable, project settings only.
     for (const l of readFileSync(join(root, 'scratch', 'env.log'), 'utf8')
