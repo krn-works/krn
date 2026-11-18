@@ -1,6 +1,7 @@
 // The proof line of a lane run: what the brain's defaults did for this lane, counted from the lane's own
 // records (the brief it was given, the commits and tests it made, the Stop refusals its transcript shows).
 import { clauseProof } from './acceptance-clauses.ts';
+import { type DiffCoverage, diffCoverageText } from './diff-coverage.ts';
 
 export type Proof = {
   /** Clauses of the brief the lane proved (a marked test, or a declared not-reproducible line). */
@@ -13,6 +14,8 @@ export type Proof = {
   precedent: number;
   /** Stop refusals the session met. */
   stopRefusals: number;
+  /** Of the changed source lines, the ones the lane's tests executed; undefined when the receiver has no coverage source. */
+  diffCoverage?: DiffCoverage;
 };
 
 const TEST_PATH =
@@ -73,6 +76,7 @@ export function proofOf(input: {
   /** Changed test files that fail against the base source. */
   redAtBase: readonly string[];
   stopRefusals: number;
+  diffCoverage?: DiffCoverage | undefined;
 }): Proof {
   const { clauses } = clauseProof({
     stated: briefClauses(input.brief),
@@ -89,12 +93,15 @@ export function proofOf(input: {
       : 0,
     precedent: precedentModules(input.brief),
     stopRefusals: input.stopRefusals,
+    ...(input.diffCoverage === undefined
+      ? {}
+      : { diffCoverage: input.diffCoverage }),
   };
 }
 
 /** The one line a lane run prints and logs. */
 export function proofLine(p: Proof): string {
-  return `proof: clauses ${p.clauses}/${p.clausesTotal}, red-first ${p.redFirst}, precedent ${p.precedent} modules, stop refusals ${p.stopRefusals}`;
+  return `proof: clauses ${p.clauses}/${p.clausesTotal}, red-first ${p.redFirst}, precedent ${p.precedent} modules, stop refusals ${p.stopRefusals}, ${diffCoverageText(p.diffCoverage)}`;
 }
 
 /** Whether the message states a blocker on a line of its own, bold or plain: the one reader for the Stop hook and the lane run. */
