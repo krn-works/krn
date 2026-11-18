@@ -183,6 +183,62 @@ test('exits 67 naming the GitHub App not installed when gh answers the captured 
   assert.ok(!report.text.includes(secret));
 });
 
+// The default mint reaches only krn-works/krn: doctor --root read an outside repository with it,
+// got a 404 and reported the App as not installed on a repository its installation covers.
+test('reads the --root repository with a token minted for that repository', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-doctor-scope-'));
+  spawnSync('git', ['init', '-q', '-b', 'main', root]);
+  spawnSync(
+    'git',
+    ['remote', 'add', 'origin', 'https://github.com/krn-works/outside.git'],
+    { cwd: root },
+  );
+  const inner = stub({ etimes: 3600 });
+  const scopedSecret = 'ghs_SCOPEDTOKENVALUE';
+  const probe: Probe = (command, args, env) => {
+    if (
+      command === process.execPath &&
+      env.KRN_APP_REPOSITORY === 'krn-works/outside'
+    )
+      return { status: 0, stdout: `${scopedSecret}\n`, stderr: '' };
+    if (command !== 'gh') return inner(command, args, env);
+    // The PATH gh is the App wrapper: it mints for KRN_APP_REPOSITORY, whatever GH_TOKEN says.
+    return env.GH_TOKEN === scopedSecret &&
+      env.KRN_APP_REPOSITORY === 'krn-works/outside'
+      ? { status: 0, stdout: '', stderr: '' }
+      : {
+          status: 1,
+          stdout: capture('../gh/repo-not-installed.stdout.json'),
+          stderr: capture('../gh/repo-not-installed.stderr.log'),
+        };
+  };
+  const report = unattendedReport(['--unattended', '--root', root], {}, probe);
+  assert.doesNotMatch(report.text, /FAIL app/u);
+  assert.equal(report.exitCode, 0, report.text);
+});
+
+test('exits 67 when the mint for the --root repository answers the App is not installed', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-doctor-noinst-'));
+  spawnSync('git', ['init', '-q', '-b', 'main', root]);
+  spawnSync(
+    'git',
+    ['remote', 'add', 'origin', 'https://github.com/cli/cli.git'],
+    { cwd: root },
+  );
+  const inner = stub({ etimes: 36000 });
+  const probe: Probe = (command, args, env) =>
+    command === process.execPath && env.KRN_APP_REPOSITORY === 'cli/cli'
+      ? {
+          status: 69,
+          stdout: '',
+          stderr: capture('../github-app-token/mint-not-installed.stderr.log'),
+        }
+      : inner(command, args, env);
+  const report = unattendedReport(['--unattended', '--root', root], {}, probe);
+  assert.equal(report.exitCode, 67);
+  assert.match(report.text, /GitHub App not installed on cli\/cli/u);
+});
+
 function skillRepository(allow: string[]): string {
   const root = mkdtempSync(join(tmpdir(), 'krn-skills-'));
   const real = readFileSync(

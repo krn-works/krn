@@ -135,9 +135,27 @@ export function unattendedReport(
   if (root !== undefined) {
     const slug = repoSlug(originUrl(root));
     if (slug !== undefined) {
+      // The default token reaches only the product repository: the root is read with a token
+      // scoped to it, as a lane on that repository mints it, or every outside repository is a 404.
+      const scoped = probe(process.execPath, [tokenHelper, 'token'], {
+        ...sessionEnv,
+        KRN_APP_REPOSITORY: slug,
+      });
+      if (scoped.status !== 0 && /is not installed on/u.test(scoped.stderr))
+        return {
+          text: `FAIL app: ${new AppNotInstalledError(slug).message}\n`,
+          exitCode: exitAppNotInstalled,
+        };
+      if (scoped.status !== 0)
+        return {
+          text: `FAIL mint: no App token for ${slug} (${scoped.stderr.trim().split('\n')[0] || 'no reason given'}).\n`,
+          exitCode: exitMintFailed,
+        };
+      // The PATH gh may be the App wrapper, which mints its own token for KRN_APP_REPOSITORY.
       const seen = probe('gh', ['api', `repos/${slug}`, '--silent'], {
         ...sessionEnv,
-        GH_TOKEN: mint.stdout.trim(),
+        KRN_APP_REPOSITORY: slug,
+        GH_TOKEN: scoped.stdout.trim(),
       });
       if (isRepositoryNotFound(seen.status, seen.stderr))
         return {
