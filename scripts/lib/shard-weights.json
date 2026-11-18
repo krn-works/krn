@@ -9,6 +9,10 @@
   "weights": {
     "test/evals/adoption-census.test.ts": 0.1,
     "test/evals/adoption-first-ten.test.ts": 1.5,
+    "test/evals/adoption-recovery-merge-cut.test.ts": 7,
+    "test/evals/adoption-recovery-push-cut.test.ts": 7,
+    "test/evals/adoption-recovery-receipt-cut.test.ts": 7,
+    "test/evals/adoption-recovery-session-cut.test.ts": 7,
     "test/agents-render.test.ts": 2.1,
     "test/architecture/depth.test.ts": 0.1,
     "test/brain/packet.test.ts": 1.8,

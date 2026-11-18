@@ -1,7 +1,13 @@
+import { existsSync, realpathSync } from 'node:fs';
+import { join } from 'node:path';
 import { flagValue } from '../../cli-kit/flag-value.ts';
 import { CliUsageError } from '../../cli-kit/usage-error.ts';
-import { readyTasks } from '../../task/claims.ts';
-import { repositoryRoot } from '../../task/store.ts';
+import {
+  inspectClaim,
+  mainCheckoutRoot,
+  readyTasks,
+} from '../../task/claims.ts';
+import { loadTaskIndex, repositoryRoot } from '../../task/store.ts';
 import {
   exitAppNotInstalled,
   exitMintFailed,
@@ -35,9 +41,11 @@ export interface DrainRequest {
 /** The seams of a drain: the doctor check, the ready order, one lane run and the clock. Tests replace them. */
 export interface DrainSeams {
   doctor(): { text: string; exitCode: number };
+  /** The next task to run: `actor` is the `--actor` of the drain, undefined for the lane default. */
   nextReady(
     root: string,
     skip: ReadonlySet<string>,
+    actor?: string,
   ): Promise<string | undefined>;
   runTask(id: string, args: string[]): Promise<LaneVerdict>;
   now(): number;
@@ -76,9 +84,37 @@ export function parseDrainRequest(args: string[]): DrainRequest {
   return { max, passthrough, root, windowHours };
 }
 
+/**
+ * Open tasks whose live claim is an interrupted run of this drain: held by the actor a lane run
+ * of the task takes, on the task's lane worktree. A killed drain leaves that claim behind and no
+ * process releases it, so `readyTasks` would never offer the task again; the rerun resumes it.
+ */
+export function resumableTasks(
+  root: string,
+  actor: string | undefined,
+): string[] {
+  const main = mainCheckoutRoot(root);
+  return [...loadTaskIndex(root).values()]
+    .filter((task) => {
+      if (task.status !== 'open') return false;
+      const held = inspectClaim(main, task.id);
+      const worktree = join(main, '.krn', 'worktrees', task.id);
+      return (
+        held.state === 'live' &&
+        held.claim?.actor === (actor ?? `lane-${task.id}`) &&
+        existsSync(worktree) &&
+        held.claim.worktree === realpathSync(worktree)
+      );
+    })
+    .map((task) => task.id)
+    .sort();
+}
+
 export const defaultDrainSeams: DrainSeams = {
   doctor: () => ({ text: '', exitCode: 0 }),
-  nextReady: async (root, skip) =>
+  // An interrupted run of this drain finishes first: its worktree holds work in progress.
+  nextReady: async (root, skip, actor) =>
+    resumableTasks(root, actor).find((id) => !skip.has(id)) ??
     (await readyTasks(root)).tasks.find((task) => !skip.has(task.id))?.id,
   runTask: async (id, args) => {
     const { laneRunCommand } = await import('../lane-run.ts');
@@ -134,6 +170,8 @@ export async function drainReady(
   }
   const root = repositoryRoot(request.root ?? process.cwd());
   const tried = new Set<string>();
+  const actorAt = request.passthrough.indexOf('--actor');
+  const actor = actorAt >= 0 ? request.passthrough[actorAt + 1] : undefined;
   let lastInfrastructure = 0;
   let streak = 0;
   let exitCode = 0;
@@ -145,7 +183,7 @@ export async function drainReady(
     say(`drain: failed ${failed.join(', ')}`);
   };
   for (let run = 0; run < request.max; run += 1) {
-    const id = await seams.nextReady(root, tried);
+    const id = await seams.nextReady(root, tried, actor);
     if (id === undefined) {
       say('drain: no ready task left');
       break;
