@@ -1116,6 +1116,40 @@ test('test-first: Stop refuses when no changed test is red at the base', () => {
   }
 });
 
+test('test-first: a docs-only diff is not refused and needs no red-at-base proof', () => {
+  const dir = clone();
+  try {
+    mkdirSync(join(dir, 'docs/notes'), { recursive: true });
+    writeFileSync(join(dir, 'docs/notes/t-5sxsphp.md'), '# Note\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'docs: add a note');
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.equal(
+      judgeStop(payload(dir), env, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('test-first: a source change next to a docs file is still refused without a test', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    writeFileSync(join(dir, 'README.md'), '# Changed\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.match(
+      judgeStop(payload(dir), env, () => []) ?? '',
+      /Test-first rule/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('test-first: Stop accepts a test red at the base and green on head', () => {
   const dir = clone();
   try {

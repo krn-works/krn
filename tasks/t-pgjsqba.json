@@ -1,7 +1,11 @@
 {
   "id": "t-pgjsqba",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "docs-only diff skips test-first refusal; stop.test.ts covers docs-only pass and src+docs still refused"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "A docs-only lane diff is not refused by the test-first arm",
