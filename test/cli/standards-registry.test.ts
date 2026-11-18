@@ -107,10 +107,10 @@ test('adopt leaves a scratch repository out of the unnamed host registry', () =>
 });
 
 const rows = [
-  { number: 11, prGate: { reruns: 0 }, outcome: { status: 'kept' } },
-  { number: 12, prGate: { reruns: 2 }, outcome: { status: 'kept' } },
-  { number: 13, prGate: { reruns: null }, outcome: { status: 'reverted' } },
-  { number: 14, prGate: { reruns: 1 }, outcome: { status: 'changed' } },
+  { number: 11, prGate: { failed: [] }, outcome: { status: 'kept' } },
+  { number: 12, prGate: { failed: [2] }, outcome: { status: 'kept' } },
+  { number: 13, prGate: { failed: [] }, outcome: { status: 'reverted' } },
+  { number: 14, prGate: { failed: [1] }, outcome: { status: 'changed' } },
 ];
 
 test('a rework or CI-failed merged PR becomes one proposal with #PR evidence', () => {
@@ -164,10 +164,11 @@ test('the real harvest --from-ledger entry reads merged PRs through gh', () => {
   const host = scratch();
   const registry = join(host, 'adopted.json');
   writeFileSync(registry, JSON.stringify([root]));
-  // A verbatim capture of the gh answers the ledger asks for: one merged PR whose check ran twice.
-  const run = (n: number) => ({
+  // A verbatim capture of the gh answers the ledger asks for: one merged PR whose check ran red, then green.
+  const run = (n: number, conclusion: string) => ({
     id: n,
     name: 'Check',
+    conclusion,
     app: { id: 15368 },
     started_at: '2026-11-01T10:00:00Z',
     completed_at: '2026-11-01T10:05:00Z',
@@ -179,7 +180,7 @@ case "$*" in
   "repo view"*) echo '{"nameWithOwner":"o/r"}' ;;
   "pr list"*) echo '[{"number":5,"title":"fix: x","createdAt":"2026-11-01T09:00:00Z","mergedAt":"2026-11-01T11:00:00Z","headRefOid":"a","baseRefOid":"b","mergeCommit":{"oid":"c"}}]' ;;
   "pr view"*) echo '{"commits":[{"oid":"a"}]}' ;;
-  api*) echo '${JSON.stringify({ check_runs: [run(1), run(2)] })}' ;;
+  api*) echo '${JSON.stringify({ check_runs: [run(1, 'failure'), run(2, 'success')] })}' ;;
   *) exit 1 ;;
 esac
 `,

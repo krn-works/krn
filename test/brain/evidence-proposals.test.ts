@@ -57,7 +57,35 @@ test('a rerun of the required check in a captured check-runs answer is one ci pr
   const [draft] = ciFailures([{ number: 181, prGate: gate }]);
   assert.equal(draft?.evidence_kind, 'ci');
   assert.deepEqual(draft?.evidence, ['#181']);
-  assert.deepEqual(ciFailures([{ number: 7, prGate: { reruns: 0 } }]), []);
+  assert.match(draft?.text ?? '', /#181 check run 127549243386/u);
+  assert.deepEqual(ciFailures([{ number: 7, prGate: { failed: [] } }]), []);
+});
+
+const checkRun = (id: number, conclusion: string | null) => ({
+  id,
+  name: 'Check',
+  app: { id: 15368 },
+  status: conclusion === null ? 'in_progress' : 'completed',
+  conclusion,
+  started_at: '2026-11-18T10:00:00Z',
+  completed_at: conclusion === null ? null : '2026-11-18T10:05:00Z',
+});
+const gateOf = (...conclusions: (string | null)[]) =>
+  gateTotals([{ check_runs: conclusions.map((c, i) => checkRun(i + 1, c)) }]);
+
+test('two successes, cancelled then success, or no conclusion yield no ci proposal; a red before success yields one naming PR and run', () => {
+  for (const gate of [
+    gateOf('success', 'success'),
+    gateOf('cancelled', 'success'),
+    gateOf(null),
+    gateOf('skipped', 'success'),
+  ])
+    assert.deepEqual(ciFailures([{ number: 17, prGate: gate }]), []);
+  const [draft] = ciFailures([
+    { number: 17, prGate: gateOf('failure', 'success') },
+  ]);
+  assert.deepEqual(draft?.evidence, ['#17']);
+  assert.match(draft?.text ?? '', /#17 check run 1\b/u);
 });
 
 test('a close row with a failed hidden test proposes one hidden-test record; a passing or unknown one proposes none', () => {
@@ -141,7 +169,7 @@ test('an operator prompt filed as memory is quoted verbatim; launcher and harnes
 });
 
 test('a subject held by a record in force makes a supersede proposal, otherwise an add', async () => {
-  const sources = { ...empty, ci: [{ number: 181, prGate: { reruns: 1 } }] };
+  const sources = { ...empty, ci: [{ number: 181, prGate: { failed: [1] } }] };
   const [add] = evidenceProposals(sources, new Map(), '2026-11-16');
   assert.equal(add?.action, 'add');
   const [sup] = evidenceProposals(
@@ -160,7 +188,7 @@ test('a subject held by a record in force makes a supersede proposal, otherwise 
 
 test('a proposal becomes a trial record the record schema accepts, with subject, evidence kind and review date', async () => {
   const [p] = evidenceProposals(
-    { ...empty, ci: [{ number: 181, prGate: { reruns: 1 } }] },
+    { ...empty, ci: [{ number: 181, prGate: { failed: [1] } }] },
     new Map([['ci:required-check-rerun', 'r-old']]),
     '2026-11-16',
   );
@@ -216,7 +244,7 @@ test('the readers find the review records, inbox and exposures of a repository a
   );
   const proposals = await proposalsFromEvidence(
     root,
-    async () => [{ number: 181, prGate: { reruns: 1 } }] as never,
+    async () => [{ number: 181, prGate: { failed: [1] } }] as never,
     '2026-11-16',
   );
   const report = renderEvidenceProposals(proposals);

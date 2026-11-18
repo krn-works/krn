@@ -1,7 +1,11 @@
 {
   "id": "t-5v14t4m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "red-CI proposals need a failing Check conclusion: gateTotals.failed run ids; two successes, cancelled-then-success, no conclusion give none; red-then-success gives one naming PR and run"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "brain CI-failure proposals require a red Check, not two green runs on one SHA",
