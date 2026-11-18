@@ -1,0 +1,14 @@
+{
+  "id": "t-se3mkc6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "The receiver probe does not stay blocked on an old refused Actions run",
+  "after": [],
+  "body": [
+    "Evidence: src/cli/lane-run/receiver.ts (#1449, f11db40) reads only the newest workflow run of the repository; once Actions works again, a refused run stays newest until something pushes, so probeReceiver keeps returning the refusal gap and every lane exits 72 before it can push a newer run.\nOutcome: the refusal check looks only at runs newer than the last successful run on the base, or ignores a refused run older than a recent successful one, so a recovered receiver is ready again without a manual push.\nFiles: src/cli/lane-run/receiver.ts, test/cli/lane-run-receiver.test.ts\nProof: a receiver test with a refused run older than a green base run reports no gap."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
