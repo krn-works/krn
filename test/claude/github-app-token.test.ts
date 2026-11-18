@@ -518,6 +518,36 @@ test('the launcher environment resets the helper list before installing the help
   );
 });
 
+test('the launcher environment never stacks helper pairs across generations', () => {
+  const gitEntries = (env: Record<string, string | undefined>) =>
+    Array.from(
+      { length: Number(env.GIT_CONFIG_COUNT) },
+      (_, i) => `${env[`GIT_CONFIG_KEY_${i}`]}=${env[`GIT_CONFIG_VALUE_${i}`]}`,
+    );
+  let env: Record<string, string | undefined> = {
+    PATH: '/b',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'safe.directory',
+    GIT_CONFIG_VALUE_0: '*',
+  };
+  for (let generation = 0; generation < 5; generation += 1)
+    env = { ...env, ...appCredentialEnvironment(env, '/h', '/w') };
+  const entries = gitEntries(env);
+  assert.equal(entries.length, 3);
+  assert.equal(entries[0], 'safe.directory=*');
+  assert.equal(
+    entries.filter((entry) =>
+      entry.startsWith('credential.https://github.com.helper='),
+    ).length,
+    2,
+  );
+  assert.equal(entries[1], 'credential.https://github.com.helper=');
+  assert.deepEqual(
+    gitEntries(appCredentialEnvironment(env, '/h', '/w')),
+    entries,
+  );
+});
+
 async function launch(
   t: { after(fn: () => void): void },
   args: string[],

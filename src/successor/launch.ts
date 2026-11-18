@@ -14,6 +14,7 @@ import {
   tabEnvironment,
 } from './compose.ts';
 import { logLaunch } from './launch-log.ts';
+import { EXIT_LEAD_LIVE, liveLeadPane } from './live-lead.ts';
 import {
   parseArgs,
   START_SECONDS,
@@ -127,11 +128,23 @@ export function main(
       name: options.name,
       agent: harness,
       via: 'background',
+      ...(options.task ? { task: options.task } : {}),
     });
     process.stdout.write(
       `successor: claude --bg (herdr unavailable: ${unavailable})\n`,
     );
     return 0;
+  }
+
+  const live =
+    options.task && !options.force
+      ? liveLeadPane(options.cwd, options.task, host, paneId)
+      : undefined;
+  if (live) {
+    process.stderr.write(
+      `launch refused: pane ${live} already runs a lead for ${options.task}; end it or pass --force\n`,
+    );
+    return EXIT_LEAD_LIVE;
   }
 
   const predecessorSession =
@@ -177,6 +190,7 @@ export function main(
     via: 'herdr',
     tab_id: ids.tab,
     pane_id: ids.session,
+    ...(options.task ? { task: options.task } : {}),
   });
 
   const expected = harness === 'other' ? undefined : harness;

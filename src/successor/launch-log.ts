@@ -10,6 +10,7 @@ export type LaunchLogRow = {
   via: 'herdr' | 'background';
   tab_id?: string;
   pane_id?: string;
+  task?: string;
 };
 
 /** The append-only log of every successor launch; retirement keeps its own panes ledger. */

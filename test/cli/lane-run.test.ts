@@ -1623,6 +1623,21 @@ test('a lane session mints and helps git for its own origin repository', () => {
   );
 });
 
+test('a lane session environment holds one helper pair however many generations inherit it', () => {
+  let env: NodeJS.ProcessEnv = {
+    PATH: '/bin',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'safe.directory',
+    GIT_CONFIG_VALUE_0: '*',
+  };
+  for (let generation = 0; generation < 4; generation += 1)
+    env = sessionEnvironment(env, '/c', { lane: 'l' });
+  assert.equal(env.GIT_CONFIG_COUNT, '3');
+  assert.equal(env.GIT_CONFIG_KEY_0, 'safe.directory');
+  assert.equal(env.GIT_CONFIG_VALUE_0, '*');
+  assert.equal(env.GIT_CONFIG_KEY_3, undefined);
+});
+
 test('a lane session disables the advisor tool unless the brief opts in', () => {
   const env = { PATH: '/bin' };
   assert.equal(

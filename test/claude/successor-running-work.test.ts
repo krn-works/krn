@@ -149,7 +149,8 @@ function retire(t: Cleanup, children: boolean, ledger: boolean) {
       encoding: 'utf8',
     },
   );
-  assert.equal(result.status, 0, result.stderr);
+  // A direct predecessor kept for running work is reported with its own exit code.
+  assert.equal(result.status, ledger || !children ? 0 : 75, result.stderr);
   return { stderr: result.stderr, closes: closesOf(calls) };
 }
 

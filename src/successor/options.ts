@@ -21,6 +21,17 @@ export interface SuccessorLaunchOptions {
   operatorToken: boolean;
   // True: no operator is watching; the launch runs `krn doctor --unattended` first and refuses on failure.
   unattended: boolean;
+  // The task the lead works on: --task, else the task id in the name. The
+  // launch refuses a second live lead for it unless `force`.
+  task?: string;
+  force: boolean;
+}
+
+const TASK_ID = /\bt-[0-9a-z]{7}\b/u;
+
+/** The task id a launch name carries, if any. */
+export function taskInName(name: string): string | undefined {
+  return TASK_ID.exec(name)?.[0];
 }
 
 // The operator capped every KRN session: medium by default, high when medium is
@@ -61,10 +72,13 @@ export function parseArgs(
     '--effort',
     '--start-seconds',
     '--class',
+    '--task',
   ]);
-  const switches = new Set(['--operator-token', '--unattended']);
+  const switches = new Set(['--operator-token', '--unattended', '--force']);
   let operatorToken = false;
   let unattended = false;
+  let force = false;
+  let task: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] ?? '';
@@ -72,6 +86,7 @@ export function parseArgs(
       if (seen.has(flag)) throw new Error(`duplicate argument: ${flag}`);
       seen.add(flag);
       if (flag === '--unattended') unattended = true;
+      else if (flag === '--force') force = true;
       else operatorToken = true;
       continue;
     }
@@ -88,7 +103,11 @@ export function parseArgs(
     if (flag === '--name') name = value;
     else if (flag === '--prompt') prompt = value;
     else if (flag === '--model') model = value;
-    else if (flag === '--class') {
+    else if (flag === '--task') {
+      if (!/^t-[0-9a-z]{7}$/u.test(value))
+        throw new Error('--task must be a task id such as t-abc1234');
+      task = value;
+    } else if (flag === '--class') {
       // `lane` belongs to `krn lane run`, not to a successor launch.
       const choices = SESSION_CLASSES.filter((name) => name !== 'lane');
       if (!isSessionClass(value) || value === 'lane')
@@ -124,6 +143,8 @@ export function parseArgs(
     sessionClass,
     operatorToken,
     unattended,
+    force,
+    ...withTask(task ?? taskInName(name)),
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
     ...(startSeconds === undefined ? {} : { startSeconds }),
@@ -132,3 +153,7 @@ export function parseArgs(
 
 // How long a launch waits for Herdr to show the successor's agent; a cold Claude start on a loaded host takes seconds.
 export const START_SECONDS = 60;
+
+function withTask(task: string | undefined): { task?: string } {
+  return task === undefined ? {} : { task };
+}
