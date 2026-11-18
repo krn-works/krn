@@ -822,6 +822,36 @@ test('ship runs the task Proof commands, records command and exit in the PR body
   );
 });
 
+for (const [diff, refused] of [
+  ['tasks/t-abc.json\ntasks/t-def.json\n', false],
+  ['tasks/t-abc.json\nsrc/x.ts\n', true],
+] as const) {
+  test(`a Proof naming a missing command ${refused ? 'still refuses a diff that touches code' : 'never refuses a task-records-only diff'} with exit 81`, async () => {
+    const r = receiver({ pulls: [auto, merged], proofExit: 127, diff });
+    const file = join(mkdtempSync(join(tmpdir(), 'ship-records-')), 'body.md');
+    writeFileSync(file, '## Problem\n\nx\n');
+    const shipped = shipCommand(
+      ['--title', title, '--body-file', file, '--repo', 'o/r'],
+      { ...r, proofOf: () => ['krn skills check'], publish: () => '/r/p.md' },
+    );
+    if (refused)
+      await assert.rejects(shipped, (e: Failure) => e.exitCode === 81);
+    else {
+      // A refusal is asserted as a value, so the base source fails this test by assertion.
+      const outcome = await shipped.then(
+        (out) => out,
+        (e: Failure) => `refused ${e.exitCode}`,
+      );
+      assert.match(outcome, /^verdict: merged /mu);
+      assert.equal(
+        r.calls.some((c) => c.endsWith(' sh -c krn skills check')),
+        false,
+        'the Proof never ran',
+      );
+    }
+  });
+}
+
 for (const force of [false, true]) {
   test(`ship refuses with exit 81 before the push when a Proof command fails (force=${force})`, async () => {
     const r = receiver({ pulls: [auto, merged], proofExit: 3 });

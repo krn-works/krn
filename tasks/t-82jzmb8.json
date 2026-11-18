@@ -1,7 +1,11 @@
 {
   "id": "t-82jzmb8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship test: tasks-only diff with a missing-command Proof is not refused 81; code diff still 81"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Task-record ship does not run the recorded task's Proof",
