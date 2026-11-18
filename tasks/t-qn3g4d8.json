@@ -1,7 +1,11 @@
 {
   "id": "t-qn3g4d8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify prints repositories covered and uncovered; test red on base by assertion"
+  },
   "created": "2026-11-17",
   "priority": 3,
   "title": "Unit selection reports repository coverage across the 40-repository pool",

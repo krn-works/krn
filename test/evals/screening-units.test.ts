@@ -147,11 +147,33 @@ test('verify prints the verified count and exits 0 only from 70 units', () => {
       row(900, { ...good, testFix: 1 }),
     ]);
   const few = recorded(rows(69));
-  assert.equal(few.stdout.trim(), 'units: 69 verified');
+  assert.equal(few.stdout.split('\n')[0], 'units: 69 verified');
   assert.equal(few.status, 1);
   const enough = recorded(rows(70));
-  assert.equal(enough.stdout.trim(), 'units: 70 verified');
+  assert.equal(enough.stdout.split('\n')[0], 'units: 70 verified');
   assert.equal(enough.status, 0);
+});
+
+test('verify prints the repositories the verified units cover and the ones only dropped units sample', () => {
+  const inRepo = (name: string, n: number, v: Verification | undefined) => ({
+    ...row(n, v),
+    repo: name,
+  });
+  const out = recorded([
+    inRepo('a/one', 1, good),
+    inRepo('a/one', 2, good),
+    inRepo('b/two', 3, good),
+    inRepo('c/three', 4, { ...good, testFix: 1 }),
+    inRepo('d/four', 5, undefined),
+  ]).stdout.split('\n');
+  assert.ok(
+    out.includes('repositories covered: 2 (a/one b/two)'),
+    out.join('\n'),
+  );
+  assert.ok(
+    out.includes('repositories uncovered: 2 (c/three d/four)'),
+    out.join('\n'),
+  );
 });
 
 test('verify --id re-grades a recorded unit and refuses an id the manifest lacks (t-te4w4zr)', (t) => {
