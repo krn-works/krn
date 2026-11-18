@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { testRunnerArgs } from '../scripts/fast-check.ts';
 import {
   testCeilingArguments,
-  testConcurrency,
   testExitFlushPreload,
 } from '../scripts/lib/test-timeout.ts';
 
@@ -85,10 +84,13 @@ test('a host loaded past its cores runs two files at a time, an idle host the no
     ),
     ['--test-concurrency=2'],
   );
-  assert.equal(testConcurrency({ load: 0.2, cores: 16, parallelism: 16 }), 15);
-  assert.equal(testConcurrency({ load: 4, cores: 8, parallelism: 8 }), 4);
-  assert.equal(testConcurrency({ load: 0, cores: 1, parallelism: 1 }), 2);
-  assert.equal(testConcurrency(), testConcurrency());
+  const concurrency = (load: number, cores: number) =>
+    testCeilingArguments({}, { load, cores, parallelism: cores }).filter((a) =>
+      a.startsWith('--test-concurrency'),
+    );
+  assert.deepEqual(concurrency(0.2, 16), ['--test-concurrency=15']);
+  assert.deepEqual(concurrency(4, 8), ['--test-concurrency=4']);
+  assert.deepEqual(concurrency(0, 1), ['--test-concurrency=2']);
 });
 
 test('no local check waits for the host load', () => {
