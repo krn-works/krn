@@ -1,7 +1,11 @@
 {
   "id": "t-tmr34yq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "proof line ends with diff-coverage <covered>/<changed> listing uncovered file:line; real node --test lcov runs prove an unexecuted branch is named and a covered change reports 0 uncovered; non-node receivers report n/a"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Lane proof reports diff coverage of changed lines",
