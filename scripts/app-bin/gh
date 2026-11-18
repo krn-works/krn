@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs the real gh with a GitHub App installation token minted on demand.
+# Runs the real gh with a GitHub App installation token minted on demand (marker: krn-app-gh-wrapper).
 here=$(cd "$(dirname "$0")" && pwd -P)
 real=
 oldifs=$IFS
@@ -8,12 +8,28 @@ for dir in $PATH; do
   [ -n "$dir" ] || continue
   dir=$(cd "$dir" 2>/dev/null && pwd -P) || continue
   [ "$dir" = "$here" ] && continue
+  # Another checkout's copy of this wrapper would exec back into this one, forever.
+  grep -q 'krn-app-gh-wrapper' "$dir/gh" 2>/dev/null && continue
   if [ -x "$dir/gh" ]; then real="$dir/gh"; break; fi
 done
 IFS=$oldifs
 if [ -z "$real" ]; then
   echo "gh wrapper: no gh found on PATH outside $here" >&2
   exit 69
+fi
+# The token is scoped to the repository gh acts on: KRN_APP_REPOSITORY, else -R/--repo, else the
+# checkout's github.com origin; a krn-works/krn token answers 404 on every other repository.
+if [ -z "${KRN_APP_REPOSITORY:-}" ]; then
+  repo=
+  prev=
+  for arg in "$@"; do
+    case $prev in -R|--repo) repo=$arg ;; esac
+    case $arg in --repo=*) repo=${arg#--repo=} ;; -R?*) repo=${arg#-R} ;; esac
+    prev=$arg
+  done
+  [ -n "$repo" ] || repo=$(git remote get-url origin 2>/dev/null) || repo=
+  repo=$(printf '%s' "$repo" | sed -E -n 's#^(https?://([^@/]+@)?github\.com/|git@github\.com:|ssh://git@github\.com/|github\.com/)?([A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+)$#\3#p' | sed -E 's#(\.git)?/?$##')
+  case $repo in */*) KRN_APP_REPOSITORY=$repo; export KRN_APP_REPOSITORY ;; esac
 fi
 token=$(node "$here/../github-app-token.ts" token) || exit $?
 GH_TOKEN=$token exec "$real" "$@"

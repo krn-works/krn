@@ -4,11 +4,13 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
+import { rootRepository } from '../repo/gh.ts';
 import { readJson } from '../repo/json-text.ts';
+import { repositoryOfRemote } from '../repo/remote.ts';
 import { describeBwServe } from './bw-serve-state.ts';
 
 // Mints a GitHub App installation token scoped to one repository: krn-works/krn,
-// or the owner/name in KRN_APP_REPOSITORY. The App id, the krn-works/krn
+// or the owner/name in KRN_APP_REPOSITORY; as a git credential helper, the repository git asks for. The App id, the krn-works/krn
 // installation id and the private key come only from the local Bitwarden REST
 // API (`bw serve`); another repository's installation is looked up on GitHub.
 // Only the token, never the key, is cached, one cache file per repository.
@@ -290,6 +292,24 @@ function credentialRequest(input: string): Map<string, string> {
   return pairs;
 }
 
+/**
+ * The repository a git credential request is for: the `path` git sends (credential.useHttpPath),
+ * else KRN_APP_REPOSITORY, else the origin of the checkout git runs the helper in. Without one the
+ * token would be scoped to krn-works/krn and every other repository would answer "not found".
+ */
+function credentialRepository(
+  request: Map<string, string>,
+  env: Env,
+): string | undefined {
+  const path = request.get('path');
+  const fromPath = path
+    ? repositoryOfRemote(`https://github.com/${path}`)
+    : undefined;
+  if (fromPath) return fromPath;
+  if (env[REPOSITORY_VARIABLE]) return undefined;
+  return rootRepository(process.cwd());
+}
+
 const USAGE =
   'usage: github-app-token.ts token | git-credential get|store|erase';
 
@@ -309,7 +329,10 @@ export async function main(
     if (action === 'get') {
       const request = credentialRequest(readStdin());
       if (request.get('host') !== 'github.com') return 0;
-      const token = await mintToken(env);
+      const repository = credentialRepository(request, env);
+      const token = await mintToken(
+        repository ? { ...env, [REPOSITORY_VARIABLE]: repository } : env,
+      );
       out(`username=x-access-token\npassword=${token}\n`);
       return 0;
     }

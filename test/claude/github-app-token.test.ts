@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import {
+  chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -166,12 +168,16 @@ function exec(
   args: string[],
   env: Record<string, string>,
   input = '',
+  cwd?: string,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((done) => {
     const child = execFile(
       process.execPath,
       [file, ...args],
-      { env: { PATH: process.env.PATH ?? '', ...env } },
+      {
+        env: { PATH: process.env.PATH ?? '', ...env },
+        ...(cwd ? { cwd } : {}),
+      },
       (error, stdout, stderr) =>
         done({
           code: error ? Number((error as { code?: number }).code) : 0,
@@ -407,6 +413,77 @@ test('the gh wrapper runs the real gh with the minted token and does not recurse
   });
 });
 
+test('the gh wrapper scopes its token to -R, else to the checkout origin', async (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'app-gh-scope-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const real = join(root, 'real');
+  mkdirSync(real);
+  writeFileSync(join(real, 'gh'), '#!/bin/sh\necho ok\n', { mode: 0o755 });
+  const wrapperDir = fileURLToPath(
+    new URL('../../scripts/app-bin', import.meta.url),
+  );
+  const run = (args: string[], env: Record<string, string>, cwd: string) =>
+    new Promise<number>((done) =>
+      execFile(
+        join(wrapperDir, 'gh'),
+        args,
+        {
+          cwd,
+          env: {
+            ...env,
+            PATH: `${wrapperDir}:${real}:${join(process.execPath, '..')}:/usr/bin:/bin`,
+          },
+        },
+        (error) => done(error ? Number((error as { code?: number }).code) : 0),
+      ),
+    );
+  const pilot = checkoutWithOrigin(
+    t,
+    'git@github.com:pilot-owner/pilot-repo.git',
+  );
+  const byOrigin = await fakes(t);
+  assert.equal(await run(['pr', 'list'], byOrigin.env, pilot), 0);
+  assert.equal(
+    byOrigin.github.requests[0]?.url,
+    '/repos/pilot-owner/pilot-repo/installation',
+  );
+  // A second checkout's wrapper earlier on PATH is skipped, not exec'd back and forth.
+  const twin = join(root, 'twin');
+  mkdirSync(twin);
+  copyFileSync(join(wrapperDir, 'gh'), join(twin, 'gh'));
+  chmodSync(join(twin, 'gh'), 0o755);
+  const twinned = await fakes(t);
+  const twinRun = await new Promise<string>((done) =>
+    execFile(
+      join(wrapperDir, 'gh'),
+      ['pr', 'list'],
+      {
+        cwd: pilot,
+        timeout: 20000,
+        env: {
+          ...twinned.env,
+          PATH: `${twin}:${wrapperDir}:${real}:${join(process.execPath, '..')}:/usr/bin:/bin`,
+        },
+      },
+      (_error, stdout) => done(stdout),
+    ),
+  );
+  assert.equal(twinRun, 'ok\n');
+  const byFlag = await fakes(t);
+  assert.equal(
+    await run(
+      ['pr', 'list', '-R', 'github.com/flag-owner/flag-repo'],
+      byFlag.env,
+      pilot,
+    ),
+    0,
+  );
+  assert.equal(
+    byFlag.github.requests[0]?.url,
+    '/repos/flag-owner/flag-repo/installation',
+  );
+});
+
 test('the launcher environment resets the helper list before installing the helper', () => {
   const env = appCredentialEnvironment(
     { PATH: '/usr/bin' },
@@ -584,6 +661,50 @@ test('KRN_APP_REPOSITORY scopes the token to that repository through its own ins
     `${stubToken('token1')}\n`,
   );
   assert.equal(f.minted(), 2);
+});
+
+/** A git checkout whose origin is `url`, so the helper can read the repository git runs in. */
+function checkoutWithOrigin(t: { after(fn: () => void): void }, url: string) {
+  const dir = mkdtempSync(join(tmpdir(), 'app-origin-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q', dir]);
+  execFileSync('git', ['-C', dir, 'remote', 'add', 'origin', url]);
+  return dir;
+}
+
+test('git-credential get scopes the token to the repository git asks for, not krn-works/krn', async (t) => {
+  const pilotLookup = '/repos/pilot-owner/pilot-repo/installation';
+  // git sends path= when credential.useHttpPath is set: the path names the repository.
+  const byPath = await fakes(t);
+  const fromPath = await exec(
+    helper,
+    ['git-credential', 'get'],
+    { ...byPath.env, KRN_APP_REPOSITORY: 'krn-works/krn' },
+    'protocol=https\nhost=github.com\npath=pilot-owner/pilot-repo.git\n\n',
+  );
+  assert.equal(fromPath.code, 0, fromPath.stderr);
+  assert.equal(byPath.github.requests[0]?.url, pilotLookup);
+  // Without path= and without KRN_APP_REPOSITORY, the checkout git runs in names it by its origin.
+  const byOrigin = await fakes(t);
+  const fromOrigin = await exec(
+    helper,
+    ['git-credential', 'get'],
+    byOrigin.env,
+    'protocol=https\nhost=github.com\n\n',
+    checkoutWithOrigin(t, 'https://github.com/pilot-owner/pilot-repo.git'),
+  );
+  assert.equal(fromOrigin.code, 0, fromOrigin.stderr);
+  assert.equal(byOrigin.github.requests[0]?.url, pilotLookup);
+  // KRN_APP_REPOSITORY (a lane's own origin) still wins over the checkout's origin.
+  const byEnv = await fakes(t);
+  await exec(
+    helper,
+    ['git-credential', 'get'],
+    { ...byEnv.env, KRN_APP_REPOSITORY: 'pilot-owner/pilot-repo' },
+    'protocol=https\nhost=github.com\n\n',
+    checkoutWithOrigin(t, 'https://github.com/other-owner/other-repo.git'),
+  );
+  assert.equal(byEnv.github.requests[0]?.url, pilotLookup);
 });
 
 test('a repository without the App or a malformed KRN_APP_REPOSITORY exits 69 naming it', async (t) => {
