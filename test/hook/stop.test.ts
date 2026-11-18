@@ -1566,6 +1566,67 @@ test('a refused Stop names the violated record and why, and logs the violation t
   }
 });
 
+test('an empty untracked sandbox placeholder package.json does not fail a reflex check at Stop; a real untracked one still does', () => {
+  const dir = clone();
+  try {
+    sh(dir, 'rm', '-q', 'package.json');
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    mkdirSync(join(dir, '.agents'), { recursive: true });
+    writeFileSync(
+      join(dir, '.agents/standards.json'),
+      JSON.stringify([
+        {
+          id: 's-package-parses',
+          type: 'standard',
+          area: 'tests',
+          layer: 'universal',
+          audience: 'worker',
+          tier: 'reflex',
+          text: 'package.json parses.',
+          why: 'A broken manifest breaks every run.',
+          provenance: {
+            origin: 'test',
+            evidence: ['README.md'],
+            proposals: [],
+          },
+          enforcement: {
+            kind: 'command',
+            run: `[ ! -f package.json ] || node -e 'JSON.parse(require("fs").readFileSync("package.json","utf8"))'`,
+          },
+          applies: { stacks: [], needs: [], paths: [], terms: [] },
+          status: 'accepted',
+          supersedes: [],
+          recorded_at: '2026-01-01',
+          valid_from: '2026-01-01',
+          valid_to: null,
+        },
+      ]),
+    );
+    const stop = () =>
+      spawnSync(process.execPath, [hook], {
+        cwd: dir,
+        encoding: 'utf8',
+        input: JSON.stringify(payload(dir)),
+        env: { ...process.env, ...lane(dir) },
+      });
+    for (const name of ['package.json', '.npmrc', '.env.local'])
+      writeFileSync(join(dir, name), '');
+    const placeholder = stop();
+    assert.equal(placeholder.status, 0, placeholder.stderr);
+    assert.equal(existsSync(join(dir, 'package.json')), false);
+    assert.equal(existsSync(join(dir, '.env.local')), false);
+    writeFileSync(join(dir, 'package.json'), '{');
+    const broken = stop();
+    assert.equal(broken.status, 2);
+    assert.match(broken.stderr, /s-package-parses \(reflex\)/u);
+    assert.equal(existsSync(join(dir, 'package.json')), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a Stop that passes records the passing check of each record the session was served', () => {
   const dir = clone();
   try {

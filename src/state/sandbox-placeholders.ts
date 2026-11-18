@@ -1,6 +1,6 @@
 // .mcp.json sandbox placeholders: other empty read-only files the harness sandbox mounts over write-denied paths. A lane session
 // can leave them in the main checkout and its git dir; they are never work.
-import { lstatSync } from 'node:fs';
+import { lstatSync, readdirSync, rmSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { git } from './git.ts';
 
@@ -82,4 +82,20 @@ export function isSandboxPlaceholder(root: string, path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Remove the empty untracked files the sandbox leaves under masked names in a checkout's root,
+ * writable or not and gitignored or not, so checks that read package.json or .env see the tree
+ * the change left. Returns the removed names; a tracked or non-empty file is never touched.
+ */
+export function clearSandboxPlaceholders(root: string): string[] {
+  const names = readdirSync(root).filter(
+    (name) =>
+      (rootNames.includes(name) || /^\.env(\..+)?$/u.test(name)) &&
+      isSandboxPlaceholder(root, name) &&
+      !git(root, ['ls-files', '--error-unmatch', '--', name]).ok,
+  );
+  for (const name of names) rmSync(join(root, name));
+  return names;
 }
