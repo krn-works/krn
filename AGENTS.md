@@ -2,7 +2,7 @@
 <!-- krn-agent-workflow:start -->
 # KRN repository rules
 
-This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict), commit; CI runs the rest.
+This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict: `fast PASS:` or `fast FAIL (...):`; run it as a background shell and wait for its exit, never an until/while sleep loop on its log), commit; CI runs the rest.
 
 - **KRN-07** When a change is ready for integration, the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact HEAD
 - **KRN-09** When the lead works in this repository, the lead MUST follow `docs/program/lead-rules.md` for evidence, proposals, handoffs, and delivery
