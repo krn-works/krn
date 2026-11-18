@@ -1,7 +1,11 @@
 {
   "id": "t-wg8d2gx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "isolated krn-lane/general-purpose Agent call denied by scripts/claude/subagent-model.ts; test/hook/agent-isolation.test.ts passes"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "The Agent hook refuses worktree isolation for KRN lanes",
