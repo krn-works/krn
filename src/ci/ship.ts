@@ -11,6 +11,7 @@ import {
   isGreen,
   isRequiredCheckName,
   selectRequiredCheck,
+  supersededByRerun,
 } from '../repo/required-check.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
@@ -915,10 +916,15 @@ async function waitForMerge(options: {
         76,
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
-    const check = selectRequiredCheck(await options.checks(head));
+    const facts = await options.checks(head);
+    const check = selectRequiredCheck(facts);
     const conclusion = check?.conclusion || undefined;
+    // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
+    const settled =
+      check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
     if (
-      check?.status === 'COMPLETED' &&
+      check !== undefined &&
+      settled &&
       conclusion !== undefined &&
       !isGreen(conclusion)
     ) {
@@ -933,7 +939,7 @@ async function waitForMerge(options: {
         `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }
-    if (!requested && check?.status === 'COMPLETED' && isGreen(conclusion)) {
+    if (!requested && settled && isGreen(conclusion)) {
       const updated = await options.mergeCurrent(head);
       if (updated === undefined) requested = true;
       else {
@@ -947,7 +953,7 @@ async function waitForMerge(options: {
       }
     }
     const elapsed = options.now() - start;
-    if (check?.status === 'COMPLETED' && conclusion !== undefined) {
+    if (settled && conclusion !== undefined) {
       mergeBy ??= options.now() + mergeTimeoutMs;
       if (options.now() >= mergeBy)
         return stop(

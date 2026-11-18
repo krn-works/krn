@@ -5,6 +5,8 @@ import {
 
 /** One check run of a head as `gh api repos/<repo>/commits/<sha>/check-runs` reports it, upper-cased status and conclusion. */
 export type CheckFact = {
+  /** The check-run id: GitHub hands out ids in creation order, so a rerun's rows carry higher ids. */
+  id?: number | null;
   name?: string;
   appId?: number | null | undefined;
   startedAt?: string | null;
@@ -15,7 +17,7 @@ export type CheckFact = {
 
 /** The `--jq` filter that turns the check-runs answer into `CheckFact` rows. */
 export const CHECK_FACT_FILTER =
-  '[.check_runs[] | {name, appId: .app.id, startedAt: .started_at, status: (.status // "" | ascii_upcase), conclusion: (.conclusion // "" | ascii_upcase), detailsUrl: .details_url}]';
+  '[.check_runs[] | {id, name, appId: .app.id, startedAt: .started_at, status: (.status // "" | ascii_upcase), conclusion: (.conclusion // "" | ascii_upcase), detailsUrl: .details_url}]';
 
 const aggregateName = new RegExp(`(?:^|/ )${REQUIRED_CHECK_NAME}$`, 'u');
 
@@ -47,4 +49,28 @@ export function selectRequiredCheck(
 /** Only SUCCESS is green: neutral, skipped, stale and a missing conclusion are not. */
 export function isGreen(conclusion: string | null | undefined): boolean {
   return conclusion === 'SUCCESS';
+}
+
+const actionsRun = (run: CheckFact) =>
+  /\/actions\/runs\/(\d+)\//u.exec(run.detailsUrl ?? '')?.[1];
+
+/**
+ * Whether a rerun supersedes this completed run: another row of the same Actions run, created after it, is not completed.
+ * `gh run rerun --failed` copies the jobs it keeps and adds the aggregate's row only when its needs finish, so until then
+ * the stale attempt is the newest aggregate row and the rerun shows only as a newer unfinished job.
+ */
+export function supersededByRerun(
+  check: CheckFact,
+  runs: readonly CheckFact[],
+): boolean {
+  const owner = actionsRun(check);
+  if (owner === undefined || typeof check.id !== 'number') return false;
+  const after = check.id;
+  return runs.some(
+    (run) =>
+      typeof run.id === 'number' &&
+      run.id > after &&
+      actionsRun(run) === owner &&
+      run.status !== 'COMPLETED',
+  );
 }
