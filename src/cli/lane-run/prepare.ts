@@ -148,6 +148,7 @@ export async function prepareLane(
   }
 
   const existing = join(main, '.krn', 'worktrees', lane);
+  const reused = existsSync(existing);
   const holder = actor ?? `lane-${lane}`;
   // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
   const started = existsSync(existing)
@@ -177,7 +178,10 @@ export async function prepareLane(
     ...request,
     main,
     base,
-    brief,
+    brief:
+      reused && red === undefined && !delivered && !parked
+        ? `${reusedLaneNote(started.path, base)}${brief}`
+        : brief,
     packet: prompt.packet,
     servedTokens: prompt.tokens,
     servedIds: prompt.served,
@@ -190,6 +194,26 @@ export async function prepareLane(
     worktree: started.path,
     delivered: delivered || (red === undefined && parked),
   };
+}
+
+/**
+ * The prompt note for a rerun that reuses a worktree from a failed attempt: it names the commits already on the lane
+ * branch, so a Stop refusal that concerns them is read as such and not as the new session's own work. Empty when the branch holds none.
+ */
+export function reusedLaneNote(path: string, base: string): string {
+  const commits = (range: string) => {
+    try {
+      return git(path, ['log', '--format=%h %s', range])
+        .split('\n')
+        .filter((line) => line !== '');
+    } catch {
+      return undefined;
+    }
+  };
+  const ahead =
+    commits(`origin/${base}..HEAD`) ?? commits(`${base}..HEAD`) ?? [];
+  if (ahead.length === 0) return '';
+  return `Reused worktree: this lane branch already holds ${ahead.length} commit(s) from a failed attempt (${ahead.slice(0, 5).join('; ')}). A Stop refusal about a test or file in them concerns that earlier work: read .krn/runs/stop-check/last-refusal.txt, then fix or replace those commits, or end with a line \`BLOCKER: <what stops you>\`.\n\n`;
 }
 
 /** The worktree a failed run left behind, when it is the lane's own; anything else is a usage error. */

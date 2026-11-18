@@ -2594,3 +2594,108 @@ test('a real failing command refusal quotes its output and names the log', () =>
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/** A repository whose contract runs tests by shell command; its changed test lives outside test/, so the contract command runs it. */
+function foreignTestBranch() {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+      install: 'npm ci',
+    }),
+    'check.sh': 'exit 0\n',
+    'src/a.txt': 'a\n',
+  });
+  writeFileSync(join(dir, 'src/a.txt'), 'b\n');
+  mkdirSync(join(dir, 'tests'));
+  writeFileSync(join(dir, 'tests/GetInTest.php'), 'plain test body\n');
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+  return dir;
+}
+
+const baseRun = (dir: string, output: string) => (root: string) =>
+  root === dir
+    ? { failures: [], output: '' }
+    : { failures: failuresIn(output, 1), output };
+
+test('test-first: a base worktree lacking its dependencies is named a base-environment failure, not a red test', () => {
+  const dir = foreignTestBranch();
+  try {
+    const env = {
+      ...lane(dir),
+      KRN_TEST_FIRST: '1',
+      KRN_ACCEPTANCE_CLAUSES: '0',
+    };
+    const output = 'sh: line 1: vitest: not found\n';
+    const reason =
+      judgeStop(payload(dir), env, () => [], '', baseRun(dir, output)) ?? '';
+    assert.match(reason, /base environment is broken/u);
+    assert.match(reason, /npm ci/u);
+    assert.doesNotMatch(reason, /no changed test fails at the base/u);
+    const saved = readFileSync(
+      join(dir, '.krn/runs/stop-check/base-environment.log'),
+      'utf8',
+    );
+    assert.match(saved, /vitest: not found/u);
+    assert.match(
+      readFileSync(join(dir, '.krn/runs/stop-check/base-run.log'), 'utf8'),
+      /tests\/GetInTest\.php at the base/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('test-first: a base run missing a source file of the repository is still a red test', () => {
+  const dir = foreignTestBranch();
+  try {
+    const env = {
+      ...lane(dir),
+      KRN_TEST_FIRST: '1',
+      KRN_ACCEPTANCE_CLAUSES: '0',
+    };
+    const output =
+      "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/work/src/new.ts'\n";
+    assert.equal(
+      judgeStop(payload(dir), env, () => [], '', baseRun(dir, output)),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a verbatim Stop check refusal from a copy of the pilot commit under host load is a red test, not a broken base environment', () => {
+  const dir = foreignTestBranch();
+  try {
+    const captured = readFileSync(
+      new URL('./fixtures/stop-refusal-pilot-worktree.txt', import.meta.url),
+      'utf8',
+    );
+    const env = {
+      ...lane(dir),
+      KRN_TEST_FIRST: '1',
+      KRN_ACCEPTANCE_CLAUSES: '0',
+    };
+    const reason =
+      judgeStop(payload(dir), env, () => [], '', baseRun(dir, captured)) ?? '';
+    assert.doesNotMatch(reason, /base environment is broken/u);
+    assert.deepEqual(failuresIn(captured, 1), [
+      'tests/cli/url-language.test.ts',
+      'tests/cli/url-plan.test.ts',
+    ]);
+    assert.equal(
+      judgeStop(
+        payload(dir),
+        env,
+        () => [],
+        '',
+        baseRun(dir, 'sh: vitest: not found'),
+      ) !== undefined,
+      true,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

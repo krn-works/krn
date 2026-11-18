@@ -472,6 +472,30 @@ function saveFailureLog(root: string, output: string): string | undefined {
   }
 }
 
+/** Write one named file under the root's ignored stop-check run directory, replacing the last; undefined when it cannot be written. */
+function saveRunLog(
+  root: string,
+  name: string,
+  text: string,
+): string | undefined {
+  // A root that is gone is never recreated by a log write.
+  if (!existsSync(root)) return undefined;
+  try {
+    const dir = join(root, '.krn', 'runs', 'stop-check');
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, name);
+    writeFileSync(file, text.endsWith('\n') ? text : `${text}\n`);
+    return file;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Keep the last Stop refusal text, so a lane and the lead can read why; undefined when it cannot be written. */
+export function saveRefusal(root: string, refusal: string): string | undefined {
+  return saveRunLog(root, 'last-refusal.txt', refusal);
+}
+
 /** The failure key of a check whose test root is gone: it names the directory, never the program. */
 const missingRootKey = (root: string): string =>
   `<run>::error test root ${root} does not exist (the worktree was removed or never created)`;
@@ -880,6 +904,24 @@ function clauseRefusal(
   return `Acceptance-clause rule (KRN_ACCEPTANCE_CLAUSES=0 opts out): ${uncovered.length} of ${clauses.length} clause(s) uncovered (${uncovered.slice(0, SHOWN).join(' | ')}). For each, commit a changed test whose name contains "clause N" that passes on your commit, or add a commit-message line \`Clause N: not reproducible: <reason>\` (a sibling call site: \`Clause N: not affected: <reason>\`), or end with a line \`BLOCKER: <what stops you>\`.`;
 }
 
+function testFileRun(
+  dir: string,
+  file: string,
+  run: Runner,
+  shell: CommandRunner,
+  contract?: RepoContract,
+): { failures: string[]; output: string } {
+  if (LEGACY_TEST.test(file) || !contract)
+    return { failures: run(dir, [file]), output: '' };
+  const result = shell(
+    dir,
+    relatedCommand(contract, withinPackage(contract.related ?? '', [file])),
+  );
+  return Array.isArray(result)
+    ? { failures: result, output: '' }
+    : { failures: result.failures, output: result.output };
+}
+
 function runTestFile(
   dir: string,
   file: string,
@@ -887,18 +929,19 @@ function runTestFile(
   shell: CommandRunner,
   contract?: RepoContract,
 ): string[] {
-  return LEGACY_TEST.test(file) || !contract
-    ? run(dir, [file])
-    : failuresOf(
-        shell(
-          dir,
-          relatedCommand(
-            contract,
-            withinPackage(contract.related ?? '', [file]),
-          ),
-        ),
-      );
+  return testFileRun(dir, file, run, shell, contract).failures;
 }
+
+/**
+ * A run output that names a missing package or tool (a bare specifier or a command), not a missing source file of the repository:
+ * the environment lacks its dependencies, so the run says nothing about the test.
+ */
+const BROKEN_ENVIRONMENT =
+  /Cannot find package '[^./]|Cannot find module '[^./]|Failed to resolve import "[^./]|command not found|: not found$|No module named |ModuleNotFoundError/mu;
+
+/** Whether a test run's output shows an environment that lacks its dependencies, not a test that fails. */
+const brokenEnvironment = (output: string): boolean =>
+  BROKEN_ENVIRONMENT.test(output);
 
 /**
  * Characterization mode: the branch changes only test files (and tracker records), so no source exists
@@ -938,7 +981,13 @@ export function redTestsAtBase(
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
-  return [...redAtBase(root, from, changed, run, shell, contract)];
+  return [...redAtBase(root, from, changed, run, shell, contract).red];
+}
+
+/** The changed test files that fail against the base source, and the base runs that broke on the environment instead (file to output). */
+interface BaseRuns {
+  readonly red: Set<string>;
+  readonly broken: Map<string, string>;
 }
 
 /** The files among `changed` that fail against the base source, run with the head file in place in a detached worktree. */
@@ -949,19 +998,26 @@ function redAtBase(
   run: Runner,
   shell: CommandRunner,
   contract?: RepoContract,
-): Set<string> {
+): BaseRuns {
   const red = new Set<string>();
+  const broken = new Map<string, string>();
+  const outputs: string[] = [];
   if (changed.length > 0)
     failuresAtBase(root, from, (dir) => {
       for (const file of changed) {
         mkdirSync(dirname(join(dir, file)), { recursive: true });
         copyFileSync(join(root, file), join(dir, file));
-        if (runTestFile(dir, file, run, shell, contract).length > 0)
-          red.add(file);
+        const base = testFileRun(dir, file, run, shell, contract);
+        if (base.output !== '')
+          outputs.push(`== ${file} at the base ==\n${base.output}`);
+        if (base.failures.length === 0) continue;
+        if (brokenEnvironment(base.output)) broken.set(file, base.output);
+        else red.add(file);
       }
       return [];
     });
-  return red;
+  if (outputs.length > 0) saveRunLog(root, 'base-run.log', outputs.join('\n'));
+  return { red, broken };
 }
 
 /** The red-at-base arm is on by default where the contract has a real test command; KRN_TEST_FIRST=0 opts out. */
@@ -996,7 +1052,7 @@ function testFirstRefusal(
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
-  const red = redAtBase(root, from, changed, run, shell, contract);
+  const { red, broken } = redAtBase(root, from, changed, run, shell, contract);
   const characterization = testsOnlyDiff(root, from);
   const characterizing = new Set(
     characterizingTests(
@@ -1010,6 +1066,19 @@ function testFirstRefusal(
       runTestFile(root, file, run, shell, contract).length === 0,
   );
   if (proven !== undefined) return undefined;
+  if (broken.size > 0) {
+    const logged = saveRunLog(
+      root,
+      'base-environment.log',
+      [...broken]
+        .map(([file, output]) => `== ${file} ==\n${output}`)
+        .join('\n'),
+    );
+    const install = contract?.install
+      ? `run the install the repo contract names (${contract.install})`
+      : 'install the dependencies';
+    return `Test-first check could not run: the base environment is broken, not a test red (a package or tool is missing in the temporary base worktree: ${[...broken.keys()].slice(0, SHOWN).join(', ')}${logged ? `; base output: ${logged}` : ''}). ${install}, so the base worktree can link its modules, then commit, or end with a line \`BLOCKER: <what stops you>\`.`;
+  }
   const why =
     changed.length === 0
       ? 'no test file changed on this branch'
@@ -1887,6 +1956,7 @@ export function stopHook(
       env.CLAUDE_PROJECT_DIR ??
       (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd());
     const cwd = resolve(dir);
+    saveRefusal(cwd, refusal);
     const tree = [
       'rev-parse HEAD',
       'status --porcelain -- . :!.krn',
