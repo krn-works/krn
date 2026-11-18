@@ -2,6 +2,7 @@
 // Offline (default): a scratch outside repository with two tasks, a bare origin and a GitHub stand-in
 // at the gh boundary; the real drain, lane run and ship deliver it, killed once at each point, then rerun.
 // Oracle: merges per task counted from the stand-in's PR state and the origin's main history.
+// --live: two seeded tasks in an authorized outside repository, the real drain cut once at (d); see recovery-live.ts.
 import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -387,6 +388,9 @@ export function liveGate(doctor: () => { text: string; exitCode: number }): {
 /** The pilot clone the operator authorized for PRs (never a push to its default branch). */
 export const pilotRoot = '/mnt/storage/tmp/krn/pilot/lead';
 
+/** The GitHub repository of the pilot clone; its App token and PR list are scoped to it. */
+export const pilotRepository = 'krn-works/seo-audit-harness';
+
 async function main(argv: string[]): Promise<number> {
   const at = (name: string) => {
     const index = argv.indexOf(name);
@@ -394,26 +398,37 @@ async function main(argv: string[]): Promise<number> {
   };
   if (argv.includes('--drain'))
     return drainChild(at('--root') ?? process.cwd());
+  if (argv.includes('--live-drain')) {
+    const { liveDrainChild } = await import('./recovery-live.ts');
+    return liveDrainChild(
+      at('--root') ?? pilotRoot,
+      at('--window-hours') ?? '2',
+      (at('--tasks') ?? '').split(',').filter(Boolean),
+    );
+  }
   if (argv.includes('--live')) {
     const { unattendedReport } = await import(
       '../../src/cli/doctor-unattended.ts'
     );
     const root = at('--root') ?? pilotRoot;
+    const windowHours = at('--window-hours') ?? '2';
     const gate = liveGate(() =>
       unattendedReport([
         '--unattended',
         '--window-hours',
-        at('--window-hours') ?? '2',
+        windowHours,
         '--root',
         root,
       ]),
     );
     process.stdout.write(`${gate.line}\n`);
     if (gate.exitCode !== 0) return gate.exitCode;
-    process.stdout.write(
-      'BLOCKED live: the live batch past the doctor is not wired; see the open task\n',
+    const { liveRecovery, livePaths } = await import('./recovery-live.ts');
+    return liveRecovery(
+      livePaths(root, at('--repo') ?? pilotRepository),
+      windowHours,
+      (line) => process.stdout.write(`${line}\n`),
     );
-    return 69;
   }
   let failed = 0;
   for (const point of [undefined, ...killPoints]) {
