@@ -1,0 +1,14 @@
+{
+  "id": "t-kzvqegb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Ship reads a rerun Check as its stale failed attempt",
+  "after": [],
+  "body": [
+    "Evidence: PR #1449, run 44381299774. After `gh run rerun 44381299774 --failed` (attempt 2 in_progress), two `krn pr ship` reruns (.krn/runs/lead/ship-actions-refused-2.log, -3.log) exited 74 at once with \"Check concluded failure\" from attempt 1; attempt 2 then concluded success and a fourth ship merged (f11db40).\nOutcome: ship waits on the newest attempt of the required Check: a completed run superseded by a queued or in-progress rerun of the same Check is pending, not red.\nFiles: src/ci/ship.ts, src/repo/required-check.ts\nProof: a ship test with a captured check-runs reply holding a failed attempt 1 and an in-progress attempt 2 waits instead of exiting 74."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
