@@ -9,9 +9,29 @@ export type SlotOptions = {
   slots?: number;
   /** Poll interval while every slot is taken. */
   pollMs?: number;
+  /** How long to wait for a slot before giving up with a SlotTimeoutError; unset waits forever. */
+  deadlineMs?: number;
   /** Called once, with the pid of a holder, when every slot is taken and the caller starts to wait. */
   onWait?: (holderPid: number | undefined) => void;
 };
+
+/** Exit code a command uses when the slot wait ran past its deadline (the repository timeout code). */
+export const SLOT_TIMEOUT_EXIT = 75;
+
+/** The wait for a slot ended at its deadline while every slot still had a live holder. */
+export class SlotTimeoutError extends Error {
+  readonly exitCode = SLOT_TIMEOUT_EXIT;
+  readonly waitedMs: number;
+  readonly holderPid: number | undefined;
+  constructor(waitedMs: number, holderPid: number | undefined) {
+    super(
+      `no host test slot after ${Math.round(waitedMs / 1000)}s${holderPid ? ` (held by pid ${holderPid})` : ''}`,
+    );
+    this.name = 'SlotTimeoutError';
+    this.waitedMs = waitedMs;
+    this.holderPid = holderPid;
+  }
+}
 
 function alive(pid: number): boolean {
   try {
@@ -22,13 +42,37 @@ function alive(pid: number): boolean {
   }
 }
 
-function holder(slot: string): number | undefined {
+/** Start time of a process in clock ticks since boot (/proc stat field 22), or undefined where /proc has none. */
+export function processStart(pid: number): string | undefined {
   try {
-    const pid = Number(readFileSync(join(slot, 'pid'), 'utf8'));
-    return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    // The command name may hold spaces and parentheses; fields resume after the last ')'.
+    const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+    return fields[19] || undefined;
   } catch {
     return undefined;
   }
+}
+
+type Holder = { pid: number; start: string | undefined };
+
+function holder(slot: string): Holder | undefined {
+  try {
+    const [first, start] = readFileSync(join(slot, 'pid'), 'utf8')
+      .trim()
+      .split(/\s+/);
+    const pid = Number(first);
+    return Number.isInteger(pid) && pid > 0 ? { pid, start } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A holder is live only while its pid exists and, when a start time was recorded, is still the same process. */
+function holding(entry: Holder): boolean {
+  if (!alive(entry.pid)) return false;
+  const now = processStart(entry.pid);
+  return entry.start === undefined || now === undefined || now === entry.start;
 }
 
 /** Takes a free slot (reclaiming one whose holder died) and returns its release. */
@@ -36,6 +80,7 @@ async function acquire(options: SlotOptions): Promise<() => void> {
   const slots = Math.max(1, options.slots ?? 1);
   const pollMs = options.pollMs ?? 250;
   mkdirSync(options.dir, { recursive: true });
+  const started = Date.now();
   let waiting = false;
   for (;;) {
     for (let index = 0; index < slots; index += 1) {
@@ -44,21 +89,29 @@ async function acquire(options: SlotOptions): Promise<() => void> {
         mkdirSync(slot);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        const pid = holder(slot);
-        if (pid !== undefined && alive(pid)) continue;
-        // A fresh slot has no pid yet; only a recorded dead holder is reclaimed.
-        if (pid === undefined) continue;
+        const entry = holder(slot);
+        // A fresh slot has no pid yet; only a recorded dead or replaced holder is reclaimed.
+        if (entry === undefined || holding(entry)) continue;
         rmSync(slot, { recursive: true, force: true });
         index -= 1;
         continue;
       }
-      writeFileSync(join(slot, 'pid'), String(process.pid));
+      writeFileSync(
+        join(slot, 'pid'),
+        `${process.pid} ${processStart(process.pid) ?? ''}`.trim(),
+      );
       return () => rmSync(slot, { recursive: true, force: true });
     }
     if (!waiting) {
       waiting = true;
-      options.onWait?.(holder(join(options.dir, 'slot-0')));
+      options.onWait?.(holder(join(options.dir, 'slot-0'))?.pid);
     }
+    const waited = Date.now() - started;
+    if (options.deadlineMs !== undefined && waited >= options.deadlineMs)
+      throw new SlotTimeoutError(
+        waited,
+        holder(join(options.dir, 'slot-0'))?.pid,
+      );
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
 }

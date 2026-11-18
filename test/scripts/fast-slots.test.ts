@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -100,6 +100,97 @@ test('a nested slot request inside a held slot runs at once instead of queueing 
     );
     assert.equal(inner, 'nested+again');
     assert.deepEqual(messages, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a slot held by a live process that waits past the deadline ends the wait with the timeout exit code', async () => {
+  const { SLOT_TIMEOUT_EXIT, SlotTimeoutError, withSlot } = await import(
+    '../../scripts/lib/slot-lock.ts'
+  );
+  assert.equal(typeof SlotTimeoutError, 'function');
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    const held = gate();
+    const release = gate();
+    const holder = withSlot({ dir, pollMs: 5 }, async () => {
+      held.open();
+      await release.opened;
+    });
+    await held.opened;
+    const error = await withSlot(
+      { dir, pollMs: 5, deadlineMs: 50 },
+      async () => 'never',
+    ).catch((caught: unknown) => caught);
+    assert.ok(error instanceof SlotTimeoutError);
+    assert.equal(error.exitCode, SLOT_TIMEOUT_EXIT);
+    assert.equal(error.holderPid, process.pid);
+    assert.match(
+      error.message,
+      /no host test slot after \d+s \(held by pid \d+\)/,
+    );
+    release.open();
+    await holder;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a slot whose recorded holder pid is dead is reclaimed at once', async () => {
+  const { withSlot } = await import('../../scripts/lib/slot-lock.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    mkdirSync(join(dir, 'slot-0'));
+    writeFileSync(join(dir, 'slot-0', 'pid'), '999999999 12345');
+    const ran = await withSlot(
+      { dir, pollMs: 5000, deadlineMs: 2000 },
+      async () => 'ok',
+    );
+    assert.equal(ran, 'ok');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a slot whose pid now belongs to a different process is reclaimed at once', async () => {
+  const { withSlot, processStart } = await import(
+    '../../scripts/lib/slot-lock.ts'
+  );
+  assert.equal(typeof processStart, 'function');
+  if (processStart(process.pid) === undefined) return;
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    mkdirSync(join(dir, 'slot-0'));
+    // This pid is alive, but the recorded start time is not its own: the pid was reused.
+    writeFileSync(join(dir, 'slot-0', 'pid'), `${process.pid} 1`);
+    const ran = await withSlot(
+      { dir, pollMs: 5000, deadlineMs: 2000 },
+      async () => 'ok',
+    );
+    assert.equal(ran, 'ok');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a slot recorded with this process start time stays held', async () => {
+  const { withSlot, processStart } = await import(
+    '../../scripts/lib/slot-lock.ts'
+  );
+  assert.equal(typeof processStart, 'function');
+  if (processStart(process.pid) === undefined) return;
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    mkdirSync(join(dir, 'slot-0'));
+    writeFileSync(
+      join(dir, 'slot-0', 'pid'),
+      `${process.pid} ${processStart(process.pid)}`,
+    );
+    await assert.rejects(
+      withSlot({ dir, pollMs: 5, deadlineMs: 40 }, async () => 'never'),
+      { name: 'SlotTimeoutError' },
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

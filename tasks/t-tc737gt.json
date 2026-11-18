@@ -1,7 +1,11 @@
 {
   "id": "t-tc737gt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slot wait deadline (exit 75), dead holder and reused pid reclaimed; unit tests in test/scripts/fast-slots.test.ts"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "A host test slot wait has a deadline and reclaims dead holders",
