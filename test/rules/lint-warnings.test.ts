@@ -59,3 +59,25 @@ test('a seeded unused suppression fails the lint check', () => {
     0,
   );
 });
+
+test('a seeded useless boolean ternary fails the lint check', () => {
+  // Biome reports noUselessTernary as info, which exits 0; main carried one unnoticed.
+  assert.notEqual(lint(`${clean}export const b = a ? false : true;\n`), 0);
+});
+
+test('the Check lint job runs npm run lint over the whole tree', () => {
+  const workflow = readFileSync(
+    join(repository, '.github/workflows/ci.yml'),
+    'utf8',
+  );
+  const job = workflow.slice(
+    workflow.indexOf('\n  lint:\n'),
+    workflow.indexOf('\n  typecheck:\n'),
+  );
+  assert.match(job, /^\s+run: npm run lint$/mu);
+  assert.doesNotMatch(job, /--changed|--since|--staged/u);
+  const manifest = JSON.parse(
+    readFileSync(join(repository, 'package.json'), 'utf8'),
+  ) as { scripts: Record<string, string> };
+  assert.match(manifest.scripts.lint ?? '', /biome check [^&]* \. &&/u);
+});
