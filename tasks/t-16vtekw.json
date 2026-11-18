@@ -1,0 +1,14 @@
+{
+  "id": "t-16vtekw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Lane verdicts say whether a session launched",
+  "after": [],
+  "body": [
+    "Evidence: t-aa6xy6t claimed that exits 72 and 64 in .krn/runs/{pilot,pilot-py,units-ts,units-py}/lanes/summary.txt each spent a paid session. They did not. 72 was exitRedBaseline ('no session started', git show 954ece4^:src/cli/lane-run/result.ts), and the 64 rows ran for 4 s. The summary row records only the exit and the seconds, so a task written from it cannot tell a refusal before the session from a failed session.\nOutcome: every krn lane run verdict line states session=0|1 (and its cost when 1), and .krn/runs/pilot/lanes/run.sh copies it into the summary row.\nProof: a lane-run test with a refused receiver asserts session=0 in the verdict line, and the mint-failure test asserts the same."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

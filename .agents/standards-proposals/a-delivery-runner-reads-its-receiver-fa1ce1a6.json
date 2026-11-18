@@ -1,0 +1,8 @@
+{
+  "text": "A delivery runner reads its receiver's merge gate and the base head's required check before it starts a paid model session, and refuses with a named exit when either is missing or red.",
+  "kind": "check",
+  "evidence": [
+    "src/cli/lane-run/receiver.ts"
+  ],
+  "recorded_at": "2026-11-18"
+}

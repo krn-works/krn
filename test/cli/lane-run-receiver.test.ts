@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import { receiverGaps } from '../../src/cli/lane-run/receiver.ts';
+
+// Verbatim gh api replies of krn-works/krn, listed in test/fixtures/gh/provenance.json.
+const gh = (name: string) =>
+  readFileSync(
+    new URL(`../fixtures/gh/${name}.stdout.json`, import.meta.url),
+    'utf8',
+  );
+
+const gated = {
+  branch: gh('branch-main-krn-works-krn'),
+  rules: gh('rules-branches-main-krn-works-krn'),
+};
+
+test('a gated base whose head Check succeeded is ready', () => {
+  assert.deepEqual(
+    receiverGaps('main', { ...gated, checkRuns: gh('check-runs-main-green') }),
+    [],
+  );
+});
+
+test('a base whose head Check failed is a red baseline', () => {
+  const gaps = receiverGaps('main', {
+    ...gated,
+    checkRuns: gh('check-runs-main-red'),
+  });
+  assert.equal(gaps.length, 1);
+  assert.match(
+    gaps[0] ?? '',
+    /required check Check is failure .*baseline is red/u,
+  );
+});
+
+test('a branch without a required Check from GitHub Actions is not ready', () => {
+  const gaps = receiverGaps('doctor-skill-perms', {
+    branch: gh('branch-unprotected-krn-works-krn'),
+    rules: gh('rules-branches-unprotected-krn-works-krn'),
+    checkRuns: gh('check-runs-main-green'),
+  });
+  assert.equal(gaps.length, 1);
+  assert.match(gaps[0] ?? '', /no single required status check/u);
+});
+
+test('a head with no Check run yet proves nothing and is ready', () => {
+  assert.deepEqual(
+    receiverGaps('main', {
+      ...gated,
+      checkRuns: '{"total_count":0,"check_runs":[]}',
+    }),
+    [],
+  );
+});

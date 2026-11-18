@@ -19,6 +19,8 @@ export interface LaneRunSteps {
   mint(env: NodeJS.ProcessEnv): Promise<string | undefined>;
   /** `gh run view RUN --log-failed` output, read when a rerun follows a red Check. */
   ciLogs?(run: string, cwd: string): Promise<string>;
+  /** Why the GitHub receiver of `root` cannot take a delivery on `base`; empty when it can. */
+  receiver?(root: string, base: string): Promise<string[]>;
 }
 
 /** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
@@ -47,6 +49,8 @@ export const defaultSteps: Required<LaneRunSteps> = {
       throw new Error(result.stderr?.trim() || 'gh run view failed');
     return result.stdout;
   },
+  receiver: async (root, base) =>
+    (await import('./receiver.ts')).probeReceiver(root, base),
   start: async (args) => (await import('../lane.ts')).startLane(args),
   ship: async (args) =>
     shipCommand(args, (await import('../pr.ts')).cliShipRuntime),

@@ -107,6 +107,29 @@ export function hasGithubHost(url: string | undefined): boolean {
 }
 
 /**
+ * The required check names from GitHub Actions in the answers of `gh api repos/<repo>/branches/<branch>`
+ * (classic protection) and `gh api repos/<repo>/rules/branches/<branch>` (rulesets).
+ */
+export function requiredContexts(
+  branchBody: string,
+  rulesBody = '[]',
+): string[] {
+  const contexts = new Set<string>();
+  for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
+    ?.required_status_checks?.checks ?? [])
+    if (check.app_id === ACTIONS_APP_ID && isRequiredCheckName(check.context))
+      contexts.add(check.context);
+  for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
+    for (const check of rule.parameters?.required_status_checks ?? [])
+      if (
+        check.integration_id === ACTIONS_APP_ID &&
+        isRequiredCheckName(check.context)
+      )
+        contexts.add(check.context);
+  return [...contexts];
+}
+
+/**
  * Gaps in the answers of `gh api repos/<repo>`, `gh api repos/<repo>/branches/<default>` and
  * `gh api repos/<repo>/rules/branches/<default>`: a required check counts from classic protection or a ruleset.
  */
@@ -121,19 +144,7 @@ export function verifyGaps(
     gaps.push(
       'auto-merge is not allowed (repository setting allow_auto_merge)',
     );
-  const contexts = new Set<string>();
-  for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
-    ?.required_status_checks?.checks ?? [])
-    if (check.app_id === ACTIONS_APP_ID && isRequiredCheckName(check.context))
-      contexts.add(check.context);
-  for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
-    for (const check of rule.parameters?.required_status_checks ?? [])
-      if (
-        check.integration_id === ACTIONS_APP_ID &&
-        isRequiredCheckName(check.context)
-      )
-        contexts.add(check.context);
-  if (contexts.size !== 1)
+  if (requiredContexts(branchBody, rulesBody).length !== 1)
     gaps.push(
       `branch ${repo.default_branch} has no single required status check from GitHub Actions`,
     );

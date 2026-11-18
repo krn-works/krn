@@ -38,6 +38,7 @@ import {
   sessionTimeoutMs,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run/environment.ts';
+import { receiverGaps } from '../../src/cli/lane-run/receiver.ts';
 import {
   redCheckFile,
   redCheckFinding,
@@ -449,6 +450,73 @@ test('lane run stops with exit 69 when the App token cannot be minted', async ()
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+for (const [name, fixtureName, pattern] of [
+  ['a red baseline', 'check-runs-main-red', /baseline is red/u],
+  [
+    'a missing required Check',
+    'rules-missing',
+    /no single required status check/u,
+  ],
+] as const)
+  test(`lane run refuses ${name} with exit 72 before any session or claim`, async () => {
+    const { base, repo, claude } = fixture('touch started');
+    process.env.KRN_LANE_CLAUDE = claude;
+    // A GitHub origin makes the lane probe its receiver; the probe reads the verbatim captures.
+    git(
+      repo,
+      'remote',
+      'set-url',
+      'origin',
+      'https://github.com/krn-works/krn.git',
+    );
+    const read = (file: string) =>
+      readFileSync(
+        new URL(`../fixtures/gh/${file}.stdout.json`, import.meta.url),
+        'utf8',
+      );
+    const missing = fixtureName === 'rules-missing';
+    let started = false;
+    try {
+      const verdict = await laneRunCommand(
+        ['--task', 't-abc1234', '--root', repo],
+        {
+          start: async (args) => {
+            started = true;
+            return startLane(args);
+          },
+          ship: async () => 'unreachable',
+          mint: async () => undefined,
+          receiver: async (_root, branch) =>
+            receiverGaps(branch, {
+              branch: read(
+                missing
+                  ? 'branch-unprotected-krn-works-krn'
+                  : 'branch-main-krn-works-krn',
+              ),
+              rules: read(
+                missing
+                  ? 'rules-branches-unprotected-krn-works-krn'
+                  : 'rules-branches-main-krn-works-krn',
+              ),
+              checkRuns: read(missing ? 'check-runs-main-green' : fixtureName),
+            }),
+        },
+      );
+      assert.equal(verdict.exitCode, 72);
+      assert.match(verdict.line, /receiver not ready, no session started/u);
+      assert.match(verdict.line, pattern);
+      assert.equal(started, false);
+      assert.equal(
+        spawnSync('test', ['-e', join(base, 'repo', 'started')]).status,
+        1,
+      );
+      assert.equal(existsSync(join(repo, '.krn', 'worktrees')), false);
+    } finally {
+      delete process.env.KRN_LANE_CLAUDE;
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
 
 // Receiver evidence (claude -p in a lane worktree, captured 2026-11-10): with
 // CLAUDE_CODE_SUBPROCESS_ENV_SCRUB set the CLI prints "Permission mode forced to
