@@ -1,7 +1,11 @@
 {
   "id": "t-bef2ptx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop refusal now carries a bounded failure excerpt and full log path under .krn/runs/stop-check; tested with stub and real command"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Stop hook refusals carry the failing test output",

@@ -2501,3 +2501,62 @@ test('a lane brief marked `Delivery: none` ends without a commit, PR or test run
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a failing test command refusal carries a bounded excerpt and the full log path', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const noise = 'noise line\n'.repeat(200_000);
+    const output = `${noise}FAILED tests/calc.test.ts::adds - expected 3 but got -1\n`;
+    const shell = (root: string) =>
+      root === dir
+        ? { failures: failuresIn(output, 1), output }
+        : { failures: [], output: '' };
+    const red = inspect(dir, () => [], shell, optOut);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /tests\/calc\.test\.ts :: adds/u);
+    const log = /full log: (\S+\.log)\)/u.exec(red.reason)?.[1] ?? '';
+    assert.ok(
+      log.startsWith(join(dir, '.krn', 'runs', 'stop-check')),
+      `log path ${log}`,
+    );
+    assert.equal(readFileSync(log, 'utf8'), output);
+    assert.match(red.reason, /expected 3 but got -1/u);
+    assert.ok(red.reason.length < 8000, `reason is ${red.reason.length} chars`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a real failing command refusal quotes its output and names the log', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    writeFileSync(
+      join(dir, 'check.sh'),
+      'echo "FAILED t.test.ts::adds - boom"\nexit 1\n',
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'break check');
+    const red = inspect(dir, () => [], undefined, optOut);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /FAILED t\.test\.ts::adds - boom/u);
+    assert.match(red.reason, /\.krn\/runs\/stop-check\/\S+\.log/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
