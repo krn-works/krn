@@ -1,7 +1,11 @@
 {
   "id": "t-sy4qhg1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship merges a base that moved on files disjoint from the patch on the existing Check, no rebase or force-push; overlap, unreadable diff or non-MERGEABLE still rebases (76 on conflict); proven by 3 new ship tests. The 1.3 rounds/PR metric is measured later by the lead."
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Ship stops re-running CI on an unchanged patch after the base moves",

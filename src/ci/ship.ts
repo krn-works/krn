@@ -662,7 +662,27 @@ ${synced}`;
       cwd,
     );
     if (contains.code > 1) checked(contains);
-    if (contains.code === 1) {
+    // The ruleset does not require an up-to-date branch, so a base that moved on files the patch
+    // does not touch merges on the Check it already has; the post-merge Check on the base covers
+    // a semantic break. Anything unclear (overlap, unreadable diff, GitHub not MERGEABLE) rebases.
+    const disjoint = async (): Promise<boolean> => {
+      const patch = runner(
+        'git',
+        ['diff', '--name-only', `${onto}...HEAD`],
+        cwd,
+      );
+      const moved = runner(
+        'git',
+        ['diff', '--name-only', `HEAD...${onto}`],
+        cwd,
+      );
+      if (patch.code !== 0 || moved.code !== 0) return false;
+      const touched = new Set(patch.stdout.split('\n').filter(Boolean));
+      if (moved.stdout.split('\n').some((file) => touched.has(file)))
+        return false;
+      return (await view()).mergeable === 'MERGEABLE';
+    };
+    if (contains.code === 1 && !(await disjoint())) {
       const rebased = runner('git', ['rebase', onto], cwd);
       if (rebased.code !== 0) {
         runner('git', ['rebase', '--abort'], cwd);

@@ -64,6 +64,8 @@ function receiver(options: {
   /** Fetches after which origin/<base> is ahead of the head: each moves the base once, the rebase catches up. */
   baseMoves?: number;
   rebaseExit?: number;
+  /** The files the base changed since the branch point (`git diff --name-only HEAD...origin/<base>`). */
+  baseDiff?: string;
   /** The `gh run list --commit` statuses of the head, per ask; the last one repeats. */
   runs?: string[][];
   runList?: string;
@@ -167,6 +169,8 @@ function receiver(options: {
     }
     if (line === 'rev-parse --abbrev-ref HEAD')
       return out(`${options.branch ?? 'feat-x'}\n`);
+    if (a[0] === 'diff' && a[2]?.startsWith('HEAD...'))
+      return out(options.baseDiff ?? 'src/x.ts\n');
     if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
     if (a[0] === 'status') {
       const afterScoped = calls.some((call) =>
@@ -1148,6 +1152,54 @@ test('a base that moved after the Check passed is merged only after the update a
   const merges = r.calls.filter((c) => c.startsWith('gh pr merge'));
   assert.equal(merges.length, 1);
   assert.ok(!merges[0]?.includes(head));
+});
+
+test('a base that moved on a disjoint file merges the checked head without a rebase or force-push', async () => {
+  const r = receiver({
+    pulls: [auto, merged],
+    baseMoves: 1,
+    diff: 'src/x.ts\n',
+    baseDiff: 'docs/y.md\n',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(!r.calls.some((c) => c.startsWith('git rebase')));
+  assert.ok(!r.calls.some((c) => c.includes('--force-with-lease')));
+  assert.deepEqual(
+    r.calls.filter((c) => c.startsWith('gh pr merge')),
+    [`gh pr merge 7 --repo o/r --squash --match-head-commit ${head}`],
+  );
+});
+
+test('a base that moved on a disjoint file still rebases when GitHub does not report the PR mergeable', async () => {
+  const unknown = { ...auto, mergeable: 'UNKNOWN' };
+  const r = receiver({
+    pulls: [
+      unknown,
+      unknown,
+      { ...auto, headRefOid: newHead },
+      { ...merged, headRefOid: newHead },
+    ],
+    baseMoves: 1,
+    baseDiff: 'docs/y.md\n',
+  });
+  await shipCommand(args, r);
+  assert.ok(r.calls.includes('git rebase origin/main'));
+});
+
+test('a base that moved on a file the patch touches rebases and keeps the 76 path on conflict', async () => {
+  const r = receiver({
+    pulls: [auto],
+    baseMoves: 1,
+    rebaseExit: 1,
+    diff: 'src/x.ts\n',
+    baseDiff: 'src/x.ts\ndocs/y.md\n',
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 76);
+    return true;
+  });
+  assert.ok(r.calls.includes('git rebase origin/main'));
 });
 
 test('a base that moved and no longer rebases exits 76 without merging', async () => {
