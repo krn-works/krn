@@ -56,3 +56,14 @@ test('a different refusal restarts the count and sessions count apart', () => {
   );
   assert.equal(stopHook(input('s4'), env, '', refuse).code, 2);
 });
+
+test('a refusal is saved under .krn/runs/stop-check so the lane and the lead can read why', () => {
+  const dir = checkout();
+  const env = { CLAUDE_PROJECT_DIR: dir };
+  const out = stopHook(input('s5'), env, '', refuse);
+  assert.equal(out.code, 2);
+  assert.equal(
+    readFileSync(join(dir, '.krn/runs/stop-check/last-refusal.txt'), 'utf8'),
+    'Stop refused: nothing committed\n',
+  );
+});

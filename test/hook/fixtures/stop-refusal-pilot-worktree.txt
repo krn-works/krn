@@ -1,0 +1,45 @@
+stop FAIL: 2 related test(s) fail that passed at the base (pre-existing failures were ignored) (ran: npm --prefix packages/seo run build && npm --prefix packages/seo test):
+  tests/cli/url-language.test.ts
+  tests/cli/url-plan.test.ts
+Failure output (full log: /mnt/storage/tmp/krn/repro-bfe/.krn/runs/stop-check/1795023854935-1740692.log):
+  szczegóły stosu: SEO_DEBUG=1
+✖ jobs: blokada nie spełnia warunków jawnego odzyskania
+  szczegóły stosu: SEO_DEBUG=1
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cli/url-language.test.ts > reports every URL occurrence from the exact offline context without network access
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cli/url-language.test.ts:66:1
+     64| });
+     65|
+     66| it("reports every URL occurrence from the exact offline context withou…
+       | ^
+     67|   const { dir, workbook, input, context, bytes, payload } = await crea…
+     68|   const fetch = vi.fn(() => { throw new Error("Unexpected network"); }…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/cli/url-plan.test.ts > rejects credential-bearing workbook values before either report command creates output
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cli/url-plan.test.ts:8:1
+      6| import { run } from "../../src/cli/main.ts";
+      7|
+      8| it("rejects credential-bearing workbook values before either report co…
+       | ^
+      9|   const { stat } = await import("node:fs/promises");
+     10|   const dir = await mkdtemp(join(tmpdir(), "url-report-private-input-"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 272 passed (274)
+      Tests  2 failed | 2075 passed (2077)
+   Start at  18:36:11
+   Duration  281.14s (tests 68%, import 26%, transform 5%, worker 1%)
+
+    Isolate  274 workers spawned · ~449ms startup each (spawn + environment, per file)
+             at least ~61.04s faster with isolate: false — reuses workers across files instead of one per file
+Fix them and commit, or end with a line `BLOCKER: <what stops you>`.
