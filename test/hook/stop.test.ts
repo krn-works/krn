@@ -43,6 +43,12 @@ import { recordShip } from '../../src/repo/ship-record.ts';
 
 const hook = fileURLToPath(new URL('../../src/hook/stop.ts', import.meta.url));
 
+// Stop runs its tests inside the host test slot. Another lane's fast run holding that slot (or an inherited
+// KRN_FAST_SLOT_DIR) would queue or skip these cases; a private slot directory keeps them off the host's.
+process.env.KRN_FAST_SLOT_DIR = mkdtempSync(join(tmpdir(), 'stop-slots-'));
+process.env.KRN_FAST_SLOTS = '64';
+delete process.env.KRN_TEST_SLOT_HELD;
+
 test('relatedTests picks changed tests and tests importing a changed file', () => {
   const tests = new Map([
     ['test/a.test.ts', "import { x } from '../src/a.ts';"],
@@ -2967,5 +2973,20 @@ test('test-first through the node runner: a base missing a new source file of th
     assert.equal(judgeStop(payload(dir), testFirst(dir)), undefined);
   } finally {
     rmSync(outer, { recursive: true, force: true });
+  }
+});
+
+test('the Stop tests run in a private host test slot, never an inherited or shared one', () => {
+  const dir = clone();
+  try {
+    const slots = process.env.KRN_FAST_SLOT_DIR ?? '';
+    assert.ok(slots.startsWith(join(tmpdir(), 'stop-slots-')), slots);
+    // A held slot there never stalls a Stop test run: the pool is wide.
+    mkdirSync(join(slots, 'slot-0'), { recursive: true });
+    writeFileSync(join(slots, 'slot-0', 'pid'), `${process.pid}`);
+    writeFileSync(join(dir, 'test/a.test.ts'), 'import "node:test";\n');
+    assert.deepEqual(runTests(dir, ['test/a.test.ts']), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
