@@ -1,0 +1,17 @@
+{
+  "id": "t-dgrn7rf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "A lane edit outside its own worktree is refused before it lands in the main checkout",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: lane t-bef2ptx (PR #1405) wrote a draft of src/hook/stop.ts into the main checkout by absolute path before creating its worktree, reverted it, and the edit reappeared; the main checkout stayed dirty, `git pull` failed for the lead, and the lead saved it to .krn/tmp/main-checkout-stop-draft.patch and restored the file. lanes.md already forbids editing the main checkout; nothing enforces it.",
+    "Outcome: a PreToolUse guard refuses Edit/Write (and shell redirections it can see) from a lane session to a path outside that lane's worktree, naming the worktree to use.",
+    "Proof: a hook test: lane session with worktree W edits <repo>/src/x.ts -> refused with W named; edit inside W -> allowed.",
+    "Files: src/hook/, test/hook/"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
