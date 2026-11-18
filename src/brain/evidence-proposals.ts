@@ -1,4 +1,4 @@
-// Delivered evidence proposes records: a CI failure, a failed hidden test, a review finding or an
+// Delivered evidence proposes records: a red CI check, a failed hidden test, a review finding or an
 // operator correction quoted verbatim each become one `trial` record proposal carrying a `subject`.
 // A Stop refusal is never a source. The readers take raw rows; the caller owns the filesystem.
 import { createHash } from 'node:crypto';
@@ -29,7 +29,7 @@ export type EvidenceProposal = {
 /** The part of a ledger row a CI failure is read from. */
 export type CiRow = {
   readonly number: number;
-  readonly prGate: { readonly reruns: number | null };
+  readonly prGate: { readonly failed: readonly number[] };
 };
 
 type Draft = Omit<EvidenceProposal, 'action' | 'supersedes' | 'recorded_at'>;
@@ -57,19 +57,17 @@ function group(drafts: readonly Draft[]): Draft[] {
   return [...by.values()];
 }
 
-/** A merged PR whose required check needed a rerun is a CI failure the pull request delivered. */
+/** A merged PR with a required-check run that concluded red is a CI failure; evidence names the PR and the run. */
 export function ciFailures(rows: readonly CiRow[]): Draft[] {
-  const evidence = rows
-    .filter((row) => (row.prGate.reruns ?? 0) > 0)
-    .map((row) => `#${row.number}`);
-  return evidence.length === 0
+  const red = rows.filter((row) => row.prGate.failed.length > 0);
+  return red.length === 0
     ? []
     : [
         {
           evidence_kind: 'ci',
           subject: CI_SUBJECT,
-          text: 'Run the full local checks before shipping: a merged pull request needed a rerun of the required CI check.',
-          evidence,
+          text: `Run the full local checks before shipping: the required CI check concluded red on a merged pull request (${red.map((row) => `#${row.number} check run ${row.prGate.failed.join(', ')}`).join('; ')}).`,
+          evidence: red.map((row) => `#${row.number}`),
         },
       ];
 }
@@ -94,7 +92,7 @@ export function closeFailures(exposures: readonly Exposure[]): Draft[] {
       out.push({
         evidence_kind: 'ci',
         subject: CI_SUBJECT,
-        text: 'Run the full local checks before shipping: a merged pull request needed a rerun of the required CI check.',
+        text: 'Run the full local checks before shipping: a merged pull request had a red required CI check.',
         evidence: [reference],
       });
     return out;

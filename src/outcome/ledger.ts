@@ -349,12 +349,16 @@ export function attributePr<S extends Pick<Session, 'commands'>>(
     : scores[0].session;
 }
 
+/** Check conclusions that are a red Check; cancelled, skipped and a missing conclusion are not. */
+const FAILING_CONCLUSIONS = new Set(['failure', 'timed_out']);
+
+/** `failed` lists the ids of the required-check runs that concluded red. */
 export function gateTotals(responses: unknown[]) {
   if (
     !responses.length ||
     responses.some((r) => !Array.isArray(object(r).check_runs))
   )
-    return { runs: null, reruns: null, minutes: null };
+    return { runs: null, reruns: null, minutes: null, failed: [] as number[] };
   const groups = responses.map((r) =>
     array(object(r).check_runs)
       .map(object)
@@ -366,6 +370,11 @@ export function gateTotals(responses: unknown[]) {
   );
   const runs = groups.flat();
   return {
+    failed: runs.flatMap((r) =>
+      FAILING_CONCLUSIONS.has(string(r.conclusion)) && typeof r.id === 'number'
+        ? [r.id]
+        : [],
+    ),
     runs: runs.length || null,
     reruns: runs.length
       ? groups.reduce((n, g) => n + Math.max(0, g.length - 1), 0)

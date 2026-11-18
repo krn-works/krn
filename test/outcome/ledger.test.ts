@@ -86,7 +86,12 @@ test('accepted outcome evidence and collectors', async () => {
     181,
   );
   const gates = ledger.gateTotals([await fixture('check-runs-rerun')]);
-  assert.deepEqual(gates, { runs: 2, reruns: 1, minutes: 25 });
+  assert.deepEqual(gates, {
+    runs: 2,
+    reruns: 1,
+    minutes: 25,
+    failed: [127549243386],
+  });
   assert.equal(
     ledger.gateTotals([await fixture('check-runs-pending')]).minutes,
     null,
@@ -285,6 +290,7 @@ test('unknown evidence, attribution and output boundaries', async () => {
     runs: null,
     reruns: null,
     minutes: null,
+    failed: [],
   });
   const root = await mkdtemp(join(tmpdir(), 'ledger-cli-'));
   try {

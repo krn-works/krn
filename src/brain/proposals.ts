@@ -314,7 +314,7 @@ export function renderBulletHarvest(
 /** The part of a ledger row a lesson is drawn from. */
 export type LedgerRow = {
   readonly number: number;
-  readonly prGate: { readonly reruns: number | null };
+  readonly prGate: { readonly failed: readonly number[] };
   readonly outcome: { readonly status: string };
 };
 
@@ -331,7 +331,7 @@ export function ledgerProposals(
   recordedAt: string,
 ): Sourced[] {
   const lessons = (row: LedgerRow): string[] => [
-    ...((row.prGate.reruns ?? 0) > 0 ? [RED_CI_LESSON] : []),
+    ...(row.prGate.failed.length > 0 ? [RED_CI_LESSON] : []),
     ...(row.outcome.status === 'changed' || row.outcome.status === 'reverted'
       ? [REWORK_LESSON]
       : []),
