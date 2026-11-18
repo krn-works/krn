@@ -1,0 +1,16 @@
+{
+  "id": "t-pgjsqba",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "A docs-only lane diff is not refused by the test-first arm",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D3.",
+    "Outcome: testFirstRefusal skips a diff with no source change, so a docs/chore lane ships instead of ending BLOCKER 73 after a paid session.",
+    "Proof: a stop-hook unit test with a docs-only diff yields no refusal; a src change without a test still refuses."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

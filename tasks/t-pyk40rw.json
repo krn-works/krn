@@ -1,0 +1,16 @@
+{
+  "id": "t-pyk40rw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "The successor launcher prefix is idempotent",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D9.",
+    "Outcome: compose.ts launcherPrompt does not prepend the retire line to a prompt that already starts with it.",
+    "Proof: a unit test composing an already-composed prompt yields exactly one prefix."
+  ],
+  "kind": "defect",
+  "area": "successor"
+}
