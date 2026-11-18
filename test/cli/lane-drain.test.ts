@@ -66,19 +66,43 @@ test('drain goes on when two different tasks fail with the same exit class', asy
   const result = await drainReady(request(4), s);
   assert.equal(ran.length, 4);
   assert.equal(result.exitCode, 74);
-  assert.doesNotMatch(result.lines.join('\n'), /stopped after/u);
+  assert.doesNotMatch(result.lines.join('\n'), /stopped,/u);
 });
 
-test('drain stops after two consecutive failures of the same task and exit class', async () => {
-  const { seams: s, ran } = seams(['t-a', 't-b'], { 't-a': 74 });
-  // The queue offers t-a again, as a retry of one task would.
-  s.nextReady = async () => 't-a';
-  const result = await drainReady(request(4), s);
-  assert.equal(ran.length, 2);
-  assert.match(
-    result.lines.at(-1) ?? '',
-    /stopped after 2 consecutive exit 74/u,
-  );
+test('drain stops after two infrastructure failures of different tasks', async () => {
+  for (const code of [67, 69, 70, 75]) {
+    const { seams: s, ran } = seams(['t-a', 't-b', 't-c'], {
+      't-a': code,
+      't-b': code,
+    });
+    const result = await drainReady(request(5), s);
+    assert.deepEqual(
+      ran.map((r) => r.id),
+      ['t-a', 't-b'],
+    );
+    assert.equal(result.exitCode, code);
+    assert.equal(
+      result.lines.at(-1),
+      `drain: stopped, infrastructure ${code} twice`,
+    );
+  }
+});
+
+test('drain goes on when infrastructure failures differ or a task failure intervenes', async () => {
+  const { seams: s, ran } = seams(['t-a', 't-b', 't-c', 't-d'], {
+    't-a': 70,
+    't-b': 69,
+    't-c': 70,
+  });
+  await drainReady(request(4), s);
+  assert.equal(ran.length, 4);
+  const { seams: s2, ran: ran2 } = seams(['t-a', 't-b', 't-c'], {
+    't-a': 70,
+    't-b': 74,
+    't-c': 70,
+  });
+  await drainReady(request(3), s2);
+  assert.equal(ran2.length, 3);
 });
 
 test('drain goes on when failures differ or a success intervenes', async () => {

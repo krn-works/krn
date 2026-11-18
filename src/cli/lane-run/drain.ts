@@ -2,13 +2,26 @@ import { flagValue } from '../../cli-kit/flag-value.ts';
 import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { readyTasks } from '../../task/claims.ts';
 import { repositoryRoot } from '../../task/store.ts';
+import {
+  exitAppNotInstalled,
+  exitMintFailed,
+  exitVaultShort,
+} from '../doctor-unattended.ts';
 import type { LaneVerdict } from './steps.ts';
 
 export const drainUsage =
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]';
 
-/** Two consecutive runs of the same task ending in the same non-zero exit stop the drain; a failure of another task starts a new streak. */
-export const repeatedClassLimit = 2;
+/** Exits of the host, not of the task: the doctor's mint (69), vault (75) and App install (67) codes and the ship push failure (70). A task that ends in one says nothing about the next task; two in a row mean every queued task would fail the same way. */
+export const infrastructureExits: readonly number[] = [
+  exitAppNotInstalled,
+  exitMintFailed,
+  70,
+  exitVaultShort,
+];
+
+/** Consecutive infrastructure-class failures with the same exit that stop the drain. */
+export const infrastructureStreakLimit = 2;
 
 export interface DrainRequest {
   max: number;
@@ -99,8 +112,8 @@ export interface DrainResult {
 /**
  * Deliver ready tasks one after another: the doctor check first (a failure stops before any
  * claim), then up to `max` single-task runs, one summary line each. It stops early when the
- * queue is empty or two consecutive runs of the same task end with the same non-zero exit. The exit is 0 only when
- * no run failed, else the exit of the last failure; a line names every failed task.
+ * queue is empty or two consecutive runs end with the same infrastructure-class exit (see
+ * `infrastructureExits`); task-class failures never stop it. The exit is 0 only when no run failed, else the exit of the last failure; a line names every failed task.
  */
 export async function drainReady(
   request: DrainRequest,
@@ -121,8 +134,7 @@ export async function drainReady(
   }
   const root = repositoryRoot(request.root ?? process.cwd());
   const tried = new Set<string>();
-  let lastFailure = 0;
-  let lastFailedId: string | undefined;
+  let lastInfrastructure = 0;
   let streak = 0;
   let exitCode = 0;
   const failed: string[] = [];
@@ -150,19 +162,16 @@ export async function drainReady(
       exitCode = verdict.exitCode;
       failed.push(`${id} (exit ${verdict.exitCode})`);
     }
-    if (verdict.exitCode === 0) {
+    if (!infrastructureExits.includes(verdict.exitCode)) {
       streak = 0;
-      lastFailure = 0;
-      lastFailedId = undefined;
+      lastInfrastructure = 0;
       continue;
     }
-    streak =
-      verdict.exitCode === lastFailure && id === lastFailedId ? streak + 1 : 1;
-    lastFailure = verdict.exitCode;
-    lastFailedId = id;
-    if (streak >= repeatedClassLimit) {
+    streak = verdict.exitCode === lastInfrastructure ? streak + 1 : 1;
+    lastInfrastructure = verdict.exitCode;
+    if (streak >= infrastructureStreakLimit) {
       summarise();
-      say(`drain: stopped after ${streak} consecutive exit ${lastFailure}`);
+      say(`drain: stopped, infrastructure ${verdict.exitCode} twice`);
       break;
     }
   }

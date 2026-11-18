@@ -1,7 +1,11 @@
 {
   "id": "t-p33sqcr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "infrastructure exits 67/69/70/75 twice stop drain; task-class never; tests fail on old source by assertion"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Drain stops after two consecutive infrastructure-class failures across tasks; task-class failures never stop it",
