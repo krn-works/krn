@@ -1,7 +1,11 @@
 {
   "id": "t-8s3zt60",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "first-ten --report prints PASS on the labelled synthetic cohort fixture; FAIL and INSUFFICIENT proven by CLI tests"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Measure inherited standards on each adopter's first ten tasks against a static control",
