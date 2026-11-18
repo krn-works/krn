@@ -10,16 +10,18 @@ Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed 
 
 ## Measure first
 
-List the commits naming the task, the wall time, the merged pull requests, CI reruns and the interventions the user made; one line per category below beats a narrative.
+List the commits naming the task, the wall time, merged pull requests, CI reruns and user interventions; one line per category below beats a narrative.
+
+If the slice hit a workaround or a tool refusal and the repository has an `astra-critique.ts` script, write each (with evidence paths) to `.krn/tmp/friction.md` and run it with `node`; each finding gets a task or a disposition.
 
 ## Find candidates
 
 - **Automated checks:** an error a check could have caught earlier. Extend the cheapest check (a lint rule, a test, a CI step). This is the preferred outcome.
 - **Reviewer rules:** a review finding no deterministic check can catch. Add it to the repository rules in `AGENTS.md`.
-- **Steering files:** instructions that changed nothing, duplicate another owner or contradict a decision record. Delete them or move them to their owner.
-- **Navigation:** time lost finding a file or an owner. Add one pointer in `AGENTS.md`.
-- **Tool economy:** expensive calls such as raw logs or repeated full test runs. Script a verdict instead.
-- **Information access:** a fact the lead lacked, such as CI logs or host state. Add a command that fetches it.
+- **Steering files:** instructions that changed nothing, duplicate an owner or contradict a decision record. Delete or move them.
+- **Navigation:** time lost finding an owner. Add a pointer in `AGENTS.md`.
+- **Tool economy:** expensive calls (raw logs, repeated full runs). Script a verdict.
+- **Information access:** a fact the lead lacked (CI logs, host state). Add a command for it.
 - **Flakiness:** a timing failure. Record a defect task with the failing test; never add a retry policy.
 
 ## Disposition
@@ -30,15 +32,15 @@ Each candidate becomes, in this order of preference:
 2. a rule in `AGENTS.md`;
 3. a `krn task create` task with observable acceptance.
 
-A trap lesson (a known defect that cost a step) also needs its steering fix as a task unless the file holding the workaround is in scope; a task alone is not a disposition for a trap.
+A trap lesson (a known defect that cost a step) also needs its steering fix as a task unless the file holding the workaround is in scope.
 
 ## Propose upstream
 
-A lesson that would hold in other repositories too (a failure or a practice that worked) also becomes a standards proposal KRN can harvest into the pack every adopted project inherits:
+A lesson that holds in other repositories too also becomes a standards proposal KRN can harvest into the pack every adopted project inherits:
 
 `krn standards propose --text "<the lesson as one statement>" --kind check|template|skill|prose --evidence <#PR, commit SHA, path or https URL>`
 
-`krn standards propose` writes one file under `.agents/standards-proposals/`; commit it with the slice. Evidence is mandatory; `--kind` names how the lesson would be enforced.
+It writes one file under `.agents/standards-proposals/`; commit it with the slice. Evidence is mandatory.
 
 ## Output
 
