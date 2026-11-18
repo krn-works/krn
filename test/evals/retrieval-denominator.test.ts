@@ -71,3 +71,28 @@ test('the edit moment recalls at least 0.75 of reachable labels and names why ea
   assert.ok(reasons.length > 0, 'unreachable labels are explained');
   for (const row of reasons) assert.match(row, /: \S/u);
 });
+
+test('the edit moment recalls at least 0.75 of all labels and every unreachable case carries a written reason', () => {
+  const report = spawnSync('node', [run], { encoding: 'utf8' });
+  assert.equal(report.status, 0, report.stderr);
+  const edit = /of all (\d+) violated records ([\d.]+)/u.exec(
+    report.stdout.split('\n').find((row) => row.startsWith('recall@5 edit ')) ??
+      '',
+  );
+  assert.ok(edit, 'the edit line');
+  assert.ok(Number(edit[2]) >= 0.75, `edit recall of all ${edit[2]}`);
+  const cases = (
+    JSON.parse(readFileSync(casesPath, 'utf8')) as {
+      cases: { id: string; unreachable?: string }[];
+    }
+  ).cases;
+  const named = report.stdout
+    .split('\n')
+    .filter((row) => row.startsWith('unreachable edit '))
+    .flatMap((row) => /\(([0-9a-f ]+)\)/u.exec(row)?.[1]?.split(' ') ?? []);
+  assert.ok(named.length > 0, 'unreachable cases are listed');
+  for (const id of named) {
+    const reason = cases.find((item) => item.id === id)?.unreachable;
+    assert.ok((reason ?? '').length > 20, `case ${id} has a written reason`);
+  }
+});

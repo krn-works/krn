@@ -13,17 +13,17 @@ s-gitignore-deps [package.json+4]: The ignore rules cover the dependency and bui
 s-readme-test-command: The README states how to run the tests
 s-no-conflict-markers: No tracked file holds an unresolved merge conflict marker
 s-one-instruction-file: A repository keeps one instruction file for agents, AGENTS.md; any other agent instruction file is a link to it or points to it
-s-clean-checkout-tests: The test suite gives the same verdict on a clean checkout: no test depends on untracked local state such as an earlier build or the enclosing repository
+s-clean-checkout-tests [test/**+1]: The test suite gives the same verdict on a clean checkout: no test depends on untracked local state such as an earlier build or the enclosing repository
 s-regression-lowest-layer: A fixed defect gets its regression test in the same commit: each of the last ten `fix` commits touches a test file, or carries a `No-test: <reason>` line
 s-role-names: Files, functions, tests and work are named by purpose and role, never by phase, ticket, round, date or version
-s-exit-codes: Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr
+s-exit-codes [scripts/**+2]: Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr
 s-secrets-redacted: Values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded
 s-no-shared-stash: Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit
 s-task-records [tasks/**]: Task status lives in valid `tasks/<id>.json` records that only `krn task` changes
 s-repo-contract [krn.json+1]: The repository contract names a test command, so lanes and the finish gate know what to run
 s-agent-state: Agent notes, plans, logs and scratch files go under the git-ignored `.krn/` directory, never into tracked files or the repository root
 s-finish-gate: A session cannot end while the tests related to its change are red: a Stop hook entry in `.claude/settings.json` runs a command that refuses the end (`krn hook stop` when adopted, or the repository's own stop script)
-s-ticket-trailer: A commit that completes a managed task ends with a `Ticket: <id>` trailer; a commit that leaves the task open carries `Refs: <id>` instead
+s-ticket-trailer [**/lane-run*]: A commit that completes a managed task ends with a `Ticket: <id>` trailer; a commit that leaves the task open carries `Refs: <id>` instead
 s-php-composer-lock [**/*.php]: A PHP project that declares Composer packages tracks its composer.lock
 s-php-composer-scripts [**/*.php]: A PHP project with composer.json declares the composer scripts `test` and `lint`, so agents and CI run the same named checks
 s-php-no-raw-request-output [**/*.php]: PHP code never echoes request input (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) without escaping it at the output boundary

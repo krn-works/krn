@@ -1,7 +1,11 @@
 {
   "id": "t-enjfngb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "edit recall of all labels 0.36 to 0.79 (26/33); each remaining unreachable case has a written reason in cases.json"
+  },
   "created": "2026-11-18",
   "priority": 2,
   "title": "Edit-time standards are reachable: labelled records carry the path or stack keys of the files they govern",

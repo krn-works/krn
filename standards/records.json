@@ -590,7 +590,7 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
+      "paths": ["test/**", "**/*.test.*"],
       "terms": [
         "clean",
         "checkout",
@@ -799,7 +799,7 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
+      "paths": ["scripts/**", "**/cli.ts", "**/cli/**"],
       "terms": [
         "exit",
         "codes",
@@ -1119,7 +1119,7 @@
     "applies": {
       "stacks": [],
       "needs": ["tracker"],
-      "paths": [],
+      "paths": ["**/lane-run*"],
       "terms": [
         "ticket",
         "trailer",
