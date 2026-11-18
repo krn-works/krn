@@ -102,7 +102,7 @@ test('a weak benefit between the PASS and FAIL conditions prints INSUFFICIENT', 
     .map((row) =>
       JSON.stringify({
         ...row,
-        pass: row.arm === 'B' && failing.has(row.unit as string) ? false : true,
+        pass: !(row.arm === 'B' && failing.has(row.unit as string)),
       }),
     )
     .join('\n');
