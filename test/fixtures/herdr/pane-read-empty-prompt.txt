@@ -1,0 +1,6 @@
+  Done: the change is merged.
+
+────────────────────────────────────────
+❯ 
+────────────────────────────────────────
+  bypass permissions on (shift+tab to cycle)

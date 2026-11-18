@@ -219,6 +219,16 @@ export function herdrHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
       );
       return succeeded(result);
     },
+    screen(session) {
+      const result = run('herdr', [
+        'pane',
+        'read',
+        session,
+        '--source',
+        'visible',
+      ]);
+      return succeeded(result) ? result.stdout : undefined;
+    },
     busy: hostsRunningWork,
     list(scope) {
       const list = run('herdr', ['tab', 'list', '--workspace', scope]);

@@ -1,0 +1,7 @@
+  Done: the change is merged.
+
+────────────────────────────────────────
+❯ draft of the next prompt
+  that spans a second line
+────────────────────────────────────────
+  bypass permissions on (shift+tab to cycle)

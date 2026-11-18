@@ -59,6 +59,8 @@ export type TerminalHost = {
   agent(session: SessionRef): AgentInfo;
   /** Blocks until the agent is idle or done; false on timeout or failure. */
   wait(session: SessionRef, timeoutMs: number): boolean;
+  /** The session's visible screen as text; undefined when it cannot be read. */
+  screen(session: SessionRef): string | undefined;
   /** Whether the session hosts running work besides its idle agent. */
   busy(session: SessionRef): boolean;
   /** Tabs of a scope with their sessions; a failure when the list is unreadable. */

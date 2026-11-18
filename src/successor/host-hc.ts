@@ -223,6 +223,10 @@ export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
         reply.status === 'done'
       );
     },
+    screen(session) {
+      const result = run('hc', ['read', session]);
+      return succeeded(result) ? result.stdout : undefined;
+    },
     // Work besides the idle agent: any foreground program that is neither the
     // agent nor a shell, or an agent with a live child shell. A terminal hc
     // cannot show is not held.

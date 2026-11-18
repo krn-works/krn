@@ -108,6 +108,7 @@ function replies(children: boolean): Replies {
         : 'pane-process-info-working.reply.jsonl',
     ),
     'pane close': captureReply('pane-close.reply.jsonl'),
+    'pane read': ok(capture('pane-read-empty-prompt.txt')),
     'tab close': captureReply('tab-close.reply.jsonl'),
   };
 }

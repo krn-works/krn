@@ -14,6 +14,7 @@ import {
   type TabRef,
   type TerminalHost,
 } from './terminal-host.ts';
+import { unsentInput } from './unsent-input.ts';
 
 // Retire: close the predecessor panes that finished, rewrite the launch ledger and rename the caller's tab.
 
@@ -29,6 +30,25 @@ function keptRunning(host: TerminalHost, session: SessionRef): boolean {
   if (!host.busy(session)) return false;
   process.stderr.write(`retire: kept ${session}: running work\n`);
   return true;
+}
+
+// A screen that cannot be read counts as holding input: closing would risk it.
+function holdsUnsentInput(host: TerminalHost, session: SessionRef): boolean {
+  const screen = host.screen(session);
+  return screen === undefined || unsentInput(screen);
+}
+
+function tabHoldsUnsentInput(
+  host: TerminalHost,
+  scope: ScopeRef,
+  tab: TabRef,
+): boolean {
+  const tabs = host.list(scope);
+  if (isFailure(tabs)) return true;
+  const listed = tabs.find((candidate) => candidate.tab === tab);
+  const sessions = listed?.sessions();
+  if (!sessions) return true;
+  return sessions.some((session) => holdsUnsentInput(host, session));
 }
 
 function runningSessionInTab(
@@ -90,6 +110,12 @@ export function retireMode(
         settled
       ) {
         if (keptRunning(host, predPane)) break;
+        if (holdsUnsentInput(host, predPane)) {
+          process.stderr.write(
+            `retire: kept predecessor ${predPane}: unsent input\n`,
+          );
+          break;
+        }
         const closed = host.close(predPane) === undefined;
         process.stderr.write(
           `retire: ${closed ? 'closed' : 'failed to close'} predecessor ${predPane}\n`,
@@ -127,6 +153,8 @@ export function retireMode(
       (tab.status === 'idle' || tab.status === 'done');
     if (eligible && runningSessionInTab(host, own.scope, tab.tab))
       process.stderr.write(`retire: kept tab ${tab.tab}\n`);
+    else if (eligible && tabHoldsUnsentInput(host, own.scope, tab.tab))
+      process.stderr.write(`retire: kept tab ${tab.tab}: unsent input\n`);
     else if (eligible)
       process.stderr.write(
         `retire: ${host.closeTab(tab.tab) === undefined ? 'closed' : 'kept'} tab ${tab.tab}\n`,
@@ -188,6 +216,11 @@ function retireLedger(
       (info.status === 'idle' || info.status === 'done')
     ) {
       if (keptRunning(host, pane)) {
+        kept.push(launch);
+        continue;
+      }
+      if (holdsUnsentInput(host, pane)) {
+        process.stderr.write(`retire: kept ${pane}: unsent input\n`);
         kept.push(launch);
         continue;
       }

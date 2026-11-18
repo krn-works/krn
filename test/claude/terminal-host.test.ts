@@ -221,6 +221,7 @@ test('list answers the failure of a missing workspace', (t) => {
 test('close, closeTab and rename answer nothing when done and the reason when refused', (t) => {
   const { host, calls } = withHerdr(t, {
     'pane close': captureReply('pane-close.reply.jsonl'),
+    'pane read': ok(capture('pane-read-empty-prompt.txt')),
     'tab close w1D:tB1': captureReply('tab-close-missing.stderr.jsonl'),
     'tab close w1D:tOK': captureReply('tab-close.reply.jsonl'),
     'tab rename': captureReply('tab-rename.reply.jsonl'),
