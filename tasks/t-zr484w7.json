@@ -1,7 +1,11 @@
 {
   "id": "t-zr484w7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Lint job already ran npm run lint over the whole tree; the miss was Biome reporting noUselessTernary as info (exit 0). Rule is now error; test/rules/lint-warnings.test.ts seeds the ternary and pins the job command."
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "The Check's Lint job catches a Biome error the PR did not touch",
