@@ -26,7 +26,6 @@ import {
   LANE_BUDGET,
   lanePacket,
   packetBrief,
-  queryOutcome,
   workerRecords,
 } from '../../src/brain/worker-packet.ts';
 import { laneBrief, laneBriefText } from '../../src/cli/lane-brief.ts';
@@ -391,8 +390,12 @@ test('a captured worker brief writes one exposure row with its task, served and 
   for (const id of exposure.withheld) assert.equal(totals.get(id)?.withheld, 1);
 });
 
-test('a task-keyed standards query reports the records its holdout withheld', (t) => {
+test('a task-keyed standards query records an exposure row with the records its holdout withheld', (t) => {
   const root = conventionsRepo(t, []);
+  assert.equal(
+    spawnSync('git', ['-C', root, 'init', '-q', '-b', 'main']).status,
+    0,
+  );
   const task = 't-abc1234';
   // Five records fit the query limit: one the task holds out, four it serves.
   const pool = Array.from({ length: 60 }, (_, i) => `r-qry-${i}`);
@@ -406,14 +409,24 @@ test('a task-keyed standards query reports the records its holdout withheld', (t
       ids.map((id) => row(id, `Format the parser with biome ${id}.`, null)),
     ),
   );
-  const out = queryOutcome(root, {
-    text: 'format the parser with biome',
-    files: [],
-    asOf: '2026-11-13',
-    task,
-    budget: 100000,
-  });
-  assert.ok(out.hits.every((hit) => !heldOut(task, hit.id)));
-  assert.ok(out.withheld.length > 0);
-  assert.ok(out.withheld.every((id) => heldOut(task, id)));
+  const run = spawnSync(
+    join(repo, 'bin/krn'),
+    [
+      'standards',
+      'query',
+      '--task',
+      task,
+      '--root',
+      root,
+      'format the parser with biome',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const rows = readExposures(root).filter((r) => r.channel === 'query');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.task, task);
+  assert.ok((rows[0]?.served.length ?? 0) > 0);
+  assert.ok((rows[0]?.withheld.length ?? 0) > 0);
+  assert.ok(rows[0]?.withheld.every((id) => heldOut(task, id)));
 });
