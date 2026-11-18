@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  addPendingTask,
   commitPendingRecords,
   PENDING_REF,
   pendingTaskFiles,
@@ -84,6 +85,14 @@ test('two records created in the main checkout wait on the pending ref and the c
   assert.equal(list.status, 0, list.stderr);
   const ids = JSON.parse(list.stdout).tasks.map((x: { id: string }) => x.id);
   assert.ok(ids.includes(first) && ids.includes(second));
+});
+
+test('a pending record under any valid task id is read back from the ref', (t) => {
+  // Evidence: PR #1424 CI, test/task/ergonomics.test.ts: a close of record T-1 went to the
+  // pending ref, but the ref reader matched only t-xxxx names, so edit saw the open record.
+  const f = fixture(t);
+  addPendingTask(f.main, 'T-1', '{"id":"T-1"}\n');
+  assert.equal(pendingTaskFiles(f.main).get('T-1')?.toString(), '{"id":"T-1"}\n');
 });
 
 test('publish commits every pending record as one commit cut from the base', (t) => {

@@ -2,7 +2,7 @@ import { type SpawnSyncReturns, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
-import { parseTaskDocument } from './record.ts';
+import { isTaskId, parseTaskDocument } from './record.ts';
 
 /**
  * Task records created in the main checkout wait on this ref until `krn task publish` ships
@@ -89,11 +89,10 @@ function refEntries(root: string): Entry[] {
   if (run.status !== 0) return [];
   const entries: Entry[] = [];
   for (const line of run.stdout.toString().split('\0')) {
-    const match = /^100644 blob ([0-9a-f]+)\ttasks\/(t-[a-z0-9]+\.json)$/u.exec(
-      line,
-    );
-    if (match !== null)
-      entries.push({ blob: match[1] as string, name: match[2] as string });
+    // Any valid task id: a narrower pattern left a pending close invisible to every read.
+    const match = /^100644 blob ([0-9a-f]+)\ttasks\/([^/]+)\.json$/u.exec(line);
+    if (match !== null && isTaskId(match[2]))
+      entries.push({ blob: match[1] as string, name: `${match[2]}.json` });
   }
   return entries;
 }
