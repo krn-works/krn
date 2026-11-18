@@ -1,0 +1,14 @@
+{
+  "id": "t-kcjr0pf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Decide the S8 primary claim given the 73-unit pool cannot detect a 5 pp correctness effect",
+  "after": [],
+  "body": [
+    "Source: ADR 0021 point 10 (#1465, 787524a): with ~73 units the MDE is 16 pp (Holm); a 5 pp effect (literature upper estimate) needs 608-737 units; Remember-eligible later units give MDE 22.5 pp. Correctness \"not shown\" is the expected result of S8 as designed. Literature: .krn/runs/lead/night/proof-path.md.\nOutcome: the operator decides between (a) expanding the unit pool about 10x before S8, or (b) making cost per resolved task, regression rate and per-record measured effect the primary claims with hidden-test pass rate secondary; ADR 0021 and plan item 5 record the choice. Lead recommendation: (b).\nFiles: docs/adr/0021-proof-methodology.md, docs/program/plan.md, evals/replay/abc.prereg.md\nProof: ADR 0021 names the primary claim and its MDE at the available n."
+  ],
+  "kind": "research",
+  "area": "evals"
+}
