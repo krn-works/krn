@@ -1,7 +1,11 @@
 {
   "id": "t-qdx7vt0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gh preflight resolved scripts/app-bin/gh (token-minting wrapper, exit 69 on failure); now PATH without app-bin; 20/20 shard runs exit 0"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "replay-live 'gh is not installed' case passes in every run, alone and in the full suite",

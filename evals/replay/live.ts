@@ -1,6 +1,7 @@
 // Live arm-A screening: one headless claude session per unit in a fresh checkout of unit.base, the task text as the only
 // prompt, every session inside a host-wide session slot, then the unit's hidden test grades the result into a row.
 // KRN_EVAL_CLAUDE names the claude binary (default `claude`); KRN_EVAL_MAX_SESSIONS caps live sessions host-wide.
+import { spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   existsSync,
@@ -130,6 +131,13 @@ export function isolatedEnv(
   env.CLAUDE_CODE_TMPDIR = env.TMPDIR;
   // The session runs the repository's own tests, which may open a URL (t-nsk5wca).
   return withoutBrowser(env, join(scratch, 'no-browser'));
+}
+
+/** The real gh's exit status: scripts/app-bin/gh mints a GitHub App token per call and fails without one, so it never counts. */
+export function realGhVersionStatus(path: string | undefined): number | null {
+  return spawnSync('gh', ['--version'], {
+    env: { ...process.env, PATH: withoutAppGh(path) },
+  }).status;
 }
 
 /**
