@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { ARMS } from '../../evals/replay/arms.ts';
+import * as live from '../../evals/replay/live.ts';
 import { armEnv } from '../../evals/replay/live.ts';
 import { parseRows } from '../../evals/replay/screen.ts';
 import { type DrivenSession, sessionRan } from '../../evals/replay/session.ts';
@@ -622,9 +623,38 @@ test('an arm session PATH drops the GitHub App gh wrapper and keeps every other 
   }
 });
 
+test('the gh preflight skips the App wrapper that fails when it cannot mint a token', () => {
+  assert.equal(typeof live.realGhVersionStatus, 'function');
+  const root = mkdtempSync(join(tmpdir(), 'gh-wrapper-'));
+  try {
+    const wrapper = join(root, 'scripts', 'app-bin');
+    mkdirSync(wrapper, { recursive: true });
+    writeFileSync(join(wrapper, 'gh'), '#!/bin/sh\nexit 69\n');
+    chmodSync(join(wrapper, 'gh'), 0o755);
+    const real = join(root, 'real');
+    mkdirSync(real);
+    writeFileSync(join(real, 'gh'), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(real, 'gh'), 0o755);
+    const path = `${wrapper}:${real}:/usr/bin:/bin`;
+    assert.equal(
+      spawnSync('gh', ['--version'], { env: { ...process.env, PATH: path } })
+        .status,
+      69,
+      'the wrapper first on PATH fails the unfiltered preflight',
+    );
+    assert.equal(live.realGhVersionStatus(path), 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('an arm session env carries no GitHub identity: gh pr view -R fails with an auth error (t-k7gv1wt)', () => {
   // gh is on every host and runner that screens; a missing gh fails here instead of proving nothing.
-  assert.equal(spawnSync('gh', ['--version']).status, 0, 'gh is not installed');
+  assert.equal(
+    live.realGhVersionStatus(process.env.PATH),
+    0,
+    'gh is not installed',
+  );
   const scratch = mkdtempSync(join(tmpdir(), 'arm-gh-'));
   try {
     // The host env, so the host's own gh login (hosts.yml, keyring) is what the session would otherwise inherit.
