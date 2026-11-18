@@ -507,7 +507,9 @@ export function inStopSlot<T>(
 }
 
 export const runTests: Runner = (root, tests) =>
-  inStopSlot(root, () => spawnTests(root, tests));
+  existsSync(root)
+    ? inStopSlot(root, () => spawnTests(root, tests))
+    : [missingRootKey(root)];
 
 function spawnTests(root: string, tests: string[]): string[] {
   // spawnSync reports a missing cwd as ENOENT on the program, which sends the reader hunting for node.
@@ -578,7 +580,9 @@ export function failuresIn(output: string, status: number | string): string[] {
 const NAMELESS = /^<run>::/u;
 
 const runCommand: CommandRunner = (root, command) =>
-  inStopSlot(root, () => spawnCommand(root, command));
+  existsSync(root)
+    ? inStopSlot(root, () => spawnCommand(root, command))
+    : [missingRootKey(root)];
 
 function spawnCommand(
   root: string,
