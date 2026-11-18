@@ -1,7 +1,11 @@
 {
   "id": "t-v14rt3w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "closeTask routes a published record closed in the main checkout to the pending ref; pending-records test proves clean tree and publish --dry-run lists it"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Lead task closes in the main checkout ship through task publish",
