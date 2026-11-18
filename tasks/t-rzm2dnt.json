@@ -1,7 +1,11 @@
 {
   "id": "t-rzm2dnt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Gap found: after a Biome rewrite fast ran tsc and the tests twice and reported only the second run; Biome now runs first, verify once. Regression test in test/fast-check.test.ts fails on the old code. One-line change to src/cli/prune.ts: fast total 33.7s idle."
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "npm run fast finishes a one-module change in under 90 seconds",
