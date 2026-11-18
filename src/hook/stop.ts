@@ -435,8 +435,14 @@ function taskText(root: string, env: NodeJS.ProcessEnv): string {
     : '';
 }
 
-/** Failing tests of one run as `<file>::<name>` keys; a run that dies without naming a test yields `<run>::exit <status>`. */
-export type Runner = (root: string, tests: string[]) => string[];
+/**
+ * Failing tests of one run as `<file>::<name>` keys; a run that dies without naming a test yields `<run>::exit <status>`.
+ * A runner may also hand back the output that names a missing package or tool.
+ */
+export type Runner = (
+  root: string,
+  tests: string[],
+) => string[] | CommandResult;
 /** A shell command's failing keys together with its full output. */
 export type CommandResult = { failures: string[]; output: string };
 /** Failing keys of one shell command run at `root`, read from its output; a runner may also hand back that output. */
@@ -447,6 +453,9 @@ export type CommandRunner = (
 
 const failuresOf = (result: string[] | CommandResult): string[] =>
   Array.isArray(result) ? result : result.failures;
+
+const resultOf = (result: string[] | CommandResult): CommandResult =>
+  Array.isArray(result) ? { failures: result, output: '' } : result;
 
 const EXCERPT_LINES = 40;
 const EXCERPT_CHARS = 4000;
@@ -535,7 +544,7 @@ export const runTests: Runner = (root, tests) =>
     ? inStopSlot(root, () => spawnTests(root, tests))
     : [missingRootKey(root)];
 
-function spawnTests(root: string, tests: string[]): string[] {
+function spawnTests(root: string, tests: string[]): string[] | CommandResult {
   // spawnSync reports a missing cwd as ENOENT on the program, which sends the reader hunting for node.
   if (!existsSync(root)) return [missingRootKey(root)];
   const env = receiverEnv(root);
@@ -554,12 +563,19 @@ function spawnTests(root: string, tests: string[]): string[] {
     },
   );
   const failed: string[] = [];
+  const stderr: string[] = [];
   // A spawn that cannot start (a removed cwd) has no stdout: it fails as one run, never a crash.
   if (run.error) return [`<run>::error ${run.error.message}`];
   for (const line of run.stdout.split('\n')) {
     if (!line.startsWith('{')) continue;
     try {
-      const failure = failureLine(JSON.parse(line));
+      const parsed: unknown = JSON.parse(line);
+      const said = (parsed as { stderr?: unknown } | null)?.stderr;
+      if (typeof said === 'string') {
+        stderr.push(said);
+        continue;
+      }
+      const failure = failureLine(parsed);
       if (failure) failed.push(`${failure.file}::${failure.name}`);
     } catch (error) {
       // Runner output mixes JSON failure lines with other text starting with `{`.
@@ -568,7 +584,10 @@ function spawnTests(root: string, tests: string[]): string[] {
   }
   if (failed.length === 0 && run.status !== 0)
     failed.push(`<run>::exit ${run.status ?? run.signal}`);
-  return failed;
+  // Plain keys unless a missing package or tool spoke: then its output rides along for the environment check.
+  return stderr.length === 0
+    ? failed
+    : { failures: failed, output: stderr.join('') };
 }
 
 // One failing test per match, by runner: pytest summary, unittest, go, cargo, jest/vitest file lines.
@@ -877,11 +896,9 @@ function clauseRefusal(
       .map((file) => [file, safeRead(join(root, file))]),
   );
   const messages = git(root, ['log', '--format=%B', `${from}..HEAD`]).stdout;
-  const headFailing = new Set(
-    markedTests(stated, tests).filter(
-      (file) => runTestFile(root, file, run, shell, contract).length > 0,
-    ),
-  );
+  const marked = markedTests(stated, tests);
+  const passes = headPasses(root, marked, run, shell, contract);
+  const headFailing = new Set(marked.filter((file) => !passes(file)));
   const { own, clauses } = clauseProof({
     stated,
     tests,
@@ -911,8 +928,7 @@ function testFileRun(
   shell: CommandRunner,
   contract?: RepoContract,
 ): { failures: string[]; output: string } {
-  if (LEGACY_TEST.test(file) || !contract)
-    return { failures: run(dir, [file]), output: '' };
+  if (LEGACY_TEST.test(file) || !contract) return resultOf(run(dir, [file]));
   const result = shell(
     dir,
     relatedCommand(contract, withinPackage(contract.related ?? '', [file])),
@@ -984,6 +1000,91 @@ export function redTestsAtBase(
   return [...redAtBase(root, from, changed, run, shell, contract).red];
 }
 
+/** Whether `file` runs only through the contract's full test command: no related command can name it alone. */
+function runsSuite(
+  file: string,
+  contract?: RepoContract,
+): contract is RepoContract {
+  return (
+    contract !== undefined &&
+    !LEGACY_TEST.test(file) &&
+    relatedCommand(contract, withinPackage(contract.related ?? '', [file])) ===
+      contract.test
+  );
+}
+
+/** The package directory a command runs in (`npm --prefix packages/seo test`), whose runner names files relative to it. */
+const packageDir = (command: string): string | undefined =>
+  /--prefix[ =]+(\S+)/u.exec(command)?.[1]?.replace(/\/+$/u, '');
+
+/** Whether a failing key names the repository file `file`, as is or relative to the command's package directory. */
+function namesFile(key: string, file: string, command: string): boolean {
+  const named = keyFile(key);
+  if (named === undefined) return false;
+  const dir = packageDir(command);
+  return named === file || (dir !== undefined && `${dir}/${named}` === file);
+}
+
+/** One run of the full test command at `dir`, with the files among `files` it names failing. */
+interface SuiteRun extends CommandResult {
+  readonly failing: Set<string>;
+}
+
+/**
+ * The full test command run once for all of `files`: a file fails only when a failing key names it, and only when
+ * one rerun of the named tests fails it again, so a flaky or load-timed failure elsewhere in the suite blames no file.
+ */
+function suiteRun(
+  dir: string,
+  files: readonly string[],
+  shell: CommandRunner,
+  contract: RepoContract,
+): SuiteRun {
+  const command = contract.test;
+  const first = resultOf(shell(dir, command));
+  const named = (failures: readonly string[]) =>
+    files.filter((file) =>
+      failures.some((key) => namesFile(key, file, command)),
+    );
+  const blamed = named(first.failures);
+  if (blamed.length === 0) return { ...first, failing: new Set() };
+  const keys = [
+    ...new Set(
+      first.failures
+        .filter((key) => blamed.some((file) => namesFile(key, file, command)))
+        .map(keyFile)
+        .filter((file): file is string => file !== undefined),
+    ),
+  ];
+  const again = failuresOf(shell(dir, rerunCommand(command, keys)));
+  return {
+    ...first,
+    failing: new Set(named(again).filter((file) => blamed.includes(file))),
+  };
+}
+
+/** Whether a changed test passes on head; files that only the full suite runs share one suite run. */
+function headPasses(
+  root: string,
+  files: readonly string[],
+  run: Runner,
+  shell: CommandRunner,
+  contract?: RepoContract,
+): (file: string) => boolean {
+  let suite: SuiteRun | undefined;
+  return (file) => {
+    if (!runsSuite(file, contract))
+      return runTestFile(root, file, run, shell, contract).length === 0;
+    suite ??= suiteRun(
+      root,
+      files.filter((path) => runsSuite(path, contract)),
+      shell,
+      contract,
+    );
+    return !suite.failing.has(file);
+  };
+}
+
 /** The changed test files that fail against the base source, and the base runs that broke on the environment instead (file to output). */
 interface BaseRuns {
   readonly red: Set<string>;
@@ -1002,11 +1103,26 @@ function redAtBase(
   const red = new Set<string>();
   const broken = new Map<string, string>();
   const outputs: string[] = [];
+  // With no related command every changed file would rerun the whole suite: run it once and blame only named files.
+  const suite = changed.filter((file) => runsSuite(file, contract));
   if (changed.length > 0)
     failuresAtBase(root, from, (dir) => {
       for (const file of changed) {
         mkdirSync(dirname(join(dir, file)), { recursive: true });
         copyFileSync(join(root, file), join(dir, file));
+      }
+      if (suite.length > 0 && contract !== undefined) {
+        const base = suiteRun(dir, suite, shell, contract);
+        if (base.output !== '')
+          outputs.push(
+            `== ${contract.test} at the base (${suite.join(', ')}) ==\n${base.output}`,
+          );
+        if (base.failures.length > 0 && brokenEnvironment(base.output))
+          for (const file of suite) broken.set(file, base.output);
+        else for (const file of base.failing) red.add(file);
+      }
+      for (const file of changed) {
+        if (suite.includes(file)) continue;
         const base = testFileRun(dir, file, run, shell, contract);
         if (base.output !== '')
           outputs.push(`== ${file} at the base ==\n${base.output}`);
@@ -1060,11 +1176,11 @@ function testFirstRefusal(
       new Map(changed.map((file) => [file, safeRead(join(root, file))])),
     ),
   );
-  const proven = changed.find(
-    (file) =>
-      (characterization || characterizing.has(file) || red.has(file)) &&
-      runTestFile(root, file, run, shell, contract).length === 0,
+  const candidates = changed.filter(
+    (file) => characterization || characterizing.has(file) || red.has(file),
   );
+  const passes = headPasses(root, candidates, run, shell, contract);
+  const proven = candidates.find(passes);
   if (proven !== undefined) return undefined;
   if (broken.size > 0) {
     const logged = saveRunLog(
@@ -1137,7 +1253,7 @@ function inspectTests(
   let before: () => Set<string>;
   let headOutput: string | undefined;
   if (command === undefined) {
-    failing = files.length > 0 ? run(root, files) : [];
+    failing = files.length > 0 ? failuresOf(run(root, files)) : [];
     before = () => {
       const named = [...new Set(failing.map((key) => key.split('::')[0]))];
       const present = named.filter(
@@ -1147,7 +1263,7 @@ function inspectTests(
       ) as string[];
       return present.length === 0
         ? new Set()
-        : failuresAtBase(root, from, (dir) => run(dir, present));
+        : failuresAtBase(root, from, (dir) => failuresOf(run(dir, present)));
     };
   } else {
     const first = shell(root, command);
@@ -1163,7 +1279,7 @@ function inspectTests(
     const settled = settleFailures(
       failing,
       (named) => {
-        if (command === undefined) return run(root, named);
+        if (command === undefined) return failuresOf(run(root, named));
         const again = shell(
           root,
           selection.full || contract === undefined
@@ -1176,7 +1292,11 @@ function inspectTests(
         if (!Array.isArray(again)) headOutput = again.output;
         return failuresOf(again);
       },
-      (file) => command === undefined || existsSync(join(root, file)),
+      (file) =>
+        command === undefined ||
+        existsSync(join(root, file)) ||
+        // A package runner names its files relative to the package (`npm --prefix packages/seo test`).
+        existsSync(join(root, packageDir(command) ?? '', file)),
     );
     failing = settled.failing;
     flaky = settled.flaky;
