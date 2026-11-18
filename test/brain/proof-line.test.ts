@@ -50,7 +50,7 @@ test('clause 6: the proof line prints the four counts in the stated shape', () =
   );
   assert.equal(
     line,
-    'proof: clauses 3/3, red-first 1, precedent 2 modules, stop refusals 2',
+    'proof: clauses 3/3, red-first 1, precedent 2 modules, stop refusals 2, diff-coverage n/a',
   );
 });
 
@@ -132,4 +132,19 @@ test('clause 12: a first-commit test that passes at the base is not red-first (t
     stopRefusals: 1,
   });
   assert.equal(red.redFirst, 1);
+});
+
+test('the proof line carries diff-coverage <covered>/<changed> with the uncovered lines', () => {
+  const line = proofLine(
+    proofOf({
+      brief: '',
+      tests: new Map(),
+      messages: '',
+      firstCommitFiles: [],
+      redAtBase: [],
+      stopRefusals: 0,
+      diffCoverage: { covered: 3, changed: 4, uncovered: ['src/a.ts:7'] },
+    }),
+  );
+  assert.match(line, /, diff-coverage 3\/4 \(uncovered src\/a\.ts:7\)$/u);
 });

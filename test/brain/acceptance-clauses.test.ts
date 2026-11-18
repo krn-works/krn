@@ -161,7 +161,7 @@ test('clause 1: a brief of five clauses with no marked test proves none, as the 
         stopRefusals: 1,
       }),
     ),
-    'proof: clauses 0/5, red-first 0, precedent 0 modules, stop refusals 1',
+    'proof: clauses 0/5, red-first 0, precedent 0 modules, stop refusals 1, diff-coverage n/a',
   );
 });
 

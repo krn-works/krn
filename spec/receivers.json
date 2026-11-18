@@ -79,6 +79,10 @@
       "receivers": ["node"],
       "real": "test/hook/stop.test.ts"
     },
+    "src/cli/lane-run/diff-coverage.ts": {
+      "receivers": ["git", "node"],
+      "real": "test/cli/lane-run-diff-coverage.test.ts"
+    },
     "src/cli/lane-run/steps.ts": {
       "receivers": ["node"],
       "real": "test/cli/lane-run.test.ts"

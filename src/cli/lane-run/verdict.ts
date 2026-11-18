@@ -32,6 +32,7 @@ import {
   sessionVerification,
   ticketCommitTitle,
 } from './delivery.ts';
+import { laneDiffCoverage } from './diff-coverage.ts';
 import { commitsSinceRed, type PreparedLane } from './prepare.ts';
 import { redCheckOf } from './red-check.ts';
 import {
@@ -73,6 +74,18 @@ export async function laneVerdict(
     (result.turns === undefined ? '' : ` turns ${result.turns}`);
   // Every ending logs which standards the run was served and how it ended (the effect report reads it).
   // The proof line counts what the lane really holds: its brief, its commits and tests, its Stop refusals.
+  // Diff coverage is reporting only: a run that cannot measure it prints `diff-coverage n/a`.
+  const coverageOfLane = () => {
+    try {
+      return laneDiffCoverage(
+        path,
+        `origin/${lane.base}`,
+        join(main, '.krn', 'tmp', `lane-run-${slug}-coverage.info`),
+      );
+    } catch {
+      return undefined;
+    }
+  };
   const proofOfLane = (): string => {
     try {
       const range = `origin/${lane.base}..HEAD`;
@@ -100,6 +113,7 @@ export async function laneVerdict(
                   .filter((file) => file !== ''),
           redAtBase: redTestsOf(path),
           stopRefusals: result.stopRefusals ?? 0,
+          diffCoverage: coverageOfLane(),
         }),
       );
     } catch {

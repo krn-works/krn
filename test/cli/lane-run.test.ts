@@ -1883,7 +1883,7 @@ test('clause 6: a lane ending prints the proof line from the real Stop log, the 
     );
     assert.match(
       verdict.proof ?? '',
-      /^proof: clauses \d+\/\d+, red-first [01], precedent \d+ modules, stop refusals 2$/u,
+      /^proof: clauses \d+\/\d+, red-first [01], precedent \d+ modules, stop refusals 2, diff-coverage n\/a$/u,
     );
   } finally {
     delete process.env.CLAUDE_CONFIG_DIR;
