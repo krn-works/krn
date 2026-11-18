@@ -7,6 +7,8 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -54,7 +56,14 @@ export function checkedTree(root: string): string | undefined {
   try {
     const own = resolve(root, index.stdout.trim());
     const copy = join(scratch, 'index');
-    if (existsSync(own)) copyFileSync(own, copy);
+    if (existsSync(own)) {
+      copyFileSync(own, copy);
+      // Git rehashes an entry whose mtime is not older than the index file (racy git); a copy
+      // stamped now would pass a same-size edit made in the commit's tick as clean. Keep the
+      // real index's time, floored to the second so no racy entry slips past.
+      const seconds = Math.floor(statSync(own).mtimeMs / 1000);
+      utimesSync(copy, seconds, seconds);
+    }
     const env = { GIT_INDEX_FILE: copy };
     if (git(['add', '-A'], env).status !== 0) return undefined;
     const tree = git(['write-tree'], env);
