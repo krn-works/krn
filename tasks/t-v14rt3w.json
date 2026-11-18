@@ -1,0 +1,17 @@
+{
+  "id": "t-v14rt3w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Lead task closes in the main checkout ship through task publish",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: lead ran `krn task close t-gc828jq --as done` in the main checkout after PR #1404 proved it; the close rewrote tasks/t-gc828jq.json in the working tree, `krn task publish` shipped only the created record t-wc54000 (2a98686) because publish reads refs/krn/pending-tasks (src/cli/task-publish.ts:42), and the main checkout was left dirty so `git pull` failed.",
+    "Outcome: a lead close (or release/ready) in the main checkout goes to the pending ref like create does, leaves the main checkout clean, and `krn task publish` ships it.",
+    "Proof: a task-publish test: close a published record in a main checkout -> working tree clean, publish --dry-run lists that record.",
+    "Files: src/task/pending.ts, src/cli/task-publish.ts, src/task/cli.ts, test/task/"
+  ],
+  "kind": "defect",
+  "area": "tasks"
+}
