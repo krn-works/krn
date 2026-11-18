@@ -59,6 +59,25 @@ function trailerOf(
       .find((line) => isTaskId(line));
     if (id !== undefined) return { key, id };
   }
+  // The harness attribution ends a commit with its own Co-Authored-By paragraph, so git's
+  // trailer block can miss a Ticket/Refs line in the trailer-only paragraphs above it.
+  const paragraphs = gitText(worktree, ['log', '-1', '--format=%b'])
+    .trim()
+    .split(/\n\s*\n/u)
+    .reverse();
+  const trailing: string[] = [];
+  for (const paragraph of paragraphs) {
+    const lines = paragraph.split('\n').map((line) => line.trim());
+    if (!lines.every((line) => /^[A-Za-z][\w-]*: \S/u.test(line))) break;
+    trailing.push(...lines);
+  }
+  for (const key of ['Ticket', 'Refs'] as const)
+    for (const line of trailing) {
+      const id = line.startsWith(`${key}: `)
+        ? line.slice(key.length + 2).trim()
+        : undefined;
+      if (id !== undefined && isTaskId(id)) return { key, id };
+    }
   return undefined;
 }
 
