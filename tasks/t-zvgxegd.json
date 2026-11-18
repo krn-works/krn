@@ -1,7 +1,11 @@
 {
   "id": "t-zvgxegd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PR #1427 (cbd169e) shipped all four items; hook installed globally (krn standards install --global PASS), KRN repo settings PASS, merge convention applied to 37 repos."
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "One global semantic commit, PR body and squash-merge convention enforced in every repository",
