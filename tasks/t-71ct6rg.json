@@ -1,0 +1,19 @@
+{
+  "id": "t-71ct6rg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "The Stop red-at-base arm stops blaming a changed file for suite-wide failures when no related command exists",
+  "after": [],
+  "body": [
+    "The Stop red-at-base arm runs the full contract test command once per changed test file when krn.json has no `related` (relatedCommand returns contract.test), in redAtBase and in the proven check of testFirstRefusal (src/hook/stop.ts). A flaky or load-timed failure in that ~280 s suite is then blamed on the changed file: the likely cause of the pilot refusal naming recovery-note.test.ts (evidence: .krn/runs/pilot/lanes/preflight-proof-3.log; a copy of bfe2153 under host load refused with two unrelated vitest timeouts, fixture test/hook/fixtures/stop-refusal-pilot-worktree.txt).\nOutcome: with no `related` command, the red-at-base arm runs the suite once, attributes failures to changed files only when they name them, and settles a failure by one rerun before blaming.\nGaps left by t-bge3s2z: a base run through the node runner has empty output so it is never classed as a broken environment; the base-environment test stubs the shell instead of a base worktree without node_modules; the reuse note is tested as a pure function, not in the prepareLane prompt.",
+    "Proof: a hook test with no related command and one flaky suite failure names no changed file as red."
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "task",
+    "ref": "t-bge3s2z"
+  }
+}
