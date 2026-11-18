@@ -73,6 +73,8 @@ function receiver(options: {
   runList?: string;
   /** The origin URL `git remote get-url origin` prints; none exits 2. */
   origin?: string;
+  /** The check-runs answers of the head, per ask (the last repeats), instead of rows derived from the rollup. */
+  checkRuns?: string[];
 }) {
   let time = 0;
   let scopedCalls = 0;
@@ -83,6 +85,7 @@ function receiver(options: {
   const pulls = [...options.pulls];
   let lastView: { statusCheckRollup?: unknown[] | null } = {};
   const runs = [...(options.runs ?? [[]])];
+  const checkRuns = [...(options.checkRuns ?? [])];
   const answer = (a: string[]): string => {
     calls.push(`gh ${a.join(' ')}`);
     if (a[0] === 'run' && a[1] === 'list') {
@@ -91,6 +94,8 @@ function receiver(options: {
       return JSON.stringify((next ?? []).map((status) => ({ status })));
     }
     if (a[0] === 'api' && /\/commits\/[^/]+\/check-runs/u.test(a[1] ?? '')) {
+      if (checkRuns.length > 0)
+        return (checkRuns.length > 1 ? checkRuns.shift() : checkRuns[0]) ?? '';
       // The check-runs answer of the PR view just served: a rollup entry is a run of the required App unless it names another.
       const rollup = (lastView.statusCheckRollup ?? []) as object[];
       return JSON.stringify(rollup.map((run) => ({ appId: 15368, ...run })));
@@ -1422,6 +1427,71 @@ test('a red Check names its run, the logs command and the rerun, and exits 74', 
     assert.match(
       e.message,
       /Check concluded failure on a{40} in run 9; logs: gh run view 9 --log-failed; rerun: gh run rerun 9 --failed/u,
+    );
+    return true;
+  });
+});
+
+// `gh api repos/krn-works/krn/commits/2b9a44f.../check-runs?filter=all&per_page=100 --jq CHECK_FACT_FILTER`
+// for PR #1449 after `gh run rerun 44381299774 --failed` concluded (real output). While attempt 2 ran, its
+// aggregate Check row did not exist yet and its rerun job was not completed: only those two rows are varied.
+const rerunCapture = () =>
+  capture(
+    'fixtures/gh',
+    'check-runs-1449-rerun-attempts',
+  ).streams.stdout?.toString('utf8') ?? '';
+type Row = { id: number; name: string; status: string; conclusion: string };
+const attempt2Check = 135080025160;
+const attempt2Rerun = 135079345220;
+const rerunning = (vary: (rows: Row[]) => Row[]) =>
+  JSON.stringify(vary(JSON.parse(rerunCapture()) as Row[]));
+const unstartedAggregate = rerunning((rows) =>
+  rows
+    .filter((row) => row.id !== attempt2Check)
+    .map((row) =>
+      row.id === attempt2Rerun
+        ? { ...row, status: 'IN_PROGRESS', conclusion: '' }
+        : row,
+    ),
+);
+const queuedAggregate = rerunning((rows) =>
+  rows.map((row) =>
+    row.id === attempt2Check
+      ? { ...row, status: 'QUEUED', conclusion: '', startedAt: null }
+      : row.id === attempt2Rerun
+        ? { ...row, status: 'IN_PROGRESS', conclusion: '' }
+        : row,
+  ),
+);
+
+test('a failed Check attempt superseded by an in-progress rerun is awaited, and the rerun success merges', async () => {
+  for (const pending of [unstartedAggregate, queuedAggregate]) {
+    // 70 polls of 10 s: past the 600 s merge bound, so a superseded failure is never read as a concluded Check.
+    const r = receiver({
+      pulls: [...Array(71).fill(auto), merged],
+      checkRuns: [...Array(70).fill(pending), rerunCapture()],
+    });
+    const out = await shipCommand(args, r);
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+    assert.ok(r.now() > 600_000, `${r.now()} ms waited`);
+  }
+});
+
+test('a rerun attempt that fails again still exits 74 on its own run', async () => {
+  const failedAgain = rerunning((rows) =>
+    rows.map((row) =>
+      row.id === attempt2Check ? { ...row, conclusion: 'FAILURE' } : row,
+    ),
+  );
+  const r = receiver({
+    pulls: [auto],
+    checkRuns: [unstartedAggregate, failedAgain],
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 74);
+    assert.match(
+      e.message,
+      /Check concluded failure on a{40} in run 44381299774/u,
     );
     return true;
   });

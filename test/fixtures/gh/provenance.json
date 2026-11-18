@@ -253,6 +253,15 @@
         "file": "runs-latest-main-green.stdout.json",
         "sha256": "d61e81a649514b03b6c3d732fb2c0c12f96248fd722b58bc37d093d82afd2acc"
       }
+    },
+    {
+      "name": "check-runs-1449-rerun-attempts",
+      "command": "gh api 'repos/krn-works/krn/commits/2b9a44f4229f8794a3d59b24375c0dec4cf95271/check-runs?filter=all&per_page=100' --jq CHECK_FACT_FILTER  # gh 2.102.1, 2026-11-18; PR #1449 run 44381299774 after its attempt-2 rerun",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-1449-rerun-attempts.stdout.json",
+        "sha256": "89fa9ee6083de5f8607550e31e1f18fa04303cb25d9e46791b9b8319e4fd029f"
+      }
     }
   ]
 }
