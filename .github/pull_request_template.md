@@ -1,16 +1,16 @@
-<!-- Title: the outcome in plain language, ending with (<task-id>). No SHAs or run ids. -->
+<!-- Title: type(scope): outcome, the observable behaviour after the change, ending with (<task-id>); it becomes the squash subject. No SHAs or run ids. -->
 
-## Problem
+## Why
 
 <!-- What was wrong or missing, and who felt it. One short paragraph. -->
 
-## Change
+## What changed
 
 <!-- What this PR does, as a few bullets a reviewer can check against the diff. -->
 
-## Verification
+## Verified
 
-<!-- Commands run and their verdicts (exit codes, PASS/FAIL, counts). -->
+<!-- command: verdict, one per line (exit codes, PASS/FAIL, counts). -->
 
 ## Task
 

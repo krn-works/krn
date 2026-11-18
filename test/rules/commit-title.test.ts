@@ -10,6 +10,10 @@ test('conventional titles pass', () => {
     'refactor(cli)!: drop the deliver command',
     'test(unzip_http): cover warning writing to stderr (t-0x3pmx6)',
     'fix(lib.core): keep the dotted module name (t-0x3pmx6)',
+    'fix(web): a cached page no longer shows stale prices',
+    'fix(web): a cached page no longer shows stale prices (#38510)',
+    `feat(ci): ${'x'.repeat(62)} (t-abc1234) (#12)`,
+    'fix(ci): CI reruns a flaky shard once',
   ])
     assert.equal(titleProblem(title), undefined, title);
 });
@@ -22,8 +26,20 @@ test('plain and malformed titles fail', () => {
     'fix(CI): upper-case scope',
     'fix:missing space',
     'fix(ci): ',
+    'Update stuff',
+    'fix(web): Cached pages no longer show stale prices',
+    'fix(web): a cached page no longer shows stale prices.',
+    `feat(ci): ${'x'.repeat(91)} (t-abc1234)`,
   ])
     assert.notEqual(titleProblem(title), undefined, title);
+});
+
+test('a refusal names the rule and the expected form', () => {
+  assert.match(
+    titleProblem(`feat: ${'y'.repeat(96)}`) ?? '',
+    /102 characters, at most 100 .*type\(scope\): outcome/u,
+  );
+  assert.match(titleProblem('Update stuff') ?? '', /type\(scope\): outcome/u);
 });
 
 test('CI checks the pull request title, re-run on title edits', () => {

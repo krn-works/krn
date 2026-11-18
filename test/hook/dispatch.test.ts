@@ -73,7 +73,7 @@ test('the timing log names the routes that matched the tool and nothing else', (
   assert.equal(rows.length, 2);
   assert.deepEqual(
     rows[0].routes.map((route: { name: string }) => route.name),
-    ['bash-guards', 'gauge', 'scope', 'edit-standards'],
+    ['bash-guards', 'commit-format', 'gauge', 'scope', 'edit-standards'],
   );
   assert.deepEqual(
     rows[1].routes.map((route: { name: string }) => route.name),

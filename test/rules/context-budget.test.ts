@@ -46,6 +46,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   assert.deepEqual(pre, [
     ['memory-budget', 'Write|Edit'],
     ['bash-guards', 'Bash'],
+    ['commit-format', 'Bash'],
     [
       'gauge',
       'Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',

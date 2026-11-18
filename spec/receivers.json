@@ -191,6 +191,11 @@
       "receivers": ["git", "npm"],
       "real": "test/adopt/host-remediation.test.ts"
     },
+    "src/cli/repo.ts": {
+      "receivers": ["gh"],
+      "capture": ["test/fixtures/gh/repo-settings-krn-works-krn.stdout.json"],
+      "test": "test/repo/merge-settings.test.ts"
+    },
     "src/adopt/verify.ts": {
       "receivers": ["gh", "git", "node"],
       "capture": [

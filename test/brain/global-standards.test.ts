@@ -13,6 +13,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  COMMIT_CONVENTION,
+  commitHookCommand,
   GLOBAL_BUDGET_BYTES,
   GLOBAL_FILE,
   IMPORT_LINE,
@@ -111,5 +113,69 @@ test('a record with a non-true universal field is rejected', () => {
   assert.throws(
     () => parseRecords([{ ...one, universal: false }]),
     /universal/u,
+  );
+});
+
+test('the file states the commit, PR and merge convention once', () => {
+  const home = freshHome();
+  run(home);
+  const text = readFileSync(join(home, '.claude', GLOBAL_FILE), 'utf8');
+  assert.ok(text.includes(COMMIT_CONVENTION));
+  assert.match(text, /PR_TITLE, body PR_BODY/u);
+  assert.match(text, /at most 100 characters/u);
+  assert.doesNotMatch(text, /Commit subjects since the repository adopted/u);
+});
+
+test('the commit-format hook joins the user Claude and Codex hooks, other entries kept', () => {
+  const home = freshHome();
+  mkdirSync(join(home, '.codex'));
+  const other = {
+    model: 'x',
+    hooks: {
+      PreToolUse: [
+        { matcher: 'Bash', hooks: [{ type: 'command', command: 'mine' }] },
+      ],
+      Stop: [{ hooks: [{ type: 'command', command: 'stop-mine' }] }],
+    },
+  };
+  writeFileSync(
+    join(home, '.claude', 'settings.json'),
+    JSON.stringify(other, null, 2),
+  );
+  assert.equal(run(home).status, 0);
+  const command = commitHookCommand(product);
+  for (const file of [
+    join(home, '.claude', 'settings.json'),
+    join(home, '.codex', 'hooks.json'),
+  ]) {
+    const settings = JSON.parse(readFileSync(file, 'utf8'));
+    const commands = settings.hooks.PreToolUse.flatMap(
+      (entry: { hooks: Array<{ command: string }> }) =>
+        entry.hooks.map((hook) => hook.command),
+    );
+    assert.ok(commands.includes(command), file);
+  }
+  const claude = JSON.parse(
+    readFileSync(join(home, '.claude', 'settings.json'), 'utf8'),
+  );
+  assert.equal(claude.model, 'x');
+  assert.equal(claude.hooks.PreToolUse[0].hooks[0].command, 'mine');
+  assert.equal(claude.hooks.Stop[0].hooks[0].command, 'stop-mine');
+  assert.equal(claude.hooks.PreToolUse.length, 2);
+  // The installed command is the real entry: it refuses a plain subject.
+  const refused = spawnSync('sh', ['-c', command], {
+    input: JSON.stringify({
+      tool_name: 'Bash',
+      tool_input: { command: 'git commit -m "Update stuff"' },
+    }),
+    encoding: 'utf8',
+  });
+  assert.equal(refused.status, 2);
+  assert.equal(run(home, '--check').status, 0);
+  run(home);
+  assert.equal(
+    JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))
+      .hooks.PreToolUse.length,
+    2,
   );
 });

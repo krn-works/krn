@@ -62,6 +62,11 @@ export const events = {
         load: () => import('../../scripts/claude/bash-guards.ts'),
       },
       {
+        name: 'commit-format',
+        tools: 'Bash',
+        load: () => import('../hook/commit-format.ts'),
+      },
+      {
         ...gauge,
         tools:
           'Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
