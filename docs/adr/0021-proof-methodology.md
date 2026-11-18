@@ -44,7 +44,7 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
    - The holdout is keyed by (task, record) and deduplicated across attempts.
 4. **Retirement by measurement.**
    - `krn standards retire --write` is frozen.
-   - It reopens with this rule: a record retires when served-versus-withheld violation rates show no benefit under Fisher's exact test (one-sided p ≥ 0.1 for benefit) with at least 10 withheld and at least 30 served scoped diffs.
+   - It reopens with this rule: a record retires when the one-sided 90% Wald upper bound of its benefit (withheld violation rate minus served violation rate, plus z = 1.2816 standard errors) is below a margin of 0.25, with at least 10 withheld and at least 30 served scoped diffs. Implemented in `src/brain/retire.ts` (`RETIRE_Z`, `RETIRE_MARGIN`) by t-76cjaca, which replaced the earlier significance-test rule.
    - Separately, a record whose scope matched no diff in 60 days is flagged for `review_by`.
 5. **Probe replay** (paired, FR-40 style, about 1.50 USD per record) runs only for prose records that pass the retrieval eval of ADR 0020 and have no check. A record that cannot be scored stays `unmeasured`.
 6. **One replay harness, with arms as configuration.** `evals/d23`, `evals/fr40/lanes.ts` and `scripts/outside-acceptance.ts` merge into one runner with three arms:
@@ -72,7 +72,7 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
 ## Expected effect
 
 - The brief-only clause arm is measured: PC − P is reported with a CI. Prediction: under +10 pp. Measure: `node evals/d23/analysis.ts --arms P,PC`.
-- Random retirements are 0 over 30 days. Measure: `git log --since=30.days -p -- standards/records.json | grep -c '"status": "retired"'` against rows meeting the Fisher rule.
+- Random retirements are 0 over 30 days. Measure: `git log --since=30.days -p -- standards/records.json | grep -c '"status": "retired"'` against rows meeting the bound-below-margin rule.
 - Within 4 weeks of point 3, at least 10 command-enforced records have at least 30 served scoped diffs with `violated` recorded. Measure: `krn standards effect --json | node -e` count.
 - Scorecard: of the slices in `docs/program/plan.md`, at least 80% score hit or miss (not unmeasured) within 7 days of merge. Today 1 of 911 rows scored. Measure: `krn ledger --predictions`.
 - A/B/C: screening reports A's pass rate. If A ≤ 85%, the confirmatory run reports C−A and C−B with CIs and USD per resolved task. Measure: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report`.
