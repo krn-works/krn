@@ -32,6 +32,9 @@ export const mergedPull = z.object({
 });
 export type MergedPull = z.infer<typeof mergedPull>;
 
+/** What `krn task create --json` prints: the record under `task`. */
+export const createdTask = z.object({ task: z.object({ id: z.string() }) });
+
 /**
  * The merged PRs that delivered a task: titled `... (<id>)`, minus the PR that only shipped the
  * task record (`krn task publish` pushes a `task-records-*` branch whose title names the id too).
@@ -136,17 +139,24 @@ const seedBody = (index: number) =>
   [
     `Outcome: docs/notes/ holds one new Markdown file named after this task id (for example docs/notes/t-abc1234.md) whose single line reads "Recovery note ${index}: <task id>".`,
     'Why: a trivial delivery the KRN interrupted-batch recovery check drives through the real drain; change nothing else.',
-    '',
-  ].join('\n');
+    'Proof: the new note file exists and names this task id.',
+  ].join('\n\n');
 
-/** Seed two trivial task records in the outside repository and ship them through one PR (`krn task publish`). */
+/**
+ * Seed two trivial task records in the outside repository and ship them through one PR
+ * (`krn task publish`). Each created id is saved at once, so a seed cut halfway resumes without
+ * creating more tasks than the batch holds; `adopted` names ids created before the state existed.
+ */
 export function seedTasks(
   paths: LivePaths,
   env: NodeJS.ProcessEnv,
   say: (line: string) => void,
+  adopted: readonly string[] = [],
 ): string[] {
-  const ids: string[] = [];
-  for (const index of [1, 2]) {
+  const state: LiveState = existsSync(paths.state)
+    ? JSON.parse(readFileSync(paths.state, 'utf8'))
+    : { tasks: [...adopted] };
+  for (let index = state.tasks.length + 1; index <= 2; index += 1) {
     const created = run(
       krn,
       [
@@ -172,21 +182,26 @@ export function seedTasks(
       throw new Error(
         `krn task create exit ${created.code}: ${created.stderr}`,
       );
-    const id = z
-      .object({ id: z.string() })
-      .parse(JSON.parse(created.stdout)).id;
-    ids.push(id);
+    const { id } = createdTask.parse(JSON.parse(created.stdout)).task;
+    state.tasks.push(id);
+    writeFileSync(paths.state, `${JSON.stringify(state, null, 2)}\n`);
     say(`live: seeded ${id}`);
   }
-  const published = run(krn, ['task', 'publish'], paths.root, env);
-  say(
-    `live: krn task publish exit ${published.code}: ${published.stdout.trim().split('\n').at(-1) ?? ''}`,
+  writeFileSync(paths.state, `${JSON.stringify(state, null, 2)}\n`);
+  const shipped = state.tasks.every((id) =>
+    existsSync(join(paths.root, 'tasks', `${id}.json`)),
   );
-  if (published.code !== 0)
-    throw new Error(
-      `krn task publish exit ${published.code}: ${published.stdout}${published.stderr}`,
+  if (!shipped) {
+    const published = run(krn, ['task', 'publish'], paths.root, env);
+    say(
+      `live: krn task publish exit ${published.code}: ${published.stdout.trim().split('\n').at(-1) ?? ''}`,
     );
-  return ids;
+    if (published.code !== 0)
+      throw new Error(
+        `krn task publish exit ${published.code}: ${published.stdout}${published.stderr}`,
+      );
+  }
+  return state.tasks;
 }
 
 /** One drain of the seeded tasks in its own process group, logged to `<dir>/drain-<n>.log`. */
@@ -326,6 +341,7 @@ export async function liveRecovery(
   paths: LivePaths,
   windowHours: string,
   say: (line: string) => void,
+  adopted: readonly string[] = [],
 ): Promise<number> {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -334,10 +350,8 @@ export async function liveRecovery(
   mkdirSync(paths.bin, { recursive: true });
   writeFileSync(join(paths.bin, 'gh'), killShim);
   chmodSync(join(paths.bin, 'gh'), 0o755);
-  const state: LiveState = existsSync(paths.state)
-    ? JSON.parse(readFileSync(paths.state, 'utf8'))
-    : { tasks: seedTasks(paths, env, say) };
-  writeFileSync(paths.state, `${JSON.stringify(state, null, 2)}\n`);
+  mkdirSync(paths.dir, { recursive: true });
+  const state: LiveState = { tasks: seedTasks(paths, env, say, adopted) };
   say(`live: batch ${state.tasks.join(', ')}`);
   const counts = () => {
     const pulls = mergedPulls(paths, env);

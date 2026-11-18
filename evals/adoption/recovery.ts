@@ -428,6 +428,7 @@ async function main(argv: string[]): Promise<number> {
       livePaths(root, at('--repo') ?? pilotRepository),
       windowHours,
       (line) => process.stdout.write(`${line}\n`),
+      (at('--seeded') ?? '').split(',').filter(Boolean),
     );
   }
   let failed = 0;
