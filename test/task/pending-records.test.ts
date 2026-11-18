@@ -183,6 +183,14 @@ test('edit of a closed archived record still refuses with exit 65', (t) => {
     'x',
   );
   assert.equal(close.status, 0, close.stderr);
+  // The close waits on the pending ref; publication lands the closed record on the base.
+  writeFileSync(
+    join(f.main, 'tasks', 't-exist01.json'),
+    f.git(f.main, 'show', `${PENDING_REF}:tasks/t-exist01.json`) + '\n',
+  );
+  f.git(f.main, 'commit', '-qam', 'publish the close');
+  f.git(f.main, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  removePendingTasks(f.main, ['t-exist01']);
   const archive = f.task(f.main, 'archive', '--older-than', '0');
   assert.equal(archive.status, 0, archive.stderr);
   assert.match(archive.stdout, /Archived 1 /u, archive.stdout);
@@ -252,6 +260,33 @@ test('closing a pending record keeps the closed record on the pending ref and pu
   assert.equal(dry.status, 0, dry.stderr);
   assert.ok(dry.stdout.includes(id), dry.stdout);
   assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+});
+
+test('closing a published record in the main checkout goes to the pending ref, leaves the checkout clean and publish lists it', (t) => {
+  const f = fixture(t);
+  const before = readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8');
+  const closed = f.task(
+    f.main,
+    'close',
+    't-exist01',
+    '--as',
+    'dropped',
+    '--note',
+    'closed by the lead',
+  );
+  assert.equal(closed.status, 0, closed.stderr);
+  assert.equal(f.git(f.main, 'status', '--porcelain'), '');
+  assert.equal(
+    readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8'),
+    before,
+  );
+  assert.match(
+    f.git(f.main, 'show', `${PENDING_REF}:tasks/t-exist01.json`),
+    /"status": "closed"/u,
+  );
+  const dry = f.task(f.main, 'publish', '--dry-run');
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.ok(dry.stdout.includes('t-exist01'), dry.stdout);
 });
 
 test('publish drops a pending record the base later closed and keeps one edited after publication', (t) => {

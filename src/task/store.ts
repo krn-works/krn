@@ -453,9 +453,9 @@ export function closeTask(
   const record = getTask(root, id);
   if (record.status === 'closed')
     throw new TaskDataError([`tasks/${id}.json: task is already closed`]);
-  // A record waiting on the pending ref is closed there, so publish ships the closed record
-  // and the main checkout stays clean.
-  const pending = pendingTaskFiles(root).has(id);
+  // A record waiting on the pending ref, or a published one in the main checkout, is closed on
+  // the ref, so publish ships the closed record and the main checkout stays clean.
+  const pending = pendingTaskFiles(root).has(id) || editGoesPending(root, id);
   const write = (task: TaskRecord) =>
     pending
       ? addPendingTask(root, id, serializeTask(task))
