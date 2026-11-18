@@ -29,15 +29,15 @@ test('plain and malformed titles fail', () => {
     'Update stuff',
     'fix(web): Cached pages no longer show stale prices',
     'fix(web): a cached page no longer shows stale prices.',
-    `feat(ci): ${'x'.repeat(63)} (t-abc1234)`,
+    `feat(ci): ${'x'.repeat(91)} (t-abc1234)`,
   ])
     assert.notEqual(titleProblem(title), undefined, title);
 });
 
 test('a refusal names the rule and the expected form', () => {
   assert.match(
-    titleProblem(`feat: ${'y'.repeat(70)}`) ?? '',
-    /76 characters, at most 72 .*type\(scope\): outcome/u,
+    titleProblem(`feat: ${'y'.repeat(96)}`) ?? '',
+    /102 characters, at most 100 .*type\(scope\): outcome/u,
   );
   assert.match(titleProblem('Update stuff') ?? '', /type\(scope\): outcome/u);
 });

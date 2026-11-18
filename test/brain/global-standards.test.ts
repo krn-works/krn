@@ -122,7 +122,7 @@ test('the file states the commit, PR and merge convention once', () => {
   const text = readFileSync(join(home, '.claude', GLOBAL_FILE), 'utf8');
   assert.ok(text.includes(COMMIT_CONVENTION));
   assert.match(text, /PR_TITLE, body PR_BODY/u);
-  assert.match(text, /at most 72 characters/u);
+  assert.match(text, /at most 100 characters/u);
   assert.doesNotMatch(text, /Commit subjects since the repository adopted/u);
 });
 

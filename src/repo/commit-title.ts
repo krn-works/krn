@@ -16,7 +16,7 @@ export const TYPES = [
 ] as const;
 
 /** Longest subject, counted without the ` (t-id)` and ` (#N)` suffixes. */
-export const SUBJECT_MAX = 72;
+export const SUBJECT_MAX = 100;
 
 /** The expected form, shown in every refusal. */
 export const TITLE_FORM =
