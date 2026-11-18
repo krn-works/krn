@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { ArmId } from './arms.ts';
+import type { Verdict } from './attempt.ts';
 
 export interface Row {
   unit: string;
@@ -16,6 +17,21 @@ export interface Row {
   model?: string | null;
   /** Tokens the arm's instruction text carried into the session (arms B and C attest the same figure); absent for A. */
   injection?: number;
+  /** How the attempt ended (attempt.ts): a no-attempt or a screened-out unit is reported apart from a fail. */
+  verdict?: Verdict;
+  /** Why the unit was screened out before any session (its toolchain did not resolve). */
+  screenedOut?: string;
+  /** Wall time of the attempt's sessions, the gate's re-prompt included. */
+  durationMs?: number;
+  toolCalls?: number;
+  /** Test commands the attempt's sessions ran. */
+  testsRun?: number;
+  /** Why the attempt's last session ended: end_turn, timeout, budget or a failure subtype. */
+  stopReason?: string;
+  /** The verify-before-end gate refused the first end and re-prompted once. */
+  reprompted?: boolean;
+  /** The last ~40 lines of the grader's output (screening.ts TAIL_LINES), so every verdict is auditable. */
+  gradeTail?: string;
 }
 
 /** Every file the harness runs: the replay directory and the d23 and units code its sessions and grades import. */

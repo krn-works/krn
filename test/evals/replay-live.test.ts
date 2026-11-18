@@ -29,7 +29,10 @@ const repo = fileURLToPath(new URL('../..', import.meta.url));
 const git = (cwd: string, ...a: string[]) =>
   execFileSync('git', a, { cwd, encoding: 'utf8' }).trim();
 
-/** Two fixture units over one local clone; the stub claude fixes only the unit whose prompt names "alpha". */
+/**
+ * Two fixture units over one local clone; the stub claude fixes only the unit whose prompt names "alpha" and makes a
+ * wrong change on the other, so it is a graded fail rather than a no-attempt.
+ */
 function fixture(root: string) {
   const clone = join(root, 'sources', 'o__r');
   mkdirSync(clone, { recursive: true });
@@ -41,8 +44,11 @@ function fixture(root: string) {
   git(clone, 'add', '.');
   git(clone, 'commit', '-q', '-m', 'base');
   const base = git(clone, 'rev-parse', 'HEAD');
+  // The reference fix passes the unit's grader, so every fixture unit passes the grade preflight.
   writeFileSync(join(clone, 'a.txt'), '2');
-  git(clone, 'commit', '-q', '-am', 'fix');
+  writeFileSync(join(clone, 'fixed.txt'), '');
+  git(clone, 'add', '.');
+  git(clone, 'commit', '-q', '-m', 'fix');
   const reference = git(clone, 'rev-parse', 'HEAD');
   const units = join(root, 'units');
   for (const [id, word] of [
@@ -73,7 +79,7 @@ function fixture(root: string) {
   const stub = join(root, 'claude');
   writeFileSync(
     stub,
-    `#!/bin/sh\nprompt="$*"\necho +1 >> ${log}\nshift 2\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.25}'\n`,
+    `#!/bin/sh\nprompt="$*"\necho +1 >> ${log}\nshift 2\necho "$CLAUDE_CONFIG_DIR|$KRN_PROBE|$*" >> ${join(root, 'scratch', 'env.log')}\nsleep 0.4\nif echo "$prompt" | grep -q alpha; then touch fixed.txt; else touch tried.txt; fi\necho "$prompt" > ${join(root, 'scratch', 'prompt-')}$$\necho -1 >> ${log}\necho '{"type":"result","subtype":"success","is_error":false,"result":"ok","total_cost_usd":0.25}'\n`,
   );
   chmodSync(stub, 0o755);
   return { units, stub, log };
@@ -679,5 +685,94 @@ test('an arm session env carries no GitHub identity: gh pr view -R fails with an
     assert.match(r.stderr, /gh auth login|GH_TOKEN/);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--screen screens out a unit its grader cannot grade before any session and records the grade tail', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units, stub, log } = fixture(root);
+    // t-bbbbbbb: the reference fix fails the grader; t-ddddddd: the hidden test already passes at base.
+    const edit = (id: string, from: string, patch: Record<string, string>) => {
+      const u = JSON.parse(
+        readFileSync(join(units, from, 'unit.json'), 'utf8'),
+      ) as Record<string, unknown>;
+      mkdirSync(join(units, id), { recursive: true });
+      writeFileSync(join(units, id, 'hidden.txt'), 'present\n');
+      writeFileSync(
+        join(units, id, 'unit.json'),
+        JSON.stringify({
+          ...u,
+          id,
+          issue: `https://github.com/o/r/issues/${id.charCodeAt(2)}`,
+          ...patch,
+        }),
+      );
+    };
+    edit('t-bbbbbbb', 't-bbbbbbb', {
+      test: 'echo "FAIL hidden: other.txt missing"; test -f other.txt',
+    });
+    edit('t-ddddddd', 't-bbbbbbb', { test: 'true' });
+    const rowsFile = join(root, 'rows.jsonl');
+    const r = spawnSync(
+      'node',
+      [
+        'evals/replay/run.ts',
+        '--screen',
+        '--units-dir',
+        units,
+        '--sources',
+        join(root, 'sources'),
+        '--scratch',
+        join(root, 'scratch'),
+        '--rows',
+        rowsFile,
+      ],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          KRN_EVAL_CLAUDE: stub,
+          KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+        },
+      },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    const byUnit = Object.fromEntries(
+      parseRows(readFileSync(rowsFile, 'utf8')).map((x) => [x.unit, x]),
+    );
+    const bad = byUnit['t-bbbbbbb'];
+    assert.equal(bad?.verdict, 'screened');
+    assert.equal(bad?.pass, null);
+    assert.equal(
+      bad?.screenedOut,
+      'grade preflight: reference fails the grader (exit 1)',
+    );
+    assert.match(bad?.gradeTail ?? '', /FAIL hidden: other\.txt missing/);
+    assert.equal(
+      byUnit['t-ddddddd']?.screenedOut,
+      'grade preflight: hidden test passes at base',
+    );
+    // Only the gradable unit got a session, and its graded row carries the grader's output tail.
+    const sessions = readFileSync(log, 'utf8')
+      .split('\n')
+      .filter((l) => l === '+1');
+    assert.equal(sessions.length, 1);
+    assert.equal(byUnit['t-aaaaaaa']?.pass, true);
+    assert.equal(typeof byUnit['t-aaaaaaa']?.gradeTail, 'string');
+    assert.match(
+      r.stdout,
+      /^attempt t-bbbbbbb .*verdict=screened \(grade preflight: reference fails the grader \(exit 1\)\) grade: FAIL hidden: other\.txt missing$/m,
+    );
+    assert.match(
+      readFileSync(
+        join(root, 'grade-preflight', 't-bbbbbbb-preflight.log'),
+        'utf8',
+      ),
+      /preflight t-bbbbbbb: screened/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

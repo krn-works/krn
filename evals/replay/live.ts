@@ -11,22 +11,26 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { outsideGit } from '../../src/cli/outside-git.ts';
-import { withSessionSlot } from '../session-slot.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
 import { requireSandbox } from '../units/sandbox.ts';
 import {
   forceRemove,
-  gradeWorktree,
+  refuseScratchInRepository,
   withoutAppGh,
 } from '../units/screening.ts';
 import type { Unit } from '../units/unit.ts';
-import { sandboxedSession } from './arm-session.ts';
+import { liveAttempt, type SessionTurn } from './arm-session.ts';
 import { ARMS, type Arm } from './arms.ts';
+import {
+  type GradeCheck,
+  preflightOnce,
+  sandboxedCommitGrade,
+} from './grade-preflight.ts';
 import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
 import { formatRow, type Row } from './rows.ts';
 import { eligible, readRows, type ScreenUnit } from './screen.ts';
-import { type DrivenSession, sessionRan } from './session.ts';
+import type { DrivenSession } from './session.ts';
+import { SESSION_MS } from './session-args.ts';
 
 export interface LiveOptions {
   /** Directory of clones named <owner>__<name>. */
@@ -49,7 +53,19 @@ export interface LiveOptions {
     wt: string,
     env: NodeJS.ProcessEnv,
     log: string,
+    turn?: SessionTurn,
   ) => Promise<DrivenSession>;
+  /**
+   * The grade preflight (grade-preflight.ts): the unit's grader red at base and green at the reference, before any
+   * session. Default: the sandboxed grade of both commits when no session stub is given; tests pass a stub.
+   */
+  gradeCheck?: ((lu: LiveUnit) => Promise<GradeCheck>) | undefined;
+  /** Resolves the unit's toolchain before any session (arm-session.ts); tests pass a stub. */
+  preflight?: (
+    wt: string,
+    env: NodeJS.ProcessEnv,
+    log: string,
+  ) => Promise<number>;
 }
 
 export interface LiveUnit {
@@ -156,8 +172,6 @@ export function sessionWritable(cwd: string, env: NodeJS.ProcessEnv): string[] {
   return w;
 }
 
-const local = (repo: string, ...args: string[]) => outsideGit(repo, args);
-
 /** One arm-A session and its grade; the session holds a slot, the grade does not. */
 export async function screenUnit(
   { unit, dir }: LiveUnit,
@@ -172,48 +186,38 @@ export async function screenUnit(
   // upstream fix through a worktree's shared refs).
   const wt = baseCheckout(o.sources, unit, o.scratch);
   try {
-    const run =
-      o.session ??
-      ((w: string, e: NodeJS.ProcessEnv) =>
-        sandboxedSession(arm, w, promptOf(unit), e, {
-          sessionMs: o.sessionMs ?? 30 * 60_000,
-          ...(o.model === undefined ? {} : { model: o.model }),
-        }));
-    const session = await withSessionSlot(() => run(wt, env, log), slotEnv);
-    appendFileSync(log, `${session.stdout}\n${session.stderr}\n`);
-    const ran = sessionRan(session);
-    // The grade sees the session's source change on a fresh install: ignored leftovers of the session's own installs
-    // or builds (node_modules, .venv, dist) are not part of a change and can break the grading install.
-    if (ran) local(wt, 'clean', '-fdXq');
     // The change is recorded before the grade writes the hidden test into the checkout; a failed recording keeps the row.
     let patch: string | undefined;
-    if (ran && o.recordings !== undefined)
-      try {
-        patch = recordPatch(wt, o.recordings, unit.id, rep, unit.base);
-      } catch (e) {
-        appendFileSync(log, `record: ${String(e)}\n`);
-      }
-    const g = ran
-      ? await gradeWorktree(wt, unit, dir, log, o.scratch)
-      : undefined;
-    if (g && patch !== undefined && o.recordings !== undefined)
+    const a = await liveAttempt(arm, { unit, dir }, wt, env, log, {
+      ...o,
+      harness: o.harness,
+      sessionMs: o.sessionMs ?? SESSION_MS,
+      beforeGrade: (w) => {
+        if (o.recordings === undefined) return;
+        try {
+          patch = recordPatch(w, o.recordings, unit.id, rep, unit.base);
+        } catch (e) {
+          appendFileSync(log, `record: ${String(e)}\n`);
+        }
+      },
+    });
+    if (a.grade && patch !== undefined && o.recordings !== undefined)
       recordGrade(o.recordings, {
         unit: unit.id,
         rep,
         base: unit.base,
-        pass: g.install === 0 && g.test === 0,
-        install: g.install,
-        test: g.test,
+        pass: a.grade.install === 0 && a.grade.test === 0,
+        install: a.grade.install,
+        test: a.grade.test,
         harness: o.harness,
       });
     return {
       unit: unit.id,
       arm: arm.id,
       rep,
-      pass: g ? g.install === 0 && g.test === 0 : null,
-      cost: session.result.cost ?? null,
+      pass: a.pass,
       harness: o.harness,
-      model: session.result.model ?? null,
+      ...a.row,
     };
   } finally {
     // A session may leave read-only trees (envtest binaries, a Go module cache); a failed removal never loses the row.
@@ -225,19 +229,24 @@ export async function screenUnit(
   }
 }
 
+/** A row with no grade that a rerun would not change: the session made no attempt, or the unit was screened out. */
+const settled = (r: Row): boolean =>
+  r.verdict === 'no-attempt' || r.verdict === 'screened';
+
 /** Screens every eligible unit's missing arm-A reps, at most the slot cap at a time, appending one row each. */
 export async function screenLive(
   units: LiveUnit[],
   o: LiveOptions,
 ): Promise<Row[]> {
-  // Refuse before any paid session when the grade could not run sandboxed.
+  // Refuse before any paid session when the grade could not run sandboxed or would abort on a scratch inside a repository.
   requireSandbox();
+  refuseScratchInRepository(o.scratch);
   const ok = new Set(
     eligible(units.map((u) => u.unit as ScreenUnit)).map((u) => u.id),
   );
   const done = new Set(
     readRows(o.rowsFile)
-      .filter((r) => r.arm === 'A' && r.pass !== null)
+      .filter((r) => r.arm === 'A' && (r.pass !== null || settled(r)))
       .map((r) => `${r.unit}/${r.rep}`),
   );
   const todo = units
@@ -247,14 +256,47 @@ export async function screenLive(
     )
     .filter((t) => !done.has(`${t.u.unit.id}/${t.rep}`));
   const rows: Row[] = [];
+  // The grade preflight runs for every unit before the first session: a unit its grader cannot grade gets one
+  // screened row per missing rep and no session. Its log sits beside the rows, outside the scratch a session writes.
+  const check =
+    o.gradeCheck ??
+    (o.session === undefined
+      ? preflightOnce(
+          sandboxedCommitGrade(o),
+          join(dirname(o.rowsFile), 'grade-preflight'),
+        )
+      : undefined);
+  const checks = new Map<string, GradeCheck>();
+  if (check !== undefined)
+    for (const u of new Set(todo.map((t) => t.u)))
+      checks.set(u.unit.id, await check(u));
+  const runnable = todo.filter((t) => {
+    const c = checks.get(t.u.unit.id);
+    if (c === undefined || c.ok) return true;
+    const row: Row = {
+      unit: t.u.unit.id,
+      arm: ARMS.A.id,
+      rep: t.rep,
+      pass: null,
+      cost: null,
+      harness: o.harness,
+      model: null,
+      verdict: 'screened',
+      screenedOut: `grade preflight: ${c.reasons.join('; ')}`,
+      ...(c.tail ? { gradeTail: c.tail } : {}),
+    };
+    appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
+    rows.push(row);
+    return false;
+  });
   let next = 0;
   const width = Math.max(
     1,
     Number((o.env ?? process.env).KRN_EVAL_MAX_SESSIONS) || 4,
   );
   const work = async () => {
-    while (next < todo.length) {
-      const t = todo[next++] as (typeof todo)[number];
+    while (next < runnable.length) {
+      const t = runnable[next++] as (typeof runnable)[number];
       const row = await screenUnit(t.u, o, t.rep);
       appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
       rows.push(row);

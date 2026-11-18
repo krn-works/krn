@@ -83,5 +83,5 @@ export async function armCRow(
     claimUnitTask(wt, unit);
     return injection;
   });
-  return { ...row, injection: note };
+  return note === undefined ? row : { ...row, injection: note };
 }

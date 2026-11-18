@@ -4,6 +4,8 @@
 // --screen --model <m> --rows <file> runs them on another model; a Codex model (gpt-6.2-sol) runs on `codex exec`.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
+// --screen --grade-preflight grades every eligible unit's base and reference with its exact grader and starts no
+// session: one line per unit, exit 0 when each is red at base and green at the reference, 1 when one is screened out;
 // --screen --replay <dir> grades every recorded patch on a fresh unit.base checkout with no model session and exits
 // 0 when each replayed grade equals the recorded one, 1 when one differs, 65 when none replays.
 // One runner for every replay arm. --dry prints one row per (unit, arm, rep) without starting a session; without
@@ -11,7 +13,7 @@
 // checkout with the in-force records as a static CLAUDE.md (arm-b.ts), which also prints its token counts.
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
@@ -19,11 +21,14 @@ import { analyze, matrixProblems, parsePrereg, reportLines } from './abc.ts';
 import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
+import { preflightOnce, sandboxedCommitGrade } from './grade-preflight.ts';
 import { type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import {
+  attemptLines,
   eligible,
+  firstFailingLine,
   readRows,
   report,
   type ScreenUnit,
@@ -117,6 +122,25 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       for (const l of v.lines) console.log(l);
       process.exit(v.code);
     }
+    if (args.includes('--grade-preflight')) {
+      const check = preflightOnce(
+        sandboxedCommitGrade({ sources, scratch }),
+        join(dirname(resolve(rowsFile)), 'grade-preflight'),
+      );
+      const ok = new Set(eligible(units).map((u) => u.id));
+      let screened = 0;
+      for (const lu of loaded.filter((u) => ok.has(u.unit.id))) {
+        const c = await check(lu);
+        if (!c.ok) screened++;
+        console.log(
+          `preflight ${lu.unit.id} ${c.ok ? 'ok' : `screened (${c.reasons.join('; ')})${c.tail ? ` grade: ${firstFailingLine(c.tail) ?? ''}` : ''}`}`,
+        );
+      }
+      console.log(
+        `verdict: ${ok.size - screened} of ${ok.size} units gradable, ${screened} screened out`,
+      );
+      process.exit(screened === 0 ? 0 : 1);
+    }
     if (!args.includes('--report') && flag('metric') === undefined)
       await screenLive(loaded, {
         sources,
@@ -137,6 +161,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       if (s.passRate === null) process.exit(65);
       console.log(s.passRate.toFixed(3));
     } else {
+      for (const l of attemptLines(readRows(rowsFile))) console.log(l);
       for (const l of report(s)) console.log(l);
     }
     process.exit(0);
@@ -183,7 +208,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             const b = await armBRow(unit, options, rep);
             row = b.row;
             console.log(formatRow(row));
-            console.log(formatTokens(id, b.tokens));
+            if (b.tokens !== undefined) console.log(formatTokens(id, b.tokens));
           } else {
             row = await armCRow(unit, options, rep);
             console.log(formatRow(row));

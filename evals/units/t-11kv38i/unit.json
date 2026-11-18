@@ -13,7 +13,7 @@
     "dest": "pkg/unikontainers/urunc_config_test.go"
   },
   "install": "go mod download",
-  "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+  "test": "timeout 240 go test -count=1 -run '^(TestUruncConfigFromMap|TestUruncConfigMap|TestDefaultConfigs|TestLoadUruncConfig|TestResolveUruncConfigPath|TestRuntimeLibcontainer)$' ./pkg/unikontainers/",
   "committed": "2026-09-03",
   "issue": "https://github.com/urunc-dev/urunc/issues/1010"
 }

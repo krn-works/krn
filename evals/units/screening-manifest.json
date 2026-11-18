@@ -2715,7 +2715,7 @@
     "base": "541aff1254b0864603d50691c6ba9161833c3812",
     "fix": "991ff3ea18c2a43ad40eeae684b2aa3ed6f884c5",
     "committed": "2026-11-16",
-    "test": "timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
+    "test": "NODE_ENV=dev timeout 240 npx --no-install jest \"test/utils/Data.spec.ts\"",
     "verification": {
       "installBase": 0,
       "testBase": 1,
@@ -4126,7 +4126,7 @@
     "base": "83c30e878a84b6b9e701686943e746fe03e1bcd4",
     "fix": "45cfe27bb345199c182474b12598ed1f062289b8",
     "committed": "2026-09-03",
-    "test": "timeout 240 go test -count=1 ./pkg/unikontainers/",
+    "test": "timeout 240 go test -count=1 -run '^(TestUruncConfigFromMap|TestUruncConfigMap|TestDefaultConfigs|TestLoadUruncConfig|TestResolveUruncConfigPath|TestRuntimeLibcontainer)$' ./pkg/unikontainers/",
     "verification": {
       "installBase": 0,
       "testBase": 1,

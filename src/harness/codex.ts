@@ -61,6 +61,12 @@ export function codexExecArgs(run: CodexRun): string[] {
   ];
 }
 
+/** The words after `codex` that resume session `id` with `prompt`: the same flags as the first session. */
+export function codexResumeArgs(run: CodexRun & { id: string }): string[] {
+  const words = codexExecArgs(run);
+  return ['exec', 'resume', ...words.slice(1, -1), run.id, run.brief];
+}
+
 /** The host Codex home: `CODEX_HOME`, else `~/.codex`. */
 export const codexHome = (
   env: NodeJS.ProcessEnv,

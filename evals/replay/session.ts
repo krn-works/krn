@@ -28,6 +28,11 @@ export interface HeadlessSession {
   stdin?: string;
   /** Reads a session that ran to its end; the default reads a `claude -p` JSON result. */
   parse?: (stdout: string, stderr: string) => SessionResult;
+  /**
+   * A dollar cap the driver enforces for a harness without one of its own (Codex): every `everyMs` it reads the spend
+   * so far and kills the session at `usd`, which then ends capped like a Claude session at `--max-budget-usd`.
+   */
+  budget?: { usd: number; spent: () => number | undefined; everyMs?: number };
 }
 
 /** What the driver saw: the parsed result, and whether the session never started. */
@@ -54,6 +59,7 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let capped = false;
     let error: NodeJS.ErrnoException | undefined;
     const child = spawn(s.command, s.argv, {
       cwd: s.cwd,
@@ -66,6 +72,16 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
       timedOut = true;
       killGroup(child.pid);
     }, s.timeoutMs);
+    const poll =
+      s.budget === undefined
+        ? undefined
+        : setInterval(() => {
+            const spent = s.budget?.spent();
+            if (spent !== undefined && spent >= (s.budget?.usd ?? Infinity)) {
+              capped = true;
+              killGroup(child.pid);
+            }
+          }, s.budget.everyMs ?? 10_000);
     child.stdout.on('data', (d: Buffer) => {
       if (stdout.length < maxOutput) stdout += d;
     });
@@ -79,9 +95,18 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
     });
     child.on('close', () => {
       clearTimeout(timer);
+      if (poll) clearInterval(poll);
       killGroup(child.pid);
+      const result = resultOf(s, { stdout, stderr, timedOut, error });
       resolve({
-        result: resultOf(s, { stdout, stderr, timedOut, error }),
+        result: capped
+          ? {
+              ...result,
+              ok: false,
+              capped: true,
+              detail: `session killed at its $${s.budget?.usd} budget`,
+            }
+          : result,
         notStarted: error !== undefined && !timedOut,
         timedOut,
         stdout,
