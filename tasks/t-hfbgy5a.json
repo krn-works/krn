@@ -1,7 +1,11 @@
 {
   "id": "t-hfbgy5a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "astra-critique.ts --dry-run prints codex command and friction log, exit 0; test/claude/astra-critique.test.ts covers it"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "The retro asks GPT-6.2 Astra to critique every slice that hit a workaround",
