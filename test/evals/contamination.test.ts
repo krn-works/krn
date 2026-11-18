@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -183,6 +184,43 @@ test('a subagent transcript under the session directory is scanned with its sess
     const [r] = scanRows(rows, scratch);
     assert.equal(r?.transcript, true);
     assert.equal(contaminated(r?.hits ?? []), true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--screen --report prints the contamination line for a transcript that fetched the upstream fix', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'contam-report-'));
+  try {
+    const id = '466fcb95-567c-4f2f-ac05-0db218bdf2cf';
+    const dir = join(scratch, 'claude-config', 'projects', '-session');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${id}.jsonl`), fixture('t-1d7k0sg'));
+    writeFileSync(join(scratch, 't-1d7k0sg-1.log'), `{"session_id":"${id}"}`);
+    const rows = join(scratch, 'rows.jsonl');
+    writeFileSync(
+      rows,
+      `${JSON.stringify({ unit: 't-1d7k0sg', arm: 'A', rep: 1, pass: true, cost: 0, harness: 'h' })}\n${JSON.stringify({ unit: 't-1bfdvot', arm: 'A', rep: 1, pass: false, cost: 0, harness: 'h' })}\n`,
+    );
+    const r = spawnSync(
+      'node',
+      [
+        'evals/replay/run.ts',
+        '--screen',
+        '--report',
+        '--rows',
+        rows,
+        '--scratch',
+        scratch,
+      ],
+      { cwd: new URL('../..', import.meta.url), encoding: 'utf8' },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /^t-1d7k0sg\/1 pass=true gh /m);
+    assert.match(
+      r.stdout,
+      /^contamination: 1 flagged of 2 rows \(passes 1, fails 0\); transcripts missing 1$/m,
+    );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

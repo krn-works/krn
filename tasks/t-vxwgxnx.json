@@ -1,7 +1,11 @@
 {
   "id": "t-vxwgxnx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "run.ts --screen --report prints contamination line; test on fixture transcript passes"
+  },
   "created": "2026-11-16",
   "priority": 1,
   "title": "Screen report flags sessions that reached the upstream fix",

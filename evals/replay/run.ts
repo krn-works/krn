@@ -1,6 +1,7 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
 // --prereg evals/replay/abc.prereg.md --report [--rows <file>] [--strict] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
-// --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows.
+// --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows,
+// then a contamination line: the rows whose session reached the upstream fix, read from the transcripts under --scratch.
 // --screen --model <m> --rows <file> runs them on another model; a Codex model (gpt-6.2-sol) runs on `codex exec`.
 // --screen --session-minutes <n> lowers every attempt's time cap (default 30), the gate's re-prompt included.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
@@ -22,6 +23,7 @@ import { analyze, matrixProblems, parsePrereg, reportLines } from './abc.ts';
 import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
+import { contaminationLines, scanRows } from './contamination.ts';
 import { preflightOnce, sandboxedCommitGrade } from './grade-preflight.ts';
 import { type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
@@ -167,6 +169,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     } else {
       for (const l of attemptLines(readRows(rowsFile))) console.log(l);
       for (const l of report(s)) console.log(l);
+      for (const l of contaminationLines(scanRows(rowsFile, scratch)))
+        console.log(l);
     }
     process.exit(0);
   }
