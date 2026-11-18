@@ -6,7 +6,7 @@ compatibility: Requires the krn CLI on PATH and git; works in any repository sta
 
 # Delivery retro
 
-Goal: the next slice is cheaper. A lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`, never an edit in the slice pull request. Never open a separate retro pull request. Cite evidence by pointer. Read the test and fast commands from `krn repo contract`.
+Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed now, with its regression test. Another lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`. Never open a separate retro pull request. Cite evidence by pointer. Read the test and fast commands from `krn repo contract`.
 
 ## Measure first
 

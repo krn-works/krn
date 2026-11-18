@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   formatProposal,
   harvestCandidates,
@@ -265,4 +269,36 @@ test('staleResearch lists candidates older than 7 days without a merged PR or re
     rows.map((c) => c.id),
     ['old'],
   );
+});
+
+// Receiver: the repository's own Biome. #1392 was refused at push because Biome reflowed a proposal's
+// one-element evidence array that `krn standards propose` had just written.
+test('Biome leaves a proposal as krn standards propose writes it', () => {
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const common = spawnSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).stdout.trim();
+  const own = join(root, 'node_modules/.bin/biome');
+  const biome = existsSync(own)
+    ? own
+    : join(dirname(resolve(root, common)), 'node_modules/.bin/biome');
+  const text = formatProposal({
+    text: 'A runner reads its receiver before it starts a paid session.',
+    kind: 'check',
+    evidence: ['src/cli/lane-run/receiver.ts'],
+    recorded_at: '2026-11-18',
+  });
+  const run = spawnSync(
+    biome,
+    [
+      'check',
+      '--write',
+      '--stdin-file-path',
+      '.agents/standards-proposals/x.json',
+    ],
+    { cwd: root, encoding: 'utf8', input: text },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, text);
 });

@@ -112,9 +112,15 @@ export function proposalFileName(text: string): string {
   return `${slug === '' ? 'proposal' : slug}-${hash}.json`;
 }
 
-/** The proposal file text: stable key order, trailing newline. */
+/**
+ * The proposal file text: stable key order, trailing newline, and the evidence array on one line when
+ * it fits Biome's 80 columns, as Biome writes it, so a formatter pass never rewrites a fresh proposal.
+ */
 export function formatProposal(proposal: Proposal): string {
-  return `${JSON.stringify(proposal, null, 2)}\n`;
+  const expanded = JSON.stringify(proposal, null, 2);
+  const inline = `  "evidence": ${JSON.stringify(proposal.evidence).replaceAll('","', '", "')},`;
+  if (inline.length > 80) return `${expanded}\n`;
+  return `${expanded.replace(/^ {2}"evidence": \[[^\]]*\],$/mu, inline)}\n`;
 }
 
 /** One proposal read from one repository. */
