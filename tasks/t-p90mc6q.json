@@ -1,0 +1,17 @@
+{
+  "id": "t-p90mc6q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Ship's local check is bounded like T3: CI is the only full gate",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-18 asked why CI keeps being imperfect after many CI tasks; the lead proposed the T3 model (memory ci-like-t3): krn pr ship runs only fast lint, typecheck and touched tests locally and leaves the full suite to CI, because the heavy local pre-push check on a shared host (load 40-65 from other projects) caused today's hour-long ships, load waits, timeout flakes and format-only refusals (#1424 refused after 60 min for a Biome reformat; #1428 ran 81 min).",
+    "Outcome: the local check inside `krn pr ship` and the lane final check is bounded (lint with --write applied and committed automatically, typecheck, the changed test files only) and finishes in under 2 minutes on a loaded host; the required GitHub Check stays the only full gate.",
+    "Files: src/ci/ship.ts, scripts/fast-check.ts, src/cli/lane-run/delivery.ts",
+    "Proof: a ship test on a loaded-host stub runs no test outside the changed files; a format-only rewrite is committed by ship instead of refused; measured ship wall time on the next 5 lead ships is under 15 minutes each."
+  ],
+  "kind": "feature",
+  "area": "ship"
+}

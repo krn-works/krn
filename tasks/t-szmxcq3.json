@@ -1,0 +1,17 @@
+{
+  "id": "t-szmxcq3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Task publish is not refused by the agent lane budget",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: `krn task publish` exited 64 with \"lane budget: 6 live lane worktrees ... (maximum 6, KRN_LANE_MAX_LIVE)\" while six agent lanes ran: publishing task records needs a short-lived task-records worktree, and the lane cap (meant to bound paid agent sessions) refused it, so closes and new records could not reach main.",
+    "Outcome: task-record publication (and its task-records-* worktree) is exempt from the lane budget and is not counted as a live lane.",
+    "Files: src/cli/lane.ts, src/cli/task-publish.ts",
+    "Proof: a test with KRN_LANE_MAX_LIVE live lanes asserts `krn task publish` still creates its worktree and ships; a task-records worktree does not count toward the budget of the next lane start."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

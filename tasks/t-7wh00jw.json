@@ -1,0 +1,17 @@
+{
+  "id": "t-7wh00jw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Lane and task-record PR bodies use the one PR body section set",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (t-zvgxegd, PR cbd169e): `krn pr body` now writes the sections Why / What changed / Verified / Task, but src/cli/lane-run/delivery.ts and src/task/pending.ts still write Problem/Change/Verification headings for lane and task-record PRs, so PR bodies are not uniform.",
+    "Outcome: every PR body KRN writes (lead, lane, task-record publish) uses the one section set owned by the PR-body module; no second heading list exists.",
+    "Files: src/cli/lane-run/delivery.ts, src/task/pending.ts, src/cli/pr-body.ts",
+    "Proof: a test renders a lane PR body and a task-record PR body and asserts the same section headings as `krn pr body`; a grep test finds no Problem/Change/Verification heading in src/."
+  ],
+  "kind": "debt",
+  "area": "ship"
+}

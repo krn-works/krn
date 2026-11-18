@@ -1,0 +1,17 @@
+{
+  "id": "t-28sgt0b",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "A successful lane start prints no line that reads like a refusal",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: two lane agents (t-tb6wbwr twice) read `lane budget: 34.2 GB free under <dir>; krn prune --dry-run lists what agent work can free` printed by a successful `krn lane start` (src/cli/lane.ts:645) as a refusal, because the real disk refusal uses the same `lane budget:` prefix (src/cli/lane.ts:117); one lane stopped with a false BLOCKER although its worktree and claim existed.",
+    "Outcome: the advisory line no longer starts with `lane budget:` (e.g. `disk: 34.2 GB free under <dir> (advisory)`), and only refusals use the `lane budget:` prefix, which always goes with a nonzero exit.",
+    "Files: src/cli/lane.ts",
+    "Proof: a lane-start test asserts a successful start prints no line starting with `lane budget:` and a refused start exits nonzero with one."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

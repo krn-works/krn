@@ -1,7 +1,11 @@
 {
   "id": "t-gc828jq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Proved by PR #1404; recorded after t-v14rt3w (#1424) made a lead close publishable."
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "fast selects the tests that spawn the CLI entry when the dispatch path changes",

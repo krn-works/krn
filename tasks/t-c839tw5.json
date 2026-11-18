@@ -1,0 +1,16 @@
+{
+  "id": "t-c839tw5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "The App git credential helper scopes its token to the repository git asks for",
+  "after": [],
+  "body": [
+    "Evidence (2026-11-18): in the pilot checkout /mnt/storage/tmp/krn/pilot/lead (origin krn-works/seo-audit-harness), `git fetch`/`git pull` print \"remote: Repository not found\" (exit 128). The global git credential helper `scripts/github-app-token.ts git-credential get` mints a token scoped to krn-works/krn unless KRN_APP_REPOSITORY is set (src/ci/app-token.ts targetRepository); `GH_TOKEN=<that token> gh api installation/repositories` lists only krn-works/krn. The proof script .krn/runs/pilot/lanes/preflight-proof-2.sh ran `git pull -q` unchecked, so the checkout went stale silently; the drain only worked once run with KRN_APP_REPOSITORY=krn-works/seo-audit-harness.",
+    "Outcome: the git-credential mode scopes the token to the repository git asks for, without KRN_APP_REPOSITORY: it reads the `path` field git sends (with credential.useHttpPath set for github.com) or, failing that, the owner/name of the current checkout's remote; KRN_APP_REPOSITORY still wins when set. A repository the App is not installed on fails with a named message, not a krn-works/krn token that 404s.",
+    "Proof: a unit test feeds git-credential input with path=krn-works/other.git and asserts the installation lookup targets krn-works/other (capture test/fixtures/github-app-token/repo-installation.txt); a real `git ls-remote origin HEAD` in a non-krn checkout under krn-works exits 0 with KRN_APP_REPOSITORY unset."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

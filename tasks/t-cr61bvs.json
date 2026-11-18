@@ -1,0 +1,17 @@
+{
+  "id": "t-cr61bvs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Repo settings apply names the missing App permission on a 403",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: `krn repo settings --apply` on KRN exited 69: `gh api -X PATCH repos/{owner}/{repo}` failed with \"Resource not accessible by integration (HTTP 403)\" because scripts/app-bin/gh forces the GitHub App token, which lacks the Administration permission; the lead applied the gap with the operator account (`env -u GH_TOKEN /usr/bin/gh api -X PATCH ...`) and `krn repo settings` then printed PASS.",
+    "Outcome: on a 403 from the App token, `krn repo settings --apply` names the missing App permission and the remedy (grant Administration: write to the App, or rerun with the operator gh login) instead of a bare gh error, and exits with a named code.",
+    "Files: src/repo/merge-settings.ts",
+    "Proof: a test with a captured 403 reply asserts the message names the Administration permission and the operator-login remedy."
+  ],
+  "kind": "defect",
+  "area": "repo"
+}
