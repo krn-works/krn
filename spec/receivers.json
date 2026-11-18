@@ -124,6 +124,10 @@
       "receivers": ["git", "node", "sh"],
       "real": "test/hook/stop.test.ts"
     },
+    "src/repo/test-slot.ts": {
+      "receivers": ["git"],
+      "real": "test/hook/stop-slot.test.ts"
+    },
     "src/repo/lane-removal.ts": {
       "receivers": ["git"],
       "real": "test/hook/stop-merged-lane.test.ts"

@@ -51,6 +51,8 @@ import { ghApiSync } from '../repo/gh.ts';
 import { laneMergeVerdict } from '../repo/merge-verdict.ts';
 import { receiverEnv } from '../repo/receiver-env.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
+import { SlotTimeoutError, withSlotSync } from '../repo/slot-lock.ts';
+import { SLOT_HELD_ENV, testSlotOptions } from '../repo/test-slot.ts';
 import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
 import {
@@ -270,6 +272,8 @@ export function changedSinceBase(root: string, from = base(root)): string[] {
 export interface Outcome {
   ok: boolean;
   reason: string;
+  /** Set when no host test slot came free before the deadline: the tests did not run, which is not a test failure. */
+  slotTimeout?: string;
   /** Test files that failed, then passed on the one rerun. */
   flaky?: string[];
 }
@@ -476,7 +480,38 @@ const REPORTER = fileURLToPath(
   new URL('./failure-reporter.mjs', import.meta.url),
 );
 
-export const runTests: Runner = (root, tests) => {
+/** The wait for the host test slot ended at its deadline, so the check ran no tests. */
+export class StopSlotTimeout extends Error {
+  constructor(cause: SlotTimeoutError) {
+    super(`stop check skipped: ${cause.message}`);
+    this.name = 'StopSlotTimeout';
+  }
+}
+
+/**
+ * Runs a test process inside the host test slot fast uses, so stops do not stack test processes on fast runs.
+ * A run started by fast already holds the slot (SLOT_HELD_ENV) and runs inside it.
+ */
+export function inStopSlot<T>(
+  root: string,
+  work: () => T,
+  env: NodeJS.ProcessEnv = process.env,
+): T {
+  if (env[SLOT_HELD_ENV] === '1') return work();
+  try {
+    return withSlotSync(testSlotOptions(root, env), work);
+  } catch (error) {
+    if (error instanceof SlotTimeoutError) throw new StopSlotTimeout(error);
+    throw error;
+  }
+}
+
+export const runTests: Runner = (root, tests) =>
+  existsSync(root)
+    ? inStopSlot(root, () => spawnTests(root, tests))
+    : [missingRootKey(root)];
+
+function spawnTests(root: string, tests: string[]): string[] {
   // spawnSync reports a missing cwd as ENOENT on the program, which sends the reader hunting for node.
   if (!existsSync(root)) return [missingRootKey(root)];
   const env = receiverEnv(root);
@@ -510,7 +545,7 @@ export const runTests: Runner = (root, tests) => {
   if (failed.length === 0 && run.status !== 0)
     failed.push(`<run>::exit ${run.status ?? run.signal}`);
   return failed;
-};
+}
 
 // One failing test per match, by runner: pytest summary, unittest, go, cargo, jest/vitest file lines.
 const FAILURE_LINES: readonly RegExp[] = [
@@ -544,7 +579,15 @@ export function failuresIn(output: string, status: number | string): string[] {
 
 const NAMELESS = /^<run>::/u;
 
-const runCommand: CommandRunner = (root, command) => {
+const runCommand: CommandRunner = (root, command) =>
+  existsSync(root)
+    ? inStopSlot(root, () => spawnCommand(root, command))
+    : [missingRootKey(root)];
+
+function spawnCommand(
+  root: string,
+  command: string,
+): ReturnType<CommandRunner> {
   if (!existsSync(root)) return [missingRootKey(root)];
   const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
     cwd: root,
@@ -559,7 +602,7 @@ const runCommand: CommandRunner = (root, command) => {
     failures: failuresIn(output, run.status ?? run.signal ?? 'killed'),
     output,
   };
-};
+}
 
 /** Link each nested package's node_modules (packages/seo/node_modules) so the base sees the worktree's dependencies. */
 export function linkPackageModules(root: string, dir: string, depth = 3) {
@@ -708,6 +751,21 @@ export function inspect(
   run: Runner = runTests,
   shell: CommandRunner = runCommand,
   env: NodeJS.ProcessEnv = process.env,
+): Outcome & { ignored: number; modified?: string[] } {
+  try {
+    return inspectWithin(root, run, shell, env);
+  } catch (error) {
+    if (!(error instanceof StopSlotTimeout)) throw error;
+    // No slot came free: the tests never ran, so the stop is neither passed as proven nor refused as red.
+    return { ok: true, ignored: 0, reason: '', slotTimeout: error.message };
+  }
+}
+
+function inspectWithin(
+  root: string,
+  run: Runner,
+  shell: CommandRunner,
+  env: NodeJS.ProcessEnv,
 ): Outcome & { ignored: number; modified?: string[] } {
   const outcome = inspectTests(root, run, shell, env);
   if (!outcome.ok) return outcome;
@@ -1871,9 +1929,11 @@ export function main() {
       ? `\nchanged pre-existing tests: ${outcome.modified.join(', ')}`
       : '';
     process.stdout.write(
-      outcome.ok
-        ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${outcome.flaky?.length ? ` (flaky, passed on rerun: ${outcome.flaky.join(', ')})` : ''}${changedTests}\n`
-        : `stop FAIL: ${outcome.reason}\n`,
+      outcome.slotTimeout
+        ? `stop SKIPPED (slot): ${outcome.slotTimeout}\n`
+        : outcome.ok
+          ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${outcome.flaky?.length ? ` (flaky, passed on rerun: ${outcome.flaky.join(', ')})` : ''}${changedTests}\n`
+          : `stop FAIL: ${outcome.reason}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;
     return;

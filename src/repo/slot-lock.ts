@@ -75,44 +75,75 @@ function holding(entry: Holder): boolean {
   return entry.start === undefined || now === undefined || now === entry.start;
 }
 
-/** Takes a free slot (reclaiming one whose holder died) and returns its release. */
-async function acquire(options: SlotOptions): Promise<() => void> {
+/** One pass over the slots: takes a free one (reclaiming a dead holder's) and returns its release, or undefined when all are held. */
+function tryTake(options: SlotOptions): (() => void) | undefined {
   const slots = Math.max(1, options.slots ?? 1);
-  const pollMs = options.pollMs ?? 250;
   mkdirSync(options.dir, { recursive: true });
+  for (let index = 0; index < slots; index += 1) {
+    const slot = join(options.dir, `slot-${index}`);
+    try {
+      mkdirSync(slot);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      const entry = holder(slot);
+      // A fresh slot has no pid yet; only a recorded dead or replaced holder is reclaimed.
+      if (entry === undefined || holding(entry)) continue;
+      rmSync(slot, { recursive: true, force: true });
+      index -= 1;
+      continue;
+    }
+    writeFileSync(
+      join(slot, 'pid'),
+      `${process.pid} ${processStart(process.pid) ?? ''}`.trim(),
+    );
+    return () => rmSync(slot, { recursive: true, force: true });
+  }
+  return undefined;
+}
+
+/** After a failed pass: reports the first wait once and throws at the deadline. */
+function stillWaiting(
+  options: SlotOptions,
+  started: number,
+  waiting: boolean,
+): void {
+  const first = holder(join(options.dir, 'slot-0'))?.pid;
+  if (!waiting) options.onWait?.(first);
+  const waited = Date.now() - started;
+  if (options.deadlineMs !== undefined && waited >= options.deadlineMs)
+    throw new SlotTimeoutError(waited, first);
+}
+
+async function acquire(options: SlotOptions): Promise<() => void> {
+  const pollMs = options.pollMs ?? 250;
   const started = Date.now();
   let waiting = false;
   for (;;) {
-    for (let index = 0; index < slots; index += 1) {
-      const slot = join(options.dir, `slot-${index}`);
-      try {
-        mkdirSync(slot);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        const entry = holder(slot);
-        // A fresh slot has no pid yet; only a recorded dead or replaced holder is reclaimed.
-        if (entry === undefined || holding(entry)) continue;
-        rmSync(slot, { recursive: true, force: true });
-        index -= 1;
-        continue;
-      }
-      writeFileSync(
-        join(slot, 'pid'),
-        `${process.pid} ${processStart(process.pid) ?? ''}`.trim(),
-      );
-      return () => rmSync(slot, { recursive: true, force: true });
-    }
-    if (!waiting) {
-      waiting = true;
-      options.onWait?.(holder(join(options.dir, 'slot-0'))?.pid);
-    }
-    const waited = Date.now() - started;
-    if (options.deadlineMs !== undefined && waited >= options.deadlineMs)
-      throw new SlotTimeoutError(
-        waited,
-        holder(join(options.dir, 'slot-0'))?.pid,
-      );
+    const release = tryTake(options);
+    if (release) return release;
+    stillWaiting(options, started, waiting);
+    waiting = true;
     await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+}
+
+/** Blocking twin of withSlot for synchronous callers (the Stop hook spawns its tests with spawnSync). */
+export function withSlotSync<T>(options: SlotOptions, work: () => T): T {
+  const pollMs = options.pollMs ?? 250;
+  const started = Date.now();
+  const cell = new Int32Array(new SharedArrayBuffer(4));
+  let waiting = false;
+  let release = tryTake(options);
+  while (release === undefined) {
+    stillWaiting(options, started, waiting);
+    waiting = true;
+    Atomics.wait(cell, 0, 0, pollMs);
+    release = tryTake(options);
+  }
+  try {
+    return work();
+  } finally {
+    release();
   }
 }
 
