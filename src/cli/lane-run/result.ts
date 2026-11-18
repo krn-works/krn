@@ -12,3 +12,6 @@ export const exitBudgetCapped = 75;
 
 /** The session made no progress: three identical Stop refusals with no edit between them. */
 export const exitNoProgress = 79;
+
+/** The final check failed with timeouts only, on a different file set each run: host load, not a defect; the worktree is kept for `krn lane finish`. */
+export { exitHostLoadFlake } from '../../ci/test-failures.ts';

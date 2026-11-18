@@ -1,7 +1,11 @@
 {
   "id": "t-y40yzb2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "host-load wait before each final check run and scoped ship check; timeouts-only failures on different files exit 78; assertion failures stay 74/65; tests in test/cli/lane-run-host-load.test.ts and test/ci/ship.test.ts"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Lane final check does not lose a finished attempt to host load",
