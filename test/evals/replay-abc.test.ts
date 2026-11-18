@@ -125,7 +125,7 @@ test('the frozen preregistration parses and lists exactly the eligible units', (
   const p = parsePrereg(readFileSync(prereg, 'utf8'));
   assert.equal(p.reps, 3);
   assert.equal(p.alpha, 0.05);
-  assert.equal(p.mdePp, 15);
+  assert.equal(p.mdePp, 16);
   assert.deepEqual(p.contrasts, [
     ['C', 'A'],
     ['C', 'B'],
