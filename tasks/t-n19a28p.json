@@ -1,7 +1,11 @@
 {
   "id": "t-n19a28p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0021 retirement rule now states the Wald bound below margin 0.25 with z 1.2816 and cites t-76cjaca; grep -ci fisher returns 0"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "ADR 0021 records the bound-below-margin retirement rule",
