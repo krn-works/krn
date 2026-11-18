@@ -86,7 +86,20 @@ export function proofOfTitle(cwd: string, title: string): string[] {
   if (id === undefined || !isTaskId(id)) return [];
   const root = repositoryRoot(cwd);
   const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
-  return task === undefined ? [] : proofCommands(task);
+  return task === undefined || !delivers(task) ? [] : proofCommands(task);
+}
+
+/**
+ * False for a task the PR closes without delivering it (duplicate, dropped, superseded): its
+ * Proof and its defect regression test belong to the task that did the work, so a closing PR
+ * that carries only the record must not have to run or add them.
+ */
+function delivers(task: TaskRecord): boolean {
+  return (
+    task.status !== 'closed' ||
+    task.resolution === null ||
+    task.resolution.kind === 'done'
+  );
 }
 
 /** The kind of the task a PR title names (`... (t-id)`), read from the worktree; none when the title, record or kind is absent. */
@@ -94,7 +107,8 @@ export function kindOfTitle(cwd: string, title: string): string | undefined {
   const id = titleTaskId(title);
   if (id === undefined || !isTaskId(id)) return undefined;
   const root = repositoryRoot(cwd);
-  return loadTaskIndex(taskLookupRoot(root, id)).get(id)?.kind;
+  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
+  return task === undefined || !delivers(task) ? undefined : task.kind;
 }
 
 export function renderPrBody(input: BodyInput): string {
