@@ -109,6 +109,7 @@ test('a slot held by a live process that waits past the deadline ends the wait w
   const { SLOT_TIMEOUT_EXIT, SlotTimeoutError, withSlot } = await import(
     '../../scripts/lib/slot-lock.ts'
   );
+  assert.equal(typeof SlotTimeoutError, 'function');
   const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
   try {
     const held = gate();
@@ -156,6 +157,7 @@ test('a slot whose pid now belongs to a different process is reclaimed at once',
   const { withSlot, processStart } = await import(
     '../../scripts/lib/slot-lock.ts'
   );
+  assert.equal(typeof processStart, 'function');
   if (processStart(process.pid) === undefined) return;
   const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
   try {
@@ -176,6 +178,7 @@ test('a slot recorded with this process start time stays held', async () => {
   const { withSlot, processStart } = await import(
     '../../scripts/lib/slot-lock.ts'
   );
+  assert.equal(typeof processStart, 'function');
   if (processStart(process.pid) === undefined) return;
   const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
   try {
