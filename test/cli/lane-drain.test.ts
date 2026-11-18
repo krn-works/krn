@@ -189,3 +189,43 @@ test('parseDrainRequest takes --window-hours for the doctor and keeps it out of 
     /positive/u,
   );
 });
+
+test("after a killed run the drain offers its own still-claimed task again, never another actor's", async () => {
+  const { rmSync } = await import('node:fs');
+  const { startLane } = await import('../../src/cli/lane.ts');
+  const { defaultDrainSeams } = await import('../../src/cli/lane-run/drain.ts');
+  const { recoveryTasks, scratchRepository } = await import(
+    '../../evals/adoption/recovery.ts'
+  );
+  // A lane session exports these; the lane started here must not inherit its class.
+  for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])
+    delete process.env[name];
+  const scratch = scratchRepository();
+  try {
+    const [first, second] = recoveryTasks;
+    // The killed run: its lane start claimed the task, then the process died before any release.
+    await startLane([
+      first,
+      '--task',
+      first,
+      '--actor',
+      `lane-${first}`,
+      '--root',
+      scratch.repo,
+    ]);
+    assert.equal(
+      await defaultDrainSeams.nextReady(scratch.repo, new Set()),
+      first,
+    );
+    assert.equal(
+      await defaultDrainSeams.nextReady(
+        scratch.repo,
+        new Set(),
+        'someone-else',
+      ),
+      second,
+    );
+  } finally {
+    rmSync(scratch.base, { recursive: true, force: true });
+  }
+});
