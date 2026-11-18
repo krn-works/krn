@@ -854,6 +854,21 @@ function testsOnlyDiff(root: string, from: string): boolean {
   );
 }
 
+/** Prose the branch may change without a test: docs/ files, markdown and plain-text files. */
+const isDocsPath = (path: string) =>
+  path.startsWith('docs/') || /\.(?:md|mdx|txt)$/iu.test(path);
+
+/** A diff of docs and tracker records only: it changes no source or test file, so there is nothing for a test to be red against. */
+function docsOnlyDiff(root: string, from: string): boolean {
+  const changed = changedSinceBase(root, from);
+  return (
+    changed.length > 0 &&
+    changed.every(
+      (path) => !isTestFile(path) && (isDocsPath(path) || isTaskPath(path)),
+    )
+  );
+}
+
 /** The changed test files of the branch that fail against the base source: what the lane proof line counts as red-first. */
 export function redTestsAtBase(
   root: string,
@@ -919,6 +934,7 @@ function testFirstRefusal(
 ): string | undefined {
   const rule =
     'Test-first rule (KRN_TEST_FIRST=0 opts out): a changed test must fail against the base source and pass on your commit, and no red-at-base proof was found.';
+  if (docsOnlyDiff(root, from)) return undefined;
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
