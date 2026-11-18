@@ -1,0 +1,14 @@
+{
+  "id": "t-36htjq8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Worker packets and advisory checks record served and withheld standards like the lead session",
+  "after": [],
+  "body": [
+    "Source: Astra B2/B3 (.krn/runs/research/gpt-6-2/astra-rerun-verdicts.md); t-vgwc1an (#1374, 1ed42b5) fixed only Stop refusals. src/brain/worker-packet.ts:68 and src/cli/standards-cli.ts:275 still write packets and advisory checks without served/withheld records, so worker exposures are invisible to standards effect and retire.\nOutcome: a worker packet writes one exposure row with served and withheld record ids and the task id; standards effect counts them; a test asserts the row for a captured worker brief exits 0.\nProof: the new test fails before the fix by assertion and passes after.\nFiles: src/brain/worker-packet.ts, src/cli/standards-cli.ts, test/brain/worker-packet.test.ts"
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
