@@ -1,0 +1,17 @@
+{
+  "id": "t-7y19kbr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Main pushes that change only task records skip the test shards",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: main pushes 8ba1baa and df1e3ee changed only tasks/*.json yet ran full CI (13 test shards): scripts/ci-changes.mjs sets test=false only for pull_request events and fails open on push. OpenClaw CI article (vincent.build/openclaw-ci-cost-reduction): stage checks by event; PRs run required checks, main pushes run small guards.",
+    "Outcome: a push to main whose changed files (before..after) are all tasks/<id>.json skips the test shards while lint/typecheck and the aggregate Check stay green; any other push, a force push, a missing before SHA or a detection error still fails open to full CI.",
+    "Proof: a ci-changes test feeds a push event with a tasks-only diff -> test=false, a mixed diff -> test=true, a zero/missing before SHA -> test=true.",
+    "Files: scripts/ci-changes.mjs, .github/workflows/ci.yml, test for ci-changes"
+  ],
+  "kind": "chore",
+  "area": "ci"
+}
