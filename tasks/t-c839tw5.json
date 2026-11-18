@@ -1,7 +1,11 @@
 {
   "id": "t-c839tw5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "the App git credential helper and the gh wrapper scope the token to the repository asked for (path, -R, checkout origin); proven by git ls-remote and gh pr list on the pilot without KRN_APP_REPOSITORY"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "The App git credential helper scopes its token to the repository git asks for",
