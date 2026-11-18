@@ -1,0 +1,14 @@
+{
+  "id": "t-vvshf9a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "pre-ship review trial: Claude /code-review against codex review on known-defect PRs",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: .krn/runs/research/daily-2026-11-18/cc-codex-capabilities.md: Claude Code /code-review (levels low..max, local, subscription quota) and Codex 'codex review --base main|--commit <sha>' (second vendor) both review a PR diff; KRN runs neither before krn pr ship; today PR #1398 went red on its first push (two CLI-spawn tests) after fast PASS.\nOutcome: a comparison file under .krn/runs/research/ reports, over 10 merged KRN PRs whose defect was fixed later and 5 clean controls, the count of defects each reviewer caught and its false findings per PR, with a verdict naming which reviewer (if any) the lead runs before krn pr ship.\nProof: the file lists all 15 PRs with per-reviewer hit/false counts; the verdict cites the bar >=50% caught with <=2 false findings per PR.\nFiles: .krn/runs/research/, .agents/skills/delivery-lead/ (if adopted)"
+  ],
+  "kind": "research",
+  "area": "review"
+}
