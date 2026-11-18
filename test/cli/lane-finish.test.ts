@@ -27,7 +27,7 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-function fixture(trailer: string) {
+function fixture(trailer: string, tail = '') {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-finish-')));
   const origin = join(base, 'origin.git');
   const repo = join(base, 'repo');
@@ -71,7 +71,7 @@ function fixture(trailer: string) {
     worktree,
     'commit',
     '-qm',
-    `feat(lane): a stopped lane ships (${task})\n\n${trailer}: ${task}`,
+    `feat(lane): a stopped lane ships (${task})\n\n${trailer}: ${task}${tail}`,
   );
   git(worktree, 'push', '-q', 'origin', 'stopped');
   return { base, repo, worktree };
@@ -151,6 +151,26 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
       created[created.indexOf('--title') + 1],
       `feat(lane): a stopped lane ships (${task})`,
     );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('finish reads Refs above a separate Co-Authored-By paragraph', async () => {
+  // The harness attribution ends every commit with its own Co-Authored-By paragraph, so git's
+  // trailer block (the last paragraph) holds no Refs.
+  const { base, repo, worktree } = fixture(
+    'Refs',
+    '\n\nCo-Authored-By: Agent <noreply@example.com>',
+  );
+  try {
+    const { gh, bodies } = fakeGh(worktree);
+    const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
+      gh,
+      sleep,
+    }).catch((error: unknown) => assert.fail(String(error)));
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+    assert.match(bodyOf(bodies), /Refs: t-abc1234/u);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
