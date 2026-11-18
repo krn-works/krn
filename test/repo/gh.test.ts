@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,7 +15,9 @@ import { checkOpenRedLimit, readOpenPrs } from '../../src/cli/lane-open-red.ts';
 import {
   type CommandRun,
   gh,
+  ghApiSync,
   ghPrListOpenSync,
+  ghPrViewSync,
   ghRepoView,
 } from '../../src/repo/gh.ts';
 
@@ -61,5 +70,45 @@ test('the open PR list read replays the captured gh reply and treats its PR with
   } finally {
     delete process.env.KRN_OPEN_RED_MAX;
     process.env.PATH = before;
+  }
+});
+
+// The PATH gh is the App wrapper: its token reaches only KRN_APP_REPOSITORY (default the product
+// repository), so a read of an outside root without that scope saw a 404 and doctor --root
+// reported the App as not installed on a repository its installation covers.
+test('gh reads of a root run with the App token scoped to that root’s origin', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gh-root-scope-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  const fake = join(bin, 'gh');
+  writeFileSync(fake, '#!/bin/sh\nprintf %s "$KRN_APP_REPOSITORY"\n');
+  chmodSync(fake, 0o755);
+  const root = join(dir, 'outside');
+  spawnSync('git', ['init', '-q', root]);
+  spawnSync('git', [
+    '-C',
+    root,
+    'remote',
+    'add',
+    'origin',
+    'https://github.com/krn-works/seo-audit-harness.git',
+  ]);
+  const saved = {
+    path: process.env.PATH,
+    scope: process.env.KRN_APP_REPOSITORY,
+  };
+  process.env.PATH = `${bin}:${saved.path ?? ''}`;
+  process.env.KRN_APP_REPOSITORY = 'krn-works/krn';
+  try {
+    for (const reply of [
+      ghApiSync(root, 'repos/{owner}/{repo}'),
+      ghPrViewSync(root, 'number'),
+      ghPrListOpenSync(root),
+    ])
+      assert.equal(reply.stdout, 'krn-works/seo-audit-harness');
+  } finally {
+    process.env.PATH = saved.path;
+    if (saved.scope === undefined) delete process.env.KRN_APP_REPOSITORY;
+    else process.env.KRN_APP_REPOSITORY = saved.scope;
   }
 });

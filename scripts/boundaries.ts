@@ -204,6 +204,8 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   git: [
     'src/cli/doctor-claims.ts',
     'src/repo/lane-removal.ts',
+    // Reads the root's origin to scope the App token of a gh read to that repository.
+    'src/repo/gh.ts',
     'src/adopt/verify.ts',
     'evals/adoption/census.ts',
     'src/adopt/init.ts',

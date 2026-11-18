@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { repositoryOfRemote } from './remote.ts';
 
 /** Runs one external command and resolves with its stdout. */
 export type CommandRun = (
@@ -24,11 +25,28 @@ export type GhSyncReply = {
   readonly error?: Error;
 };
 
+/**
+ * The environment of a gh read of `root`'s own repository. The PATH gh is the App wrapper, whose
+ * token is scoped to KRN_APP_REPOSITORY (default krn-works/krn): a read of an outside repository
+ * with that default sees a 404 and reports the App as not installed. The scope follows `root`'s origin.
+ */
+export function rootGhEnv(root: string): NodeJS.ProcessEnv {
+  const url = spawnSync('git', ['-C', root, 'remote', 'get-url', 'origin'], {
+    encoding: 'utf8',
+  });
+  const repository =
+    url.status === 0 ? repositoryOfRemote(String(url.stdout)) : undefined;
+  return repository === undefined
+    ? process.env
+    : { ...process.env, KRN_APP_REPOSITORY: repository };
+}
+
 /** One blocking `gh api <path>` read from `root`, for the adoption check. */
 export function ghApiSync(root: string, path: string): GhSyncReply {
   const reply = spawnSync('gh', ['api', path], {
     cwd: root,
     encoding: 'utf8',
+    env: rootGhEnv(root),
   });
   return {
     status: reply.status,
@@ -43,6 +61,7 @@ export function ghPrViewSync(root: string, fields: string): GhSyncReply {
   const reply = spawnSync('gh', ['pr', 'view', '--json', fields], {
     cwd: root,
     encoding: 'utf8',
+    env: rootGhEnv(root),
     timeout: 20_000,
   });
   return {
@@ -67,7 +86,7 @@ export function ghPrListOpenSync(root: string): GhSyncReply {
       '--json',
       'number,updatedAt,statusCheckRollup',
     ],
-    { cwd: root, encoding: 'utf8', timeout: 20_000 },
+    { cwd: root, encoding: 'utf8', env: rootGhEnv(root), timeout: 20_000 },
   );
   return {
     status: reply.status,

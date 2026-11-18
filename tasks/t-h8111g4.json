@@ -1,0 +1,18 @@
+{
+  "id": "t-h8111g4",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "doctor --root on krn-works/seo-audit-harness exit 0 (was 67)"
+  },
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Gh reads of an outside repository use a token scoped to that repository",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: node evals/adoption/recovery.ts --live (#1381) and krn doctor --unattended --root /mnt/storage/tmp/krn/pilot/lead exit 67 'GitHub App not installed on krn-works/seo-audit-harness', yet the krn-works-delivery installation 180498268 covers all krn-works repositories. src/repo/gh.ts ghApiSync/ghPrViewSync/ghPrListOpenSync spawn the PATH gh (scripts/app-bin/gh), whose token src/ci/app-token.ts scopes to KRN_APP_REPOSITORY or krn-works/krn, never to the origin of the root they read; the 404 is the narrowed token, not a missing install.\nOutcome: every gh read of a root's own repository runs with KRN_APP_REPOSITORY set to that root's origin; doctor --unattended --root on an outside krn-works repository passes the app check.\nProof: krn doctor --unattended --window-hours 1 --root /mnt/storage/tmp/krn/pilot/lead prints no 'FAIL app' line\nFiles: src/repo/gh.ts, test/repo/gh.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

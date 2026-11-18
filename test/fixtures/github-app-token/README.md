@@ -8,3 +8,4 @@ Verbatim captures (KRN-12) of the GitHub App `krn-works-delivery` installation t
 - The pull request that added this directory was shipped by `krn pr ship` under the App credential; its
   author on GitHub is `krn-works-delivery[bot]`.
 - `repo-installation.txt`: `GET /repos/{owner}/{repo}/installation` with the App JWT, 2026-11-11: 200 with the installation `id` on krn-works/krn, 404 on a repository the App is not installed on (success bodies trimmed to id, account, selection and slug).
+- `mint-not-installed.stderr.log`: stderr of `KRN_APP_REPOSITORY=cli/cli node scripts/github-app-token.ts token`, 2026-11-18 (exit 69): the mint for a repository the App is not installed on.
