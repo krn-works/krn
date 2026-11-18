@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projectPath, projectRelative } from '../../harness/claude.ts';
+import { receiverEnv } from '../../repo/receiver-env.ts';
 
 /** Operator credentials that never reach a lane session; only the cached App token does, and the sandbox blocks localhost so bw serve is out of reach. */
 export const OPERATOR_CREDENTIAL_VARIABLES = [
@@ -72,9 +73,15 @@ export function sessionEnvironment(
     advisor?: boolean;
     /** The effort of each lane turn so far, comma separated; `krn pr body --lane` writes it into the PR body. */
     effort?: string;
+    /** The receiver checkout whose mise pin the session's PATH follows; absent keeps the given env. */
+    receiver?: string;
   },
 ): NodeJS.ProcessEnv {
-  const scrubbed: NodeJS.ProcessEnv = { ...env };
+  const scrubbed: NodeJS.ProcessEnv = {
+    ...(identity.receiver === undefined
+      ? env
+      : receiverEnv(identity.receiver, env)),
+  };
   for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
   if (identity.advisor === true)
     delete scrubbed.CLAUDE_CODE_DISABLE_ADVISOR_TOOL;

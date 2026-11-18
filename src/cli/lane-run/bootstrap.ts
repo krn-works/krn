@@ -7,6 +7,7 @@ import {
 } from '../../adopt/adopt.ts';
 import { namedTests } from '../../adopt/verify.ts';
 import { findContract, parseContractFile } from '../../repo/contract.ts';
+import { receiverEnv } from '../../repo/receiver-env.ts';
 import { getTask } from '../../task/store.ts';
 import { git } from '../git-with.ts';
 import { settledRun } from './test-output.ts';
@@ -156,6 +157,7 @@ export function bootstrapProof(
   const run = (line: string) =>
     spawnSync(line, {
       cwd: worktree,
+      env: receiverEnv(worktree),
       shell: true,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,

@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "modules": {
+    "src/repo/receiver-env.ts": {
+      "receivers": ["mise"],
+      "real": "test/hook/receiver-toolchain.test.ts"
+    },
     "src/cli/doctor-claims.ts": {
       "receivers": ["git"],
       "real": "test/cli/doctor-claims.test.ts"
