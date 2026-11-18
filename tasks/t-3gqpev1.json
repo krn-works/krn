@@ -1,0 +1,14 @@
+{
+  "id": "t-3gqpev1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "krn verbs on an outside root give gh the origin's App repository",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: from the pilot root /mnt/storage/tmp/krn/pilot/lead (origin krn-works/seo-audit-harness, a private repo), with scripts/app-bin/gh on PATH but no KRN_APP_REPOSITORY in the environment, `krn task publish` exited 70 with 'gh: Not Found (HTTP 404)', and `krn lane status` printed 'gh could not list pull requests' (.krn/runs/pilot/lanes/preflight-proof.log). evals/adoption/recovery-live.ts passed only because it sets that env itself. #1386 fixed the same class for doctor and src/repo/gh.ts only.\nOutcome: every krn verb run from a root whose origin is a GitHub repository other than krn-works/krn gives gh that repository's KRN_APP_REPOSITORY, so task publish and lane status from the pilot root exit 0 with no caller env.\nProof: a test runs krn task publish against a fake gh that fails unless KRN_APP_REPOSITORY names the origin repository, and asserts exit 0. Live: `cd /mnt/storage/tmp/krn/pilot/lead && krn task publish` exits 0 and the ten preflight-note records reach origin/main.\nFiles: src/cli/, src/repo/gh.ts, src/task/"
+  ],
+  "kind": "defect",
+  "area": "cli"
+}
