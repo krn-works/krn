@@ -71,6 +71,10 @@
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"
     },
+    "src/cli/lane-run/environment.ts": {
+      "receivers": ["sh"],
+      "real": "test/cli/lane-run.test.ts"
+    },
     "src/cli/lane-run/delivery.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"

@@ -1,6 +1,9 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { worktreeDependencies } from '../../adopt/verify.ts';
 import { projectPath, projectRelative } from '../../harness/claude.ts';
+import { findContract } from '../../repo/contract.ts';
 import {
   appHelperGitConfig,
   isGitConfigVariable,
@@ -130,3 +133,35 @@ export function fallbackModel(model: string): string {
 
 /** The model a lane session runs on unless `--model` says otherwise (operator model policy). */
 export const defaultLaneModel = 'sonnet';
+
+/** The longest the contract install may run in a lane worktree before the lane gives up. */
+export const installTimeoutMs = 30 * 60 * 1000;
+
+/**
+ * Dependencies for the lane worktree before its session: the main checkout's node_modules when the
+ * stack allows a link (or the nested worktree resolves it), else the contract install run in the
+ * worktree with the session's environment. A string is the failure; no session may start then.
+ */
+export function laneDependencies(
+  main: string,
+  worktree: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const install = findContract(worktree)?.contract.install;
+  return worktreeDependencies(
+    main,
+    worktree,
+    install,
+    (command) =>
+      spawnSync(command, {
+        cwd: worktree,
+        env,
+        shell: true,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        timeout: installTimeoutMs,
+        killSignal: 'SIGKILL',
+      }),
+    true,
+  );
+}

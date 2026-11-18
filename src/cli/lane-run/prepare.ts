@@ -16,6 +16,7 @@ import {
   claimTask,
   inspectClaim,
   mainCheckoutRoot,
+  releaseClaim,
 } from '../../task/claims.ts';
 import { taskFile } from '../../task/paths.ts';
 import { mergeTaskRecords } from '../../task/record-merge.ts';
@@ -26,14 +27,18 @@ import type { LaneRequest } from './args.ts';
 import { isBootstrapTask, isGreenBaseTask } from './bootstrap.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
-import { sessionEnvironment } from './environment.ts';
+import { laneDependencies, sessionEnvironment } from './environment.ts';
 import {
   type RedCheck,
   redCheckBrief,
   redCheckFile,
   redCheckSchema,
 } from './red-check.ts';
-import { exitCredentialUnavailable, exitReceiverNotReady } from './result.ts';
+import {
+  exitCredentialUnavailable,
+  exitInstallFailed,
+  exitReceiverNotReady,
+} from './result.ts';
 import { defaultSteps, type LaneRunSteps, type LaneVerdict } from './steps.ts';
 
 /** Everything the session and verdict stages need: the request plus the prepared lane. */
@@ -174,6 +179,18 @@ export async function prepareLane(
   const parked =
     existsSync(parkedPath) &&
     parkedAt(parkedPath, git(started.path, ['rev-parse', 'HEAD']));
+  const resumed = delivered || (red === undefined && parked);
+  // The session and the final check need the contract dependencies in the worktree, a resumed delivery too;
+  // a failed install starts no session and frees the task.
+  const missing = laneDependencies(main, started.path, environment);
+  if (missing !== undefined) {
+    if (task !== undefined)
+      await releaseClaim(main, task).catch(() => undefined);
+    return {
+      line: `lane ${label}: preflight install failed, no session started: ${missing.replace(/\s+/gu, ' ')} (worktree ${started.path}, rerun reuses it${task === undefined ? '' : ', claim released'})`,
+      exitCode: exitInstallFailed,
+    };
+  }
   return {
     ...request,
     main,
@@ -192,7 +209,7 @@ export async function prepareLane(
     effort,
     redFile,
     worktree: started.path,
-    delivered: delivered || (red === undefined && parked),
+    delivered: resumed,
   };
 }
 
