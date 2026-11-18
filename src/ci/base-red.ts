@@ -7,6 +7,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { findContract, relatedCommand } from '../repo/contract.ts';
+import { shellWords } from '../repo/shell-text.ts';
 import type { Runner } from './command.ts';
 
 /** What the base run of a defect branch's tests showed. */
@@ -16,10 +18,17 @@ export type BaseRedVerdict =
   | { kind: 'no-test' }
   | { kind: 'load-error'; tests: string[]; detail: string };
 
-const testFile = /\.test\.[cm]?[jt]s$/u;
-// Everything under test/ is the test side: a helper the new test needs stays as it is on the branch.
+const jsTestFile = /\.test\.[cm]?[jt]s$/u;
+const pythonTestFile = /(?:^|\/)test_[^/]*\.py$|_test\.py$/u;
+const isTestFile = (path: string) =>
+  jsTestFile.test(path) || pythonTestFile.test(path);
+// Everything under test/ or tests/ is the test side: a helper the new test needs stays as it is on the branch.
 const testSide = (path: string) =>
-  testFile.test(path) || path.startsWith('test/');
+  isTestFile(path) || path.startsWith('test/') || path.startsWith('tests/');
+// unittest reports an assertion failure as FAIL (an error of any other kind is ERROR).
+const unittestFailure = /^FAIL: (\S+) \((.+)\)$/u;
+// pytest's short summary: a failure by assertion carries `assert ...` or AssertionError, any other exception names itself.
+const pytestFailure = /^FAILED (\S+?)(?: - (.*))?$/u;
 const assertionBlock = /^\s*code: 'ERR_ASSERTION'/u;
 const caseHeader = /^\s*not ok \d+ - (.+)$/u;
 const blockEnd = /^\s*\.\.\.$/u;
@@ -34,6 +43,22 @@ export function assertionFailures(tap: string): string[] {
     else if (assertionBlock.test(line) && current !== undefined)
       names.push(current);
     else if (blockEnd.test(line)) current = undefined;
+  }
+  return [...new Set(names)];
+}
+
+/** The names of the cases a Python runner's output (unittest or pytest, either stream) shows failing by assertion. */
+export function pythonAssertionFailures(output: string): string[] {
+  const names: string[] = [];
+  for (const line of output.split('\n')) {
+    const unit = unittestFailure.exec(line);
+    if (unit !== null) {
+      names.push(`${unit[2]}`);
+      continue;
+    }
+    const py = pytestFailure.exec(line);
+    if (py !== null && /^(?:assert\b|AssertionError)/u.test(py[2] ?? ''))
+      names.push(py[1] ?? '');
   }
   return [...new Set(names)];
 }
@@ -79,8 +104,10 @@ export function baseRedProof(
       path: line.slice(line.indexOf('\t') + 1),
     }));
   const tests = entries
-    .filter(({ status, path }) => status !== 'D' && testFile.test(path))
+    .filter(({ status, path }) => status !== 'D' && isTestFile(path))
     .map(({ path }) => path);
+  const jsTests = tests.filter((path) => jsTestFile.test(path));
+  const pythonTests = tests.filter((path) => !jsTestFile.test(path));
   if (tests.length === 0) return { kind: 'no-test' };
 
   const swaps: Swap[] = entries
@@ -93,28 +120,56 @@ export function baseRedProof(
         git(['show', `${mergeBase}:${path}`]).stdoutBytes ?? Buffer.alloc(0),
     }));
   const before = git(['status', '--porcelain']).stdout;
-  let ran: ReturnType<Runner>;
+  const ran: Array<{ code: number; cases: string[]; detail: string }> = [];
   try {
     for (const swap of swaps) {
       mkdirSync(dirname(join(cwd, swap.path)), { recursive: true });
       writeFileSync(join(cwd, swap.path), swap.base);
     }
-    ran = runner(
-      'env',
-      // A test runner around this process must not turn the nested run into a child report.
-      [
-        '-u',
-        'NODE_TEST_CONTEXT',
-        ...env,
-        'node',
-        '--test',
-        '--test-reporter=tap',
-        ...tests,
-      ],
-      cwd,
-      undefined,
-      900_000,
-    );
+    if (jsTests.length > 0) {
+      const result = runner(
+        'env',
+        // A test runner around this process must not turn the nested run into a child report.
+        [
+          '-u',
+          'NODE_TEST_CONTEXT',
+          ...env,
+          'node',
+          '--test',
+          '--test-reporter=tap',
+          ...jsTests,
+        ],
+        cwd,
+        undefined,
+        900_000,
+      );
+      ran.push({
+        code: result.code,
+        cases: assertionFailures(result.stdout),
+        detail: result.stderr.trim() || result.stdout.trim(),
+      });
+    }
+    if (pythonTests.length > 0) {
+      const result = runner(
+        'env',
+        [
+          'PYTHONDONTWRITEBYTECODE=1',
+          ...env,
+          'sh',
+          '-c',
+          pythonCommand(cwd, pythonTests),
+        ],
+        cwd,
+        undefined,
+        900_000,
+      );
+      const output = `${result.stderr}\n${result.stdout}`;
+      ran.push({
+        code: result.code,
+        cases: pythonAssertionFailures(output),
+        detail: output.trim(),
+      });
+    }
   } finally {
     for (const swap of swaps) {
       if (swap.branch === undefined)
@@ -129,14 +184,26 @@ export function baseRedProof(
     throw new Error(
       'the base run left the worktree changed; restore it before shipping',
     );
-  const cases = assertionFailures(ran.stdout);
+  const cases = ran.flatMap((result) => result.cases);
   if (cases.length > 0) return { kind: 'red', cases };
-  if (ran.code === 0) return { kind: 'green', tests };
+  if (ran.every((result) => result.code === 0)) return { kind: 'green', tests };
   return {
     kind: 'load-error',
     tests,
-    detail: (ran.stderr.trim() || ran.stdout.trim()).slice(-2000),
+    detail: ran
+      .filter((result) => result.code !== 0)
+      .map((result) => result.detail)
+      .join('\n')
+      .slice(-2000),
   };
+}
+
+/** The repository contract's own Python runner for these test files, unittest when the contract names none. */
+function pythonCommand(cwd: string, files: string[]): string {
+  const contract = findContract(cwd)?.contract;
+  if (contract?.related && /\b(?:unittest|pytest)\b/u.test(contract.related))
+    return relatedCommand(contract, files);
+  return `python3 -m unittest ${shellWords(files)}`;
 }
 
 /** The refusal text of a verdict that does not prove the tests red on the base, or undefined when it does. */

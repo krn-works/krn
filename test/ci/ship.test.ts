@@ -9,7 +9,7 @@ import {
   completeCloseExposure,
 } from '../../src/brain/close-exposure.ts';
 import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
-import { baseRedProof } from '../../src/ci/base-red.ts';
+import * as baseRed from '../../src/ci/base-red.ts';
 import { CommandFailure, run } from '../../src/ci/command.ts';
 import {
   ownsProductRelease,
@@ -1696,7 +1696,7 @@ const shipDefect = (dir: string, kind: string | undefined) => {
         ...r,
         kindOf: () => kind,
         baseRed: (at, ref, _runner, env) =>
-          baseRedProof(at, ref.replace('origin/', ''), run, env),
+          baseRed.baseRedProof(at, ref.replace('origin/', ''), run, env),
         publish: (_cwd, text) => {
           published = text;
           return '/r/published.md';
@@ -1755,7 +1755,7 @@ test('a base run that fails by a syntax error in the base source is not red', ()
     sideFixed,
     'export const side = ;\n',
   );
-  const verdict = baseRedProof(dir, 'main', run);
+  const verdict = baseRed.baseRedProof(dir, 'main', run);
   assert.equal(verdict.kind, 'load-error');
   assert.equal(gitIn(dir, 'status', '--porcelain'), '');
 });
@@ -1772,4 +1772,83 @@ test('a defect branch without a changed test is refused, and a non-defect task i
   });
   const green = defectRepository(sideTest(1), sideFixed);
   assert.match(await shipDefect(green, 'gate').ship(), /^verdict: merged /mu);
+});
+
+// KRN-12: a Python receiver runs the real python3 unittest runner through ship's entry.
+const pythonFixed = 'def side():\n    return 2\n';
+
+/** A Python repository whose base has a buggy app.py and whose `fix` branch carries tests/test_app.py and `fixed`. */
+function pythonRepository(testSource: string, fixed: string): string {
+  const dir = mkdtempSync(join(tmpdir(), 'ship-base-red-py-'));
+  gitIn(dir, 'init', '-q', '-b', 'main');
+  gitIn(dir, 'config', 'user.email', 'a@b.c');
+  gitIn(dir, 'config', 'user.name', 'a');
+  mkdirSync(join(dir, 'tests'));
+  writeFileSync(join(dir, 'app.py'), 'def side():\n    return 1\n');
+  writeFileSync(join(dir, '.gitignore'), '__pycache__/\n');
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'base');
+  gitIn(dir, 'checkout', '-q', '-b', 'fix');
+  writeFileSync(join(dir, 'app.py'), fixed);
+  writeFileSync(join(dir, 'tests', 'test_app.py'), testSource);
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'fix');
+  return dir;
+}
+const sideCase = (expected: number) =>
+  `import unittest\n\nfrom app import side\n\n\nclass SideTest(unittest.TestCase):\n    def test_side_is_${expected}(self):\n        self.assertEqual(side(), ${expected})\n`;
+
+test('a Python defect fix whose test fails by assertion on the base ships and records the case', {}, async () => {
+  const dir = pythonRepository(sideCase(2), pythonFixed);
+  const { published, ship } = shipDefect(dir, 'defect');
+  assert.match(await ship(), /^verdict: merged /mu);
+  assert.match(published(), /^## Base red proof$/mu);
+  assert.match(published(), /^- fails on the base source: .*test_side_is_2$/mu);
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+  assert.equal(readFileSync(join(dir, 'app.py'), 'utf8'), pythonFixed);
+});
+
+test('a Python test that passes on the base is refused as green', {}, async () => {
+  const dir = pythonRepository(sideCase(1), pythonFixed);
+  const { ship } = shipDefect(dir, 'defect');
+  await assert.rejects(ship(), (error: Failure) => {
+    assert.equal(error.exitCode, 81);
+    assert.match(
+      error.message,
+      /tests\/test_app\.py passes on the base source/u,
+    );
+    return true;
+  });
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+});
+
+test('a Python test that fails on the base by an import error is refused as not red', {}, async () => {
+  const dir = pythonRepository(
+    'import unittest\n\nfrom gone import side\n\n\nclass T(unittest.TestCase):\n    def test_x(self):\n        self.assertEqual(side(), 2)\n',
+    pythonFixed,
+  );
+  const { ship } = shipDefect(dir, 'defect');
+  await assert.rejects(ship(), (error: Failure) => {
+    assert.equal(error.exitCode, 81);
+    assert.match(error.message, /without an assertion/u);
+    assert.match(error.message, /ModuleNotFoundError/u);
+    return true;
+  });
+  assert.equal(gitIn(dir, 'status', '--porcelain'), '');
+});
+
+test('pythonAssertionFailures reads unittest FAIL and pytest assertion lines, not other errors', () => {
+  const output = [
+    'FAIL: test_a (tests.test_app.SideTest.test_a)',
+    'ERROR: test_b (tests.test_app.SideTest.test_b)',
+    'FAILED tests/test_app.py::test_c - assert 1 == 2',
+    'FAILED tests/test_app.py::test_d - AssertionError: nope',
+    "FAILED tests/test_app.py::test_e - NameError: name 'x' is not defined",
+    'ERROR tests/test_f.py',
+  ].join('\n');
+  assert.deepEqual(baseRed.pythonAssertionFailures(output), [
+    'tests.test_app.SideTest.test_a',
+    'tests/test_app.py::test_c',
+    'tests/test_app.py::test_d',
+  ]);
 });

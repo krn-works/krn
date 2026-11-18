@@ -1,7 +1,11 @@
 {
   "id": "t-5gmt62m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "base-red proof runs the contract's Python runner; real python3 unittest receiver covers red, green, import error"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "a defect ship accepts a Python regression test as base-red proof",
