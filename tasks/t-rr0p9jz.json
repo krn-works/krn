@@ -1,0 +1,21 @@
+{
+  "id": "t-rr0p9jz",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "host wait deleted; node test args carry --test-concurrency capped by free CPUs; tests for loaded and idle hosts pass; npm run fast PASS"
+  },
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Local checks cap test concurrency to free CPUs instead of waiting for a quiet host",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: after #1429 (t-y40yzb2), every local check in `krn pr ship` and the lane final check prints `check: waiting for the host load (58.3) to fall below 16 cores, at most 600s` and idles 10 minutes: the host is shared, and other projects (phpstan, playwright, python suites) keep the 1-minute load above the core count all day, so the wait never ends early and only adds latency (ships of #1428 and #1424 ran 60-80 min).",
+    "Outcome: no local check waits for host load; instead the fast-check test phase caps its test concurrency to the free CPUs (cores minus the 1-minute load, at least 2), so tests keep their timeouts under contention; the timeout-only flake classification (rerun once, exit 78) stays.",
+    "Files: src/ci/host-load.ts, src/cli/pr.ts, src/cli/lane-run/steps.ts, scripts/fast-check.ts",
+    "Proof: a fast-check test with a stubbed load above the core count passes --test-concurrency=2 and with an idle host the core count; no test or caller of waitForQuietHost remains."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

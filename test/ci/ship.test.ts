@@ -784,7 +784,7 @@ test('a failing scoped check refuses the push with exit 65 and records no push c
 const timedOut = (file: string) =>
   ` FAIL  ${file} > slow\nError: Test timed out in 60000ms.\n`;
 
-test('a scoped check that times out on different tests in a run and its rerun exits 78 after waiting for the host', async () => {
+test('a scoped check that times out on different tests in a run and its rerun exits 78', async () => {
   const r = receiver({
     pulls: [auto],
     scopedRuns: [
@@ -792,21 +792,11 @@ test('a scoped check that times out on different tests in a run and its rerun ex
       { code: 1, stdout: timedOut('test/evals/b.test.ts') },
     ],
   });
-  let waits = 0;
-  await assert.rejects(
-    shipCommand(args, {
-      ...r,
-      quiet: () => {
-        waits += 1;
-      },
-    }),
-    (e: Failure) => {
-      assert.equal(e.exitCode, 78);
-      assert.match(e.message, /host load/u);
-      return true;
-    },
-  );
-  assert.equal(waits, 2);
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 78);
+    assert.match(e.message, /host load/u);
+    return true;
+  });
   assert.ok(!r.calls.some((c) => c.includes('git push')));
 });
 
