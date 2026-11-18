@@ -1,0 +1,17 @@
+{
+  "id": "t-tb6wbwr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Receiver checks and lane sessions run on the receiver's pinned toolchain, not KRN's Node",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: pilot receiver pins Node 26.10.0 (/mnt/storage/tmp/krn/pilot/lead/mise.toml:2; packages/seo engines >=26.10.0; its CI uses node 26), KRN runs on mise node 24.22.1. Lane t-ss614m8 exited 73 (BLOCKER: 17 failing tests \"on Node 24.22.1, not the required >=26.10\"); lane t-sqxep16 check log shows `node v24.22.1` and EBADDEVENGINES (/mnt/storage/tmp/krn/pilot/lead/.krn/tmp/lane-run-t-sqxep16-check.log lines 40-69). The Stop hook runs the contract check as `sh -c <command>` with process.env and no receiver toolchain (src/hook/stop.ts:546-549, runTests near :481); the lane session env only prepends a wrapper dir to PATH (src/cli/lane-run/environment.ts:105-107), so the model's Bash and every local check inherit KRN's Node instead of the receiver pin.",
+    "Outcome: every command KRN runs in a receiver (Stop-hook checks, lane-run final check and preflight, and the lane model session's PATH) runs under the receiver's pinned toolchain (mise config in the receiver root, e.g. via `mise exec --` or `mise env` applied to the env), never KRN's own Node; a receiver without a mise pin keeps today's env.",
+    "Files: src/hook/stop.ts, src/cli/lane-run/environment.ts",
+    "Proof: a test under test/hook/ with a fixture receiver pinning a different Node version than KRN asserts the check command sees the receiver version (or the mise exec wrapper); a test for the lane session env asserts the receiver pin is honoured; a receiver with no pin keeps process.env PATH."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

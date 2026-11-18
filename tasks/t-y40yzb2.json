@@ -1,0 +1,17 @@
+{
+  "id": "t-y40yzb2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Lane final check does not lose a finished attempt to host load",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: pilot lane t-sqxep16 (a docs-only note) exited 74 after 2369 s: the final check `npm --prefix packages/seo test` failed with 4x `Test timed out in 5000ms` (url-plan, audit-run-completion, url-language), and the one rerun KRN already does failed again with a different file set. Load average was 74.6 on 16 cores (other projects plus 4 KRN lanes); the previous lane t-sg1hr4c only passed on the rerun (log .krn/runs/pilot/lanes/preflight-proof.log lines 38-39; check log /mnt/storage/tmp/krn/pilot/lead/.krn/tmp/lane-run-t-sqxep16-check.log). The paid session did its work, yet the attempt is lost to host contention.",
+    "Outcome: before the final check (and its rerun), krn lane run waits, up to a bound, until the 1-minute load average is below the core count, or runs the check with a worker cap. A failure whose failing set changes between run and rerun and consists only of timeouts exits with a named flake code (not 74) and keeps the worktree for `krn lane finish`.",
+    "Files: src/cli/lane-run/steps.ts",
+    "Proof: tests: (a) a check runner stub that times out on different files on each run, under stubbed load, gives the flake code, not 74; (b) under a stubbed load above the core count the check waits, then runs; (c) a deterministic assertion failure still gives 74."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
