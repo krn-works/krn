@@ -37,9 +37,9 @@ test('pr body renders template sections from the task and commits', () => {
     agent: 'A',
     refs: false,
   });
-  assert.match(text, /## Problem\n\nhand-written text costs money\./);
+  assert.match(text, /## Why\n\nhand-written text costs money\./);
   assert.match(text, /- feat\(cli\): body \(t-abc1234\)/);
-  assert.match(text, /## Verification\n\nnpm run fast: PASS/);
+  assert.match(text, /## Verified\n\nnpm run fast: PASS/);
   assert.match(text, /\nTicket: t-abc1234\n\nAgent: A\n/);
   assert.match(text, /Generated with \[Claude Code\]/);
 });
@@ -127,7 +127,7 @@ test('krn pr body --worktree finds a task created only in that worktree', () => 
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /## Problem\n\nhand-written text costs money\./,
+      /## Why\n\nhand-written text costs money\./,
     );
     assert.match(result.stdout, /- chore\(task\): add \(t-abc1234\)/);
     assert.match(result.stdout, /## Task\n\nTicket: t-abc1234/);
@@ -244,7 +244,7 @@ test('pr body carries the worker assumptions as a bulleted section', () => {
   });
   assert.match(
     text,
-    /## Verification\n\nv\n\n## Assumptions\n\n- file named x\.ts\n- flag defaults to off\n\n## Task/,
+    /## Verified\n\nv\n\n## Assumptions\n\n- file named x\.ts\n- flag defaults to off\n\n## Task/,
   );
 });
 
@@ -384,6 +384,65 @@ test('a defect closed as a duplicate asks ship for no Proof and no base-red test
     assert.deepEqual(proofOfTitle(dir, title), []);
     record('closed', { kind: 'done', ref: null, note: 'fixed' });
     assert.equal(kindOfTitle(dir, title), 'defect');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('krn pr body in a repository without a task tracker prints the sections without a Task', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-plain-'));
+  try {
+    const git = (...a: string[]) =>
+      spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@example.invalid');
+    git('commit', '-q', '--allow-empty', '-m', 'seed');
+    git(
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'fix(web): a cached page no longer shows stale prices',
+    );
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'pr',
+        'body',
+        '--base',
+        'HEAD~1',
+        '--why',
+        'Customers saw yesterday prices.',
+        '--verified',
+        'npm test: pass',
+      ],
+      { cwd: dir, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /^## Why\n\nCustomers saw yesterday prices\.\n\n## What changed\n\n- fix\(web\): a cached page no longer shows stale prices\n\n## Verified\n\nnpm test: pass\n\nAgent: /u,
+    );
+    assert.doesNotMatch(result.stdout, /## Task|Ticket:|Refs:/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('krn pr body in a tracker repository still needs --task', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-tracked-'));
+  try {
+    spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+    mkdirSync(join(dir, 'tasks'));
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'pr', 'body', '--base', 'HEAD'],
+      { cwd: dir, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 64);
+    assert.match(result.stderr, /--task needs a task id/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

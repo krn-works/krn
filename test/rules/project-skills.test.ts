@@ -50,7 +50,7 @@ test('every slice ships as one squash-merged PR with the template sections and i
     join(root, '.github', 'pull_request_template.md'),
     'utf8',
   );
-  for (const section of ['Problem', 'Change', 'Verification', 'Task'])
+  for (const section of ['Why', 'What changed', 'Verified', 'Task'])
     assert.match(template, new RegExp(`^## ${section}$`, 'mu'));
   assert.match(template, /^Agent:/mu);
   const shipping = [

@@ -6,18 +6,21 @@ import { ADVISOR_ARM_PREFIX } from '../outcome/lane-advisor.ts';
 import { EFFORT_PREFIX } from '../outcome/lane-effort.ts';
 import { LANE_MARKER } from '../outcome/lane-marker.ts';
 import { titleTaskId } from '../outcome/task-id.ts';
-import { contractBase } from '../repo/contract.ts';
+import { contractBase, contractTracker } from '../repo/contract.ts';
 import { taskLookupRoot } from '../task/claims.ts';
 import { isTaskId, type TaskRecord } from '../task/record.ts';
 import { loadTaskIndex, repositoryRoot } from '../task/store.ts';
 
 export const prBodyUsage =
-  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--lane] [--assumptions TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
+  'krn pr body [--task ID] [--why TEXT] [--verified TEXT] [--agent TEXT] [--lane] [--assumptions TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Why/What changed/Verified/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); in a repository without a task tracker --task may be omitted: Why comes from --why and the body has no Task section; the author only reviews it';
 
 export { LANE_MARKER };
 
 export interface BodyInput {
-  task: TaskRecord;
+  /** The task the PR delivers; absent in a repository without a task tracker. */
+  task?: TaskRecord;
+  /** Why the change is needed, when no task record says it. */
+  why?: string;
   commits: string[];
   verified: string;
   agent: string;
@@ -113,12 +116,15 @@ export function kindOfTitle(cwd: string, title: string): string | undefined {
 
 export function renderPrBody(input: BodyInput): string {
   const { task } = input;
-  const problem = bodyField(task, 'Why') ?? task.title;
-  const outcome = bodyField(task, 'Outcome') ?? task.title;
-  const proof = bodyField(task, 'Proof');
+  const problem =
+    input.why?.trim() ||
+    (task && (bodyField(task, 'Why') ?? task.title)) ||
+    'TODO: why this change is needed';
+  const outcome = task && (bodyField(task, 'Outcome') ?? task.title);
+  const proof = task && bodyField(task, 'Proof');
   const change = input.commits.length
     ? input.commits.map((line) => `- ${line}`).join('\n')
-    : `- ${outcome}`;
+    : `- ${outcome ?? 'TODO: what changed'}`;
   const verified = input.verified || (proof ? `Planned proof: ${proof}` : '');
   const assumptions = (input.assumptions ?? '').trim();
   const assumed = assumptions
@@ -133,25 +139,26 @@ ${assumptions
 
 `
     : '';
-  return `## Problem
-
-${problem}
-
-## Change
-
-Outcome: ${outcome}
-
-${change}
-
-## Verification
-
-${verified || 'TODO: commands and verdicts'}
-
-${assumed}## Task
+  const tracked = task
+    ? `## Task
 
 ${input.refs ? 'Refs' : 'Ticket'}: ${task.id}
 
-Agent: ${input.agent}
+`
+    : '';
+  return `## Why
+
+${problem}
+
+## What changed
+
+${outcome === undefined ? '' : `Outcome: ${outcome}\n\n`}${change}
+
+## Verified
+
+${verified || 'TODO: command: verdict'}
+
+${assumed}${tracked}Agent: ${input.agent}
 ${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n${input.effort === undefined ? '' : `${EFFORT_PREFIX}${input.effort}\n`}` : ''}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 `;
@@ -197,6 +204,7 @@ function commitsLeaveTaskOpen(root: string, base: string, id: string): boolean {
 
 export function prBodyCommand(args: string[]): string {
   let id: string | undefined;
+  let why = '';
   let verified = '';
   let agent = 'Claude Sonnet 5.5 in Claude Code';
   let refs = false;
@@ -218,6 +226,7 @@ export function prBodyCommand(args: string[]): string {
     if (
       ![
         '--task',
+        '--why',
         '--verified',
         '--agent',
         '--assumptions',
@@ -233,6 +242,7 @@ export function prBodyCommand(args: string[]): string {
       () => new CliUsageError(`Missing value for ${flag}`),
     );
     if (flag === '--task') id = value;
+    else if (flag === '--why') why = value;
     else if (flag === '--verified') verified = value;
     else if (flag === '--agent') agent = value;
     else if (flag === '--assumptions') assumptions = value;
@@ -240,23 +250,28 @@ export function prBodyCommand(args: string[]): string {
     else if (flag === '--worktree') worktree = value;
     else out = value;
   }
-  if (id === undefined || !isTaskId(id))
-    throw new CliUsageError(`--task needs a task id\n${prBodyUsage}`);
   // The task may exist only in the branch the PR describes, so the record and
   // the commits both come from that worktree, not from the main checkout.
   const root = repositoryRoot(worktree);
-  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
-  if (task === undefined)
+  if (id === undefined && contractTracker(root) === 'krn')
+    throw new CliUsageError(`--task needs a task id\n${prBodyUsage}`);
+  if (id !== undefined && !isTaskId(id))
+    throw new CliUsageError(`--task needs a task id\n${prBodyUsage}`);
+  const task =
+    id === undefined ? undefined : loadTaskIndex(taskLookupRoot(root, id)).get(id);
+  if (id !== undefined && task === undefined)
     throw new CliUsageError(
       `Unknown task ${id} in ${root}; a task created in a slice worktree needs --worktree <path>`,
     );
   const range = base ?? `origin/${contractBase(root)}`;
   const text = renderPrBody({
-    task,
+    ...(task === undefined ? {} : { task }),
+    why,
     commits: commitsSince(root, range),
     verified,
     agent,
-    refs: refs || commitsLeaveTaskOpen(root, range, id),
+    refs:
+      refs || (id !== undefined && commitsLeaveTaskOpen(root, range, id)),
     lane,
     ...(process.env.KRN_LANE_ADVISOR === undefined
       ? {}
