@@ -1,0 +1,14 @@
+{
+  "id": "t-r54977a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Lane run proves the base suite green in the lane worktree before the session",
+  "after": [],
+  "body": [
+    "Evidence (Fable reliability analysis 2026-11-18, .krn/runs/lead/night/proof-path.md + .krn/runs/{pilot,pilot-py,outside,units-*}): of 50 paid-session failures (73/74) across 138 outside attempts, 11 were the lane environment unable to run the base suite (.venv 6, Node 24 2, Stop base run 3), each found by a paid session ($0.12-0.34). 954ece4 deleted the pre-session clean-base test run; 32e764d restored only the install. Also: auto-merge setting and workflows permission are checked only at adopt (src/adopt/verify.ts:143), not in src/cli/lane-run/receiver.ts; drain never stops on task-class exits (src/cli/lane-run/drain.ts:151-154).\nOutcome: krn lane run runs the contract test once on the untouched lane worktree, through the runner Stop uses, before the session; red exits 72 naming the failing files, timeouts-only exits 78; result cached per base SHA. The receiver probe also checks auto-merge enabled and workflows permission.\nFiles: src/cli/lane-run/prepare.ts, src/cli/lane-run/receiver.ts, src/hook/stop.ts\nProof: a lane-run test with a red-at-base fixture exits 72 with zero session spawns; a pilot-py drain on a release containing it shows no 73 naming the environment."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
