@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  kindOfTitle,
   proofCommands,
+  proofOfTitle,
   proofShell,
   renderPrBody,
 } from '../../src/cli/pr-body.ts';
@@ -352,6 +354,36 @@ test('krn pr body prints Refs and no Ticket when every commit carries Refs (t-5y
     );
     assert.match(closing.stdout, /^Ticket: t-abc1234$/m);
     assert.doesNotMatch(closing.stdout, /^Refs:/m);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// A defect closed as a duplicate (t-yvgv720) carried only its record, and ship refused it for
+// lacking a regression test: the gates belong to the task that delivered the work.
+test('a defect closed as a duplicate asks ship for no Proof and no base-red test', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-dup-'));
+  try {
+    spawnSync('git', ['init', '-q', dir]);
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks', 't-def5678.json'),
+      `${JSON.stringify({ ...task, id: 't-def5678' }, null, 2)}\n`,
+    );
+    const record = (status: 'open' | 'closed', resolution: unknown) =>
+      writeFileSync(
+        join(dir, 'tasks', 't-abc1234.json'),
+        `${JSON.stringify({ ...task, kind: 'defect', body: ['Outcome: o.\nProof: `node --test x.test.ts`: exit 0'], status, resolution }, null, 2)}\n`,
+      );
+    const title = 'chore(tasks): close a duplicate (t-abc1234)';
+    record('open', null);
+    assert.equal(kindOfTitle(dir, title), 'defect');
+    assert.equal(proofOfTitle(dir, title).length, 1);
+    record('closed', { kind: 'duplicate', ref: 't-def5678', note: 'shipped' });
+    assert.equal(kindOfTitle(dir, title), undefined);
+    assert.deepEqual(proofOfTitle(dir, title), []);
+    record('closed', { kind: 'done', ref: null, note: 'fixed' });
+    assert.equal(kindOfTitle(dir, title), 'defect');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
