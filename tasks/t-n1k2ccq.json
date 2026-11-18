@@ -1,0 +1,17 @@
+{
+  "id": "t-n1k2ccq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "The default lane budget is 6 live lanes",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: operator raised the lane cap to 6. KRN_LANE_MAX_LIVE defaulted to 4 since the 2026-11-16 usage cut (t-ahsmyfp). Quota check (cswap list, 2026-11-18 10:08): team accounts 61-77% of the 7-day window, one at 99% resetting within 21h; Sonnet lane sessions cost about $0.15-0.19 each in the pilot. t-sy4qhg1 (39b72d9) removed the rebase-and-force-push rounds that more parallel PRs would have multiplied.",
+    "Outcome: `krn lane start` refuses only past 6 live lane worktrees by default (KRN_LANE_MAX_LIVE still overrides), and the delivery-lead skill and lead rules state 6.",
+    "Proof: node --test test/cli/lane.test.ts: the default-budget case starts 6 lanes and refuses the 7th.",
+    "Files: src/cli/lane.ts, test/cli/lane.test.ts, .agents/skills/delivery-lead/SKILL.md, src/adopt/skills/delivery-lead/SKILL.md, docs/program/lead-rules.md"
+  ],
+  "kind": "chore",
+  "area": "lanes"
+}
