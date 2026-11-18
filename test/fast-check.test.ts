@@ -20,6 +20,7 @@ import {
   fullyStaged,
   lintable,
   parseArgs,
+  planTests,
   removedFiles,
   restage,
   selectTests,
@@ -817,4 +818,98 @@ test('fast prints a FAIL verdict naming the stage when a stage crashes', async (
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// KRN-12: the reasons come from the real repository's CLI entry and the real spawning tests.
+test('a change to the CLI dispatch selects the tests that spawn the CLI entry', () => {
+  const read = (path: string): string | undefined =>
+    existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+  const spawning = new Map(
+    [
+      'test/cli/internal-error-exit.test.ts',
+      'test/cli/exit-code-classification.test.ts',
+    ].map((path) => [path, readFileSync(path, 'utf8')]),
+  );
+  const plan = planTests(
+    ['src/cli/index.ts'],
+    spawning,
+    [],
+    new Set(),
+    cliCommandModules('.'),
+    read,
+  );
+  assert.deepEqual(
+    plan.map((entry) => [entry.path, entry.reason]),
+    [
+      ['test/cli/exit-code-classification.test.ts', 'spawns entry'],
+      ['test/cli/internal-error-exit.test.ts', 'spawns entry'],
+    ],
+  );
+});
+
+test('an import composed at runtime widens the plan instead of skipping the test', () => {
+  const files = new Map([
+    ['test/render.test.ts', "import { draw } from '../src/render.ts';"],
+    [
+      'src/render.ts',
+      'export const draw = (name: string) => import(`./${name}.ts`);',
+    ],
+  ]);
+  const plan = planTests(
+    ['src/mobile-renderer.ts'],
+    new Map([['test/render.test.ts', files.get('test/render.test.ts') ?? '']]),
+    [],
+    new Set(),
+    undefined,
+    (path) => files.get(path),
+  );
+  assert.deepEqual(
+    plan.map((entry) => [entry.path, entry.reason]),
+    [['test/render.test.ts', 'widened']],
+  );
+});
+
+test('missing owner metadata widens a spawning test', () => {
+  const spawning = new Map([
+    ['test/cli/x.test.ts', "spawnSync('bin/krn', ['ledger']);"],
+  ]);
+  const plan = planTests(
+    ['src/ledger/rows.ts'],
+    spawning,
+    [],
+    new Set(),
+    new Map(),
+  );
+  assert.deepEqual(
+    plan.map((entry) => [entry.path, entry.reason]),
+    [['test/cli/x.test.ts', 'widened']],
+  );
+});
+
+test('a fully resolved graph gives a narrow plan with the dependency path', () => {
+  const files = new Map([
+    ['test/a.test.ts', "import { a } from '../src/a.ts';"],
+    ['test/b.test.ts', "import { b } from '../src/b.ts';"],
+    ['src/a.ts', "import { leaf } from './leaf.ts';"],
+    ['src/b.ts', 'export const b = 1;'],
+    ['src/leaf.ts', 'export const leaf = 1;'],
+  ]);
+  const plan = planTests(
+    ['src/leaf.ts'],
+    new Map([
+      ['test/a.test.ts', files.get('test/a.test.ts') ?? ''],
+      ['test/b.test.ts', files.get('test/b.test.ts') ?? ''],
+    ]),
+    [],
+    new Set(),
+    new Map([['x', new Set<string>()]]),
+    (path) => files.get(path),
+  );
+  assert.deepEqual(plan, [
+    {
+      path: 'test/a.test.ts',
+      reason: 'import consumer',
+      via: ['test/a.test.ts', 'src/a.ts', 'src/leaf.ts'],
+    },
+  ]);
 });

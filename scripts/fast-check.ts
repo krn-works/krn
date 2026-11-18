@@ -136,7 +136,15 @@ export function fastOnlyPrefixes(source: string): string[] {
     .filter(Boolean);
 }
 
-const CLI_SPAWN = /bin\/krn|cli\/main\.ts|'bin',\s*'krn'|krn\.mjs/u;
+const CLI_SPAWN =
+  /bin\/krn|cli\/main\.ts|'bin',\s*'krn'|'cli',\s*'main\.ts'|krn\.mjs/u;
+const SPAWN_CALL =
+  /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)\s*\(/u;
+
+/** Whether a test source starts the CLI entry as a subprocess. */
+function spawnsEntry(source: string): boolean {
+  return CLI_SPAWN.test(source) && SPAWN_CALL.test(source);
+}
 const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?: )/u;
 
 /** Repo modules reached from an entry through relative imports, transitively. */
@@ -154,26 +162,70 @@ function importClosure(root: string, entry: string): Set<string> {
   return seen;
 }
 
-/** Every repo path a source reaches through relative imports, any number of hops; `readSource` returns a module's text or undefined when it is not a file. */
-function transitiveImports(
+const STATIC_SPECIFIER =
+  /(?:\bfrom\s*|^\s*import\s*)(['"])(\.{1,2}\/[^'"]+)\1/gmu;
+/** A dynamic import or require whose specifier is composed at runtime, so no import edge can name it. */
+const COMPOSED_IMPORT = /\b(?:import|require)\s*\(\s*(?!['"\s])/u;
+
+/** Repo paths a source imports statically (`import ... from`, `import '...'`), resolved from its directory. */
+function staticPaths(path: string, source: string): Set<string> {
+  const found = new Set<string>();
+  const dir = posix.dirname(path);
+  for (const match of source.matchAll(STATIC_SPECIFIER)) {
+    const target = posix.join(dir, match[2] ?? '');
+    for (const ext of EXTENSIONS) found.add(target + ext);
+    if (target.endsWith('.js')) found.add(`${target.slice(0, -3)}.ts`);
+  }
+  return found;
+}
+
+/** What a source reaches through relative imports: each repo path with the import chain that leads there, and the modules on the way that compose an import at runtime. `readSource` returns a module's text or undefined when it is not a file. */
+function importChains(
   path: string,
   source: string,
   readSource: (path: string) => string | undefined,
-): Set<string> {
-  const reached = importedPaths(path, source);
+): { chains: Map<string, string[]>; composers: string[] } {
+  const chains = new Map<string, string[]>();
+  const composers = COMPOSED_IMPORT.test(source) ? [path] : [];
+  const queue: string[] = [];
+  const reach = (from: string, text: string): void => {
+    for (const target of importedPaths(from, text)) {
+      if (chains.has(target)) continue;
+      chains.set(target, [...(chains.get(from) ?? [path]), target]);
+      queue.push(target);
+    }
+  };
+  reach(path, source);
   const visited = new Set<string>();
-  const queue = [...reached];
-  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
     if (visited.has(next)) continue;
     visited.add(next);
     const text = readSource(next);
     if (text === undefined) continue;
-    for (const target of importedPaths(next, text)) {
-      reached.add(target);
-      if (!visited.has(target)) queue.push(target);
-    }
+    if (COMPOSED_IMPORT.test(text)) composers.push(next);
+    reach(next, text);
   }
-  return reached;
+  return { chains, composers };
+}
+
+/** The modules a spawned `src/cli/main.ts` always loads: its own imports, then static imports transitively. */
+function entryModules(
+  readSource: (path: string) => string | undefined,
+): Set<string> {
+  const entry = 'src/cli/main.ts';
+  const text = readSource(entry);
+  const seen = new Set<string>();
+  if (text === undefined) return seen;
+  seen.add(entry);
+  const queue = [...importedPaths(entry, text)];
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    if (seen.has(next)) continue;
+    const body = readSource(next);
+    if (body === undefined) continue;
+    seen.add(next);
+    for (const target of staticPaths(next, body)) queue.push(target);
+  }
+  return seen;
 }
 
 /** CLI command name -> src modules its entry in src/cli/index.ts imports, transitively. */
@@ -206,7 +258,7 @@ function spawnsCoveredModule(
   targets: ReadonlySet<string>,
   cliModules: ReadonlyMap<string, ReadonlySet<string>>,
 ): boolean {
-  if (!CLI_SPAWN.test(source)) return false;
+  if (!spawnsEntry(source)) return false;
   for (const [command, modules] of cliModules)
     if (
       new RegExp(`['"\`]${command}['"\`]`, 'u').test(source) &&
@@ -230,31 +282,56 @@ export function evidenceTests(touched: string[], records: string): string[] {
   return touched.some((file) => paths.has(file)) ? [STANDARDS_TEST] : [];
 }
 
+/** Why a test is in the plan: a named reason, plus the import chain or covered path behind it. */
+export interface PlannedTest {
+  path: string;
+  reason:
+    | 'changed test'
+    | 'rule'
+    | 'tree'
+    | 'names path'
+    | 'spawns entry'
+    | 'covers'
+    | 'import consumer'
+    | 'widened';
+  via: string[];
+}
+
 /**
- * Tests to run: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file directly or through any chain of imported modules,
- * tests that name a changed or removed file by repository path, and the rule tests
+ * Tests to run, each with the reason that selected it: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file directly or through any chain of imported modules (the chain is the `via`),
+ * tests that name a changed or removed file by repository path, tests that spawn the CLI entry when a module the entry loads changed, and the rule tests
  * (prose rule tests only when the diff touches the prose paths they scan).
  * A removed file is also matched by its basename when no surviving file shares it, so
  * `join(root, 'scripts', 'gone.mjs')` and doc assertions still find the reference.
+ * An unresolved dependency widens instead of skipping: a test whose import chain has a module composing an import at runtime and a changed file beside it, or that spawns the CLI when `cliModules` is supplied but empty (owner metadata missing), is selected for any changed module.
  */
-export function selectTests(
+export function planTests(
   changed: string[],
   tests: Map<string, string>,
   removed: string[] = [],
   surviving: ReadonlySet<string> = new Set(),
-  cliModules: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+  cliModules?: ReadonlyMap<string, ReadonlySet<string>>,
   readSource: (path: string) => string | undefined = () => undefined,
-): string[] {
-  const picked = new Set(changed.filter((file) => tests.has(file)));
+): PlannedTest[] {
+  const plan = new Map<string, PlannedTest>();
+  const pick = (
+    path: string,
+    reason: PlannedTest['reason'],
+    via: string[] = [],
+  ): void => {
+    if (!plan.has(path)) plan.set(path, { path, reason, via });
+  };
+  for (const file of changed) if (tests.has(file)) pick(file, 'changed test');
   const touched = [...changed, ...removed];
   const prose = touched.some((file) => PROSE_PATHS.test(file));
   if (touched.length > 0)
     for (const path of tests.keys())
       if (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path)))
-        picked.add(path);
-  for (const [path, trigger] of TREE_TESTS)
-    if (tests.has(path) && touched.some((file) => trigger.test(file)))
-      picked.add(path);
+        pick(path, 'rule');
+  for (const [path, trigger] of TREE_TESTS) {
+    const hit = touched.find((file) => trigger.test(file));
+    if (tests.has(path) && hit !== undefined) pick(path, 'tree', [hit]);
+  }
   const targets = new Set(
     [...changed, ...removed].filter((name) => !tests.has(name)),
   );
@@ -264,35 +341,96 @@ export function selectTests(
     const base = posix.basename(file);
     if (!taken.has(base)) names.push(base);
   }
+  const entry = entryModules(readSource);
+  const widenable = [...targets].find((target) =>
+    /^(?:src|scripts)\//u.test(target),
+  );
   if (targets.size > 0)
     for (const [path, source] of tests) {
       const covers = coveredPrefixes(source);
-      if (
-        names.some((name) => source.includes(name)) ||
-        spawnsCoveredModule(source, targets, cliModules) ||
-        [...targets].some((target) =>
-          covers.some((prefix) => target.startsWith(prefix)),
-        )
-      )
-        picked.add(path);
-      else
-        for (const target of transitiveImports(path, source, readSource))
-          if (targets.has(target)) picked.add(path);
+      const named = names.find((name) => source.includes(name));
+      const covered = [...targets].find((target) =>
+        covers.some((prefix) => target.startsWith(prefix)),
+      );
+      const spawns = spawnsEntry(source);
+      const loaded = spawns
+        ? [...targets].find((target) => entry.has(target))
+        : undefined;
+      const { chains, composers } = importChains(path, source, readSource);
+      // A composed import can load any module beside its composer: those siblings are unresolved.
+      const sibling = [...targets].find((target) =>
+        composers.some(
+          (composer) =>
+            posix.dirname(composer) === posix.dirname(target) &&
+            /^(?:src|scripts)\//u.test(target),
+        ),
+      );
+      const imported = [...targets].find((target) => chains.has(target));
+      if (named !== undefined) pick(path, 'names path', [named]);
+      else if (loaded !== undefined) pick(path, 'spawns entry', [loaded]);
+      else if (
+        cliModules !== undefined &&
+        spawnsCoveredModule(source, targets, cliModules)
+      ) {
+        const module = [...targets].find((target) =>
+          [...cliModules.values()].some((set) => set.has(target)),
+        );
+        pick(path, 'spawns entry', module === undefined ? [] : [module]);
+      } else if (covered !== undefined) pick(path, 'covers', [covered]);
+      else if (imported !== undefined)
+        pick(path, 'import consumer', chains.get(imported));
+      else if (sibling !== undefined) pick(path, 'widened', [sibling]);
+      else if (widenable !== undefined && spawns && cliModules?.size === 0)
+        pick(path, 'widened', [widenable]);
     }
   // A fast-only test runs exactly when the diff touches it or one of its declared inputs.
   for (const [path, source] of tests) {
     const only = fastOnlyPrefixes(source);
     if (only.length === 0) continue;
     if (
-      touched.some(
+      !touched.some(
         (file) =>
           file === path || only.some((prefix) => file.startsWith(prefix)),
       )
     )
-      picked.add(path);
-    else picked.delete(path);
+      plan.delete(path);
+    else pick(path, 'covers', only);
   }
-  return [...picked].sort();
+  return [...plan.values()].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  );
+}
+
+/** The paths `planTests` selects. */
+export function selectTests(
+  changed: string[],
+  tests: Map<string, string>,
+  removed: string[] = [],
+  surviving: ReadonlySet<string> = new Set(),
+  cliModules?: ReadonlyMap<string, ReadonlySet<string>>,
+  readSource: (path: string) => string | undefined = () => undefined,
+): string[] {
+  return planTests(
+    changed,
+    tests,
+    removed,
+    surviving,
+    cliModules,
+    readSource,
+  ).map((planned) => planned.path);
+}
+
+/** Records the reason per selected test in `.krn/cache/fast-plan.json`, the description CI observation reads too. */
+function writePlan(
+  cache: string,
+  planned: readonly PlannedTest[],
+  selected: readonly string[],
+): void {
+  const kept = planned.filter((entry) => selected.includes(entry.path));
+  writeFileSync(
+    join(cache, 'fast-plan.json'),
+    `${JSON.stringify(kept, null, 2)}\n`,
+  );
 }
 
 export function lintable(changed: string[]): string[] {
@@ -768,32 +906,40 @@ async function check(root: string, argv: string[]): Promise<number> {
   stage = 'select';
   const tests = listTests(root);
   const recordsFile = join(root, 'standards/records.json');
-  const related = [
-    ...new Set([
-      ...selectTests(
-        changed,
-        tests,
-        removed,
-        surviving,
-        cliCommandModules(root),
-        (path) => {
-          const file = join(root, path);
-          return existsSync(file) && lstatSync(file).isFile()
-            ? readFileSync(file, 'utf8')
-            : undefined;
-        },
-      ),
-      ...(tests.has(STANDARDS_TEST) && existsSync(recordsFile)
-        ? evidenceTests(
-            [...changed, ...removed],
-            readFileSync(recordsFile, 'utf8'),
-          )
-        : []),
-    ]),
-  ];
+  const planned = planTests(
+    changed,
+    tests,
+    removed,
+    surviving,
+    cliCommandModules(root),
+    (path) => {
+      const file = join(root, path);
+      return existsSync(file) && lstatSync(file).isFile()
+        ? readFileSync(file, 'utf8')
+        : undefined;
+    },
+  );
+  if (tests.has(STANDARDS_TEST) && existsSync(recordsFile)) {
+    const evidence = evidenceTests(
+      [...changed, ...removed],
+      readFileSync(recordsFile, 'utf8'),
+    );
+    for (const path of evidence)
+      if (!planned.some((entry) => entry.path === path))
+        planned.push({ path, reason: 'names path', via: [recordsFile] });
+  }
+  const related = [...new Set(planned.map((entry) => entry.path))];
   const guard = new Set(preflightTests(changed, removed, tests));
   for (let i = related.length - 1; i >= 0; i--)
     if (guard.has(related[i] ?? '')) related.splice(i, 1);
+  writePlan(cache, planned, related);
+  const reasons = new Map<string, number>();
+  for (const entry of planned)
+    if (related.includes(entry.path))
+      reasons.set(entry.reason, (reasons.get(entry.reason) ?? 0) + 1);
+  process.stdout.write(
+    `fast plan: ${related.length} tests (${[...reasons].map(([why, n]) => `${why} ${n}`).join(', ') || 'none'}); reasons in .krn/cache/fast-plan.json\n`,
+  );
   // One slot for the whole check: the guard, tsc and tests (and a Biome redo) never queue twice.
   return inTestSlot(root, async () => {
     stage = 'preflight';

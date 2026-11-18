@@ -1,7 +1,11 @@
 {
   "id": "t-m1gv5fj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "planTests names a reason per selected test; composed imports and missing owner metadata widen; spawners of src/cli/main.ts selected when index.ts changes (proofs in test/fast-check.test.ts)"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "the test selector names a reason for each selected test and widens on an unresolved dependency",
