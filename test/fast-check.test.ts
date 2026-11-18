@@ -696,7 +696,7 @@ test('fast check selects the readers of a changed data file on the real reposito
 });
 
 test('two fast-check test phases against one slot lock run one after the other', async () => {
-  const { withSlot } = await import('../scripts/lib/slot-lock.ts');
+  const { withSlot } = await import('../src/repo/slot-lock.ts');
   const dir = mkdtempSync(join(tmpdir(), 'slots-'));
   try {
     const events: string[] = [];
@@ -714,7 +714,7 @@ test('two fast-check test phases against one slot lock run one after the other',
 });
 
 test('a slot whose holder died is reclaimed and the cap comes from KRN_FAST_SLOTS', async () => {
-  const { withSlot } = await import('../scripts/lib/slot-lock.ts');
+  const { withSlot } = await import('../src/repo/slot-lock.ts');
   const { testSlotOptions } = await import('../scripts/fast-check.ts');
   const dir = mkdtempSync(join(tmpdir(), 'slots-'));
   try {

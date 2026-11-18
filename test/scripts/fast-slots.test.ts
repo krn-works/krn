@@ -107,7 +107,7 @@ test('a nested slot request inside a held slot runs at once instead of queueing 
 
 test('a slot held by a live process that waits past the deadline ends the wait with the timeout exit code', async () => {
   const { SLOT_TIMEOUT_EXIT, SlotTimeoutError, withSlot } = await import(
-    '../../scripts/lib/slot-lock.ts'
+    '../../src/repo/slot-lock.ts'
   );
   assert.equal(typeof SlotTimeoutError, 'function');
   const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
@@ -138,7 +138,7 @@ test('a slot held by a live process that waits past the deadline ends the wait w
 });
 
 test('a slot whose recorded holder pid is dead is reclaimed at once', async () => {
-  const { withSlot } = await import('../../scripts/lib/slot-lock.ts');
+  const { withSlot } = await import('../../src/repo/slot-lock.ts');
   const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
   try {
     mkdirSync(join(dir, 'slot-0'));
@@ -155,7 +155,7 @@ test('a slot whose recorded holder pid is dead is reclaimed at once', async () =
 
 test('a slot whose pid now belongs to a different process is reclaimed at once', async () => {
   const { withSlot, processStart } = await import(
-    '../../scripts/lib/slot-lock.ts'
+    '../../src/repo/slot-lock.ts'
   );
   assert.equal(typeof processStart, 'function');
   if (processStart(process.pid) === undefined) return;
@@ -176,7 +176,7 @@ test('a slot whose pid now belongs to a different process is reclaimed at once',
 
 test('a slot recorded with this process start time stays held', async () => {
   const { withSlot, processStart } = await import(
-    '../../scripts/lib/slot-lock.ts'
+    '../../src/repo/slot-lock.ts'
   );
   assert.equal(typeof processStart, 'function');
   if (processStart(process.pid) === undefined) return;
