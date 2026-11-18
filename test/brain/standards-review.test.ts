@@ -36,10 +36,10 @@ function fixture(): string {
   return root;
 }
 
-function review(root: string) {
+function review(root: string, ...extra: string[]) {
   return spawnSync(
     process.execPath,
-    [cli, 'standards', 'review', '--root', root],
+    [cli, 'standards', 'review', '--root', root, ...extra],
     {
       encoding: 'utf8',
       cwd: tmpdir(),
@@ -107,4 +107,102 @@ test('review rejects a stray argument with the usage', () => {
 test('the pack holds git grep scans the review turns into line checks', () => {
   const scans = readPack().filter((standard) => scanOf(standard) !== undefined);
   assert.ok(scans.some((standard) => standard.id === 's-ts-no-any'));
+});
+
+/** A project record that forbids the text `FORBIDDEN` in src/*.ts. */
+function banRecord(): string {
+  return `${JSON.stringify([
+    {
+      id: 's-project-no-forbidden',
+      type: 'standard',
+      area: 'review',
+      layer: 'krn-delivery',
+      audience: 'worker',
+      tier: 'floor',
+      text: 'Source never contains the word FORBIDDEN.',
+      why: 'The word marks code that must not ship.',
+      applies: { stacks: [], needs: [], paths: [], terms: ['forbidden'] },
+      enforcement: {
+        kind: 'command',
+        run: "! git grep -qIE 'FORBIDDEN' -- 'src/*.ts'",
+      },
+      provenance: {
+        origin: 'project',
+        evidence: ['src/old.ts'],
+        proposals: [],
+      },
+      status: 'accepted',
+      recorded_at: '2026-11-01',
+      valid_from: '2026-11-01',
+      valid_to: null,
+      supersedes: [],
+    },
+  ])}\n`;
+}
+
+/** Trunk `release` whose records ban FORBIDDEN, then branch `work` off it. */
+function ruledFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), 'krn-review-'));
+  git(root, 'init', '-q', '-b', 'release');
+  git(root, 'config', 'user.email', 'a@b.c');
+  git(root, 'config', 'user.name', 'a');
+  put(root, 'package.json', '{"scripts":{"test":"node --test"}}\n');
+  put(root, 'src/old.ts', 'export const old = 1;\n');
+  put(root, '.agents/standards.json', banRecord());
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', 'base');
+  git(root, 'checkout', '-q', '-b', 'work');
+  return root;
+}
+
+test('a branch that adds a pattern and drops the rule is judged by the rule of its base', () => {
+  const root = ruledFixture();
+  try {
+    put(root, 'src/new.ts', 'export const x = "FORBIDDEN";\n');
+    put(root, '.agents/standards.json', '[]\n');
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '-m', 'weaken');
+    const done = review(root, '--base', 'release');
+    assert.equal(done.status, 1, done.stderr + done.stdout);
+    assert.match(
+      done.stderr,
+      /VIOLATION src\/new\.ts:1 s-project-no-forbidden/,
+    );
+    assert.match(
+      done.stderr,
+      /^rules of release@[0-9a-f]{12} judge head [0-9a-f]{12}$/m,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('after a rule change merged into the base, the next branch inherits it and a clean one passes', () => {
+  const root = ruledFixture();
+  try {
+    // The legitimate rule change lands on the base first.
+    git(root, 'checkout', '-q', 'release');
+    put(root, '.agents/standards.json', '[]\n');
+    git(root, 'commit', '-q', '-am', 'drop the rule');
+    git(root, 'checkout', '-q', '-b', 'next');
+    put(root, 'src/new.ts', 'export const x = "FORBIDDEN";\n');
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '-m', 'uses the word');
+    const passes = review(root, '--base', 'release');
+    assert.equal(passes.status, 0, passes.stderr + passes.stdout);
+    assert.doesNotMatch(passes.stderr, /VIOLATION/);
+    // Restoring the rule on the base makes the same head fail.
+    git(root, 'checkout', '-q', 'release');
+    put(root, '.agents/standards.json', banRecord());
+    git(root, 'commit', '-q', '-am', 'restore the rule');
+    git(root, 'checkout', '-q', 'next');
+    const fails = review(root, '--base', 'release');
+    assert.equal(fails.status, 1, fails.stderr + fails.stdout);
+    assert.match(
+      fails.stderr,
+      /VIOLATION src\/new\.ts:1 s-project-no-forbidden/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

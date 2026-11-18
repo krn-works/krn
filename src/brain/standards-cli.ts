@@ -19,6 +19,7 @@ import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { claudeDir } from '../harness/claude.ts';
 import {
   CONTRACT_FILE,
+  contractBase,
   contractConventions,
   contractTracker,
   detectStack,
@@ -73,7 +74,13 @@ import {
   type Report as StandardsReport,
   splitProject,
 } from './standards.ts';
-import { renderReview, reviewStandards } from './standards-review.ts';
+import {
+  changedFiles,
+  fileAt,
+  renderReview,
+  resolveBase,
+  reviewStandards,
+} from './standards-review.ts';
 import { usage } from './standards-verbs.ts';
 import { NO_MATCH, queryOutcome, renderHit } from './worker-packet.ts';
 
@@ -134,6 +141,21 @@ export function readProject(root: string): Standard[] {
   return existsSync(join(root, PROJECT_STANDARDS))
     ? parseFile(root, PROJECT_STANDARDS)
     : [];
+}
+
+/** The project's standards as the commit `rev` holds them, empty when that commit has none. */
+export function readProjectAt(root: string, rev: string): Standard[] {
+  const source = fileAt(root, rev, PROJECT_STANDARDS);
+  if (source === undefined) return [];
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch (error) {
+    throw new StandardsDataError(
+      `${PROJECT_STANDARDS}@${rev.slice(0, 12)}: not JSON (${(error as Error).message})`,
+    );
+  }
+  return parseStandards(value);
 }
 
 /** Git variables a caller (a hook, a worktree) may export that would point git at another repository. */
@@ -545,6 +567,7 @@ function flags(
 }
 
 const ROOT = new Set(['--root']);
+const REVIEW_FLAGS = new Set(['--root', '--base']);
 const CHECK_FLAGS = new Set(['--root', '--record']);
 
 export function checkCommand(rest: readonly string[]): void {
@@ -566,21 +589,30 @@ export function checkCommand(rest: readonly string[]): void {
   process.exitCode = verdict.exitCode;
 }
 
-/** `krn standards review [--root DIR]`: the enforced records the diff can break, with offending file:line; exit 1 on a violation. */
+/** `krn standards review [--base BRANCH] [--root DIR]`: the enforced records the diff can break, with offending file:line; exit 1 on a violation. */
 export function reviewCommand(rest: readonly string[]): void {
-  const { values, positional } = flags(rest, new Set(), ROOT);
+  const { values, positional } = flags(rest, new Set(), REVIEW_FLAGS);
   if (positional.length > 0) throw new CliUsageError(usage);
   const root = repositoryRoot(
     resolve(values.get('--root')?.[0] ?? process.cwd()),
   );
   const asOf = new Date().toISOString().slice(0, 10);
   const repository = repositoryFacts(root);
+  // The rules are the PR base's: one change cannot weaken a rule and violate it at once.
+  const base = resolveBase(
+    root,
+    values.get('--base')?.[0] ?? contractBase(root),
+  );
   const standards = [
     ...readPack().filter((standard) => appliesTo(standard, repository)),
-    ...readProject(root),
+    ...(base === undefined ? readProject(root) : readProjectAt(root, base.tip)),
   ].filter((standard) => inForce(standard, asOf));
-  const review = reviewStandards(root, standards);
-  const lines = renderReview(review);
+  const review = reviewStandards(
+    root,
+    standards,
+    changedFiles(root, base?.mergeBase),
+  );
+  const lines = renderReview(review, base);
   for (const line of lines.slice(0, -1)) process.stderr.write(`${line}\n`);
   process.stdout.write(`${lines.at(-1)}\n`);
   process.exitCode = review.violations.length === 0 ? 0 : 1;

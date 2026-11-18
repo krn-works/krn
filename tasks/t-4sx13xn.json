@@ -1,7 +1,11 @@
 {
   "id": "t-4sx13xn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "review loads project records from the PR base tip, diff from merge-base; CLI tests: dropped rule still fails, merged rule change inherited"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "standards review judges the PR head against the rules of the PR base",
