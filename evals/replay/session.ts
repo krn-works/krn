@@ -26,6 +26,8 @@ export interface HeadlessSession {
   claude: string;
   /** Text written to the session's stdin; none closes it empty. */
   stdin?: string;
+  /** Reads a session that ran to its end; the default reads a `claude -p` JSON result. */
+  parse?: (stdout: string, stderr: string) => SessionResult;
 }
 
 /** What the driver saw: the parsed result, and whether the session never started. */
@@ -98,12 +100,16 @@ function resultOf(
     error: NodeJS.ErrnoException | undefined;
   },
 ): SessionResult {
-  if (run.timedOut)
+  if (run.timedOut) {
+    // A reader that sees spend outside the result (a Codex rollout) still charges a killed session.
+    const seen = s.parse?.(run.stdout, run.stderr);
     return {
       ok: false,
       detail: `session timeout after ${Math.round(s.timeoutMs / 1000)}s (capped below the App token lifetime)`,
-      cost: undefined,
+      cost: seen?.cost,
+      ...(seen?.model === undefined ? {} : { model: seen.model }),
     };
+  }
   if (run.error !== undefined)
     return {
       ok: false,
@@ -113,5 +119,5 @@ function resultOf(
           : `session did not run: ${run.error.message}`,
       cost: undefined,
     };
-  return parseSessionResult(run.stdout, run.stderr);
+  return (s.parse ?? parseSessionResult)(run.stdout, run.stderr);
 }
