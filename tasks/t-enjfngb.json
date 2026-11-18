@@ -1,0 +1,14 @@
+{
+  "id": "t-enjfngb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Edit-time standards are reachable: labelled records carry the path or stack keys of the files they govern",
+  "after": [],
+  "body": [
+    "Evidence: #1385 (ec36b6d): node evals/retrieval/run.ts edit moment recalls 12/12 reachable but only 12 of 33 labels are reachable; the report names why each other label is unreachable (record has no stack/path key, its scope misses the case files, or the case names no file).\nOutcome: every labelled record that applies at edit time carries a path or stack key matching the files it governs; edit recall of all labels is at least 0.75 and each remaining unreachable label has a written reason in evals/retrieval/cases.json.\nProof: node evals/retrieval/run.ts: edit of all 33 >= 0.75\nFiles: .agents/records.json, evals/retrieval/cases.json"
+  ],
+  "kind": "feature",
+  "area": "brain"
+}
