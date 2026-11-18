@@ -16,6 +16,6 @@
     "Proof: node --test test/brain/skill-harvest.test.ts: pass with a .claude/skills file planted at the temp root.",
     "Files: test/brain/skill-harvest.test.ts"
   ],
-  "kind": "defect",
+  "kind": "debt",
   "area": "brain"
 }
