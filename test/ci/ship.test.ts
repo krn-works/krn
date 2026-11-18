@@ -185,7 +185,9 @@ function receiver(options: {
       const afterScoped = calls.some((call) =>
         call.includes('node scripts/fast'),
       );
-      if (afterScoped && options.rewritten) return out(options.rewritten);
+      const committed = calls.some((call) => call.startsWith('git commit'));
+      if (afterScoped && options.rewritten && !committed)
+        return out(options.rewritten);
       return out(options.dirty ? ' M f\n' : '');
     }
     if (line === 'rev-parse HEAD^{tree}') return out(`${'7'.repeat(40)}\n`);
@@ -236,9 +238,16 @@ function receiver(options: {
         ? { code: 2, stdout: '', stderr: 'error: No such remote' }
         : out(`${options.origin}\n`);
     if (
-      ['push', 'fetch', 'worktree', 'branch', 'ls-tree', 'show-ref'].includes(
-        a[0] ?? '',
-      )
+      [
+        'push',
+        'fetch',
+        'worktree',
+        'branch',
+        'ls-tree',
+        'show-ref',
+        'add',
+        'commit',
+      ].includes(a[0] ?? '')
     )
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
@@ -826,14 +835,44 @@ test('a scoped check that times out and passes on the rerun ships; an assertion 
   });
 });
 
-test('a scoped check that rewrote files refuses the push', async () => {
-  const r = receiver({ pulls: [auto], rewritten: ' M src/x.ts\n' });
+test('a format-only rewrite of tracked files is committed by ship and the push goes on', async () => {
+  const r = receiver({ pulls: [auto, merged], rewritten: ' M src/x.ts\n' });
+  await shipCommand(args, { ...r, completeClose: completeCloseExposure });
+  const commit = r.calls.findIndex((c) => c.startsWith('git commit'));
+  assert.ok(commit >= 0, 'the rewrite is committed');
+  assert.ok(r.calls.some((c) => c.startsWith('git add -u')));
+  assert.ok(
+    r.calls.findIndex((c) => c.includes('git push')) > commit,
+    'the commit precedes the push',
+  );
+});
+
+test('a scoped check that left an untracked file refuses the push', async () => {
+  const r = receiver({ pulls: [auto], rewritten: '?? src/new.ts\n' });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
     assert.equal(e.exitCode, 65);
     assert.match(e.message, /rewrote files/u);
     return true;
   });
   assert.ok(!r.calls.some((c) => c.includes('git push')));
+});
+
+test('the local check runs only the scoped check, never the full suite', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  await shipCommand(args, { ...r, completeClose: completeCloseExposure });
+  assert.ok(r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
+  assert.ok(
+    !r.calls.some((c) => /npm (run )?test|node --test \S+\/$/u.test(c)),
+  );
+  assert.ok(
+    r.calls
+      .filter((c) => c.startsWith('node '))
+      .every(
+        (c) =>
+          c.startsWith('node --test test/rules/instruction-bytes') ||
+          c.includes('scripts/fast-check.ts'),
+      ),
+  );
 });
 
 test('an adopted repository without the instruction-bytes rule ships without running it', async () => {

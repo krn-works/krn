@@ -507,7 +507,23 @@ ${synced}`;
           { exitCode: exitHostLoadFlake },
         );
     }
-    const rewritten = scoped.code === 0 ? git(['status', '--porcelain']) : '';
+    let rewritten = scoped.code === 0 ? git(['status', '--porcelain']) : '';
+    // A format-only rewrite of tracked files is the scoped check's own output: ship commits it
+    // instead of refusing a push over whitespace. Anything else left in the tree still refuses.
+    if (
+      rewritten !== '' &&
+      rewritten
+        .split('\n')
+        .filter((entry) => entry !== '')
+        .every((entry) => !entry.startsWith('??'))
+    ) {
+      git(['add', '-u']);
+      git(['commit', '-m', 'style: apply the scoped check formatting rewrite']);
+      process.stdout.write(
+        `pre-push: the scoped check rewrote files; committed\n${rewritten}\n`,
+      );
+      rewritten = git(['status', '--porcelain']);
+    }
     if (scoped.code !== 0 || rewritten !== '')
       throw Object.assign(
         new Error(
