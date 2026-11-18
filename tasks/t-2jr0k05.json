@@ -1,0 +1,17 @@
+{
+  "id": "t-2jr0k05",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "lane finish reads a Ticket/Refs trailer that sits above the Co-Authored-By paragraph",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: `krn lane finish routing-fair-arms` refused \"the HEAD commit of routing-fair-arms has no Ticket or Refs trailer\" although c0270cb carries `Refs: t-188gftz`: the harness attribution puts `Co-Authored-By` in its own final paragraph, so git's trailer block (last paragraph only) holds no Refs; src/cli/lane-finish.ts:47-62 trailerOf reads only %(trailers).",
+    "Outcome: lane finish finds the task from a Ticket/Refs line in any trailer-only paragraph at the end of the message (git trailers first, then trailing `Key: value` paragraphs), so the standard commit shape `Refs: <id>\\n\\nCo-Authored-By: ...` ships.",
+    "Proof: test/cli/lane-finish.test.ts: a HEAD commit with `Refs: t-xxxxxxx` above a separate Co-Authored-By paragraph resolves task t-xxxxxxx with key Refs.",
+    "Files: src/cli/lane-finish.ts, test/cli/lane-finish.test.ts"
+  ],
+  "kind": "defect",
+  "area": "lanes"
+}
