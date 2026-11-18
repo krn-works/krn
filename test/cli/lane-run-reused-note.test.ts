@@ -4,7 +4,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { reusedLaneNote } from '../../src/cli/lane-run/prepare.ts';
+import * as prepare from '../../src/cli/lane-run/prepare.ts';
+
+function note(path: string, base: string): string {
+  assert.equal(typeof prepare.reusedLaneNote, 'function');
+  return prepare.reusedLaneNote(path, base);
+}
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'reused-note-'));
@@ -21,7 +26,7 @@ function repo(): string {
 }
 
 test('a lane branch with no commit past the base needs no reuse note', () => {
-  assert.equal(reusedLaneNote(repo(), 'main'), '');
+  assert.equal(note(repo(), 'main'), '');
 });
 
 test('a reused lane branch names the commits a failed attempt left', () => {
@@ -31,9 +36,9 @@ test('a reused lane branch names the commits a failed attempt left', () => {
   writeFileSync(join(dir, 'b.txt'), 'b\n');
   git('add', '.');
   git('commit', '-q', '-m', 'docs: earlier attempt');
-  const note = reusedLaneNote(dir, 'main');
-  assert.match(note, /Reused worktree/u);
-  assert.match(note, /1 commit/u);
-  assert.match(note, /earlier attempt/u);
-  assert.match(note, /last-refusal\.txt/u);
+  const text = note(dir, 'main');
+  assert.match(text, /Reused worktree/u);
+  assert.match(text, /1 commit/u);
+  assert.match(text, /earlier attempt/u);
+  assert.match(text, /last-refusal\.txt/u);
 });

@@ -940,7 +940,7 @@ const BROKEN_ENVIRONMENT =
   /Cannot find package '[^./]|Cannot find module '[^./]|Failed to resolve import "[^./]|command not found|: not found$|No module named |ModuleNotFoundError/mu;
 
 /** Whether a test run's output shows an environment that lacks its dependencies, not a test that fails. */
-export const brokenEnvironment = (output: string): boolean =>
+const brokenEnvironment = (output: string): boolean =>
   BROKEN_ENVIRONMENT.test(output);
 
 /**

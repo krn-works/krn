@@ -20,7 +20,6 @@ import {
   servedExposure,
 } from '../../src/brain/exposures.ts';
 import {
-  brokenEnvironment,
   changedSinceBase,
   clausesOn,
   failuresIn,
@@ -2667,27 +2666,36 @@ test('test-first: a base run missing a source file of the repository is still a 
   }
 });
 
-test('a verbatim Stop check refusal from a copy of the pilot commit under host load names red tests, not a broken environment', () => {
-  const captured = readFileSync(
-    new URL('./fixtures/stop-refusal-pilot-worktree.txt', import.meta.url),
-    'utf8',
-  );
-  assert.equal(brokenEnvironment(captured), false);
-  assert.deepEqual(failuresIn(captured, 1), [
-    'tests/cli/url-language.test.ts',
-    'tests/cli/url-plan.test.ts',
-  ]);
-});
-
-test('brokenEnvironment names a missing package or tool and not a missing source file', () => {
-  assert.equal(brokenEnvironment('sh: line 1: vitest: not found'), true);
-  assert.equal(
-    brokenEnvironment("Error: Cannot find package 'vitest' imported from x"),
-    true,
-  );
-  assert.equal(
-    brokenEnvironment("Cannot find module '/work/src/new.ts'"),
-    false,
-  );
-  assert.equal(brokenEnvironment("Cannot find module '../src/new.ts'"), false);
+test('a verbatim Stop check refusal from a copy of the pilot commit under host load is a red test, not a broken base environment', () => {
+  const dir = foreignTestBranch();
+  try {
+    const captured = readFileSync(
+      new URL('./fixtures/stop-refusal-pilot-worktree.txt', import.meta.url),
+      'utf8',
+    );
+    const env = {
+      ...lane(dir),
+      KRN_TEST_FIRST: '1',
+      KRN_ACCEPTANCE_CLAUSES: '0',
+    };
+    const reason =
+      judgeStop(payload(dir), env, () => [], '', baseRun(dir, captured)) ?? '';
+    assert.doesNotMatch(reason, /base environment is broken/u);
+    assert.deepEqual(failuresIn(captured, 1), [
+      'tests/cli/url-language.test.ts',
+      'tests/cli/url-plan.test.ts',
+    ]);
+    assert.equal(
+      judgeStop(
+        payload(dir),
+        env,
+        () => [],
+        '',
+        baseRun(dir, 'sh: vitest: not found'),
+      ) !== undefined,
+      true,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

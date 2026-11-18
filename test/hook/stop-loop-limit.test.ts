@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -62,8 +62,10 @@ test('a refusal is saved under .krn/runs/stop-check so the lane and the lead can
   const env = { CLAUDE_PROJECT_DIR: dir };
   const out = stopHook(input('s5'), env, '', refuse);
   assert.equal(out.code, 2);
+  const saved = join(dir, '.krn/runs/stop-check/last-refusal.txt');
+  assert.equal(existsSync(saved), true);
   assert.equal(
-    readFileSync(join(dir, '.krn/runs/stop-check/last-refusal.txt'), 'utf8'),
+    readFileSync(saved, 'utf8'),
     'Stop refused: nothing committed\n',
   );
 });
