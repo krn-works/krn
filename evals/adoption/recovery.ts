@@ -115,11 +115,14 @@ else if (noun === 'pr' && verb === 'list') {
 else { process.stderr.write('gh stand-in: unhandled ' + args.join(' ') + '\n'); process.exit(2); }
 `;
 
+/** Kills the drain's process group; node, since the kill builtin of dash (CI's /bin/sh) refuses `--` and negative pids. */
+const killGroup = `node -e "process.kill(-Number(process.env.RECOVERY_PGID), 'SIGKILL')"`;
+
 /** A pre-push hook that cuts the batch at (b): the task is closed and committed, the branch not pushed. */
 const prePush = `#!/bin/sh
 if [ "$RECOVERY_KILL" = b ] && [ ! -e "$RECOVERY_KILLED" ]; then
   echo b > "$RECOVERY_KILLED"
-  kill -9 -- "-$RECOVERY_PGID"
+  ${killGroup}
 fi
 exit 0
 `;
@@ -132,7 +135,7 @@ function fakeClaude(): string {
     'set -e',
     'mkdir -p notes',
     'printf "half\\n" > "notes/$KRN_TASK.txt"',
-    'if [ "$RECOVERY_KILL" = a ] && [ ! -e "$RECOVERY_KILLED" ]; then echo a > "$RECOVERY_KILLED"; kill -9 -- "-$RECOVERY_PGID"; sleep 5; fi',
+    `if [ "$RECOVERY_KILL" = a ] && [ ! -e "$RECOVERY_KILLED" ]; then echo a > "$RECOVERY_KILLED"; ${killGroup}; sleep 5; fi`,
     'printf "done $KRN_TASK\\n" > "notes/$KRN_TASK.txt"',
     close,
     'git add notes tasks',
