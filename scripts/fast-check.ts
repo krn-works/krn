@@ -976,35 +976,31 @@ async function check(root: string, argv: string[]): Promise<number> {
             : []),
         ]),
       );
-    // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
+    // Biome runs first (about a second): a rewrite it makes is in place before tsc and the tests
+    // start, so the minutes-long verify never runs twice on a Biome fix.
     const before = snapshot();
     const staged = fullyStaged(root).filter((file) => files.includes(file));
-    const lint =
-      files.length > 0
-        ? run(root, 'biome', bin('biome'), [
-            'check',
-            '--write',
-            '--error-on-warnings',
-            '--no-errors-on-unmatched',
-            ...files,
-          ])
-        : undefined;
-    stage = 'verify';
-    let verified = verify();
     const steps: Step[] = [...pre.steps];
-    if (lint) {
-      steps.push(await lint);
+    if (files.length > 0) {
+      steps.push(
+        await run(root, 'biome', bin('biome'), [
+          'check',
+          '--write',
+          '--error-on-warnings',
+          '--no-errors-on-unmatched',
+          ...files,
+        ]),
+      );
       if (snapshot() !== before) {
         const fixed = restage(root, staged);
         if (fixed.length > 0)
           process.stdout.write(
             `fast: re-staged Biome fixes to ${fixed.join(', ')}\n`,
           );
-        await verified;
-        verified = verify();
       }
     }
-    steps.push(...(await verified));
+    stage = 'verify';
+    steps.push(...(await verify()));
     const failed = steps.filter((step) => !step.ok);
     for (const step of failed)
       process.stdout.write(

@@ -913,3 +913,17 @@ test('a fully resolved graph gives a narrow plan with the dependency path', () =
     },
   ]);
 });
+
+test('fast check runs tsc and the tests once when Biome rewrites a changed file', () => {
+  const { dir } = repoWithChange();
+  const runs = `${dir}-tsc-runs`;
+  stubTools(dir, `echo x >> ${runs}`);
+  writeFileSync(
+    join(dir, 'node_modules/.bin/biome'),
+    `#!/bin/sh\necho formatted > ${join(dir, 'a.ts')}\n`,
+  );
+  const result = runFast(dir);
+  assert.match(result.stdout, /fast PASS:/u, result.stderr + result.stdout);
+  assert.equal(readFileSync(join(dir, 'a.ts'), 'utf8'), 'formatted\n');
+  assert.equal(readFileSync(runs, 'utf8').split('\n').length - 1, 1);
+});
