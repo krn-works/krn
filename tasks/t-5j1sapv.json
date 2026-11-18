@@ -1,0 +1,14 @@
+{
+  "id": "t-5j1sapv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 3,
+  "title": "A new CI guard's standard record is added by one command, never a hand edit",
+  "after": [],
+  "body": [
+    "Evidence: lane of t-gxmzryy (#1389) needed four npm run fast runs to add one CI-rule record: test/brain/ci-rule-coverage.test.ts demands a record per test/rules guard, and hand edits of .agents/standards.json first reformatted the whole file (guard red), then truncated it (parse error).\nOutcome: one krn standards command appends a CI-rule record for a new test/rules guard, byte-preserving the rest of .agents/standards.json; the ci-rule-coverage failure message names that command.\nProof: node --test test/brain/ci-rule-coverage.test.ts: exit 0\nFiles: src/brain/standards-cli.ts, test/brain/ci-rule-coverage.test.ts"
+  ],
+  "kind": "feature",
+  "area": "brain"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-qxa7jjk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Map the slop-to-gold verification practices (talk + pstack) onto KRN checks",
+  "after": [],
+  "body": [
+    "Evidence: operator link 2026-11-18 https://www.youtube.com/watch?v=O_zcc6Xl12g (Lauren Tan, 'All Code Is Slop (Except Mine)', AI Engineer, 2026-11-14): 11,000 PRs/month at ~0.5% revert rate via enforceable architecture, lint rules replacing comments, runtime verification with feature maps, formal verification (TLA+, Lean), tokens spent on verification; tooling https://github.com/cursor/plugins/tree/main/pstack. Captions returned HTTP 429 twice on 2026-11-18; only the description and chapters were read.\nOutcome: a findings file under .krn/runs/research/ maps each practice from the transcript and pstack to KRN (present / missing / task id), with a task created for every missing practice that KRN can check mechanically.\nProof: the findings file lists every chapter of the talk with a present/missing/task verdict.\nFiles: .krn/runs/research/"
+  ],
+  "kind": "research",
+  "area": "brain"
+}

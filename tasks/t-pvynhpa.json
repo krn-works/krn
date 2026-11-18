@@ -1,0 +1,15 @@
+{
+  "id": "t-pvynhpa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "A nightly transcript pass consolidates the brain from finished sessions",
+  "after": [],
+  "body": [
+    "Source: https://platform.claude.com/cookbook/managed-agents-cma-dreaming-with-a-dynamic-workflow ('dreaming'). A nightly pass reads the finished session transcripts. One analyzer per transcript runs in parallel batches, then one organizer merges duplicates, repairs links and regenerates the index. It snapshots the store first, dates superseded facts instead of copying them, skips live sessions and retries a failed window. KRN takes the pattern on subscription Claude Code sessions, not Managed Agents or API billing (memory subscription-not-api).\nOutcome: a nightly job reads the lane and lead transcripts finished since its last marker under ~/.claude/projects. It writes standards proposals (krn standards propose) and memory corrections in one PR, each claim checked against the tool outputs in its transcript. Superseded records carry a date and superseded-by, and krn standards query skips them.\nProof: one run over the previous night's transcripts opens a PR with at least 3 evidence-cited proposals, and a second run on the same window adds none.\nFiles: src/brain/, .agents/standards-proposals/, scripts/ (new nightly runner)",
+    "Analyzer sessions run claude -p --bare (no hooks, skills, MCP or CLAUDE.md): deterministic and cheap per transcript (code.claude.com glossary, Bare mode)."
+  ],
+  "kind": "feature",
+  "area": "brain"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-7739p97",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Adopted repositories keep one AGENTS.md: krn adopt writes no CLAUDE.md on Claude Code 2.1.277+",
+  "after": [],
+  "body": [
+    "Evidence: operator note 2026-11-18 and decision single-agents-md; docs https://code.claude.com/docs/en/memory.md#agents-md: Claude Code 2.1.277+ reads AGENTS.md when no CLAUDE.md or CLAUDE.local.md exists in the working directory or above (default setting claude-md-or-agents-md); both exist -> CLAUDE.md only.\nOutcome: krn adopt on a repository without CLAUDE.md writes none and the adopted session still receives the AGENTS.md rules (verified by a session canary); a repository with both files is reported.\nProof: a canary session in a scratch adopted repo quotes an AGENTS.md-only rule.\nFiles: src/adopt/init.ts"
+  ],
+  "kind": "feature",
+  "area": "adopt"
+}
