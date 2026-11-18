@@ -105,7 +105,7 @@ function seedAdvisoryStandard(wt: string): void {
   );
 }
 
-test('one budget-capped session is graded in arms A, B and C alike', async (t) => {
+test('one budget-capped session that ran no test and changed nothing is a no-attempt in arms A, B and C alike', async (t) => {
   requiresIsolation(t, 'live arm sandbox', ['bwrap']);
   const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
   try {
@@ -114,11 +114,11 @@ test('one budget-capped session is graded in arms A, B and C alike', async (t) =
     const b = (await armBRow(live, options)).row;
     const c = await armCRow(live, options);
     assert.deepEqual(
-      [a, b, c].map((row) => [row.arm, row.pass, row.cost]),
+      [a, b, c].map((row) => [row.arm, row.pass, row.cost, row.verdict]),
       [
-        ['A', false, 1.02],
-        ['B', false, 1.02],
-        ['C', false, 1.02],
+        ['A', null, 1.02, 'no-attempt'],
+        ['B', null, 1.02, 'no-attempt'],
+        ['C', null, 1.02, 'no-attempt'],
       ],
     );
   } finally {
@@ -147,7 +147,57 @@ test('arm C claims its task before the session, so SessionStart serves a packet 
     });
     assert.match(served ?? '', /^Standards for this task \(\d+\):/u);
     assert.ok((row.injection ?? 0) > 0);
-    assert.equal(row.pass, false);
+    assert.equal(
+      row.verdict,
+      'fail',
+      'the session changed the tree: a fail, not a no-attempt',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a unit whose toolchain does not resolve is screened out and no session runs', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
+  try {
+    const { live, options } = fixture(root);
+    let sessions = 0;
+    const row = await screenUnit(live, {
+      ...options,
+      rowsFile: join(root, 'r'),
+      preflight: async () => 1,
+      session: async () => {
+        sessions++;
+        throw new Error('no session may run');
+      },
+    });
+    assert.equal(sessions, 0);
+    assert.equal(row.pass, null);
+    assert.equal(row.verdict, 'screened');
+    assert.match(row.screenedOut ?? '', /exit 1/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a scratch inside a git repository is refused before any session, not at the grade', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
+  try {
+    const { live, options } = fixture(root);
+    let sessions = 0;
+    await assert.rejects(
+      armCRow(live, {
+        ...options,
+        // The fixture clone is a git repository: a scratch inside it would abort the grade after a paid session.
+        scratch: join(options.sources, 'o__r', 'scratch'),
+        session: async () => {
+          sessions++;
+          throw new Error('no session may run');
+        },
+      }),
+      /inside the git repository/u,
+    );
+    assert.equal(sessions, 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

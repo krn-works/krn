@@ -189,6 +189,9 @@ export function parseSessionResult(
   try {
     parsed = JSON.parse(stdout);
   } catch {
+    parsed = streamResult(stdout);
+  }
+  if (parsed === undefined) {
     const said = `${stderr}\n${stdout}`
       .trim()
       .split('\n')
@@ -237,6 +240,25 @@ export function parseSessionResult(
     ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),
     ...blockerOf(record.result),
   };
+}
+
+/** The `result` event of a `--output-format stream-json` stream: its last line of that type, else undefined. */
+export function streamResult(stdout: string): unknown {
+  for (const line of stdout.split('\n').reverse()) {
+    if (line.trim() === '') continue;
+    try {
+      const v: unknown = JSON.parse(line);
+      if (
+        typeof v === 'object' &&
+        v !== null &&
+        (v as { type?: unknown }).type === 'result'
+      )
+        return v;
+    } catch {
+      // A torn line is not the result.
+    }
+  }
+  return undefined;
 }
 
 /** The realized model names from a result's `modelUsage` object, or nothing when it names none. */

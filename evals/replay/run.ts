@@ -23,6 +23,7 @@ import { type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import {
+  attemptLines,
   eligible,
   readRows,
   report,
@@ -137,6 +138,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       if (s.passRate === null) process.exit(65);
       console.log(s.passRate.toFixed(3));
     } else {
+      for (const l of attemptLines(readRows(rowsFile))) console.log(l);
       for (const l of report(s)) console.log(l);
     }
     process.exit(0);

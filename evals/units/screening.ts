@@ -389,6 +389,26 @@ export function withoutAppGh(path: string | undefined): string | undefined {
     .join(':');
 }
 
+/** The Go toolchain every grade and every replay session resolves through the mise shim. */
+export const GO_VERSION = '1.27.3';
+
+/**
+ * The toolchain pins and package caches under `cache` that a grade and a replay session share, so a dependency the
+ * session preflight installed is the one the session and its grade build against.
+ */
+export function toolchainEnv(cache: string): NodeJS.ProcessEnv {
+  const c = (n: string) => join(cache, n);
+  return {
+    MISE_GO_VERSION: GO_VERSION,
+    GOCACHE: c('go-build'),
+    GOMODCACHE: c('go-mod'),
+    GOFLAGS: '-mod=mod',
+    npm_config_cache: c('npm'),
+    COMPOSER_HOME: c('composer'),
+    PIP_CACHE_DIR: c('pip'),
+  };
+}
+
 /** Third-party install and test commands see no tokens and no desktop: PATH, HOME and caches inside scratch only. */
 function cleanEnv(): NodeJS.ProcessEnv {
   const c = (n: string) => join(cacheRoot, n);
@@ -398,13 +418,7 @@ function cleanEnv(): NodeJS.ProcessEnv {
       HOME: process.env.HOME,
       LANG: 'C.UTF-8',
       CI: '1',
-      MISE_GO_VERSION: '1.27.3',
-      GOCACHE: c('go-build'),
-      GOMODCACHE: c('go-mod'),
-      GOFLAGS: '-mod=mod',
-      npm_config_cache: c('npm'),
-      COMPOSER_HOME: c('composer'),
-      PIP_CACHE_DIR: c('pip'),
+      ...toolchainEnv(cacheRoot),
       XDG_CACHE_HOME: c('xdg'),
       // Builds write temporaries inside scratch: the host /tmp is a size-capped tmpfs that parallel Go builds exhaust.
       TMPDIR: c('tmp'),

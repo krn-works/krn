@@ -53,6 +53,9 @@ export interface Screening {
   passRate: number | null;
   verdict: 'go' | 'no-go' | 'pending';
   reason: string;
+  /** Arm-A attempts reported apart from pass and fail: no attempt at all, or a unit screened out before any session. */
+  noAttempt: number;
+  screenedOut: number;
 }
 
 /** A unit passes when any graded arm-A rep passes: the plain clone solved it. */
@@ -68,7 +71,16 @@ export function screen(units: ScreenUnit[], rows: Row[]): Screening {
     screened === 0
       ? null
       : [...byUnit.values()].filter(Boolean).length / screened;
-  const base = { units: ok.size, screened, passRate };
+  const apart = (v: string) =>
+    rows.filter((r) => r.arm === 'A' && ok.has(r.unit) && r.verdict === v)
+      .length;
+  const base = {
+    units: ok.size,
+    screened,
+    passRate,
+    noAttempt: apart('no-attempt'),
+    screenedOut: apart('screened'),
+  };
   if (ok.size < MIN_UNITS)
     return {
       ...base,
@@ -92,6 +104,15 @@ export function report(s: Screening): string[] {
   return [
     `units: ${s.units} eligible of ${MIN_UNITS} required`,
     `A pass rate: ${s.passRate === null ? 'unmeasured' : pct(s.passRate)} (${s.screened} screened)`,
+    `apart: ${s.noAttempt} no-attempt, ${s.screenedOut} screened out before a session`,
     `verdict: ${s.verdict} (${s.reason})`,
   ];
+}
+
+/** One line per attempt: unit, realized model, duration, tool calls, tests run, stop reason, verdict. */
+export function attemptLines(rows: Row[]): string[] {
+  return rows.map(
+    (r) =>
+      `attempt ${r.unit} ${r.model ?? '-'} ${r.durationMs === undefined ? '-' : `${Math.round(r.durationMs / 1000)}s`} tools=${r.toolCalls ?? '-'} tests=${r.testsRun ?? '-'} stop=${r.stopReason ?? '-'}${r.reprompted ? ' reprompted' : ''} verdict=${r.verdict ?? (r.pass === null ? 'ungraded' : r.pass ? 'pass' : 'fail')}${r.screenedOut ? ` (${r.screenedOut})` : ''}`,
+  );
 }
