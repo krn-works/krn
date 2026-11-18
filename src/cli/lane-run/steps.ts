@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { shipCommand } from '../../ci/ship.ts';
+import { rootGhEnv } from '../../repo/gh.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
 
 export interface LaneVerdict {
@@ -42,6 +43,7 @@ export const defaultSteps: Required<LaneRunSteps> = {
     const result = spawnSync('gh', ['run', 'view', run, '--log-failed'], {
       cwd,
       encoding: 'utf8',
+      env: rootGhEnv(cwd),
       maxBuffer: 16 * 1024 * 1024,
       timeout: 120_000,
     });

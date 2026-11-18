@@ -89,6 +89,9 @@ const commands: Record<CommandName, Handler> = {
 export async function dispatch(args: string[]): Promise<boolean> {
   const [command, ...options] = args;
   if (!isCommand(command)) return false;
+  // Hooks run on every tool call and name their root explicitly; every other verb works on its cwd.
+  if (command !== 'hook')
+    (await import('../repo/gh.ts')).scopeGhToOrigin(process.cwd());
   await commands[command](options);
   return true;
 }

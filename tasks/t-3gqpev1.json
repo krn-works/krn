@@ -1,7 +1,11 @@
 {
   "id": "t-3gqpev1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn dispatch scopes gh to the cwd origin when no KRN_APP_REPOSITORY is set; the ship runner, lane status and lane-run CI logs scope gh to their root's origin. Live publish from the pilot root follows the merge."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "krn verbs on an outside root give gh the origin's App repository",

@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkOpenRedLimit, readOpenPrs } from '../../src/cli/lane-open-red.ts';
+import { ghPrLookup } from '../../src/cli/lane-status.ts';
 import {
   type CommandRun,
   gh,
@@ -19,6 +20,7 @@ import {
   ghPrListOpenSync,
   ghPrViewSync,
   ghRepoView,
+  scopeGhToOrigin,
 } from '../../src/repo/gh.ts';
 
 const capture = (name: string) =>
@@ -106,6 +108,57 @@ test('gh reads of a root run with the App token scoped to that root’s origin',
       ghPrListOpenSync(root),
     ])
       assert.equal(reply.stdout, 'krn-works/seo-audit-harness');
+  } finally {
+    process.env.PATH = saved.path;
+    if (saved.scope === undefined) delete process.env.KRN_APP_REPOSITORY;
+    else process.env.KRN_APP_REPOSITORY = saved.scope;
+  }
+});
+
+function outsideRoot(url: string): { dir: string; root: string; bin: string } {
+  const dir = mkdtempSync(join(tmpdir(), 'gh-origin-scope-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  const root = join(dir, 'outside');
+  spawnSync('git', ['init', '-q', root]);
+  spawnSync('git', ['-C', root, 'remote', 'add', 'origin', url]);
+  return { dir, root, bin };
+}
+
+test('a krn verb with no KRN_APP_REPOSITORY scopes gh to its cwd origin, and a caller scope wins', () => {
+  const { root } = outsideRoot(
+    'https://github.com/krn-works/seo-audit-harness.git',
+  );
+  const unset: NodeJS.ProcessEnv = {};
+  scopeGhToOrigin(root, unset);
+  assert.equal(unset.KRN_APP_REPOSITORY, 'krn-works/seo-audit-harness');
+  const caller: NodeJS.ProcessEnv = { KRN_APP_REPOSITORY: 'krn-works/other' };
+  scopeGhToOrigin(root, caller);
+  assert.equal(caller.KRN_APP_REPOSITORY, 'krn-works/other');
+  const local = outsideRoot('/srv/git/plain.git');
+  const none: NodeJS.ProcessEnv = {};
+  scopeGhToOrigin(local.root, none);
+  assert.equal(none.KRN_APP_REPOSITORY, undefined);
+});
+
+test('lane status lists the pull requests of an outside root with the App token of its origin', () => {
+  const { root, bin } = outsideRoot(
+    'https://github.com/krn-works/seo-audit-harness.git',
+  );
+  // The App wrapper 404s for any repository but the one it minted for.
+  writeFileSync(
+    join(bin, 'gh'),
+    '#!/bin/sh\n[ "$KRN_APP_REPOSITORY" = krn-works/seo-audit-harness ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }\necho \'[{"number":7,"state":"OPEN"}]\'\n',
+  );
+  chmodSync(join(bin, 'gh'), 0o755);
+  const saved = {
+    path: process.env.PATH,
+    scope: process.env.KRN_APP_REPOSITORY,
+  };
+  process.env.PATH = `${bin}:${saved.path ?? ''}`;
+  process.env.KRN_APP_REPOSITORY = 'krn-works/krn';
+  try {
+    assert.deepEqual(ghPrLookup(root, 'lane'), { number: 7, state: 'OPEN' });
   } finally {
     process.env.PATH = saved.path;
     if (saved.scope === undefined) delete process.env.KRN_APP_REPOSITORY;
