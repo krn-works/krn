@@ -35,8 +35,8 @@ export const standardsVerbs = {
     help: "retire [--write] [--root DIR]: list the own records (the conventions file and .agents/standards.json) with at least 30 served and 10 withheld scoped diffs whose served diffs show no benefit under Fisher's exact test (one-sided p >= 0.1; one prose record in ten is withheld per task by a hash of task and record id); --write sets their valid_to to today for a PR to carry, and the operator vetoes by closing it",
   },
   review: {
-    synopsis: ['review [--root DIR]'],
-    help: 'review [--root DIR]: the enforced records the diff can break, with offending file:line; exit 1 on a violation',
+    synopsis: ['review [--base BRANCH] [--root DIR]'],
+    help: 'review [--base BRANCH] [--root DIR]: the enforced records of the PR base (BRANCH, else the contract base) judge the diff against its merge-base, with offending file:line; exit 1 on a violation',
   },
   query: {
     synopsis: [

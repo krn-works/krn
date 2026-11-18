@@ -60,7 +60,7 @@ function git(root: string, args: readonly string[]): string | undefined {
   return done.status === 0 ? done.stdout : undefined;
 }
 
-/** The commit the diff is taken against: the merge-base with origin/main or main, else HEAD. */
+/** The commit the diff is taken against when no base is named: the merge-base with origin/main or main, else HEAD. */
 function baseOf(root: string): string {
   for (const branch of ['origin/main', 'main']) {
     const base = git(root, ['merge-base', 'HEAD', branch])?.trim();
@@ -69,9 +69,39 @@ function baseOf(root: string): string {
   return 'HEAD';
 }
 
+/** The PR base a review is bound to: the base branch tip that supplies the rules and the merge-base the diff starts from. */
+export type ReviewBase = {
+  readonly branch: string;
+  /** Tip of the base branch: its records judge the head. */
+  readonly tip: string;
+  /** Merge-base of HEAD and the base tip: the diff starts here. */
+  readonly mergeBase: string;
+  readonly head: string;
+};
+
+/** Resolves `branch` (as origin/<branch>, else local) against HEAD; undefined when neither exists. */
+export function resolveBase(
+  root: string,
+  branch: string,
+): ReviewBase | undefined {
+  const head = git(root, ['rev-parse', 'HEAD'])?.trim();
+  if (!head) return undefined;
+  for (const ref of [`origin/${branch}`, branch]) {
+    const tip = git(root, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${ref}^{commit}`,
+    ])?.trim();
+    const mergeBase = tip && git(root, ['merge-base', 'HEAD', tip])?.trim();
+    if (tip && mergeBase) return { branch, tip, mergeBase, head };
+  }
+  return undefined;
+}
+
 /** Files that differ from the merge-base (committed or not) and untracked files, deleted ones excluded. */
-export function changedFiles(root: string): string[] {
-  const base = baseOf(root);
+export function changedFiles(root: string, mergeBase?: string): string[] {
+  const base = mergeBase ?? baseOf(root);
   const diff =
     git(root, ['diff', '--name-only', '-z', '--diff-filter=d', base]) ??
     git(root, ['ls-files', '-z']) ??
@@ -81,6 +111,15 @@ export function changedFiles(root: string): string[] {
   return [
     ...new Set(`${diff}${untracked}`.split('\0').filter((name) => name !== '')),
   ].sort();
+}
+
+/** The content of `path` at commit `rev`, undefined when the commit has no such file. */
+export function fileAt(
+  root: string,
+  rev: string,
+  path: string,
+): string | undefined {
+  return git(root, ['show', `${rev}:${path}`]);
 }
 
 const HIT = /^(.+?):(\d+):(.*)$/;
@@ -176,8 +215,12 @@ function diffCheckHits(
 }
 
 /** The report lines: the per-file applicable records, one `VIOLATION file:line id` row each, then the verdict. */
-export function renderReview(review: Review): string[] {
+export function renderReview(review: Review, base?: ReviewBase): string[] {
   const lines: string[] = [];
+  if (base !== undefined)
+    lines.push(
+      `rules of ${base.branch}@${base.tip.slice(0, 12)} judge head ${base.head.slice(0, 12)}`,
+    );
   for (const file of review.files) {
     const ids = review.applicable.get(file) ?? [];
     if (ids.length > 0) lines.push(`${file}: ${ids.join(' ')}`);
