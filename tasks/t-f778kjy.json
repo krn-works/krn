@@ -1,7 +1,11 @@
 {
   "id": "t-f778kjy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "racy-git: scratch index copy got a fresh mtime, hiding same-size edits made in the commit tick; copy now keeps the real index mtime (floored). Deterministic regression test red before, green after; node --test test/ci/fast-pass.test.ts exit 0 x20 with CI=true GITHUB_ACTIONS=true"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "fast-pass tree test is flaky on CI runners",
