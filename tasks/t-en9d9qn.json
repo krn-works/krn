@@ -1,0 +1,17 @@
+{
+  "id": "t-en9d9qn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Ship base-red gate tells a test-only defect from a product defect",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: t-8sgwaqg fixed a defect inside test/brain/skill-harvest.test.ts only (shared temp root); krn pr ship exited 81 \"passes on the base source: the regression test does not reproduce the defect\" (src/ci/base-red.ts:148) because the fixed test runs green on base source by construction; the lead had to reclassify the task as debt to ship (#3db6512).",
+    "Outcome: when a defect PR changes only test files, the base-red gate runs the base version of the changed test under the proof environment (or accepts a red-before line from the PR body) instead of the new test on base source, and names that path in the verdict.",
+    "Proof: test/ci/ship.test.ts: a defect branch changing only a test file -> the gate runs the base test version; a src change -> unchanged behaviour.",
+    "Files: src/ci/base-red.ts, src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
