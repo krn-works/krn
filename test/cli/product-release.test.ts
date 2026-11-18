@@ -111,36 +111,40 @@ test('a candidate that fails its smoke leaves the previous commit and names it',
   }
 });
 
-test('a candidate whose doctor reports stale adopted packs (exit 65) still becomes the release', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'krn-product-release-'));
-  try {
-    const origin = join(root, 'origin.git');
-    const work = join(root, 'work');
-    git(root, 'init', '-q', '--bare', '-b', 'main', origin);
-    git(root, 'clone', '-q', origin, work);
-    git(work, 'config', 'user.email', 't@example.invalid');
-    git(work, 'config', 'user.name', 't');
-    await entry(work, 0);
-    git(work, 'add', 'bin/krn');
-    git(work, 'commit', '-qm', 'good');
-    git(work, 'push', '-q', 'origin', 'HEAD:main');
-    execFileSync('bash', [script], { cwd: work, encoding: 'utf8' });
+for (const [code, state] of [
+  [65, 'stale adopted packs'],
+  [66, 'stale task claims'],
+] as const)
+  test(`a candidate whose doctor reports ${state} (exit ${code}) still becomes the release`, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'krn-product-release-'));
+    try {
+      const origin = join(root, 'origin.git');
+      const work = join(root, 'work');
+      git(root, 'init', '-q', '--bare', '-b', 'main', origin);
+      git(root, 'clone', '-q', origin, work);
+      git(work, 'config', 'user.email', 't@example.invalid');
+      git(work, 'config', 'user.name', 't');
+      await entry(work, 0);
+      git(work, 'add', 'bin/krn');
+      git(work, 'commit', '-qm', 'good');
+      git(work, 'push', '-q', 'origin', 'HEAD:main');
+      execFileSync('bash', [script], { cwd: work, encoding: 'utf8' });
 
-    await entry(work, 65);
-    git(work, 'commit', '-qam', 'pack grew');
-    git(work, 'push', '-q', 'origin', 'HEAD:main');
-    const grown = git(work, 'rev-parse', 'HEAD');
-    const refreshed = spawnSync('bash', [script], {
-      cwd: work,
-      encoding: 'utf8',
-    });
-    assert.equal(refreshed.status, 0, refreshed.stderr);
-    const release = join(work, '.krn', 'product-release');
-    assert.equal(git(release, 'rev-parse', 'HEAD'), grown);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
+      await entry(work, code);
+      git(work, 'commit', '-qam', 'pack grew');
+      git(work, 'push', '-q', 'origin', 'HEAD:main');
+      const grown = git(work, 'rev-parse', 'HEAD');
+      const refreshed = spawnSync('bash', [script], {
+        cwd: work,
+        encoding: 'utf8',
+      });
+      assert.equal(refreshed.status, 0, refreshed.stderr);
+      const release = join(work, '.krn', 'product-release');
+      assert.equal(git(release, 'rev-parse', 'HEAD'), grown);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 
 test('parallel refreshes serialise on the lock and both succeed', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-product-release-'));
