@@ -142,8 +142,6 @@ async function shipRun(
     hasFile?: (cwd: string, path: string) => boolean;
     /** The tree hash of the recorded clean fast PASS for `cwd`; the default reads the worktree's record. */
     fastPass?: (cwd: string) => string | undefined;
-    /** Waits for the host load to fall below the core count before each scoped check run; the cli supplies it, the default does not wait. */
-    quiet?: () => void;
     /** The remedy text when the worktree deploys on a push to `base` and krn.json does not acknowledge it, else undefined; the cli supplies it. */
     deployRefusal?: (cwd: string, base: string) => string | undefined;
     /** The runnable Proof commands of the task the title names, read from the worktree; the cli supplies it. */
@@ -481,7 +479,6 @@ ${synced}`;
     process.stdout.write(`pre-push: fast PASS reused for tree ${tree}\n`);
   else if (hasFile(cwd, scopedCheck)) {
     const runScoped = () => {
-      (runtime.quiet ?? (() => undefined))();
       return runner(
         'env',
         [

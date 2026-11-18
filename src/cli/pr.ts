@@ -2,7 +2,6 @@ import { resolve } from 'node:path';
 import { deployRemedy, deployWorkflows } from '../adopt/deploy.ts';
 import { completeCloseExposure } from '../brain/close-exposure.ts';
 import { type Runner, run } from '../ci/command.ts';
-import { waitForQuietHost } from '../ci/host-load.ts';
 import { shipCommand, shipUsage } from '../ci/ship.ts';
 import { startDetachedShip } from '../ci/ship-live.ts';
 import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
@@ -51,9 +50,6 @@ export function outsideRunner(
 /** The tracker-aware pieces `krn pr ship` runs with; `krn lane finish` ships through the same ones. */
 export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
   run: outsideRunner(),
-  quiet: () => {
-    waitForQuietHost();
-  },
   baseOf: contractBase,
   proofOf: proofOfTitle,
   kindOf: kindOfTitle,

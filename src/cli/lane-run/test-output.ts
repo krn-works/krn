@@ -17,7 +17,6 @@ export function lastLine(text: string): string {
  * A test command run once, and when it fails naming test files, rerun on those files only. A pass on
  * the rerun makes the first failures flaky (recorded, not red); files that fail again keep the run red,
  * except that timeouts alone on a different set of files are `hostLoad`: contention, not a defect.
- * `quiet` runs before each execution (it waits for the host to settle).
  */
 export function settledRun<
   R extends {
@@ -28,15 +27,12 @@ export function settledRun<
 >(
   execute: (command: string) => R,
   command: string,
-  quiet: () => void = () => undefined,
 ): { run: R; flaky: string[]; hostLoad?: boolean } {
   const text = (run: R) => `${run.stdout ?? ''}\n${run.stderr ?? ''}`;
-  quiet();
   const first = execute(command);
   if (first.status === 0) return { run: first, flaky: [] };
   const files = failingTests(text(first));
   if (files.length === 0) return { run: first, flaky: [] };
-  quiet();
   const again = execute(rerunCommand(command, files));
   if (again.status === 0) return { run: again, flaky: files };
   const repeated = failingTests(text(again));

@@ -215,7 +215,6 @@ export async function laneVerdict(
             join(main, '.krn', 'tmp', `lane-run-${slug}-check.log`),
             task,
             base,
-            steps.quiet,
           )
         : undefined;
     // Flaky: test files that failed, then passed on one rerun; named in the summary and the PR body.

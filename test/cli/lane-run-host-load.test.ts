@@ -3,7 +3,6 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { waitForQuietHost } from '../../src/ci/host-load.ts';
 import {
   exitHostLoadFlake,
   hostLoadFlake,
@@ -11,7 +10,6 @@ import {
 } from '../../src/ci/test-failures.ts';
 import { contractVerification } from '../../src/cli/lane-run/delivery.ts';
 import { exitNoDelivery } from '../../src/cli/lane-run/result.ts';
-import { settledRun } from '../../src/cli/lane-run/test-output.ts';
 
 const timedOut = (...files: string[]) =>
   files
@@ -50,69 +48,6 @@ test('timeouts on different files in a run and its rerun are a host-load flake',
     timeoutOnly(`${timedOut('test/a.test.ts')}${asserted('test/b.test.ts')}`),
     false,
   );
-});
-
-test('under a load above the core count the wait sleeps, then returns once the host is quiet', () => {
-  const loads = [40, 30, 20, 7];
-  const slept: number[] = [];
-  const said: string[] = [];
-  const waited = waitForQuietHost({
-    load: () => loads[0] as number,
-    cores: 16,
-    pollMs: 500,
-    sleep: (ms) => {
-      slept.push(ms);
-      loads.shift();
-    },
-    write: (text) => said.push(text),
-  });
-  assert.deepEqual(slept, [500, 500, 500]);
-  assert.equal(waited, 1500);
-  assert.equal(said.length, 1);
-  assert.match(said[0] as string, /load \(40\.0\) to fall below 16 cores/u);
-});
-
-test('a host that stays busy is waited on only up to the bound', () => {
-  const slept: number[] = [];
-  const waited = waitForQuietHost({
-    load: () => 99,
-    cores: 16,
-    pollMs: 400,
-    boundMs: 1000,
-    sleep: (ms) => slept.push(ms),
-    write: () => {},
-  });
-  assert.deepEqual(slept, [400, 400, 200]);
-  assert.equal(waited, 1000);
-  const idle = waitForQuietHost({
-    load: () => 3,
-    cores: 16,
-    sleep: () => assert.fail('an idle host is not waited on'),
-  });
-  assert.equal(idle, 0);
-});
-
-test('settledRun waits for the host before the run and before the rerun', () => {
-  const events: string[] = [];
-  const results = [
-    { status: 1, stdout: timedOut('test/a.test.ts') },
-    { status: 0, stdout: '' },
-  ];
-  const settled = settledRun(
-    (command) => {
-      events.push(`run ${command}`);
-      return results.shift() as { status: number; stdout: string };
-    },
-    'npm test',
-    () => events.push('quiet'),
-  );
-  assert.equal(settled.run.status, 0);
-  assert.deepEqual(events, [
-    'quiet',
-    'run npm test',
-    'quiet',
-    "run npm test -- 'test/a.test.ts'",
-  ]);
 });
 
 // A check command whose output per run comes from a script: run N prints outputs[N].

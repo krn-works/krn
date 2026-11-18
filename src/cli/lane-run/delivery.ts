@@ -100,7 +100,6 @@ export function contractVerification(
   logPath: string,
   task?: string,
   base?: string,
-  quiet: () => void = () => undefined,
 ):
   | { verified: string; flaky: string[] }
   | { failure: string; hostLoad?: true }
@@ -131,7 +130,6 @@ export function contractVerification(
         timeout: 30 * 60 * 1000,
       }),
     command,
-    quiet,
   );
   if (run.status === 0)
     return { verified: `${command} PASS on the final tree`, flaky };

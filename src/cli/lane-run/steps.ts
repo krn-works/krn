@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { waitForQuietHost } from '../../ci/host-load.ts';
 import { shipCommand } from '../../ci/ship.ts';
 import { rootGhEnv } from '../../repo/gh.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
@@ -23,8 +22,6 @@ export interface LaneRunSteps {
   ciLogs?(run: string, cwd: string): Promise<string>;
   /** Why the GitHub receiver of `root` cannot take a delivery on `base`; empty when it can. */
   receiver?(root: string, base: string): Promise<string[]>;
-  /** Waits, up to a bound, for the host load to fall below the core count; runs before each final check run. */
-  quiet?(): void;
 }
 
 /** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
@@ -53,9 +50,6 @@ export const defaultSteps: Required<LaneRunSteps> = {
     if (result.status !== 0)
       throw new Error(result.stderr?.trim() || 'gh run view failed');
     return result.stdout;
-  },
-  quiet: () => {
-    waitForQuietHost();
   },
   receiver: async (root, base) =>
     (await import('./receiver.ts')).probeReceiver(root, base),

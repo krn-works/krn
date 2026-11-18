@@ -42,21 +42,73 @@ const { NODE_TEST_CONTEXT: _nested, ...outerEnv } = process.env;
 const lowCeiling = { ...outerEnv, KRN_TEST_TIMEOUT_MS: '1000' };
 
 test('the ceiling defaults to 60 s and an override lowers it', () => {
-  assert.deepEqual(testCeilingArguments({}), [
-    '--test-timeout=60000',
-    '--test-force-exit',
-    `--import=${testExitFlushPreload}`,
-  ]);
-  assert.deepEqual(testCeilingArguments({ KRN_TEST_TIMEOUT_MS: '1000' }), [
-    '--test-timeout=1000',
-    '--test-force-exit',
-    `--import=${testExitFlushPreload}`,
-  ]);
-  assert.deepEqual(testCeilingArguments({ KRN_TEST_TIMEOUT_MS: 'soon' }), [
-    '--test-timeout=60000',
-    '--test-force-exit',
-    `--import=${testExitFlushPreload}`,
-  ]);
+  assert.deepEqual(
+    testCeilingArguments({}, { load: 0, cores: 8, parallelism: 8 }),
+    [
+      '--test-timeout=60000',
+      '--test-concurrency=7',
+      '--test-force-exit',
+      `--import=${testExitFlushPreload}`,
+    ],
+  );
+  assert.deepEqual(
+    testCeilingArguments(
+      { KRN_TEST_TIMEOUT_MS: '1000' },
+      { load: 0, cores: 8, parallelism: 8 },
+    ),
+    [
+      '--test-timeout=1000',
+      '--test-concurrency=7',
+      '--test-force-exit',
+      `--import=${testExitFlushPreload}`,
+    ],
+  );
+  assert.deepEqual(
+    testCeilingArguments(
+      { KRN_TEST_TIMEOUT_MS: 'soon' },
+      { load: 0, cores: 8, parallelism: 8 },
+    ),
+    [
+      '--test-timeout=60000',
+      '--test-concurrency=7',
+      '--test-force-exit',
+      `--import=${testExitFlushPreload}`,
+    ],
+  );
+});
+
+test('a host loaded past its cores runs two files at a time, an idle host the node default', () => {
+  assert.deepEqual(
+    testCeilingArguments({}, { load: 20, cores: 8, parallelism: 8 }).filter(
+      (a) => a.startsWith('--test-concurrency'),
+    ),
+    ['--test-concurrency=2'],
+  );
+  const concurrency = (load: number, cores: number) =>
+    testCeilingArguments({}, { load, cores, parallelism: cores }).filter((a) =>
+      a.startsWith('--test-concurrency'),
+    );
+  assert.deepEqual(concurrency(0.2, 16), ['--test-concurrency=15']);
+  assert.deepEqual(concurrency(4, 8), ['--test-concurrency=4']);
+  assert.deepEqual(concurrency(0, 1), ['--test-concurrency=2']);
+});
+
+test('no local check waits for the host load', () => {
+  const found = spawnSync(
+    'git',
+    [
+      'grep',
+      '-nE',
+      'waitForQuietHost|ci/host-load|runtime\\.quiet|quiet\\?',
+      '--',
+      'src',
+      'scripts',
+      'test/ci',
+      'test/cli',
+    ],
+    { cwd: projectRoot, encoding: 'utf8' },
+  );
+  assert.equal(found.stdout.replace(/.*test-timeout\.test\.ts.*\n/u, ''), '');
 });
 
 test('npm test fails a test that never settles by name at the ceiling', async () => {
