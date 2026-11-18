@@ -77,7 +77,7 @@ export function run(
     if (arg === '--dry-run') dry = true;
     else if (['--log', '--out', '--date'].includes(arg) && argv[i + 1]) {
       i += 1;
-      options[key] = argv[i];
+      options[key] = argv[i] as string;
     } else {
       process.stderr.write(
         `astra-critique: unknown argument ${arg}\nusage: astra-critique.ts [--log <friction file>] [--out <critique file>] [--date <YYYY-MM-DD>] [--dry-run]\n`,
