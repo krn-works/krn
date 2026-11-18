@@ -12,7 +12,7 @@ Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed 
 
 List the commits naming the task, the wall time, merged pull requests, CI reruns and user interventions; one line per category below beats a narrative.
 
-If the slice hit a workaround or a tool refusal and `scripts/claude/astra-critique.ts` exists, write each (with evidence paths) to `.krn/tmp/friction.md` and run it; each finding gets a task or a disposition.
+If the slice hit a workaround or a tool refusal and the repository has an `astra-critique.ts` script, write each (with evidence paths) to `.krn/tmp/friction.md` and run it with `node`; each finding gets a task or a disposition.
 
 ## Find candidates
 
