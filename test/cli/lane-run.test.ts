@@ -1267,6 +1267,49 @@ test('a ship that throws releases the claim and a rerun ships', async () => {
   }
 });
 
+test('a rerun that ships an earlier delivery installs the dependencies its final check needs', async () => {
+  // Seen on pilot-py: the rerun of a delivered lane skipped the session and the install, so the final check found no .venv.
+  // No fast-pass marker: the runner proves the tree with the contract test itself.
+  const { base, repo, claude } = fixture(deliver(undefined, false), {
+    'krn.json': JSON.stringify({
+      install: 'mkdir -p .deps && touch .deps/ok',
+      test: 'test -f .deps/ok',
+      tracker: 'krn',
+    }),
+    '.gitignore': '.krn\nnode_modules\n.deps/\n',
+  });
+  process.env.KRN_LANE_CLAUDE = claude;
+  let shipCalls = 0;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      shipCalls += 1;
+      if (shipCalls === 1) throw new Error('push rejected');
+      return 'verdict: merged abc1234';
+    },
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    // The worktree an earlier release left had no dependencies.
+    rmSync(join(repo, '.krn', 'worktrees', 't-abc1234', '.deps'), {
+      recursive: true,
+    });
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 // KRN-12: verbatim `krn ci logs` captures of the two red Checks a rerun pushed no fix for (2026-11-13).
 const ciLogsCapture = (name: string) =>
   readFileSync(
@@ -1535,12 +1578,70 @@ async function runPrepared(
   }
 }
 
-test('lane run starts the worktree and runs the session with no install or baseline step', async () => {
+test('lane run runs the contract install before the session and runs no baseline', async () => {
   const out = await runPrepared({
-    'krn.json': JSON.stringify({ install: 'exit 3', test: 'exit 1' }),
+    'krn.json': JSON.stringify({
+      install:
+        'mkdir -p node_modules/dep && echo {} > node_modules/dep/package.json',
+      test: 'exit 1',
+    }),
   });
   assert.equal(out.started, true, out.verdict.line);
-  assert.equal(out.installed, false);
+  assert.equal(out.installed, true);
+});
+
+// KRN-12: the pilot-py contract shape (a venv install, a test command that needs .venv); offline, without pip.
+test('lane run builds the Python venv of the contract before the session starts', async () => {
+  const { base, repo } = fixture('true', {
+    'krn.json': JSON.stringify({
+      install: 'python3 -m venv --without-pip .venv',
+      test: '.venv/bin/python -m pytest',
+      tracker: 'krn',
+    }),
+    '.gitignore': '.krn\n.venv/\n',
+  });
+  const claude = join(base, 'claude-venv');
+  writeFileSync(
+    claude,
+    `#!/bin/sh\ntest -x .venv/bin/python && .venv/bin/python -c 'print(1)' > started\ncat <<'JSON'\n${capture}\nJSON\n`,
+  );
+  chmodSync(claude, 0o755);
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      },
+    );
+    const worktree = join(repo, '.krn', 'worktrees', 't-abc1234');
+    assert.equal(
+      existsSync(join(worktree, 'started')),
+      true,
+      `the session saw no .venv: ${verdict.line}`,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run exits 71 naming a failed install, starts no session and releases the claim', async () => {
+  const out = await runPrepared({
+    'krn.json': JSON.stringify({
+      install: 'echo no network >&2; exit 3',
+      test: 'exit 1',
+    }),
+  });
+  assert.equal(out.verdict.exitCode, 71);
+  assert.match(
+    out.verdict.line,
+    /preflight install failed, no session started: the install command failed \(echo no network.*exit 3: no network\)/u,
+  );
+  assert.equal(out.started, false);
+  assert.notEqual(out.claim.state, 'live');
 });
 
 // KRN-12: verbatim captures of a red vitest 5 run (stdout, stderr) and a red node --test run.

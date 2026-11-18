@@ -1,7 +1,11 @@
 {
   "id": "t-sknv2g3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run installs the contract dependencies in the worktree before the session and before a resumed delivery's final check (fixture tests: Python venv, failed install exits 71 with no session, resumed rerun); real pilot-py: fresh worktree install + 995 pytest passed, krn lane run t-0zf6ehp merged f3eb604"
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Lane run installs the contract dependencies in the lane worktree before the session",

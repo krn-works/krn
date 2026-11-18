@@ -3,9 +3,12 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,6 +20,7 @@ import {
   isRepositoryNotFound,
   repoSlug,
   verifyGaps,
+  worktreeDependencies,
 } from '../../src/adopt/verify.ts';
 
 // KRN-12: verbatim `gh api` captures; the CLI test puts a gh that replays them first on PATH.
@@ -350,4 +354,119 @@ test('adopt --verify runs the canary exactly once and krn adopt no longer takes 
   });
   assert.equal(gone.status, 64);
   assert.match(gone.stderr, /unknown flag --canary/u);
+});
+
+/** A real git checkout with a package.json, its own node_modules, and a nested lane worktree. */
+function dependencyTrees(ignore: string) {
+  const root = mkdtempSync(join(tmpdir(), 'krn-deps-'));
+  const git = (cwd: string, ...args: string[]) =>
+    assert.equal(
+      spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).status,
+      0,
+    );
+  git(root, 'init', '-q', '-b', 'main');
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  writeFileSync(join(root, '.gitignore'), ignore);
+  git(root, 'add', '.');
+  git(
+    root,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@example.invalid',
+    'commit',
+    '-qm',
+    'seed',
+  );
+  mkdirSync(join(root, 'node_modules', 'dep'), { recursive: true });
+  const tree = join(root, '.krn', 'worktrees', 'lane');
+  git(root, 'worktree', 'add', '-q', tree);
+  return { root, tree };
+}
+
+test('worktreeDependencies links an ignored node_modules and skips the install', () => {
+  const { root, tree } = dependencyTrees('.krn\nnode_modules\n');
+  const ran: string[] = [];
+  const run = (command: string) => {
+    ran.push(command);
+    return { status: 0 };
+  };
+  try {
+    assert.equal(
+      worktreeDependencies(root, tree, 'npm ci', run, true),
+      undefined,
+    );
+    assert.ok(lstatSync(join(tree, 'node_modules')).isSymbolicLink());
+    // A rerun finds the link: no install through it into the main checkout.
+    assert.equal(
+      worktreeDependencies(root, tree, 'npm ci', run, true),
+      undefined,
+    );
+    assert.deepEqual(ran, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('worktreeDependencies removes a link git would not ignore; the nested tree resolves upward', () => {
+  // `node_modules/` matches a directory, not a symlink.
+  const { root, tree } = dependencyTrees('.krn\nnode_modules/\n');
+  const ran: string[] = [];
+  try {
+    assert.equal(
+      worktreeDependencies(
+        root,
+        tree,
+        'npm ci',
+        (command) => {
+          ran.push(command);
+          return { status: 0 };
+        },
+        true,
+      ),
+      undefined,
+    );
+    assert.equal(existsSync(join(tree, 'node_modules')), false);
+    assert.equal(
+      spawnSync('git', ['-C', tree, 'status', '--porcelain'], {
+        encoding: 'utf8',
+      }).stdout,
+      '',
+    );
+    assert.deepEqual(ran, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('worktreeDependencies runs the install when nothing links, and names a failed one', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-deps-'));
+  const tree = mkdtempSync(join(tmpdir(), 'krn-deps-tree-'));
+  try {
+    const ran: string[] = [];
+    assert.equal(
+      worktreeDependencies(root, tree, 'python3 -m venv .venv', (command) => {
+        ran.push(command);
+        return { status: 0 };
+      }),
+      undefined,
+    );
+    assert.deepEqual(ran, ['python3 -m venv .venv']);
+    assert.equal(
+      worktreeDependencies(root, tree, 'pip install x', () => ({
+        status: 1,
+        stderr: 'ERROR: No matching distribution found for x\n',
+      })),
+      'the install command failed (pip install x, exit 1: ERROR: No matching distribution found for x)',
+    );
+    assert.equal(
+      worktreeDependencies(root, tree, undefined, () => {
+        throw new Error('no install named');
+      }),
+      undefined,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(tree, { recursive: true, force: true });
+  }
 });

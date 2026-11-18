@@ -530,37 +530,82 @@ const BREAKAGE: [RegExp, string][] = [
 const breakage = (file: string): string | undefined =>
   BREAKAGE.find(([kind]) => kind.test(file))?.[1];
 
+/** What an install run reports: its exit status and output, or the error that kept it from running. */
+export interface InstallRun {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: Error | undefined;
+}
+
+/**
+ * Dependencies for a worktree of `root`: link the root checkout's node_modules into each package
+ * directory the tree tracks (with `ignoredOnly`, a link git would not ignore is removed again), else run the contract
+ * install in the tree. A node_modules already in the tree counts as linked, so a rerun neither
+ * installs through the link into the root nor repeats the install. A string is the failure.
+ */
+export function worktreeDependencies(
+  root: string,
+  tree: string,
+  install: string | undefined,
+  runInstall: (command: string) => InstallRun,
+  ignoredOnly = false,
+): string | undefined {
+  const listed = spawnSync(
+    'git',
+    ['ls-files', '--', 'package.json', '**/package.json'],
+    { cwd: tree, encoding: 'utf8' },
+  );
+  const dirs = (listed.status === 0 ? listed.stdout : '')
+    .split('\n')
+    .filter(Boolean)
+    .map((f) => dirname(f));
+  let linked = false;
+  for (const dir of new Set(dirs)) {
+    const to = join(tree, dir, 'node_modules');
+    if (existsSync(to)) {
+      linked = true;
+      continue;
+    }
+    const from = join(root, dir, 'node_modules');
+    if (!existsSync(from)) continue;
+    symlinkSync(from, to);
+    if (!ignoredOnly) {
+      linked = true;
+      continue;
+    }
+    // `node_modules/` in .gitignore matches a directory, not a link: an unignored link would dirty the tree.
+    const ignored = spawnSync(
+      'git',
+      ['check-ignore', '-q', '--', join(dir, 'node_modules')],
+      { cwd: tree },
+    );
+    if (ignored.status === 0) linked = true;
+    else {
+      rmSync(to);
+      // A tree nested in the root still resolves the root's node_modules by walking up.
+      if (dir === '.' && tree.startsWith(`${root}/`)) linked = true;
+    }
+  }
+  if (linked || !install) return undefined;
+  const ran = runInstall(install);
+  if (ran.status === 0) return undefined;
+  const said =
+    ran.error?.message ??
+    `exit ${ran.status ?? 'signal'}: ${(ran.stderr || ran.stdout || '').trim().slice(-300)}`;
+  return `the install command failed (${install}, ${said})`;
+}
+
 /** Dependencies for the temp worktree: link the clone's node_modules, else run the contract install. */
 function prepare(
   root: string,
   tree: string,
   contract: RepoContract,
 ): string | undefined {
-  const dirs = run(root, 'git', [
-    'ls-files',
-    '--',
-    'package.json',
-    '**/package.json',
-  ])
-    .stdout.split('\n')
-    .filter(Boolean)
-    .map((f) => dirname(f));
-  let linked = false;
-  for (const dir of new Set(dirs)) {
-    const from = join(root, dir, 'node_modules');
-    const to = join(tree, dir, 'node_modules');
-    if (existsSync(from) && !existsSync(to)) {
-      symlinkSync(from, to);
-      linked = true;
-    }
-  }
-  if (!linked && contract.install) {
+  return worktreeDependencies(root, tree, contract.install, (command) => {
     enter('install');
-    const install = runOwn(root, tree, contract.install);
-    if (install.status !== 0)
-      return `the install command failed (${contract.install}): ${install.stderr.slice(-300)}`;
-  }
-  return undefined;
+    return runOwn(root, tree, command);
+  });
 }
 
 function stop(tree: string, baseGreen = false) {

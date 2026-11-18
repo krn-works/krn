@@ -1,6 +1,8 @@
 // The exit codes of a lane run; the session result itself is read by evals/replay/session-result.ts.
 
 export const exitCredentialUnavailable = 69;
+/** The contract install failed in the lane worktree; no session started and the claim is released. */
+export const exitInstallFailed = 71;
 /** The receiver cannot take a delivery (no required Check on the base, a red base, or GitHub unreachable); no session started. */
 export const exitReceiverNotReady = 72;
 
