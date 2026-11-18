@@ -163,6 +163,15 @@
         "file": "pr-list-open-rollup.stdout.json",
         "sha256": "387108ee31f0d7b0ab58cee6daae5fab3605caba7ad63e77722e28f878d533b1"
       }
+    },
+    {
+      "name": "pr-list-merged-reused-branch",
+      "command": "gh pr list --repo krn-works/krn --head stop-after-ship --state merged --json number,title,body,mergeCommit",
+      "exitCode": 0,
+      "stdout": {
+        "file": "pr-list-merged-reused-branch.stdout.json",
+        "sha256": "76bf9b8b36c0418935aac588750159cc2605c6b1770f00cfb5ddf6b716c52a95"
+      }
     }
   ]
 }

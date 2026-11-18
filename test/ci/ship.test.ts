@@ -40,8 +40,10 @@ function receiver(options: {
   check?: string;
   existing?: string;
   mergedBefore?: string;
-  /** The answer to the lookup of any merged PR of the branch, whatever its head. */
+  /** The JSON answer to the lookup of every merged PR of the branch, whatever its head. */
   mergedOfBranch?: string;
+  /** Merge commits `git merge-base --is-ancestor <sha> origin/<base>` reports off the base. */
+  offBase?: string[];
   dirty?: boolean;
   branch?: string;
   /** The main checkout (/r): its branch, a dirty tree and a refused fast-forward. */
@@ -93,7 +95,7 @@ function receiver(options: {
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('merged'))
       return a.some((part) => part.includes('headRefOid =='))
         ? (options.mergedBefore ?? '')
-        : (options.mergedOfBranch ?? '');
+        : (options.mergedOfBranch ?? '[]');
     if (a[0] === 'pr' && a[1] === 'list') return options.existing ?? '';
     if (a[0] === 'pr' && a[1] === 'create' && options.createRefusal)
       throw new CommandFailure({
@@ -182,6 +184,8 @@ function receiver(options: {
       return out('/r/.krn/worktrees/feat-x\n');
     if (a.includes('--git-common-dir'))
       return out(`${options.common ?? '/r'}/.git\n`);
+    if (a[0] === 'merge-base' && options.offBase?.includes(a[2] ?? ''))
+      return { code: 1, stdout: '', stderr: '' };
     if (a[0] === 'merge-base') {
       // git merge-base --is-ancestor exits 1 while the head lacks the base tip.
       if (behind > 0) {
@@ -1011,13 +1015,45 @@ test('a rerun on a rebased branch whose PR already merged reports the merge and 
   const r = receiver({
     pulls: [merged],
     diff: '',
-    mergedOfBranch: `7 ${merge}\n`,
+    mergedOfBranch: JSON.stringify([
+      { number: 7, title, body: '', mergeCommit: { oid: merge } },
+    ]),
   });
   const out = await shipCommand(args, r);
   assert.match(out, /^pr: #7 /mu);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   for (const step of ['git push', 'pr create', 'pr merge'])
     assert.ok(!r.calls.some((c) => c.includes(step)), step);
+});
+
+test('a rerun whose branch name an older merged PR of another task reused refuses the empty diff', async () => {
+  // KRN-12: the real merged PRs of a lane slug two other tasks used before this one.
+  const reused =
+    capture(
+      'fixtures/gh',
+      'pr-list-merged-reused-branch',
+    ).streams.stdout?.toString('utf8') ?? '';
+  const r = receiver({ pulls: [merged], diff: '', mergedOfBranch: reused });
+  await assert.rejects(shipCommand(args, r), (error: Failure) => {
+    assert.equal(error.exitCode, 66);
+    return true;
+  });
+  assert.ok(!r.calls.some((c) => c.includes('pr merge')));
+});
+
+test('a merged PR of the task whose merge is not on the base is not reported as merged', async () => {
+  const r = receiver({
+    pulls: [merged],
+    diff: '',
+    mergedOfBranch: JSON.stringify([
+      { number: 7, title, body: '', mergeCommit: { oid: merge } },
+    ]),
+    offBase: [merge],
+  });
+  await assert.rejects(shipCommand(args, r), (error: Failure) => {
+    assert.equal(error.exitCode, 66);
+    return true;
+  });
 });
 
 test('ship does not retry a gh pr view that answers 404', async () => {
