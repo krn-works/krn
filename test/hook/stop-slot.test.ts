@@ -10,13 +10,10 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import {
-  inStopSlot,
-  inspect,
-  runTests,
-  StopSlotTimeout,
-} from '../../src/hook/stop.ts';
-import { SLOT_HELD_ENV } from '../../src/repo/test-slot.ts';
+import * as stop from '../../src/hook/stop.ts';
+
+const SLOT_HELD_ENV = 'KRN_TEST_SLOT_HELD';
+const { inStopSlot, inspect, runTests, StopSlotTimeout } = stop;
 
 const SLOT_MODULE = new URL('../../src/repo/slot-lock.ts', import.meta.url)
   .href;
@@ -69,6 +66,11 @@ function repo(): string {
 }
 
 test('a stop test run waits for a held host slot and runs after its release', async () => {
+  assert.equal(
+    typeof inStopSlot,
+    'function',
+    'the Stop hook exports its slot runner',
+  );
   const dir = mkdtempSync(join(tmpdir(), 'stop-slot-dir-'));
   const root = repo();
   try {
@@ -89,6 +91,11 @@ test('a stop test run waits for a held host slot and runs after its release', as
 });
 
 test('a stop test run inside fast (slot already held) does not queue', () => {
+  assert.equal(
+    typeof inStopSlot,
+    'function',
+    'the Stop hook exports its slot runner',
+  );
   const dir = mkdtempSync(join(tmpdir(), 'stop-slot-dir-'));
   try {
     const env = { KRN_FAST_SLOT_DIR: dir, [SLOT_HELD_ENV]: '1' };
@@ -102,6 +109,11 @@ test('a stop test run inside fast (slot already held) does not queue', () => {
 });
 
 test('a slot deadline gives a named outcome that is not a test failure', async () => {
+  assert.equal(
+    typeof inStopSlot,
+    'function',
+    'the Stop hook exports its slot runner',
+  );
   const dir = mkdtempSync(join(tmpdir(), 'stop-slot-dir-'));
   const root = repo();
   try {
