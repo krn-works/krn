@@ -168,7 +168,7 @@ test('finish reads Refs above a separate Co-Authored-By paragraph', async () => 
     const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
       gh,
       sleep,
-    });
+    }).catch((error: unknown) => assert.fail(String(error)));
     assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
     assert.match(bodyOf(bodies), /Refs: t-abc1234/u);
   } finally {
