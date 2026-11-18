@@ -1,0 +1,16 @@
+{
+  "id": "t-bge3s2z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "The Stop red-at-base check tells a broken base environment from a red test and saves its refusal",
+  "after": [],
+  "body": [
+    "Evidence (2026-11-18 18:09): pilot proof drain .krn/runs/pilot/lanes/preflight-proof-3.log, attempt t-5sxsphp exit=73 after 1001 s, release 190e52f (docs-only fix 95cc455 included). The rerun reused worktree /mnt/storage/tmp/krn/pilot/lead/.krn/worktrees/t-5sxsphp, which still held commit bfe2153 from the earlier attempt: docs/notes/t-5sxsphp.md plus packages/seo/tests/cli/recovery-note.test.ts (a test the earlier lane added to satisfy the old test-first refusal). The Stop hook red-at-base check then reported recovery-note.test.ts failing, while the lane saw it pass in its worktree; the refusal text is not saved anywhere (.krn/runs/stop-loop holds only a fingerprint). Audit H3 (.krn/runs/audit/system-audit.md): the base run happens in a mkdtemp worktree that may lack node_modules.",
+    "Outcome: (1) the red-at-base check reports a base-environment failure (missing deps, setup error) as such, not as a red test on the lane commit; (2) the Stop refusal text and the base run output are saved under .krn/runs/ so a lane and the lead can read why; (3) a rerun that reuses a worktree from a failed attempt says so in the lane prompt or starts from the base, so a stale commit cannot carry a refusal into the next attempt.",
+    "Proof: a stop-hook test with a base worktree lacking node_modules yields the named base-environment outcome, not a red refusal; a test asserts the refusal file exists after a refusal; the pilot drain gets an attempt with a new test past the Stop hook."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
