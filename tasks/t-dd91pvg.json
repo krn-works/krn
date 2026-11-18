@@ -1,0 +1,16 @@
+{
+  "id": "t-dd91pvg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Agent wait loops on a check log are bounded and match the fast verdict line",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D1.",
+    "Outcome: a PreToolUse Bash rule refuses an until/while poll loop with sleep and no timeout bound; lanes.md and CLAUDE.md name the exact fast verdict line (fast PASS|FAIL) and tell agents to wait on the background exit, not grep.",
+    "Proof: a hook test refuses `until grep -q verdict f; do sleep 5; done` and accepts the same loop under `timeout 900`."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

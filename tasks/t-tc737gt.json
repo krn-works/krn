@@ -1,0 +1,16 @@
+{
+  "id": "t-tc737gt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "A host test slot wait has a deadline and reclaims dead holders",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D5.",
+    "Outcome: scripts/lib/slot-lock.ts stops waiting at a deadline with a named exit and reclaims a slot whose holder pid is dead or reused (pid start time).",
+    "Proof: unit tests cover a dead-pid holder and the deadline exit."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

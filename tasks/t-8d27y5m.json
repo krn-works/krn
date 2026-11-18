@@ -1,0 +1,16 @@
+{
+  "id": "t-8d27y5m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Stop-hook test runs take the host test slot",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D2.",
+    "Outcome: src/hook/stop.ts head and base test runs acquire the same host test slot as fast, so subagent stops stop stacking test processes; coordinate with t-rr0p9jz.",
+    "Proof: a unit test holding the slot shows the stop runner waits for it."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

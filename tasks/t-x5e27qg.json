@@ -1,0 +1,16 @@
+{
+  "id": "t-x5e27qg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "One live lead per task: retire reports a kept predecessor and launch refuses a second lead",
+  "after": [],
+  "body": [
+    "Evidence and root cause: .krn/runs/audit/system-audit.md, row D4.",
+    "Outcome: retireMode exits nonzero when the predecessor is still working; the successor launcher refuses a second live lead on the same task; a predecessor busy only with its own background agents counts as handoff-ready.",
+    "Proof: retire and launch unit tests with a working predecessor assert the exit and the refusal."
+  ],
+  "kind": "defect",
+  "area": "successor"
+}
