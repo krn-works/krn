@@ -1,17 +1,20 @@
-// Decide which CI jobs a change needs. Fail open: a push, an unreadable diff
-// or any doubt runs everything. Prints `key=value` lines for GITHUB_OUTPUT.
+// Decide which CI jobs a change needs. Fail open: an unreadable diff, a push
+// with no usable `before` commit or any doubt runs everything. Prints `key=value` lines for GITHUB_OUTPUT.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const TASK_RECORD = /^tasks\/[^/]+\.json$/u;
 
 /**
- * @param {{event: string, files: string[] | undefined}} input
+ * @param {{event: string, files: string[] | undefined, before?: string}} input
  * @returns {{test: boolean}}
  */
-export function affectedJobs({ event, files }) {
-  if (event !== 'pull_request' || !files || files.length === 0)
+export function affectedJobs({ event, files, before }) {
+  if (event !== 'pull_request' && event !== 'push') return { test: true };
+  // A new branch or force push has an all-zero or missing `before` commit.
+  if (event === 'push' && (!before || /^0+$/u.test(before)))
     return { test: true };
+  if (!files || files.length === 0) return { test: true };
   if (files.some((file) => typeof file !== 'string' || file === ''))
     return { test: true };
   return { test: !files.every((file) => TASK_RECORD.test(file)) };
@@ -26,6 +29,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     result = affectedJobs({
       event: process.env.EVENT ?? '',
       files: listing?.split('\n').filter(Boolean),
+      before: process.env.BEFORE,
     });
   } catch (error) {
     process.stderr.write(`change detection failed open: ${error.message}\n`);

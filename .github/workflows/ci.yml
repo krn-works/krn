@@ -32,20 +32,25 @@ jobs:
 
       # The runner's own Node runs the dependency-free detector; skipping
       # setup-node keeps this gating job off the critical path.
-      # Fail open: pushes to main and any detection problem run everything.
-      # A pull request that changes only task records skips tests.
+      # Fail open: any detection problem, and a push without a usable before
+      # commit, runs everything. A pull request or push that changes only task
+      # records skips tests.
       - name: Detect affected jobs
         id: detect
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
           set -u
           listing="$RUNNER_TEMP/changed-files"
           : > "$listing"
           if [ "$EVENT" = pull_request ]; then
             git diff --name-only --no-renames "$BASE...$HEAD" > "$listing" 2>/dev/null || : > "$listing"
+          elif [ "$EVENT" = push ]; then
+            git diff --name-only --no-renames "$BEFORE" "$AFTER" > "$listing" 2>/dev/null || : > "$listing"
           fi
           node scripts/ci-changes.mjs "$listing" | tee -a "$GITHUB_OUTPUT"
 
@@ -92,6 +97,8 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
           if [ -n "$BASE" ]; then
             node src/cli/main.ts task check --base "$BASE" --head "$HEAD"

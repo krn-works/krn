@@ -1,7 +1,11 @@
 {
   "id": "t-7y19kbr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ci-changes test: push tasks-only -> test=false; mixed, zero/missing before, error -> test=true"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Main pushes that change only task records skip the test shards",
