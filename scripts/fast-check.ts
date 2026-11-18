@@ -16,7 +16,7 @@ import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkedTree, writeFastPass } from '../src/ci/fast-pass.ts';
 import { check as checkBoundaries } from './boundaries.ts';
-import { withSlot } from './lib/slot-lock.ts';
+import { SlotTimeoutError, withSlot } from './lib/slot-lock.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
 import { refreshIndex } from './render-standards-index.ts';
 
@@ -623,14 +623,21 @@ export function defaultTestSlots(
   return Math.max(1, Math.floor(cores / 8));
 }
 
+/** Longest wait for a host test slot: KRN_FAST_SLOT_DEADLINE_MS, else 15 minutes (waits under load run 150-460 s). */
+export function slotDeadlineMs(env: NodeJS.ProcessEnv = process.env): number {
+  const value = Number(env.KRN_FAST_SLOT_DEADLINE_MS);
+  return Number.isFinite(value) && value > 0 ? value : 900_000;
+}
+
 /** Slot lock options: one lock under the shared checkout's .krn/tmp, KRN_FAST_SLOTS holders at once. */
 export function testSlotOptions(
   root: string,
   env: NodeJS.ProcessEnv = process.env,
   cores: number = availableParallelism(),
-): { dir: string; slots: number } {
+): { dir: string; slots: number; deadlineMs: number } {
   const slots = Number(env.KRN_FAST_SLOTS);
   return {
+    deadlineMs: slotDeadlineMs(env),
     dir: env.KRN_FAST_SLOT_DIR ?? join(sharedRoot(root), '.krn/tmp/fast-slots'),
     slots:
       Number.isInteger(slots) && slots > 0 ? slots : defaultTestSlots(cores),
@@ -1050,6 +1057,10 @@ async function check(root: string, argv: string[]): Promise<number> {
       `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
     );
     return failed.length === 0 ? 0 : 1;
+  }).catch((error: unknown) => {
+    if (!(error instanceof SlotTimeoutError)) throw error;
+    process.stdout.write(`fast FAIL (slot): ${error.message}\n`);
+    return error.exitCode;
   });
 }
 
