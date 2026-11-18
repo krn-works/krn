@@ -9,10 +9,7 @@ import {
   completeCloseExposure,
 } from '../../src/brain/close-exposure.ts';
 import { EXPOSURES_FILE } from '../../src/brain/exposures.ts';
-import {
-  baseRedProof,
-  pythonAssertionFailures,
-} from '../../src/ci/base-red.ts';
+import * as baseRed from '../../src/ci/base-red.ts';
 import { CommandFailure, run } from '../../src/ci/command.ts';
 import {
   ownsProductRelease,
@@ -1699,7 +1696,7 @@ const shipDefect = (dir: string, kind: string | undefined) => {
         ...r,
         kindOf: () => kind,
         baseRed: (at, ref, _runner, env) =>
-          baseRedProof(at, ref.replace('origin/', ''), run, env),
+          baseRed.baseRedProof(at, ref.replace('origin/', ''), run, env),
         publish: (_cwd, text) => {
           published = text;
           return '/r/published.md';
@@ -1758,7 +1755,7 @@ test('a base run that fails by a syntax error in the base source is not red', ()
     sideFixed,
     'export const side = ;\n',
   );
-  const verdict = baseRedProof(dir, 'main', run);
+  const verdict = baseRed.baseRedProof(dir, 'main', run);
   assert.equal(verdict.kind, 'load-error');
   assert.equal(gitIn(dir, 'status', '--porcelain'), '');
 });
@@ -1849,7 +1846,7 @@ test('pythonAssertionFailures reads unittest FAIL and pytest assertion lines, no
     "FAILED tests/test_app.py::test_e - NameError: name 'x' is not defined",
     'ERROR tests/test_f.py',
   ].join('\n');
-  assert.deepEqual(pythonAssertionFailures(output), [
+  assert.deepEqual(baseRed.pythonAssertionFailures(output), [
     'tests.test_app.SideTest.test_a',
     'tests/test_app.py::test_c',
     'tests/test_app.py::test_d',
