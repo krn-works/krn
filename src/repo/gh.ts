@@ -120,3 +120,26 @@ export function ghPrListOpenSync(root: string): GhSyncReply {
     ...(reply.error ? { error: reply.error } : {}),
   };
 }
+
+/** One blocking gh call with `args` from `root`, its App token scoped to `repository` (else `root`'s origin). */
+export function ghSync(
+  root: string,
+  args: string[],
+  repository?: string,
+): GhSyncReply {
+  const reply = spawnSync('gh', args, {
+    cwd: root,
+    encoding: 'utf8',
+    env:
+      repository === undefined
+        ? rootGhEnv(root)
+        : { ...process.env, KRN_APP_REPOSITORY: repository },
+    timeout: 30_000,
+  });
+  return {
+    status: reply.status,
+    stdout: reply.stdout ?? '',
+    stderr: reply.stderr ?? '',
+    ...(reply.error ? { error: reply.error } : {}),
+  };
+}

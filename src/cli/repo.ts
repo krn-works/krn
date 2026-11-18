@@ -1,13 +1,12 @@
 // `krn repo contract`: print the repo contract (krn.json merged over detection) as JSON.
 // `krn repo settings`: report (and with --apply set) the merge settings of the convention.
-import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { ciGateProblem } from '../adopt/workflow-gates.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ContractError, resolveContract } from '../repo/contract.ts';
 import { FormatError } from '../repo/formats.ts';
-import { rootGhEnv } from '../repo/gh.ts';
+import { ghSync } from '../repo/gh.ts';
 import {
   crawlSite,
   diffGoldenMaster,
@@ -76,17 +75,7 @@ function settingsCommand(rest: string[]): void {
     else throw new CliUsageError(`${SETTINGS_USAGE}\nunknown flag ${flag}`);
   }
   const path = `repos/${repo ?? '{owner}/{repo}'}`;
-  const env =
-    repo === undefined
-      ? rootGhEnv(root)
-      : { ...process.env, KRN_APP_REPOSITORY: repo };
-  const gh = (args: string[]) =>
-    spawnSync('gh', args, {
-      cwd: root,
-      encoding: 'utf8',
-      env,
-      timeout: 30_000,
-    });
+  const gh = (args: string[]) => ghSync(root, args, repo);
   const read = gh(['api', path]);
   if (read.status !== 0) {
     process.stderr.write(
