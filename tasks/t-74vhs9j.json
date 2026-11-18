@@ -1,0 +1,16 @@
+{
+  "id": "t-74vhs9j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "test/ci/fast-pass.test.ts fails intermittently in CI",
+  "after": [],
+  "body": [
+    "Evidence: PR #1441 (wait-loop-guard), CI run 44342872290 attempt 1 failed in test/ci/fast-pass.test.ts (git tree test in a temp directory); attempt 2 passed with no code change.",
+    "Outcome: test/ci/fast-pass.test.ts gives the same verdict on every run under host load; the cause is found and fixed, not retried.",
+    "Proof: the failing test passes 20 consecutive runs under load (for i in $(seq 20); do node --test test/ci/fast-pass.test.ts || exit 1; done)."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

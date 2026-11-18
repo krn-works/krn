@@ -1,0 +1,14 @@
+{
+  "id": "t-f778kjy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "fast-pass tree test is flaky on CI runners",
+  "after": [],
+  "body": [
+    "Evidence: CI run 44381299774 (PR #1449, shard Test 4/13) failed test/ci/fast-pass.test.ts:34 \"the tree fast checked on a dirty worktree is the HEAD tree once exactly that content is committed\": checked tree 726f20d5 vs HEAD tree b5e1cbbe after commit. The same file passes locally on the same commit (node --test exit 0) and main CI is green; the PR touched only src/cli/lane-run/receiver.ts and test fixtures.\nOutcome: checkedTree in the test gives the committed tree on every runner (find what differs: runner git config, index stat, clock or file mode).\nFiles: test/ci/fast-pass.test.ts, scripts/fast-check.ts\nProof: node --test test/ci/fast-pass.test.ts: exit 0 under the CI env repeated 20 times."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
