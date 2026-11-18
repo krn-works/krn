@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { syncLockfile } from '../../adopt/init.ts';
 import { findContract } from '../../repo/contract.ts';
+import { receiverEnv } from '../../repo/receiver-env.ts';
 import { git } from '../git-with.ts';
 import { baseIsVacuous, bootstrapProof, isBootstrapTask } from './bootstrap.ts';
 import { fastCheck } from './environment.ts';
@@ -123,6 +124,7 @@ export function contractVerification(
     (line) =>
       spawnSync(line, {
         cwd: worktree,
+        env: receiverEnv(worktree),
         shell: true,
         encoding: 'utf8',
         maxBuffer: 64 * 1024 * 1024,

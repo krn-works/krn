@@ -1,7 +1,11 @@
 {
   "id": "t-tb6wbwr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "receiver env resolves mise pin: Stop check and lane-run final check and session PATH run on receiver Node; real mise test and no-pin test"
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Receiver checks and lane sessions run on the receiver's pinned toolchain, not KRN's Node",

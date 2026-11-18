@@ -49,6 +49,7 @@ export { withinPackage };
 import { statesBlocker } from '../brain/proof-line.ts';
 import { ghApiSync } from '../repo/gh.ts';
 import { laneMergeVerdict } from '../repo/merge-verdict.ts';
+import { receiverEnv } from '../repo/receiver-env.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
@@ -478,14 +479,16 @@ const REPORTER = fileURLToPath(
 export const runTests: Runner = (root, tests) => {
   // spawnSync reports a missing cwd as ENOENT on the program, which sends the reader hunting for node.
   if (!existsSync(root)) return [missingRootKey(root)];
+  const env = receiverEnv(root);
   const run = spawnSync(
-    process.execPath,
+    // The receiver's pinned Node when it pins one, else the Node running this hook.
+    env === process.env ? process.execPath : 'node',
     ['--test', `--test-reporter=${REPORTER}`, ...tests],
     {
       cwd: root,
       encoding: 'utf8',
       // Inside a `node --test` parent this variable turns the child into a nested run with no reporter output.
-      env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+      env: { ...env, NODE_TEST_CONTEXT: undefined },
       stdio: ['ignore', 'pipe', 'ignore'],
       maxBuffer: 64 * 1024 * 1024,
       timeout: 600_000,
@@ -546,7 +549,7 @@ const runCommand: CommandRunner = (root, command) => {
   const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+    env: { ...receiverEnv(root), NODE_TEST_CONTEXT: undefined },
     stdio: ['ignore', 'pipe', 'ignore'],
     maxBuffer: 64 * 1024 * 1024,
     timeout: 600_000,

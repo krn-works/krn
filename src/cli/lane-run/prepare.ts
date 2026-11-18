@@ -116,6 +116,7 @@ export async function prepareLane(
     join(main, '.krn', 'tmp', 'app-cache'),
     {
       lane,
+      receiver: origin,
       advisor: laneAdvisor(prompt.text) !== undefined,
       effort: efforts.join(','),
       // Stop reads the clauses the brief states, the same list the proof line counts.
