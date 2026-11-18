@@ -1,0 +1,14 @@
+{
+  "id": "t-acvt8k9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Edit-time standards load as native path-scoped rules where they can",
+  "after": [],
+  "body": [
+    "Source: code.claude.com glossary (Rules). Files in .claude/rules/ with a paths: frontmatter load natively only when Claude reads, writes or edits a matching file. KRN does the same through a PreToolUse hook that injects 'Standards for editing X' on every tool call, which costs one hook process per call (ADR 0022 targets hook p50 <= 60 ms).\nOutcome: .krn/runs/lead/native-rules-verdict.md states PASS or FAIL. PASS needs native path-scoped rules rendered from .agents/standards.json for Read/Edit/Write to keep edit recall of all labels >= 0.76 and cut hook p50 per call. Bash commands that name files stay on the hook. On PASS the rendering ships.\nProof: krn doctor --hooks p50 before and after, and edit recall of all labels not below 0.76 (#1388).\nFiles: .claude/rules/, src/hook/, .agents/standards.json"
+  ],
+  "kind": "research",
+  "area": "harness"
+}

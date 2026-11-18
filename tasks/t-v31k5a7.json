@@ -1,0 +1,14 @@
+{
+  "id": "t-v31k5a7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 3,
+  "title": "Cross-session messaging is judged against the file-and-pane relay",
+  "after": [],
+  "body": [
+    "Source: code.claude.com glossary (Subagent, cross-session-messaging). Separate Claude Code sessions can pass findings to each other directly. KRN passes lane verdicts and successor handoffs through files and Herdr panes (context-relay, successor-launch).\nOutcome: a verdict file on whether cross-session messaging can replace the handoff file plus pane relay for successor start or lane verdict pickup. It names what breaks (persistence, the hc host, unattended runs).\nProof: one successor relay done through messaging in a trial, with the verdict file citing the transcript.\nFiles: scripts/claude/successor-launch.ts, src/successor/"
+  ],
+  "kind": "research",
+  "area": "harness"
+}
