@@ -1,7 +1,11 @@
 {
   "id": "t-szmxcq3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task-records worktree exempt from lane budget; tests in lane.test.ts and task-publish.test.ts fail without the change"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Task publish is not refused by the agent lane budget",
