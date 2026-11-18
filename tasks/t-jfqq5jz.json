@@ -1,0 +1,17 @@
+{
+  "id": "t-jfqq5jz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Test-line budget: new tests past a net line allowance need a recorded reason",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: operator asked to adopt the OpenClaw CI cost lessons (vincent.build/openclaw-ci-cost-reduction): deleting low-value tests cut 417,906 net test lines and a budget allows 400 net new test lines per change without an allocation record. KRN has no test-size budget; CI wall time is the delivery friction (first-push-green).",
+    "Outcome: a measured proposal: KRN test lines and per-shard time by area, the 20 slowest/least-failing test files, and a recommended net-line allowance with the check that would enforce it, recorded for the lead to accept or reject.",
+    "Proof: .krn/runs/research/test-budget.md exists with the table and the recommendation.",
+    "Files: scripts/lib/shard-weights.json, test/, .krn/runs/research/"
+  ],
+  "kind": "research",
+  "area": "ci"
+}
