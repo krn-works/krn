@@ -1,7 +1,11 @@
 {
   "id": "t-gxmzryy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "biome ignores test/fixtures/gh as one glob; rule test red on base, green now"
+  },
   "created": "2026-11-18",
   "priority": 3,
   "title": "Verbatim receiver captures are never rewritten by the formatter",

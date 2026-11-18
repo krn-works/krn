@@ -343,6 +343,35 @@
     "supersedes": []
   },
   {
+    "id": "s-ci-capture-bytes",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "Verbatim receiver captures listed in a provenance.json stay outside Biome, so the formatter never rewrites their bytes. CI runs `node --test test/rules/capture-bytes.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["test/fixtures/**"],
+      "terms": ["capture", "fixture", "formatter", "provenance", "biome"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/capture-bytes.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/capture-bytes.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-18",
+    "valid_from": "2026-11-18",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-ci-commit-title-format",
     "type": "standard",
     "area": "ci",

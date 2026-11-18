@@ -13,6 +13,7 @@ s-ci-task-records [tasks/**]: A PR whose commits carry `Ticket: <id>` closes tha
 s-ci-test-suite [test/**+1]: The full suite passes in every CI shard; a new test file under test/ mirrors its src area and uses node:test
 s-ci-agent-config-secrets [.claude/**+2]: Tracked agent config holds no token-shaped values
 s-ci-capture-privacy [test/fixtures/**]: Committed receiver captures carry no account state: credit balance, usage or installation id
+s-ci-capture-bytes [test/fixtures/**]: Verbatim receiver captures listed in a provenance.json stay outside Biome, so the formatter never rewrites their bytes
 s-ci-commit-title-format [scripts/commit-title.ts]: Commit and PR titles keep the conventional `type(scope): outcome (t-id)` form
 s-ci-context-budget-hooks [.claude/settings.json+1]: Context budget settings wire the documented hooks, and the project gauge matcher names every built-in tool the ceiling refuses
 s-ci-docs-referenced [docs/**]: Every file under docs/ is named by a rule, test, skill, hook or script that reads it

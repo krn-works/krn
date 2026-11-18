@@ -10,9 +10,7 @@
       "**",
       "!tasks",
       "!test/fixtures/codex-app-server-schema",
-      "!test/fixtures/gh/pr-1131-number-rollup.stdout.json",
-      "!test/fixtures/gh/pr-1131-merged-view.stdout.json",
-      "!test/fixtures/gh/pr-list-merged-reused-branch.stdout.json",
+      "!test/fixtures/gh",
       "!evals/adoption/first-ten-cohort.jsonl"
     ]
   },
