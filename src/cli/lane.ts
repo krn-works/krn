@@ -107,7 +107,14 @@ function freeGb(dir: string): number | undefined {
   }
 }
 
-export function checkLaneBudget(main: string, base?: string): void {
+/** The short-lived worktree `krn task publish` ships task records from: no agent session, so no lane. */
+export const taskRecordsPrefix = 'task-records-';
+
+export function checkLaneBudget(
+  main: string,
+  base?: string,
+  slug?: string,
+): void {
   const minFree = limit('KRN_LANE_MIN_FREE_GB', 5);
   for (const dir of [
     main,
@@ -119,6 +126,8 @@ export function checkLaneBudget(main: string, base?: string): void {
         `lane budget: only ${free.toFixed(1)} GB free under ${dir} (minimum ${minFree} GB, KRN_LANE_MIN_FREE_GB); free disk before starting a lane`,
       );
   }
+  // Publishing task records holds no paid session: it is never refused by the live-lane count.
+  if (slug?.startsWith(taskRecordsPrefix)) return;
   const maxLive = limit('KRN_LANE_MAX_LIVE', 6);
   const dir = join(main, '.krn', 'worktrees');
   // Only real worktrees count: a lane worktree holds a `.git` file; a test fixture or a
@@ -130,6 +139,7 @@ export function checkLaneBudget(main: string, base?: string): void {
   if (existsSync(dir))
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       if (!e.isDirectory() || !existsSync(join(dir, e.name, '.git'))) continue;
+      if (e.name.startsWith(taskRecordsPrefix)) continue;
       const clean = (): boolean => {
         const status = gitRun(join(dir, e.name), ['status', '--porcelain']);
         return status.status === 0 && status.stdout.trim() === '';
@@ -656,7 +666,7 @@ export async function startLane(
   forgetShip(main, slug);
   // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
   pruneMergedLanes(main, base);
-  checkLaneBudget(main, base);
+  checkLaneBudget(main, base, slug);
   const free = freeGb(main);
   // Disk fills silently until the budget refuses: each start says what is left and how to reclaim it.
   if (free !== undefined)

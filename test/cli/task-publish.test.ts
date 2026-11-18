@@ -134,3 +134,40 @@ test('a publish refused before the push removes its lane so the retry reaches sh
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('publish still creates its worktree and ships while KRN_LANE_MAX_LIVE lanes are live', async () => {
+  const { base, origin, main } = fixture();
+  const saved = process.env.KRN_LANE_MAX_LIVE;
+  try {
+    process.env.KRN_LANE_MAX_LIVE = '1';
+    const lane = spawnSync(process.execPath, [cli, 'lane', 'start', 'busy'], {
+      cwd: main,
+      encoding: 'utf8',
+    });
+    assert.equal(lane.status, 0, lane.stderr);
+    const second = spawnSync(process.execPath, [cli, 'lane', 'start', 'two'], {
+      cwd: main,
+      encoding: 'utf8',
+    });
+    assert.equal(second.status, 64, 'the budget is full for a lane');
+    const calls: string[][] = [];
+    const gh = async (a: string[]): Promise<string> => {
+      calls.push(a);
+      return '';
+    };
+    // The fixture base deploys on push, so ship refuses with 82: past the lane budget (64), at the ship guard.
+    await assert.rejects(
+      publishCommand([], { cwd: main, gh, sleep: async () => {} }),
+      (error: Error & { exitCode?: number }) => {
+        assert.equal(error.exitCode, 82, error.message);
+        assert.doesNotMatch(error.message, /lane budget/u);
+        return true;
+      },
+    );
+    assert.equal(git(origin, 'branch', '--format=%(refname:short)'), 'main');
+  } finally {
+    if (saved === undefined) delete process.env.KRN_LANE_MAX_LIVE;
+    else process.env.KRN_LANE_MAX_LIVE = saved;
+    rmSync(base, { recursive: true, force: true });
+  }
+});

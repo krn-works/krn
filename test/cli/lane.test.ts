@@ -306,6 +306,22 @@ test('lane budget counts only worktrees, not plain directories under .krn/worktr
   }
 });
 
+test('a task-records worktree does not count toward the budget of the next lane start', () => {
+  const { base, repo } = fixture();
+  try {
+    const env = { KRN_LANE_MAX_LIVE: '1' };
+    assert.equal(budgetLane(repo, env, 'task-records-t-abc1234').status, 0);
+    const next = budgetLane(repo, env, 'first');
+    assert.equal(next.status, 0, next.stderr);
+    const full = budgetLane(repo, env, 'second');
+    assert.equal(full.status, 64);
+    assert.match(full.stderr, /lane budget: 1 live lane worktrees/u);
+    assert.doesNotMatch(full.stderr, /counted: .*task-records-/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start refuses with exit 64 when free disk is below the minimum', () => {
   const { base, repo } = fixture();
   try {
