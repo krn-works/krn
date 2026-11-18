@@ -1,7 +1,11 @@
 {
   "id": "t-yvgv720",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-fastrn7",
+    "note": "egress allowlist shipped in #1367 (9e18f7a); test/evals/egress.test.ts exit 0"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Session egress is limited to named hosts, not the public internet",
