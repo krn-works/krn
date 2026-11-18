@@ -1,7 +1,11 @@
 {
   "id": "t-8sgwaqg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "skill-harvest test uses fresh mkdtemp dirs; with a .claude/skills file planted at TMPDIR the old test fails ENOTDIR and the new one passes."
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "skill-harvest test reads the shared temp root",

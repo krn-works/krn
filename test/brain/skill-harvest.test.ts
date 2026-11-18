@@ -49,7 +49,12 @@ function skillSources() {
   });
 }
 
-function krn(args: string[], cwd = tmpdir()) {
+// A fresh empty directory: the shared temp root may hold another run's .claude tree.
+function emptyDir(): string {
+  return mkdtempSync(join(tmpdir(), 'krn-skill-harvest-empty-'));
+}
+
+function krn(args: string[], cwd = emptyDir()) {
   return spawnSync(process.execPath, [cli, ...args], {
     encoding: 'utf8',
     cwd,
@@ -196,7 +201,7 @@ test('harvest --skills prints the records of a repository and leaves it unchange
     const records = parseUnified(JSON.parse(done.stdout));
     assert.equal(records.length, 6);
     assert.deepEqual([status(), tree()], before);
-    const noSkills = krn(['standards', 'harvest', '--skills', tmpdir()]);
+    const noSkills = krn(['standards', 'harvest', '--skills', emptyDir()]);
     assert.equal(noSkills.status, 66, noSkills.stderr);
     assert.match(noSkills.stderr, /holds no skills/u);
   } finally {
