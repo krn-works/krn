@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { PENDING_REF, removePendingTasks } from '../../src/task/pending.ts';
 import { createTask } from '../../src/task/store.ts';
 import { QUALITY_PARAGRAPHS, withCategories } from './task-fixture.ts';
 
@@ -141,6 +142,12 @@ for (const [verb, args] of [
     const f = fixture(t);
     if (verb === 'dep-rm') {
       f.ok(f.main, 'close', 'T-2', '--as', 'done');
+      // A close in the main checkout waits on the pending ref; land it in place for the setup.
+      writeFileSync(
+        join(f.main, 'tasks/T-2.json'),
+        `${f.git(f.main, 'show', `${PENDING_REF}:tasks/T-2.json`)}\n`,
+      );
+      removePendingTasks(f.main, ['T-2']);
       f.ok(f.main, 'dep', 'add', 'T-1', '--after', 'T-2');
       f.git(f.main, 'add', '.');
       f.git(f.main, 'commit', '-qm', 'dependency');
