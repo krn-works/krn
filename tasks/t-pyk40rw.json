@@ -1,7 +1,11 @@
 {
   "id": "t-pyk40rw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "launcherPrompt idempotent, tested"
+  },
   "created": "2026-11-18",
   "priority": 2,
   "title": "The successor launcher prefix is idempotent",

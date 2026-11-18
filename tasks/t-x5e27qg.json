@@ -1,7 +1,11 @@
 {
   "id": "t-x5e27qg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "retire exits 75 on a kept working predecessor; launch refuses a second live lead (73); prefix idempotent; GIT_CONFIG helper pair not stacked; unit tests"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "One live lead per task: retire reports a kept predecessor and launch refuses a second lead",

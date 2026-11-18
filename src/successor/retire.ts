@@ -16,6 +16,9 @@ import {
 } from './terminal-host.ts';
 import { unsentInput } from './unsent-input.ts';
 
+/** retire kept a predecessor that still works: two leads would run on one task. */
+export const EXIT_PREDECESSOR_KEPT = 75;
+
 // Retire: close the predecessor panes that finished, rewrite the launch ledger and rename the caller's tab.
 
 type LaunchRecord = {
@@ -94,6 +97,7 @@ export function retireMode(
     process.stderr.write('retire: failed: own pane unavailable\n');
     return 0;
   }
+  let predecessorKept = false;
   const predId = process.env.KRN_PREDECESSOR_PANE;
   const predSession = process.env.KRN_PREDECESSOR_SESSION;
   if (predId && predSession) {
@@ -109,7 +113,10 @@ export function retireMode(
         info.sessionId === predSession &&
         settled
       ) {
-        if (keptRunning(host, predPane)) break;
+        if (keptRunning(host, predPane)) {
+          predecessorKept = true;
+          break;
+        }
         if (holdsUnsentInput(host, predPane)) {
           process.stderr.write(
             `retire: kept predecessor ${predPane}: unsent input\n`,
@@ -125,6 +132,7 @@ export function retireMode(
       const remaining = deadline - now();
       if (remaining <= 0) {
         process.stderr.write('retire: predecessor still working\n');
+        predecessorKept = true;
         break;
       }
       // A settled agent returns from the wait at once, so only a working one
@@ -163,7 +171,11 @@ export function retireMode(
   }
   for (const removed of host.removeFinished(cwd))
     process.stderr.write(`retire: removed finished ${removed}\n`);
-  return 0;
+  if (!predecessorKept) return 0;
+  process.stdout.write(
+    `retire: kept predecessor ${predId}: still working; two leads are live until it ends\n`,
+  );
+  return EXIT_PREDECESSOR_KEPT;
 }
 
 // Malformed lines are skipped one by one so a damaged entry never stops

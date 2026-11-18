@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { claudeAgent, isClaudeSession, relayFlags } from '../harness/claude.ts';
 import { SESSION_CLASS_VARIABLE } from '../memory/operator-inbox-store.ts';
+import { appHelperGitConfig } from '../repo/git-config-env.ts';
 import type { SuccessorLaunchOptions } from './options.ts';
 
 // Launch composition: the App credential environment, the harness in use, the launcher prompt,
@@ -37,34 +38,21 @@ export function appCredentialEnvironment(
   wrapperDirectory = WRAPPER_DIRECTORY,
   cacheDirectory = APP_CACHE_DIRECTORY,
 ): Record<string, string> {
-  const existing = Number(env.GIT_CONFIG_COUNT);
-  const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
-  const key = 'credential.https://github.com.helper';
   const forwarded: Record<string, string> = {};
   for (const name of ['KRN_BW_SERVE', 'KRN_APP_ITEM', 'KRN_GITHUB_API']) {
     const value = env[name];
     if (value) forwarded[name] = value;
   }
-  // The launched pane does not inherit this process's environment, so the
-  // entries below `start` travel with the count that counts them.
-  for (let index = 0; index < start; index += 1) {
-    for (const name of [
-      `GIT_CONFIG_KEY_${index}`,
-      `GIT_CONFIG_VALUE_${index}`,
-    ]) {
-      const value = env[name];
-      if (value !== undefined) forwarded[name] = value;
-    }
-  }
   forwarded.KRN_APP_CACHE_DIR = env.KRN_APP_CACHE_DIR || cacheDirectory;
   return {
     ...forwarded,
     PATH: env.PATH ? `${wrapperDirectory}:${env.PATH}` : wrapperDirectory,
-    GIT_CONFIG_COUNT: String(start + 2),
-    [`GIT_CONFIG_KEY_${start}`]: key,
-    [`GIT_CONFIG_VALUE_${start}`]: '',
-    [`GIT_CONFIG_KEY_${start + 1}`]: key,
-    [`GIT_CONFIG_VALUE_${start + 1}`]: `!'${process.execPath}' '${helper}' git-credential`,
+    // The launched pane does not inherit this process's environment, so the
+    // unrelated inherited entries travel with the count that counts them.
+    ...appHelperGitConfig(
+      env,
+      `!'${process.execPath}' '${helper}' git-credential`,
+    ),
   };
 }
 
@@ -134,8 +122,15 @@ export function agentFlags(
 }
 
 // The first words every successor reads: retire the predecessor panes, then the caller's prompt.
+export const LAUNCHER_PREFIX =
+  'First run `node scripts/claude/successor-launch.ts --retire` from the repository root.';
+
+// A prompt that already starts with the prefix (a relayed handoff quotes it) keeps one copy.
 export function launcherPrompt(options: SuccessorLaunchOptions): string {
-  return `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
+  const prompt = options.prompt.trimStart();
+  return prompt.startsWith(LAUNCHER_PREFIX)
+    ? prompt
+    : `${LAUNCHER_PREFIX} ${options.prompt}`;
 }
 
 // A pane types its words into the shell, so the agent, name and prompt travel as tab environment

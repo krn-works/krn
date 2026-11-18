@@ -1,6 +1,10 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { projectPath, projectRelative } from '../../harness/claude.ts';
+import {
+  appHelperGitConfig,
+  isGitConfigVariable,
+} from '../../repo/git-config-env.ts';
 import { receiverEnv } from '../../repo/receiver-env.ts';
 
 /** Operator credentials that never reach a lane session; only the cached App token does, and the sandbox blocks localhost so bw serve is out of reach. */
@@ -85,9 +89,12 @@ export function sessionEnvironment(
   for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
   if (identity.advisor === true)
     delete scrubbed.CLAUDE_CODE_DISABLE_ADVISOR_TOOL;
-  const existing = Number(scrubbed.GIT_CONFIG_COUNT);
-  const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
-  const key = 'credential.https://github.com.helper';
+  const gitConfig = appHelperGitConfig(
+    scrubbed,
+    `!'${process.execPath}' '${tokenHelper}' git-credential`,
+  );
+  for (const name of Object.keys(scrubbed))
+    if (isGitConfigVariable(name)) delete scrubbed[name];
   return {
     ...scrubbed,
     KRN_SESSION_CLASS: 'lane',
@@ -112,11 +119,7 @@ export function sessionEnvironment(
     PATH: scrubbed.PATH
       ? `${wrapperDirectory}:${scrubbed.PATH}`
       : wrapperDirectory,
-    GIT_CONFIG_COUNT: String(start + 2),
-    [`GIT_CONFIG_KEY_${start}`]: key,
-    [`GIT_CONFIG_VALUE_${start}`]: '',
-    [`GIT_CONFIG_KEY_${start + 1}`]: key,
-    [`GIT_CONFIG_VALUE_${start + 1}`]: `!'${process.execPath}' '${tokenHelper}' git-credential`,
+    ...gitConfig,
   };
 }
 

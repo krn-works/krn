@@ -166,6 +166,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       sessionClass: 'delivery',
       operatorToken: false,
       unattended: false,
+      force: false,
     },
   );
   assert.throws(() => api.parseArgs(['--name', 'Next slice']), /--prompt/u);
@@ -189,6 +190,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       sessionClass: 'delivery',
       operatorToken: false,
       unattended: false,
+      force: false,
     },
   );
   assert.throws(
@@ -226,6 +228,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       sessionClass: 'delivery',
       operatorToken: false,
       unattended: false,
+      force: false,
       model: 'claude-opus-5-5',
       effort: 'medium',
     },
@@ -250,6 +253,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       sessionClass: 'delivery',
       operatorToken: false,
       unattended: false,
+      force: false,
       startSeconds: 600,
     },
   );
@@ -1128,4 +1132,116 @@ test('the launcher script refuses an unattended launch when the doctor fails', (
   );
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /unattended launch refused: FAIL/u);
+});
+
+// One live lead per task: a launch for a task whose lead pane still runs is refused.
+function launchForTask(
+  t: { after(fn: () => void): void },
+  replies: Replies,
+  extra: string[],
+  logged: object[],
+) {
+  const { root, bin } = temporary(t);
+  const calls = installHerdr(bin, herdrReplies(replies));
+  installAgent(bin, 'successor-agent', join(root, 'agent-calls'));
+  const cwd = join(root, 'project');
+  mkdirSync(join(cwd, '.krn', 'successors'), { recursive: true });
+  writeFileSync(
+    join(cwd, '.krn', 'successors', 'launches.jsonl'),
+    logged.map((row) => `${JSON.stringify(row)}\n`).join(''),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'lead t-abc1234',
+      '--prompt',
+      'Deliver',
+      '--cwd',
+      cwd,
+      ...extra,
+    ],
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
+  );
+  return { result, calls };
+}
+
+const earlierLead = {
+  launched_at: '2026-11-18T07:38:04.836Z',
+  name: 'lead t-abc1234',
+  agent: 'claude',
+  via: 'herdr',
+  tab_id: 'old',
+  pane_id: 'old',
+  task: 't-abc1234',
+};
+
+test('a second launch for a task that has a live lead is refused before any tab opens', (t) => {
+  const { result, calls } = launchForTask(
+    t,
+    { 'agent get old': captureReply('agent-get-working-claude.reply.jsonl') },
+    [],
+    [earlierLead],
+  );
+  assert.equal(result.status, 73, result.stderr);
+  assert.match(result.stderr, /launch refused: pane old .* t-abc1234/u);
+  assert.ok(!readCalls(calls).some((call) => call[0] === 'tab'));
+});
+
+test('--force, a gone lead pane or another task each let the launch through', (t) => {
+  const forced = launchForTask(
+    t,
+    { 'agent get old': captureReply('agent-get-working-claude.reply.jsonl') },
+    ['--force'],
+    [earlierLead],
+  );
+  assert.equal(forced.result.status, 0, forced.result.stderr);
+  const gone = launchForTask(
+    t,
+    {
+      'agent get old': failure(
+        fixture('agent-get-missing.stderr.jsonl').toString('utf8'),
+      ),
+    },
+    [],
+    [earlierLead],
+  );
+  assert.equal(gone.result.status, 0, gone.result.stderr);
+  const other = launchForTask(
+    t,
+    { 'agent get old': captureReply('agent-get-working-claude.reply.jsonl') },
+    [],
+    [{ ...earlierLead, task: 't-zzz9999' }],
+  );
+  assert.equal(other.result.status, 0, other.result.stderr);
+});
+
+test('the launch log records the task of a launch, from --task or from the name', () => {
+  assert.equal(
+    api.parseArgs(['--name', 'x', '--prompt', 'p', '--task', 't-abc1234']).task,
+    't-abc1234',
+  );
+  assert.equal(
+    api.parseArgs(['--name', 'lead-t-3gqpev1', '--prompt', 'p']).task,
+    't-3gqpev1',
+  );
+  assert.equal(
+    api.parseArgs(['--name', 'lead', '--prompt', 'p']).task,
+    undefined,
+  );
+  assert.throws(
+    () => api.parseArgs(['--name', 'x', '--prompt', 'p', '--task', 'abc']),
+    /--task must be a task id/u,
+  );
+});
+
+test('a prompt composed twice carries the launcher prefix once', async () => {
+  const { launcherPrompt } = await import('../../src/successor/compose.ts');
+  const options = api.parseArgs(['--name', 'x', '--prompt', 'Deliver t-x']);
+  const once = launcherPrompt(options);
+  const twice = launcherPrompt({ ...options, prompt: once });
+  assert.equal(twice, once);
+  assert.equal(once.split('First run').length - 1, 1);
 });

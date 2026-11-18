@@ -131,17 +131,28 @@ function setup(
   return { calls, root };
 }
 
-function stderrOf(run: () => number): { status: number; stderr: string } {
+function stderrOf(run: () => number): {
+  status: number;
+  stderr: string;
+  stdout: string;
+} {
   let stderr = '';
+  let stdout = '';
   const old = process.stderr.write;
+  const oldOut = process.stdout.write;
   process.stderr.write = ((s: string | Uint8Array) => {
     stderr += s;
     return true;
   }) as typeof process.stderr.write;
+  process.stdout.write = ((s: string | Uint8Array) => {
+    stdout += s;
+    return true;
+  }) as typeof process.stdout.write;
   try {
-    return { status: run(), stderr };
+    return { status: run(), stderr, stdout };
   } finally {
     process.stderr.write = old;
+    process.stdout.write = oldOut;
   }
 }
 
@@ -181,8 +192,11 @@ test('working predecessor at zero wait remains open and reports timeout', (t) =>
     env: predecessor,
     replies: { 'agent get pred': agent('working') },
   });
-  const { status, stderr } = stderrOf(() => retire(['--wait-seconds', '0']));
-  assert.equal(status, 0);
+  const { status, stderr, stdout } = stderrOf(() =>
+    retire(['--wait-seconds', '0']),
+  );
+  assert.equal(status, 75);
+  assert.match(stdout, /retire: kept predecessor pred: still working/u);
   assert.match(stderr, /predecessor still working/u);
   assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
   assert.ok(!readCalls(x.calls).some((a) => a[1] === 'wait'));
@@ -225,10 +239,11 @@ test('a wait that times out pauses, re-reads and leaves a working predecessor op
     },
   });
   const timing = clock();
-  const { status, stderr } = stderrOf(() =>
+  const { status, stderr, stdout } = stderrOf(() =>
     retire(['--wait-seconds', '5'], timing.pause, timing.now),
   );
-  assert.equal(status, 0);
+  assert.equal(status, 75);
+  assert.match(stdout, /retire: kept predecessor pred: still working/u);
   assert.match(stderr, /predecessor still working/u);
   assert.deepEqual(timing.pauses, [5]);
   assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
