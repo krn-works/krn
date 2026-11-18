@@ -95,7 +95,7 @@ export function claudeFacts(stdout: string): StreamFacts {
         subtype === 'success'
           ? String(e.stop_reason ?? 'end_turn')
           : subtype === 'error_max_budget_usd'
-            ? 'budget'
+            ? 'cap'
             : subtype;
     }
   }

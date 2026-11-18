@@ -21,12 +21,19 @@ export interface Row {
   verdict?: Verdict;
   /** Why the unit was screened out before any session (its toolchain did not resolve). */
   screenedOut?: string;
-  /** Wall time of the attempt's sessions, the gate's re-prompt included. */
+  /**
+   * Session time: wall time of the attempt's sessions from the first one's start, the gate's re-prompt included. The
+   * attempt's time cap is measured on it; the wait for a host session slot is not.
+   */
   durationMs?: number;
+  /** Wall time the attempt waited for a host session slot before its first session started. */
+  queueMs?: number;
+  /** Part of `durationMs` the host spent suspended; a kill cannot land while it sleeps, so such a row can pass its cap. */
+  hostSleepMs?: number;
   toolCalls?: number;
   /** Test commands the attempt's sessions ran. */
   testsRun?: number;
-  /** Why the attempt's last session ended: end_turn, timeout, budget or a failure subtype. */
+  /** Why the attempt's last session ended: end_turn, cap (its time or dollar cap) or a failure subtype. */
   stopReason?: string;
   /** The verify-before-end gate refused the first end and re-prompted once. */
   reprompted?: boolean;

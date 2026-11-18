@@ -227,13 +227,30 @@ export async function sandboxedSession(
       ...(codex && home
         ? {
             parse: codexResult,
-            budget: { usd: budgetUsd, spent: () => codexResult('', '').cost },
+            budget: {
+              usd: budgetUsd,
+              spent: spentSince(() => codexResult('', '').cost),
+            },
           }
         : {}),
     });
   } finally {
     await egress.close();
   }
+}
+
+/**
+ * The spend of this session alone from a cumulative reader: a resumed Codex session appends to the rollout the first
+ * session wrote, and the turn's dollar cap is what the attempt has left after that first session.
+ */
+export function spentSince(
+  cumulative: () => number | undefined,
+): () => number | undefined {
+  const base = cumulative() ?? 0;
+  return () => {
+    const c = cumulative();
+    return c === undefined ? undefined : c - base;
+  };
 }
 
 /** What one gated attempt yields for its row: its spend, realized model and the facts its streams show. */
@@ -245,6 +262,8 @@ export interface AttemptFields {
   testsRun: number;
   stopReason: string;
   reprompted: boolean;
+  /** Wall time inside the attempt the host spent suspended (wall clock minus monotonic clock), when a second or more. */
+  hostSleepMs?: number;
 }
 
 /**
@@ -258,8 +277,12 @@ export async function gatedAttempt(
   caps: { ms: number; usd: number },
   run: (turn: SessionTurn) => Promise<DrivenSession>,
   now: () => number = Date.now,
+  awake: () => number = () => performance.now(),
 ): Promise<{ session: DrivenSession; ran: boolean; fields: AttemptFields }> {
+  // One budget per attempt, measured on the wall clock from the first session's start: the re-prompt gets only what
+  // the first session left, so the whole attempt ends by the cap whatever the harness.
   const t0 = now();
+  const a0 = awake();
   const first = await run({ prompt, ms: caps.ms, usd: caps.usd });
   const facts = [streamFacts(harness, first.stdout)];
   const sessions = [first];
@@ -289,6 +312,8 @@ export async function gatedAttempt(
         : costs.reduce<number>((a, c) => a + (c ?? 0), 0);
   // The attempt ran when its first session ran: a re-prompt that hit a usage limit does not erase the first session.
   const ran = sessionRan(first);
+  const wallMs = now() - t0;
+  const sleptMs = Math.round(wallMs - (awake() - a0));
   return {
     session: last,
     ran,
@@ -298,15 +323,14 @@ export async function gatedAttempt(
         [...new Set(sessions.flatMap((s) => s.result.model ?? []))]
           .sort()
           .join(',') || null,
-      durationMs: now() - t0,
+      durationMs: wallMs,
       toolCalls: facts.reduce((a, f) => a + f.toolCalls, 0),
       testsRun: facts.reduce((a, f) => a + f.tests.length, 0),
-      stopReason: last.timedOut
-        ? 'timeout'
-        : last.result.capped
-          ? 'budget'
-          : lastFacts.stopReason,
+      // Every harness reports its time or dollar cap alike.
+      stopReason:
+        last.timedOut || last.result.capped ? 'cap' : lastFacts.stopReason,
       reprompted: sessions.length > 1,
+      ...(sleptMs >= 1_000 ? { hostSleepMs: sleptMs } : {}),
     },
   };
 }
@@ -371,23 +395,25 @@ export async function liveAttempt(
                 }),
           })
       : o.session;
-  const a = await withSessionSlot(
-    () =>
-      gatedAttempt(
-        harness,
-        promptOf(unit),
-        {
-          ms: o.sessionMs ?? SESSION_MS,
-          usd: o.budgetUsd ?? SESSION_BUDGET_USD,
-        },
-        async (t) => {
-          const s = await run(wt, env, log, t);
-          appendFileSync(log, `${s.stdout}\n${s.stderr}\n`);
-          return s;
-        },
-      ),
-    slotEnv,
-  );
+  // The wait for a host session slot is queue time, apart from the attempt's own budget, which starts once it holds one.
+  const queued = Date.now();
+  let queueMs = 0;
+  const a = await withSessionSlot(() => {
+    queueMs = Date.now() - queued;
+    return gatedAttempt(
+      harness,
+      promptOf(unit),
+      {
+        ms: o.sessionMs ?? SESSION_MS,
+        usd: o.budgetUsd ?? SESSION_BUDGET_USD,
+      },
+      async (t) => {
+        const s = await run(wt, env, log, t);
+        appendFileSync(log, `${s.stdout}\n${s.stderr}\n`);
+        return s;
+      },
+    );
+  }, slotEnv);
   const changed = a.ran && changedTree(wt);
   // The grade sees the session's source change on a fresh install: ignored leftovers of the session's own installs
   // or builds (node_modules, .venv, dist) are not part of a change and can break the grading install.
@@ -407,7 +433,12 @@ export async function liveAttempt(
     // A no-attempt is reported apart, never as a plain fail.
     pass: verdict === 'no-attempt' ? null : (pass ?? null),
     ...(g ? { grade: g } : {}),
-    row: { ...a.fields, verdict, ...(g ? { gradeTail: g.tail } : {}) },
+    row: {
+      ...a.fields,
+      queueMs,
+      verdict,
+      ...(g ? { gradeTail: g.tail } : {}),
+    },
   };
 }
 

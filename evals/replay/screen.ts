@@ -135,6 +135,6 @@ const failing = (r: Row): string => {
 export function attemptLines(rows: Row[]): string[] {
   return rows.map(
     (r) =>
-      `attempt ${r.unit} ${r.model ?? '-'} ${r.durationMs === undefined ? '-' : `${Math.round(r.durationMs / 1000)}s`} tools=${r.toolCalls ?? '-'} tests=${r.testsRun ?? '-'} stop=${r.stopReason ?? '-'}${r.reprompted ? ' reprompted' : ''} verdict=${r.verdict ?? (r.pass === null ? 'ungraded' : r.pass ? 'pass' : 'fail')}${r.screenedOut ? ` (${r.screenedOut})` : ''}${failing(r)}`,
+      `attempt ${r.unit} ${r.model ?? '-'} ${r.durationMs === undefined ? '-' : `${Math.round(r.durationMs / 1000)}s`}${r.queueMs === undefined ? '' : ` queue=${Math.round(r.queueMs / 1000)}s`}${r.hostSleepMs === undefined ? '' : ` slept=${Math.round(r.hostSleepMs / 1000)}s`} tools=${r.toolCalls ?? '-'} tests=${r.testsRun ?? '-'} stop=${r.stopReason ?? '-'}${r.reprompted ? ' reprompted' : ''} verdict=${r.verdict ?? (r.pass === null ? 'ungraded' : r.pass ? 'pass' : 'fail')}${r.screenedOut ? ` (${r.screenedOut})` : ''}${failing(r)}`,
   );
 }
