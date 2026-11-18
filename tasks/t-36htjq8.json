@@ -1,7 +1,11 @@
 {
   "id": "t-36htjq8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker brief and task-keyed query write exposure rows with served, withheld and task; effect counts them; test red on base by assertion, green after"
+  },
   "created": "2026-11-18",
   "priority": 2,
   "title": "Worker packets and advisory checks record served and withheld standards like the lead session",

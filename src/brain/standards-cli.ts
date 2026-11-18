@@ -30,8 +30,8 @@ import {
   appendExposure,
   effectRows,
   effectTotals,
+  exposureOf,
   readExposures,
-  servedExposure,
   servedOverlap,
 } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
@@ -75,7 +75,7 @@ import {
 } from './standards.ts';
 import { renderReview, reviewStandards } from './standards-review.ts';
 import { usage } from './standards-verbs.ts';
-import { NO_MATCH, queryStandards, renderHit } from './worker-packet.ts';
+import { NO_MATCH, queryOutcome, renderHit } from './worker-packet.ts';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -669,7 +669,7 @@ export function queryCommand(rest: readonly string[]): void {
   const stack = values.get('--stack')?.[0];
   const task = values.get('--task')?.[0];
   const type = values.get('--type')?.[0];
-  const hits = queryStandards(root, {
+  const { hits, withheld } = queryOutcome(root, {
     ...(type === undefined ? {} : { type }),
     text,
     files: values.get('--file') ?? [],
@@ -682,11 +682,14 @@ export function queryCommand(rest: readonly string[]): void {
     try {
       appendExposure(
         mainCheckout(root),
-        servedExposure(
-          process.env.CLAUDE_SESSION_ID ?? `query-${Date.now()}`,
-          'query',
-          hits.map((hit) => hit.id),
-        ),
+        exposureOf({
+          run: process.env.CLAUDE_SESSION_ID ?? `query-${Date.now()}`,
+          task,
+          channel: 'query',
+          served: hits.map((hit) => hit.id),
+          withheld,
+          laneOk: true,
+        }),
       );
     } catch {
       /* The log is evidence, never a reason to lose the answer. */

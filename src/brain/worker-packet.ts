@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { contractConventions } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import { isUnservedType, readDecisions } from './decisions.ts';
+import { appendExposure, exposureOf } from './exposures.ts';
 import {
   type BrainRecord,
   brainPacket,
@@ -183,6 +184,35 @@ export function packetOver(
 
 export { clauseSection } from './acceptance-clauses.ts';
 
+/** Records one exposure row for a worker brief: the task, the ids its packet served and the ids the task's holdout withheld. */
+export function recordBriefExposure(
+  main: string,
+  run: string,
+  task: string,
+  brief: {
+    served: readonly string[];
+    withheld: readonly string[];
+    tokens: number;
+  },
+): void {
+  try {
+    appendExposure(
+      main,
+      exposureOf({
+        run,
+        task,
+        channel: 'brief',
+        served: brief.served,
+        withheld: brief.withheld,
+        laneOk: true,
+        tokens: brief.tokens,
+      }),
+    );
+  } catch {
+    /* The log is evidence, never a reason to lose the brief. */
+  }
+}
+
 /** The brief the worker receives: the packet as a conventions block, then the lead's brief. */
 export function packetBrief(packet: Packet | null, brief: string): string {
   if (packet === null || packet.records.length === 0) return brief;
@@ -303,6 +333,28 @@ export function renderHit(hit: Hit): string {
 
 /** The answer's records, best first, within the budget as printed (id, text and why). */
 export function queryStandards(root: string, query: Query): Hit[] {
+  return queryOutcome(root, query).hits;
+}
+
+/** The hits of a query and the ids the task's holdout kept out of them, so a task-keyed query records an exposure like a packet. */
+export function queryOutcome(
+  root: string,
+  query: Query,
+): { hits: Hit[]; withheld: string[] } {
+  const hits = rankedHits(root, query, true);
+  if (query.task === undefined || query.type !== undefined)
+    return { hits, withheld: [] };
+  const task = query.task;
+  const shown = new Set(hits.map((hit) => hit.id));
+  return {
+    hits,
+    withheld: rankedHits(root, query, false)
+      .map((hit) => hit.id)
+      .filter((id) => !shown.has(id) && heldOut(task, id)),
+  };
+}
+
+function rankedHits(root: string, query: Query, holdout: boolean): Hit[] {
   const base = repositoryFacts(root);
   const facts: Repository =
     query.stack === undefined ? base : { ...base, stack: query.stack };
@@ -328,7 +380,10 @@ export function queryStandards(root: string, query: Query): Hit[] {
   const records: BrainRecord[] = pool
     .filter(
       (standard) =>
-        unserved || query.task === undefined || !heldOut(task, standard.id),
+        unserved ||
+        query.task === undefined ||
+        !holdout ||
+        !heldOut(task, standard.id),
     )
     .map(packetRecord);
   const ranked = brainPacket({
