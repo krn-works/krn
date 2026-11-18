@@ -20,7 +20,10 @@ import {
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 // KRN-12: a verbatim `gh api repos/{owner}/{repo}` reply for krn-works/krn (2026-11-18).
 const captured = readFileSync(
-  new URL('./fixtures/gh-api-repo-krn.json', import.meta.url),
+  new URL(
+    '../fixtures/gh/repo-settings-krn-works-krn.stdout.json',
+    import.meta.url,
+  ),
   'utf8',
 );
 const withMergeCommits = JSON.stringify({
@@ -70,12 +73,20 @@ process.stdout.write(JSON.stringify(repo));
   writeFileSync(join(dir, 'gh'), script);
   chmodSync(join(dir, 'gh'), 0o755);
   const run = (...args: string[]) =>
-    spawnSync(process.execPath, [cli, 'repo', 'settings', '--repo', 'o/r', ...args], {
-      encoding: 'utf8',
-      env: { ...process.env, PATH: `${dir}${delimiter}${process.env.PATH}` },
-    });
+    spawnSync(
+      process.execPath,
+      [cli, 'repo', 'settings', '--repo', 'o/r', ...args],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${dir}${delimiter}${process.env.PATH}` },
+      },
+    );
   const calls = () => readFileSync(join(dir, 'calls.log'), 'utf8');
-  return { run, calls, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return {
+    run,
+    calls,
+    cleanup: () => rmSync(dir, { recursive: true, force: true }),
+  };
 }
 
 test('krn repo settings reports a merge-commit-enabled repository as non-conforming', () => {
@@ -88,7 +99,10 @@ test('krn repo settings reports a merge-commit-enabled repository as non-conform
       result.stdout,
       /^gap squash_merge_commit_message: "COMMIT_MESSAGES", want "PR_BODY"$/mu,
     );
-    assert.match(result.stdout, /FAIL repo settings: 2 gaps; --apply sets them/u);
+    assert.match(
+      result.stdout,
+      /FAIL repo settings: 2 gaps; --apply sets them/u,
+    );
     assert.equal(gh.calls(), 'api repos/o/r\n');
   } finally {
     gh.cleanup();
@@ -111,7 +125,9 @@ test('krn repo settings --apply patches the gaps and passes', () => {
 });
 
 test('a conforming repository passes with no PATCH', () => {
-  const gh = fakeGh(JSON.stringify({ ...JSON.parse(captured), ...MERGE_SETTINGS }));
+  const gh = fakeGh(
+    JSON.stringify({ ...JSON.parse(captured), ...MERGE_SETTINGS }),
+  );
   try {
     const result = gh.run('--apply');
     assert.equal(result.status, 0, result.stderr);

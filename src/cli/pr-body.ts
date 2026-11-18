@@ -258,7 +258,9 @@ export function prBodyCommand(args: string[]): string {
   if (id !== undefined && !isTaskId(id))
     throw new CliUsageError(`--task needs a task id\n${prBodyUsage}`);
   const task =
-    id === undefined ? undefined : loadTaskIndex(taskLookupRoot(root, id)).get(id);
+    id === undefined
+      ? undefined
+      : loadTaskIndex(taskLookupRoot(root, id)).get(id);
   if (id !== undefined && task === undefined)
     throw new CliUsageError(
       `Unknown task ${id} in ${root}; a task created in a slice worktree needs --worktree <path>`,
@@ -270,8 +272,7 @@ export function prBodyCommand(args: string[]): string {
     commits: commitsSince(root, range),
     verified,
     agent,
-    refs:
-      refs || (id !== undefined && commitsLeaveTaskOpen(root, range, id)),
+    refs: refs || (id !== undefined && commitsLeaveTaskOpen(root, range, id)),
     lane,
     ...(process.env.KRN_LANE_ADVISOR === undefined
       ? {}

@@ -125,10 +125,7 @@ test('krn pr body --worktree finds a task created only in that worktree', () => 
     );
     const result = run('--worktree', lane);
     assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /## Why\n\nhand-written text costs money\./,
-    );
+    assert.match(result.stdout, /## Why\n\nhand-written text costs money\./);
     assert.match(result.stdout, /- chore\(task\): add \(t-abc1234\)/);
     assert.match(result.stdout, /## Task\n\nTicket: t-abc1234/);
   } finally {

@@ -9,17 +9,17 @@ import { ContractError, resolveContract } from '../repo/contract.ts';
 import { FormatError } from '../repo/formats.ts';
 import { rootGhEnv } from '../repo/gh.ts';
 import {
-  applyArgs,
-  MergeSettingsError,
-  mergeSettingGaps,
-} from '../repo/merge-settings.ts';
-import {
   crawlSite,
   diffGoldenMaster,
   GoldenMasterError,
   goldenVerdict,
   writeGoldenMaster,
 } from '../repo/golden-master.ts';
+import {
+  applyArgs,
+  MergeSettingsError,
+  mergeSettingGaps,
+} from '../repo/merge-settings.ts';
 
 const GOLDEN_USAGE =
   'krn repo golden record|check --url BASE_URL [--declare PATH]... [--root DIR]  HTTP golden master of the sitemap pages';
@@ -76,12 +76,22 @@ function settingsCommand(rest: string[]): void {
     else throw new CliUsageError(`${SETTINGS_USAGE}\nunknown flag ${flag}`);
   }
   const path = `repos/${repo ?? '{owner}/{repo}'}`;
-  const env = repo === undefined ? rootGhEnv(root) : { ...process.env, KRN_APP_REPOSITORY: repo };
+  const env =
+    repo === undefined
+      ? rootGhEnv(root)
+      : { ...process.env, KRN_APP_REPOSITORY: repo };
   const gh = (args: string[]) =>
-    spawnSync('gh', args, { cwd: root, encoding: 'utf8', env, timeout: 30_000 });
+    spawnSync('gh', args, {
+      cwd: root,
+      encoding: 'utf8',
+      env,
+      timeout: 30_000,
+    });
   const read = gh(['api', path]);
   if (read.status !== 0) {
-    process.stderr.write(`krn repo settings: gh api ${path} failed: ${(read.stderr ?? '').trim()}\n`);
+    process.stderr.write(
+      `krn repo settings: gh api ${path} failed: ${(read.stderr ?? '').trim()}\n`,
+    );
     process.exitCode = 69;
     return;
   }
@@ -95,25 +105,33 @@ function settingsCommand(rest: string[]): void {
     return;
   }
   for (const gap of gaps)
-    process.stdout.write(`gap ${gap.key}: ${JSON.stringify(gap.have ?? null)}, want ${JSON.stringify(gap.want)}\n`);
+    process.stdout.write(
+      `gap ${gap.key}: ${JSON.stringify(gap.have ?? null)}, want ${JSON.stringify(gap.want)}\n`,
+    );
   if (gaps.length === 0) {
     process.stdout.write('PASS repo settings\n');
     return;
   }
   if (!apply) {
-    process.stdout.write(`FAIL repo settings: ${gaps.length} gap${gaps.length === 1 ? '' : 's'}; --apply sets them\n`);
+    process.stdout.write(
+      `FAIL repo settings: ${gaps.length} gap${gaps.length === 1 ? '' : 's'}; --apply sets them\n`,
+    );
     process.exitCode = 1;
     return;
   }
   const patch = gh(applyArgs(path, gaps));
   if (patch.status !== 0) {
-    process.stderr.write(`krn repo settings: gh api -X PATCH ${path} failed: ${(patch.stderr ?? '').trim()}\n`);
+    process.stderr.write(
+      `krn repo settings: gh api -X PATCH ${path} failed: ${(patch.stderr ?? '').trim()}\n`,
+    );
     process.exitCode = 69;
     return;
   }
   const left = mergeSettingGaps(patch.stdout);
   for (const gap of left)
-    process.stdout.write(`still ${gap.key}: ${JSON.stringify(gap.have ?? null)}, want ${JSON.stringify(gap.want)}\n`);
+    process.stdout.write(
+      `still ${gap.key}: ${JSON.stringify(gap.have ?? null)}, want ${JSON.stringify(gap.want)}\n`,
+    );
   process.stdout.write(
     left.length === 0
       ? `applied ${gaps.length} setting${gaps.length === 1 ? '' : 's'}\nPASS repo settings\n`
