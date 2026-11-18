@@ -10,14 +10,16 @@ n-units: 70
 model: sonnet (fallback opus, as `evals/replay/arm-c.ts` sets it)
 contrasts: C-A, C-B
 alpha: 0.05
-mde-pp: 15
+mde-pp: 16
 power: 0.8
 sessions: 630
 
 - Arms: A plain clone; B in-force records as a static CLAUDE.md, token-matched; C KRN (`evals/replay/arms.ts`).
 - Primary: pass rate per unit (mean over its 3 reps), paired difference C minus control per unit, standard error clustered on the unit (`pairedDifference` in `evals/d23/analysis.ts`), normal approximation, two-sided.
 - Multiplicity: Holm step-down over the two contrasts C-A and C-B. A contrast is "shown" only when its Holm-adjusted p is below alpha and C is the better arm; anything else is "not shown", which is a published result.
-- MDE: 15 percentage points at power 0.8 with 70 units; a smaller effect is outside what this run can detect.
+- MDE: 16 percentage points at power 0.8 with 70 units under the Holm first step (14.7 unadjusted; paired SD 0.44, recomputed in ADR 0021 point 10); a smaller effect, including the expected 0 to +5 pp, is outside what this run can detect.
+- Arm C includes Remember: units of one repo run in commit-date order, graded failures of earlier units propose evidence-gated records served only to later units of that repo; at most 3 records per retrieval moment behind a precision gate; Stop runs executable checks only (ADR 0021 point 10).
+- Reported beside pass rate: cost per resolved task and regression rate per arm.
 - Co-primary cost: paired log ratio of per-unit geometric-mean session cost, C over control, with its clustered SE, and USD per resolved task per arm (total USD over passing rows divided by passes). C injects no more tokens than B.
 - Budget: about 630 sessions at about 0.60 USD each, about 375 USD notional, the operator grant of 2026-11-17 ("budżet S8 klepnięty, jedź pełny przebieg"), which supersedes the 115 USD figure of the ADR.
 - Report: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report [--rows <file>]`.

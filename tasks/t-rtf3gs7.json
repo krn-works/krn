@@ -1,7 +1,11 @@
 {
   "id": "t-rtf3gs7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0021 point 10 amended (Remember arm, 3-record cap, precision gate, executable-only Stop, cost+regression reporting, MDE 16 pp/n recomputed); seedStandards on fresh clone: 31 records, 0 project-own; plan item 5 and prereg match"
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "ADR 0021 records the redesigned proof: Remember arm, 3-record cap, precision gate",

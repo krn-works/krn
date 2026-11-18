@@ -4,7 +4,7 @@ Date: 2026-11-15
 
 ## Status
 
-Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retirement": automatic retirement is frozen until the rule below is implemented. Restates what the D23 comparison ([ADR 0014](0014-operator-decisions-2026-10-23.md) D23, `evals/d23`) showed. Amends `docs/program/fable-plan-brief.md` with a third prediction source. Implements north-star item 5 and the "Prove" verb.
+Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retirement": automatic retirement is frozen until the rule below is implemented. Restates what the D23 comparison ([ADR 0014](0014-operator-decisions-2026-10-23.md) D23, `evals/d23`) showed. Amends `docs/program/fable-plan-brief.md` with a third prediction source. Implements north-star item 5 and the "Prove" verb. Amended 2026-11-18 (operator grant, point 10): arm C gains a Remember mechanism, retrieval is capped and gated, Stop runs executable checks only, and the MDE and n are recomputed. The amendment lands before the S8 freeze; no confirmatory row exists yet.
 
 ## Context
 
@@ -61,13 +61,31 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
      - `WebFetch` and `WebSearch` are disallowed.
      - Third-party install and test commands run in bubblewrap with HOME hidden: only the toolchains under it are visible, so no credential file is readable, even while the install has network.
      - Residual risk: a public upstream stays reachable without credentials through curl or `git clone`. That route is detected, not blocked. `node evals/replay/contamination.ts <rows> <scratch>` reads each call's result. It flags a row when a gh, git-remote, curl/wget or web call returned content. A refused `gh` is not contamination, and a repository path in an import or a grep pattern is not a call.
-   - Design: 3 reps per unit and arm, unit-clustered paired SE, Holm correction over C−A and C−B, MDE 15 pp at power 0.8.
-   - Co-primary: paired log-cost ratio and USD per resolved task, with C at no more injected tokens than B.
+   - Design: 3 reps per unit and arm, unit-clustered paired SE, Holm correction over C−A and C−B, MDE 16 pp at power 0.8 with 70 units (recomputed in point 10; the first draft said 15 pp without the Holm step).
+   - Co-primary: paired log-cost ratio and USD per resolved task, with C at no more injected tokens than B. Regression rate (point 10) is reported beside hidden-test pass rate.
    - Allowed outcome: "not shown" is a published result.
    - Budget: about 630 sessions and about 375 USD notional (about 0.60 USD per session, as arm-A rows record), in off-peak quota windows. The operator approved this figure on 2026-11-17, replacing the 115 USD estimate, which assumed 0.18 USD per session.
    - Debt columns ride along as descriptive: lint delta and diff size against the upstream fix.
 8. **Freeze before running.** Every eval has a preregistration file, a fixed K commit and a fixed n. There is no interim grading without a written alpha-spending boundary. The runner guard of #756 extends to every eval. Units are never reused after a confirmatory run.
 9. **Predictions get a third source.** `Predicted: metric <name> <op> N`, where `<name>` is a row in `spec/metrics.json` mapping to a command that prints one number. `krn ledger --predictions` runs it at the task's merge commit and at HEAD. Every ADR's "Expected effect" command is registered there.
+
+10. **Redesigned proof (amendment, operator grant 2026-11-18).** Evidence: `evals/replay/arm-b.ts:69` fills B to carry at least what C injects, so C−B as built measures only the timing of generic conventions; the literature predicts a C−A effect of 0 to +5 pp, below the MDE of point 7.
+   - **Remember arm.** Arm C includes Remember. Units of one repo run in commit-date order. A graded failure of an earlier unit proposes an evidence-gated record (the failing hidden-test or check output is the evidence; no evidence, no record). Proposed records are served to later units of the same repo only. Arm B receives the same records rendered statically, so C−B still isolates retrieval and timing. 48 of 73 screened units sit in 18 repos with at least 2 units; 30 of them are later units that can receive a record. A pilot on non-frozen pilot units precedes the freeze.
+   - **Cap and precision gate.** At most 3 records are served per retrieval moment. A record is served only when it passes a retrieval precision gate (scope match plus the recall@5 evidence of ADR 0020 for its moment); a record that fails the gate is withheld, not padded in. Basis: precision decides the sign of retrieval (oracle +8 pp, free retrieval -4 pp, SWE-ContextBench arXiv 2602.08316); curated compact sets of 2 to 3 help while comprehensive sets hurt (SkillsBench arXiv 2602.12670: +4.5 pp on software tasks, comprehensive -2.9 pp); 92 of 98 skills had no effect (arXiv 2603.15401).
+   - **Stop runs executable checks only.** No review step. Basis: self-review lowered solve rate by 2.8 to 14.6 pp (arXiv 2611.01181); static context files give no solve gain (arXiv 2602.11988).
+   - **Reported beside pass rate.** Cost per resolved task and regression rate (a unit whose rep passes the hidden tests while breaking a test that passed at the base commit) are reported next to hidden-test pass rate for every arm. They are descriptive for regression rate and co-primary for cost.
+   - **MDE and n recomputed.** Paired SD 0.44 (point 7 context), power 0.8, two-sided, normal approximation, n = ((z(1-alpha/2) + z(0.8))² · SD²) / delta²; Holm first step uses alpha 0.025 (z 2.2414), unadjusted uses 1.96; z(0.8) = 0.8416.
+
+     | effect delta | n units, unadjusted | n units, Holm |
+     | --- | --- | --- |
+     | 3 pp | 1689 | 2045 |
+     | 5 pp | 608 | 737 |
+     | 8 pp | 238 | 288 |
+     | 15 pp | 68 | 82 |
+
+     With 70 units the MDE is 14.7 pp unadjusted and 16.2 pp under Holm, so the preregistered MDE is 16 pp. On the 30 later units that can receive a Remember record the MDE is 22.5 pp (24.8 pp under Holm). Expected effect: C−A 0 to +5 pp (SkillsBench +4.5 pp on software tasks; subtask memory +4.7 pp, +2.3 pp on the strongest model, arXiv 2602.21611; oracle retrieval +8 pp, diluted to about 3 pp over all units because only 30 of 73 can receive a record). A 5 pp effect needs 608 to 737 units, which the pool of about 73 post-cutoff units cannot supply. Decision: the run stays a large-effect detector; a "not shown" correctness result is the expected outcome and is published as such; cost per resolved task, regression rate, per-record retirement (point 4) and compliance carry the claims this traffic can support. The budget of point 7 does not change.
+   - **Check of the premise, by command.** `seedStandards` (`src/brain/standards.ts:337`) was run on a fresh outside clone: `git clone --depth 1 https://github.com/sindresorhus/is-plain-obj` (commit 666df7c, exit 0), then `bin/krn adopt <clone> --no-canary` (exit 0; without `--no-canary` adopt exits 64 and removes what it wrote because the clone has no test file the canary can break), then the records in `<clone>/.agents/standards.json` were counted by layer and origin. Result: 31 records, 31 universal inherited from the pack, 0 project-own. A fresh outside clone therefore receives only the universal pack at the start; project records appear only when something adds them, which is exactly what the Remember arm does. This confirms that without Remember, C serves B what B already carries.
+   - Falsified if: after the pilot, Remember proposes no evidence-gated record from the failed units of repos with at least 2 units, or C with Remember serves later units nothing different from B. Then the Remember arm is dropped and the run reports cost only.
 
 ## Expected effect
 
@@ -75,7 +93,7 @@ Accepted. Amends [ADR 0002](0002-brain-v2.md) section "Automatic trial and retir
 - Random retirements are 0 over 30 days. Measure: `git log --since=30.days -p -- standards/records.json | grep -c '"status": "retired"'` against rows meeting the bound-below-margin rule.
 - Within 4 weeks of point 3, at least 10 command-enforced records have at least 30 served scoped diffs with `violated` recorded. Measure: `krn standards effect --json | node -e` count.
 - Scorecard: of the slices in `docs/program/plan.md`, at least 80% score hit or miss (not unmeasured) within 7 days of merge. Today 1 of 911 rows scored. Measure: `krn ledger --predictions`.
-- A/B/C: screening reports A's pass rate. If A ≤ 85%, the confirmatory run reports C−A and C−B with CIs and USD per resolved task. Measure: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report`.
+- A/B/C: screening reports A's pass rate. If A ≤ 85%, the confirmatory run reports C−A and C−B with CIs, USD per resolved task and regression rate; the expected C−A is 0 to +5 pp, so "not shown" is the expected correctness verdict (point 10). Measure: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report`.
 
 ## Consequences
 

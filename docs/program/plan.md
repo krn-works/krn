@@ -18,7 +18,7 @@ What is missing, in order:
 2. Stack-scoped content: records tagged by stack, harvested from skills; no per-language prose skills.
 3. One universal `standards` skill, the same in KRN and every adopted repo; KRN adopts itself.
 4. Remember loop closed automatically: outcomes propose records, lead or Fable accepts, effect measured.
-5. The proof: A plain, B static instruction file, C KRN brain, on outside rows with hidden tests. Only C > A and C > B on hidden-test pass rate counts.
+5. The proof: A plain, B static instruction file, C KRN brain with Remember (earlier units' graded failures propose evidence-gated records), at most 3 records per moment behind a precision gate, executable-only Stop, on outside rows with hidden tests. Only C > A and C > B on pass rate counts; cost per resolved task and regression rate sit beside it (ADR 0021 point 10).
 
 Correction (ADR 0021): the D23 "PB 62.5% vs P 10.7%" result is an oracle upper bound, because its requirements were derived from the hidden tests. The brief-only clause arm is measured in S4.
 
