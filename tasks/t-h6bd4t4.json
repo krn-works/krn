@@ -1,0 +1,14 @@
+{
+  "id": "t-h6bd4t4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Task publish resumes its own leftover records worktree after a transient failure",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/lead/publish-6.log: krn task publish exited 70 on a GitHub GraphQL HTTP 503 after it had committed the records in worktree task-records-t-08zbqzn; the retry (.krn/runs/lead/publish-7.log) exited 64 \"lane task-records-t-08zbqzn already exists\"; the lead shipped the leftover worktree by hand (#merged f13c051).\nOutcome: krn task publish resumes from its own leftover records worktree (ships the existing commit) instead of refusing, and retries a transient 5xx once.\nFiles: src/cli/task-publish.ts, src/ci/ship.ts\nProof: a publish test with a leftover records worktree holding a commit ships it and exits 0."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
