@@ -1,0 +1,14 @@
+{
+  "id": "t-08zbqzn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "One command runs the frozen A/B/C matrix from the prereg units on one harness sha, resumable",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/lead/night/proof-path.md; grant memory proof-redesign-grant (2026-11-18).\nOutcome: node evals/replay/run.ts --prereg runs arms A, B and C over the prereg unit list on one pinned harness sha and resumes after a stop; arm A no longer needs --screen (evals/replay/run.ts:195).\nFiles: evals/replay/run.ts, evals/replay/abc.ts\nProof: a 3-unit 1-rep live run writes 9 rows and --report --strict names only incomplete."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}
