@@ -1,0 +1,14 @@
+{
+  "id": "t-gc828jq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "fast selects the tests that spawn the CLI entry when the dispatch path changes",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: PR #1398 changed src/cli/index.ts (dispatch); npm run fast selected 103 related tests and passed, but CI run 44256864045 failed test/cli/internal-error-exit.test.ts and test/cli/exit-code-classification.test.ts, which spawn src/cli/main.ts as a subprocess (no import edge, so the related-test selector never saw them). OpenClaw's selector lesson: an unseen dependency must widen the selection, never skip it.\nOutcome: a change to src/cli/main.ts, src/cli/index.ts or any module they statically import selects every test that spawns the CLI entry (main.ts, krn.mjs, bin/krn).\nProof: a fast-check selector test: changed file src/cli/index.ts -> the selection includes test/cli/internal-error-exit.test.ts and test/cli/exit-code-classification.test.ts.\nFiles: scripts/fast-check.ts, scripts/lib/"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

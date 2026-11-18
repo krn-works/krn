@@ -1,0 +1,14 @@
+{
+  "id": "t-5v14t4m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "brain CI-failure proposals require a red Check, not two green runs on one SHA",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (Astra gap map, .krn/runs/research/daily-2026-11-18/astra-full.md §2 item 5): gateTotals in src/outcome/ledger.ts counts reruns per commit; ciFailures in src/brain/evidence-proposals.ts reads a positive count as a failure, so two successful Check runs on one SHA yield a false 'run full local verification' proposal (reproduced: one proposal for PR 17). Distinct from t-sy4qhg1 (recheck after rebase).\nOutcome: a red-CI proposal needs a failing conclusion and names the PR and run; two successes, a cancelled-then-success, or no conclusion give no failure evidence.\nProof: gateTotals([{check_runs:[success, success]}]) -> ciFailures([{number:17, prGate}]) deepEquals []; control with a real red before success still yields one proposal.\nFiles: src/outcome/ledger.ts, src/brain/evidence-proposals.ts, test/brain/evidence-proposals.test.ts"
+  ],
+  "kind": "defect",
+  "area": "brain"
+}

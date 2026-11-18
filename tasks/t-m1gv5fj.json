@@ -1,0 +1,14 @@
+{
+  "id": "t-m1gv5fj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "the test selector names a reason for each selected test and widens on an unresolved dependency",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (Astra gap map, .krn/runs/research/daily-2026-11-18/astra-full.md §2 item 4; OpenClaw CI article): selectTests(['src/mobile-renderer.ts'], map with a runtime-composed import) returns []; earlier misses t-r25p4zw, t-ckg6j0t; today PR #1398 passed fast but CI failed two tests that spawn src/cli/main.ts (t-gc828jq is that concrete case). t-rzm2dnt owns fast's time target.\nOutcome: exit 0 with every selected test carrying a named reason; the plan records a reason per selected test (owner, import consumer, spawns entry, widened); missing metadata or an unresolved dependency widens the plan; fast and CI observation share the description.\nProof: test/fast-check.test.ts: runtime-composed import -> test/render.test.ts selected with reason widened; owner metadata removed -> widened; full graph -> narrow plan with dependency path.\nFiles: scripts/fast-check.ts, test/fast-check.test.ts, scripts/ci-changes.mjs"
+  ],
+  "kind": "feature",
+  "area": "ci"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-4sx13xn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "standards review judges the PR head against the rules of the PR base",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (Astra gap map, .krn/runs/research/daily-2026-11-18/astra-full.md §2 item 6; Claude Code verification article: changes cannot modify their own checks): standards review selects files from the diff but loads records via readProject(root) from the tree under review, so one change can weaken a project rule and violate it at once.\nOutcome: a PR review binds its verdict to the base/head pair and judges HEAD content with the records of the actual PR base (any base branch name); after a rule change merges, the next PR inherits it.\nProof: CLI test: on base trunk a rule forbids a pattern; the branch adds the pattern and drops the rule; review exits 1 naming the base rule id; control after a legitimate rule merge passes.\nFiles: src/brain/standards-review.ts, src/brain/standards-cli.ts, test/brain/standards-review.test.ts"
+  ],
+  "kind": "feature",
+  "area": "brain"
+}

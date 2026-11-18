@@ -1,0 +1,14 @@
+{
+  "id": "t-ybfwg57",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "research runs compare Claude /deep-research with codex Astra on one question",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: Claude Code ships /goal (completion condition judged each turn) and a bundled /deep-research workflow (fan-out search, claim cross-check votes, cited report; can exceed 1.5M tokens) per code.claude.com/docs/en/goal and /workflows; KRN uses neither (no .claude/workflows, no /goal in .agents or docs/program). Research today ran on gpt-6.2-astra via codex exec; its -o flag overwrote the report path the brief told it to write (report recovered from astra.log).\nOutcome: one research question run through both /deep-research and codex exec Astra yields a comparison file under .krn/runs/research/ with counts of cited sources, unsupported claims and tokens per arm, and a written verdict on which KRN uses for which research kind; the codex exec recipe writes the report and -o to different paths.\nProof: the comparison file exists with both arms' counts; grep of the recorded codex recipe shows distinct -o and report paths.\nFiles: .krn/runs/research/, docs or skill that records the research recipe"
+  ],
+  "kind": "research",
+  "area": "research"
+}
