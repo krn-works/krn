@@ -1,7 +1,11 @@
 {
   "id": "t-gnz6vfe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "recovery.ts --live on krn-works/seo-audit-harness: cut after merge at point d, rerun; PASS one merge per task (#94 951fd11, #95 2269c19), ci / Check success on each; offline PASS at 4 kill points (#1381)"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "An interrupted outside batch resumes exactly once from adoption to verified merge",
