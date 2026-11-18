@@ -143,11 +143,40 @@ export function rewriteNotice(
   return `krn-lane call asked model ${String(asked)} but runs ${String(input.model)}; add a line "lane-model: ${name}" to the prompt to opt in.`;
 }
 
+// The harness confines an isolated Agent call to .claude/worktrees/agent-*, while the scope hook
+// lets a lane write only in .krn/worktrees/<lane>, so the lane could write nowhere
+// (t-76cjaca). A krn-lane or general-purpose call with isolation "worktree" is refused.
+export function isolationRefusal(payload: unknown): string | undefined {
+  const input = (payload as { tool_input?: unknown } | null)?.tool_input;
+  if (typeof input !== 'object' || input === null) return undefined;
+  const fields = input as Record<string, unknown>;
+  if (fields.isolation !== 'worktree') return undefined;
+  if (
+    fields.subagent_type !== laneAgent &&
+    fields.subagent_type !== 'general-purpose'
+  )
+    return undefined;
+  return 'A KRN lane must not use isolation "worktree": the harness confines its writes to .claude/worktrees/agent-*, where the scope hook allows none. Omit isolation; the lane runs `krn lane start <slug> --task <id>`, which owns its worktree under .krn/worktrees/.';
+}
+
 export function main() {
   let payload: unknown;
   try {
     payload = JSON.parse(hookStdin());
   } catch {
+    return;
+  }
+  const refusal = isolationRefusal(payload);
+  if (refusal) {
+    process.stdout.write(
+      `${JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: refusal,
+        },
+      })}\n`,
+    );
     return;
   }
   const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
