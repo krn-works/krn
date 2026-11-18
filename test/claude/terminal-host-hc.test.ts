@@ -481,6 +481,15 @@ test('retire closes the settled handed-off terminal and removes the finished ter
       'get t7': captured('get-shell.reply.jsonl'),
       ls: captured('ls-claude.reply.jsonl'),
       'get t6': captured('get-claude-labelled.reply.jsonl'),
+      'read t6': ok(
+        readFileSync(
+          new URL(
+            '../fixtures/herdr/pane-read-empty-prompt.txt',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      ),
       'kill t6': captured('kill.reply.jsonl'),
       'ls --all': ok(`${listed}\n`),
       'rm t25': captured('rm-project.reply.jsonl'),

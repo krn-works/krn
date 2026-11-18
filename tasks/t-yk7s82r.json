@@ -1,0 +1,18 @@
+{
+  "id": "t-yk7s82r",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "retire reads the screen first: text or unreadable keeps predecessor and tabs; tests in test/claude/successor-handed-off.test.ts and successor-unsent-input.test.ts"
+  },
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "retire keeps a predecessor pane whose prompt holds unsent input",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: `node scripts/claude/successor-launch.ts --retire` closed predecessor pane t2w (claude-code, status idle) while the operator had an unsent message typed in its prompt box; the text was lost (hc read t2w -> not_found). The global contract says close a pane only with no unsent input. src/successor/retire.ts closes a settled predecessor (host.close) and handed-off tabs (host.closeTab) without reading the prompt.\nOutcome: retire reads the pane screen (hc read <t> / herdr pane read) and keeps the pane, printing `retire: kept predecessor <id>: unsent input`, when the Claude Code prompt box (the line(s) between the two `─` rules, starting with `❯`) holds any text other than whitespace/NBSP; same guard for every tab it would close. An unreadable screen keeps the pane.\nProof: a test in test/successor/ feeds a captured screen with `❯ some text` and asserts no close; an empty `❯ ` screen still closes."
+  ],
+  "kind": "defect",
+  "area": "successor"
+}

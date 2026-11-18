@@ -69,6 +69,16 @@ function tabs(): Reply {
   return ok(`${JSON.stringify(reply)}\n`);
 }
 
+// One pane per listed tab, so each tab's screen is read before it is closed.
+function panes(): Reply {
+  const reply = JSON.parse(capture('pane-list.reply.jsonl'));
+  const [template] = reply.result.panes;
+  reply.result.panes = ['idle', 'done', 'working', 'ordinary', 'other'].map(
+    (tab) => ({ ...template, pane_id: `pane-${tab}`, tab_id: tab }),
+  );
+  return ok(`${JSON.stringify(reply)}\n`);
+}
+
 function retire(
   args: string[],
   pause?: (seconds: number) => void,
@@ -100,6 +110,8 @@ function setup(
     'pane get': ok(capture('pane-get.reply.jsonl')),
     'tab list': ok(capture('tab-list.reply.jsonl')),
     'pane close': ok(capture('pane-close.reply.jsonl')),
+    'pane read': ok(capture('pane-read-empty-prompt.txt')),
+    'pane list': panes(),
     'tab close': ok(capture('tab-close.reply.jsonl')),
     ...options.replies,
   });
@@ -327,3 +339,36 @@ test('failed predecessor close is reported on stderr and exits 0', (t) => {
   assert.equal(status, 0);
   assert.match(stderr, /retire: failed to close predecessor pred/u);
 });
+
+// Regression: retire closed a settled predecessor and handed-off tabs without
+// reading the screen and destroyed an operator's unsent prompt text.
+const unsent = ok(capture('pane-read-unsent-input.txt'));
+const unreadable = failure('pane read failed\n');
+
+for (const [name, read, closes] of [
+  ['unsent text', unsent, false],
+  ['an unreadable screen', unreadable, false],
+  ['an empty prompt', ok(capture('pane-read-empty-prompt.txt')), true],
+] as const) {
+  test(`retire ${closes ? 'closes' : 'keeps'} the predecessor and tabs when the screen shows ${name}`, (t) => {
+    const x = setup(t, {
+      env: predecessor,
+      replies: {
+        'agent get pred': agent('idle'),
+        'tab list': tabs(),
+        'pane read': read,
+      },
+    });
+    const { status, stderr } = stderrOf(() => retire(['--wait-seconds', '0']));
+    assert.equal(status, 0);
+    const c = readCalls(x.calls).map((a) => a.join(' '));
+    assert.equal(c.includes('pane close pred'), closes);
+    assert.equal(c.includes('tab close idle'), closes);
+    assert.equal(c.includes('tab close done'), closes);
+    if (closes) assert.doesNotMatch(stderr, /unsent input/u);
+    else {
+      assert.match(stderr, /retire: kept predecessor pred: unsent input/u);
+      assert.match(stderr, /retire: kept tab idle: unsent input/u);
+    }
+  });
+}

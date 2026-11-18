@@ -110,6 +110,7 @@ function herdrReplies(
       ]),
     ),
     'pane close': captureReply('pane-close.reply.jsonl'),
+    'pane read': ok(capture('pane-read-empty-prompt.txt')),
     'tab rename': captureReply('tab-rename.reply.jsonl'),
     ...modes[mode],
   };
