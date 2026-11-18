@@ -19,7 +19,7 @@ export interface Prereg {
   harness?: string;
 }
 
-const field = (text: string, name: string): string => {
+export const field = (text: string, name: string): string => {
   const m = new RegExp(`^${name}:[ \\t]*(.+)$`, 'm').exec(text);
   if (!m) throw new Error(`prereg lacks "${name}:"`);
   return (m[1] as string).trim();

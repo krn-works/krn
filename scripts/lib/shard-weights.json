@@ -8,6 +8,7 @@
   ],
   "weights": {
     "test/evals/adoption-census.test.ts": 0.1,
+    "test/evals/adoption-first-ten.test.ts": 1.5,
     "test/agents-render.test.ts": 2.1,
     "test/architecture/depth.test.ts": 0.1,
     "test/brain/packet.test.ts": 1.8,
