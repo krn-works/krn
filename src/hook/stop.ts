@@ -11,6 +11,7 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve, sep } from 'node:path';
@@ -431,8 +432,40 @@ function taskText(root: string, env: NodeJS.ProcessEnv): string {
 
 /** Failing tests of one run as `<file>::<name>` keys; a run that dies without naming a test yields `<run>::exit <status>`. */
 export type Runner = (root: string, tests: string[]) => string[];
-/** Failing keys of one shell command run at `root`, read from its output. */
-export type CommandRunner = (root: string, command: string) => string[];
+/** A shell command's failing keys together with its full output. */
+export type CommandResult = { failures: string[]; output: string };
+/** Failing keys of one shell command run at `root`, read from its output; a runner may also hand back that output. */
+export type CommandRunner = (
+  root: string,
+  command: string,
+) => string[] | CommandResult;
+
+const failuresOf = (result: string[] | CommandResult): string[] =>
+  Array.isArray(result) ? result : result.failures;
+
+const EXCERPT_LINES = 40;
+const EXCERPT_CHARS = 4000;
+
+/** The tail of a failing run's output, bounded; the test summary and the failure sit at the end. */
+export function failureExcerpt(output: string): string {
+  const tail = output.trimEnd().split('\n').slice(-EXCERPT_LINES).join('\n');
+  return tail.length > EXCERPT_CHARS
+    ? `...${tail.slice(-EXCERPT_CHARS)}`
+    : tail;
+}
+
+/** Save a failing run's full output under the root's ignored stop-check run directory; undefined when it cannot be written. */
+function saveFailureLog(root: string, output: string): string | undefined {
+  try {
+    const dir = join(root, '.krn', 'runs', 'stop-check');
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, `${Date.now()}-${process.pid}.log`);
+    writeFileSync(file, output);
+    return file;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The failure key of a check whose test root is gone: it names the directory, never the program. */
 const missingRootKey = (root: string): string =>
@@ -518,7 +551,11 @@ const runCommand: CommandRunner = (root, command) => {
     maxBuffer: 64 * 1024 * 1024,
     timeout: 600_000,
   });
-  return failuresIn(run.stdout ?? '', run.status ?? run.signal ?? 'killed');
+  const output = run.stdout ?? '';
+  return {
+    failures: failuresIn(output, run.status ?? run.signal ?? 'killed'),
+    output,
+  };
 };
 
 /** Link each nested package's node_modules (packages/seo/node_modules) so the base sees the worktree's dependencies. */
@@ -791,9 +828,14 @@ function runTestFile(
 ): string[] {
   return LEGACY_TEST.test(file) || !contract
     ? run(dir, [file])
-    : shell(
-        dir,
-        relatedCommand(contract, withinPackage(contract.related ?? '', [file])),
+    : failuresOf(
+        shell(
+          dir,
+          relatedCommand(
+            contract,
+            withinPackage(contract.related ?? '', [file]),
+          ),
+        ),
       );
 }
 
@@ -947,6 +989,7 @@ function inspectTests(
   const files = [...selection.files];
   let failing: string[];
   let before: () => Set<string>;
+  let headOutput: string | undefined;
   if (command === undefined) {
     failing = files.length > 0 ? run(root, files) : [];
     before = () => {
@@ -961,8 +1004,11 @@ function inspectTests(
         : failuresAtBase(root, from, (dir) => run(dir, present));
     };
   } else {
-    failing = shell(root, command);
-    before = () => failuresAtBase(root, from, (dir) => shell(dir, command));
+    const first = shell(root, command);
+    failing = failuresOf(first);
+    if (!Array.isArray(first)) headOutput = first.output;
+    before = () =>
+      failuresAtBase(root, from, (dir) => failuresOf(shell(dir, command)));
   }
   // The adopt canary measured the base green once: its failures are all fresh, so the base is not run again.
   if (env.KRN_BASE_GREEN === '1') before = () => new Set();
@@ -970,18 +1016,20 @@ function inspectTests(
   if (failing.length > 0) {
     const settled = settleFailures(
       failing,
-      (named) =>
-        command === undefined
-          ? run(root, named)
-          : shell(
-              root,
-              selection.full || contract === undefined
-                ? rerunCommand(command, named)
-                : relatedCommand(
-                    contract,
-                    withinPackage(contract.related ?? '', named),
-                  ),
-            ),
+      (named) => {
+        if (command === undefined) return run(root, named);
+        const again = shell(
+          root,
+          selection.full || contract === undefined
+            ? rerunCommand(command, named)
+            : relatedCommand(
+                contract,
+                withinPackage(contract.related ?? '', named),
+              ),
+        );
+        if (!Array.isArray(again)) headOutput = again.output;
+        return failuresOf(again);
+      },
       (file) => command === undefined || existsSync(join(root, file)),
     );
     failing = settled.failing;
@@ -1017,6 +1065,11 @@ function inspectTests(
   const more =
     fresh.length > SHOWN ? `\n  ... ${fresh.length - SHOWN} more` : '';
   const ran = ` (ran: ${command ?? `node --test ${files.join(' ')}`})`;
+  const logged = headOutput ? saveFailureLog(root, headOutput) : undefined;
+  const output =
+    headOutput && logged
+      ? `\nFailure output (full log: ${logged}):\n${failureExcerpt(headOutput)}`
+      : '';
   // No test was named: the run broke before any test, so nothing can have "passed at the base".
   if (fresh.every((key) => NAMELESS.test(key))) {
     const install = contract?.install
@@ -1028,13 +1081,13 @@ function inspectTests(
     return {
       ok: false,
       ignored: failing.length - fresh.length,
-      reason: `the test command failed before naming any test (${fresh.map((key) => key.slice(7)).join(', ')})${ran}: ${why}, then commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+      reason: `the test command failed before naming any test (${fresh.map((key) => key.slice(7)).join(', ')})${ran}:${output}\n${why}, then commit, or end with a line \`BLOCKER: <what stops you>\`.`,
     };
   }
   return {
     ok: false,
     ignored: failing.length - fresh.length,
-    reason: `${fresh.length} related test(s) fail that passed at the base (pre-existing failures were ignored)${ran}:\n${listed}${more}\nFix them and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+    reason: `${fresh.length} related test(s) fail that passed at the base (pre-existing failures were ignored)${ran}:\n${listed}${more}${output}\nFix them and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
   };
 }
 
