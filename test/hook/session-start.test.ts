@@ -210,10 +210,8 @@ test('an adopted fresh repository serves the brain standards at session start, t
     const effect = run(root, process.execPath, [cli, 'standards', 'effect']);
     assert.equal(effect.status, 0, effect.stderr);
     assert.match(effect.stdout, /^effect: 2 run\(s\), \d+ record\(s\)/u);
-    assert.match(
-      effect.stdout,
-      /^s-no-todo-markers: served 1 \(scoped 1, violated 100%\)/mu,
-    );
+    // A refusal is no served exposure: the record is not counted as served.
+    assert.doesNotMatch(effect.stdout, /^s-no-todo-markers: served/mu);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,7 +1,11 @@
 {
   "id": "t-vgwc1an",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stop-exposure test fails on old logging (exit 1), passes after (exit 0)"
+  },
   "created": "2026-11-17",
   "priority": 2,
   "title": "Stop records refusals as refusals, not served exposures",

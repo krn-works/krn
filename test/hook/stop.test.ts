@@ -1522,9 +1522,10 @@ test('a refused Stop names the violated record and why, and logs the violation t
     assert.match(stopped.stderr, /s-probe \(floor\)/u);
     assert.match(stopped.stderr, /why: Unrun probes ship broken trees\./u);
     const [exposure] = readExposures(dir);
-    assert.deepEqual(exposure?.served, ['s-probe']);
+    assert.deepEqual(exposure?.refused, ['s-probe']);
+    assert.deepEqual(exposure?.served, []);
     assert.equal(exposure?.run, 'sess-1');
-    assert.equal(exposure?.outcome['s-probe'], 'violated');
+    assert.equal(exposure?.violated['s-probe'], true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
