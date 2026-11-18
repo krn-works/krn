@@ -1,0 +1,17 @@
+{
+  "id": "t-bef2ptx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Stop hook refusals carry the failing test output",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: pilot proof for t-aa6xy6t (.krn/runs/pilot/lanes/preflight-proof.log): lane t-9phzc3c exit=73 after 977s; the session ended \"BLOCKER: the hook reports provider-provenance.test.ts failing, but it passes in isolation and in my full run ... I need the hook failure output\". src/hook/stop.ts:511-521 runCommand keeps only failuresIn keys and drops the test output; stop-loop state (.krn/runs/stop-loop/<session>.json) stores only a fingerprint. The test passes in isolation in that worktree (rerun 2026-11-18, exit 0), so the cause stays unknowable.",
+    "Outcome: every Stop-hook test run (head, settle rerun, base) writes its full output to a log under the checked root .krn/runs/stop-check/; a refusal names that log path and quotes the failing test output excerpt (bounded, e.g. last 40 lines around the first failure) so the session can act on it.",
+    "Proof: a stop hook test with a command that fails one named test asserts the refusal reason contains the log path and an excerpt line from the failure output, and that the log file holds the full output.",
+    "Files: src/hook/stop.ts, test/hook/"
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
