@@ -1,0 +1,14 @@
+{
+  "id": "t-sknv2g3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Lane run installs the contract dependencies in the lane worktree before the session",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/pilot-py/lanes/preflight-proof-py.log (release df32102 era, 2026-11-18): on the public pilot krn-works/krn-pilot-py (krn.json install: python3 -m venv .venv && pip install ...; test: .venv/bin/python -m pytest) 5 of 5 lane attempts exited 73 in about 30 s with \"BLOCKER: .venv/bin/python -m pytest cannot run here because .venv is missing\" (worktree /mnt/storage/tmp/krn/pilot-py/lead/.krn/worktrees/t-0zf6ehp). The lane worktree gets no dependencies for a non-node stack; src/adopt/verify.ts already links node_modules or runs contract.install for its temp worktree.\nOutcome: krn lane run prepares the lane worktree before the session: link the main checkout dependencies when the stack allows it, else run the contract install in the worktree; a failed install exits with a named preflight code and launches no session.\nFiles: src/cli/lane-run/environment.ts, src/cli/lane-run/bootstrap.ts, src/adopt/verify.ts\nProof: a lane-run test on a Python contract fixture runs the install before the session and a failing install launches no session; a pilot-py drain attempt passes the test step."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
