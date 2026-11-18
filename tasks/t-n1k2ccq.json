@@ -1,7 +1,11 @@
 {
   "id": "t-n1k2ccq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "KRN_LANE_MAX_LIVE defaults to 6; test/cli/lane.test.ts starts 6 lanes concurrently and refuses the 7th."
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "The default lane budget is 6 live lanes",

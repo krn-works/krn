@@ -87,7 +87,7 @@ function briefCommand(rest: string[]): void {
 }
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
-// repository or the lane temp dir, and at KRN_LANE_MAX_LIVE worktrees (default 4: the 2026-11-16 usage cut, t-ahsmyfp,
+// repository or the lane temp dir, and at KRN_LANE_MAX_LIVE worktrees (default 6: raised from the 2026-11-16 usage cut of 4, t-ahsmyfp, by t-n1k2ccq;
 // .krn/runs/lead/usage/report-before-v3.md).
 function limit(name: string, fallback: number): number {
   const value = Number(process.env[name]);
@@ -117,7 +117,7 @@ export function checkLaneBudget(main: string, base?: string): void {
         `lane budget: only ${free.toFixed(1)} GB free under ${dir} (minimum ${minFree} GB, KRN_LANE_MIN_FREE_GB); free disk before starting a lane`,
       );
   }
-  const maxLive = limit('KRN_LANE_MAX_LIVE', 4);
+  const maxLive = limit('KRN_LANE_MAX_LIVE', 6);
   const dir = join(main, '.krn', 'worktrees');
   // Only real worktrees count: a lane worktree holds a `.git` file; a test fixture or a
   // leftover directory under .krn/worktrees does not block a lane (t-tj1g7m9).

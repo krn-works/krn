@@ -524,13 +524,16 @@ test('concurrent lane starts in one repository all succeed', async () => {
   // Seen on the pilot: two parallel starts raced on `git fetch origin main` ("cannot lock ref", exit 64).
   const { base, repo } = fixture();
   try {
-    const slugs = ['p1', 'p2', 'p3', 'p4']; // the default lane budget (KRN_LANE_MAX_LIVE 4)
+    const slugs = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']; // the default lane budget (KRN_LANE_MAX_LIVE 6)
     const results = await Promise.all(
       slugs.map((slug) => laneAsync(repo, 'start', slug)),
     );
     for (const result of results) assert.equal(result.status, 0, result.stderr);
     for (const slug of slugs)
       assert.ok(existsSync(join(repo, '.krn', 'worktrees', slug, 'newer.txt')));
+    const seventh = await laneAsync(repo, 'start', 'p7');
+    assert.notEqual(seventh.status, 0);
+    assert.match(seventh.stderr, /maximum 6, KRN_LANE_MAX_LIVE/u);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
