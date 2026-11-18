@@ -1,7 +1,11 @@
 {
   "id": "t-xr4yzgb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node evals/routing/report.ts --all-attempts exits 0 on the recorded ledger; test/outcome/routing-report.test.ts proves abandoned and retry dollars land on accepted merges"
+  },
   "created": "2026-11-17",
   "priority": 3,
   "title": "Routing report counts all assigned-task dollars per accepted merge",
