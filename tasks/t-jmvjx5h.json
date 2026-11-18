@@ -1,0 +1,14 @@
+{
+  "id": "t-jmvjx5h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Abandoned lane worktrees and loose logs are dropped or kept by decision",
+  "after": [],
+  "body": [
+    "Source: repository hygiene scan for t-vj5vfvs, 2026-11-18.\nWhy: abandoned lane directories hold disk and mislead `krn lane status`; none was removed because the scan could not prove each one idle.\nOutcome: `ls .krn/worktrees .claude/worktrees` lists only worktrees that `git worktree list` registers with a live PID or an open PR, and `krn lane status` prints no merged or orphaned row.\nFiles: .krn/worktrees/screen-bwrap, .krn/worktrees/lane-install, .krn/worktrees/slot-lock-deadline, .krn/worktrees/t3g-*, .claude/worktrees/agent-a35b41d4e406bdc05, .claude/worktrees/agent-afef0ea36e486b5f5\nProof: `krn lane status` and `git worktree list` after the cleanup show none of the named directories.\nDecision list: screen-bwrap is a directory git does not register (Nov 17, no process in it); t3g-*.log and t3g.patch are loose files under .krn/worktrees; lane-install is merged into main (krn lane drop); slot-lock-deadline is merged but a process still runs in it (wait); agent-a35b... is registered, at a commit already in main, 6 uncommitted entries (inspect then drop); agent-afef... is at a commit already in main with uncommitted edits to evals/replay/*.ts (the owner decides whether to keep them)."
+  ],
+  "kind": "chore",
+  "area": "lane"
+}
