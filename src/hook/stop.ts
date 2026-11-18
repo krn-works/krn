@@ -53,7 +53,10 @@ import { receiverEnv } from '../repo/receiver-env.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
 import { SlotTimeoutError, withSlotSync } from '../repo/slot-lock.ts';
 import { SLOT_HELD_ENV, testSlotOptions } from '../repo/test-slot.ts';
-import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
+import {
+  clearSandboxPlaceholders,
+  isSandboxPlaceholder,
+} from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
 import {
   claudeJudge,
@@ -2011,6 +2014,8 @@ export function judgeStop(
     const settled = () =>
       outcomeRefusal(root, env, payload, taskBody(root, env), outcomeJudge);
     const asOf = new Date().toISOString().slice(0, 10);
+    // An empty sandbox placeholder (package.json, .npmrc, .env.*) is not the change; a check must not read it.
+    clearSandboxPlaceholders(root);
     const failing = standards(root, asOf);
     if (failing.length === 0) {
       logChecks(root, payload, [], env);

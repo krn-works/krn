@@ -1,7 +1,11 @@
 {
   "id": "t-3s38zpn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop removes empty untracked sandbox placeholders (package.json, .npmrc, .env.*) from the checkout before standards checks; regression test in test/hook/stop.test.ts"
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Sandbox placeholder files in a lane worktree do not fail standards checks at Stop",
