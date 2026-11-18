@@ -1,0 +1,14 @@
+{
+  "id": "t-9d9w6pr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "CI measures the regressions a narrowed test plan would miss before PR selection narrows",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (Astra gap map, .krn/runs/research/daily-2026-11-18/astra-full.md §2 item 7; OpenClaw shadow-mode selection): scripts/ci-changes.mjs emits one boolean; no evidence how many real regressions the selector plan would catch.\nOutcome: before the full run CI keeps the selection, reasons and SHA; after it publishes for the same SHA the red tests and those the plan skipped; a backtest over historical regressions outside the tuning set reports hits/total.\nProof: artifact receiver test: plan picks A, full run marks B red -> exactly one miss B; a plan from another SHA or without metadata -> verdict no basis to narrow.\nFiles: .github/workflows/ci.yml, scripts/ci-changes.mjs, scripts/fast-check.ts, test/ci/ci-changes.test.ts"
+  ],
+  "kind": "research",
+  "area": "ci"
+}

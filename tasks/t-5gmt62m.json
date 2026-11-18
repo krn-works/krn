@@ -1,0 +1,14 @@
+{
+  "id": "t-5gmt62m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "a defect ship accepts a Python regression test as base-red proof",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18 (Astra gap map, .krn/runs/research/daily-2026-11-18/astra-full.md §2 item 3): baseRedProof in src/ci/base-red.ts filters test files to JS/TS extensions, so a defect fix in an adopted Python repo (src/adopt/skeleton/python/) is refused as no-test; probe baseRedProof('.', 'main', git) on a diff adding tests/test_receiver.py returns kind no-test.\nOutcome: krn pr ship in a Python repo accepts the fix when the same test fails on an assertion at base and passes at HEAD; a green base and an import error get distinct refusal reasons.\nProof: a receiver test runs the adopter contract's real runner in a small Python project through ship's entry for all three runs.\nFiles: src/ci/base-red.ts, src/repo/contract.ts, src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

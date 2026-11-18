@@ -1,0 +1,14 @@
+{
+  "id": "t-6eg43af",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "frontend standard pack carries a Floor of executable slop checks harvested from Hallmark, Impeccable and Vercel guidelines",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: operator pasted a list of 10 frontend design skills; research verdict in this session: Hallmark (github.com/Nutlope/hallmark, MIT) tiers Floor (contrast, focus, reduced motion, no invented facts, phone layout; never ships) / Reflex (defaults overridable only with a recorded reason) / Finish (never blocks) plus sloplint.mjs; Impeccable (impeccable.style, github.com/pbakaus/impeccable, license unconfirmed) has a 62-rule deterministic slop detector with a CLI exit code; vercel-labs/agent-skills web-design-guidelines (MIT) ~100 checkable a11y/forms/focus/touch/i18n rules; taste-skill (MIT) a five-width viewport matrix and placeholder-text check. boilerplate-2026 .agents/skills/motion already holds Emil Kowalski's motion rules; no cliché list, tiers or viewport matrix found.\nOutcome: the frontend standard pack KRN gives adopted projects carries Floor rules as executable checks (each with a CI command) and Reflex rules as records requiring a stated reason; a count of harvested rules with source and license per rule is printed by krn standards query for a frontend edit.\nProof: krn standards query 'edit a landing page hero' --files src/app/page.tsx prints at least one Floor record with a check command; a fixture page with a placeholder 'Lorem ipsum' and a missing focus style fails the Floor check (exit 1).\nFiles: src/brain/, packs/ or the frontend pack, boilerplate-2026 .agents/skills (read-only reference)"
+  ],
+  "kind": "feature",
+  "area": "brain"
+}
