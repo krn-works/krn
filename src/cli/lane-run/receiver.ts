@@ -1,4 +1,4 @@
-// The receiver probe a lane runs before its paid session: GitHub must gate the base and the base must not be red.
+// The receiver probe a lane runs before its paid session: GitHub must gate the base, the base must not be red and Actions must start jobs.
 
 import { z } from 'zod';
 import { requiredContexts } from '../../adopt/verify.ts';
@@ -29,6 +29,51 @@ const checkRunsSchema = z.object({
 });
 
 const branchHeadSchema = z.object({ commit: z.object({ sha: z.string() }) });
+
+const latestRunSchema = z.object({
+  workflow_runs: z.array(
+    z.object({ id: z.number(), conclusion: z.string().nullable() }),
+  ),
+});
+
+const jobsSchema = z.object({
+  jobs: z.array(
+    z.object({
+      id: z.number(),
+      conclusion: z.string().nullable(),
+      runner_name: z.string().nullable(),
+      steps: z.array(z.unknown()).optional(),
+    }),
+  ),
+});
+
+const annotationsSchema = z.array(z.object({ message: z.string() }));
+
+/** The id of the newest workflow run when it failed, the one run whose jobs can show that Actions refuses to start jobs. */
+export function failedLatestRun(runs: string): number | undefined {
+  const latest = latestRunSchema.parse(JSON.parse(runs)).workflow_runs[0];
+  return latest?.conclusion === 'failure' ? latest.id : undefined;
+}
+
+/** A job GitHub failed without ever giving it a runner or a step: Actions refused to start it (billing, spending limit). */
+export function refusedJob(jobs: string): number | undefined {
+  return jobsSchema
+    .parse(JSON.parse(jobs))
+    .jobs.find(
+      (job) =>
+        job.conclusion === 'failure' &&
+        !job.runner_name &&
+        (job.steps ?? []).length === 0,
+    )?.id;
+}
+
+/** The gap a refused job proves: no Check can run, so no delivery can merge; GitHub's own annotation says why. */
+export function actionsRefusedGap(runId: number, annotations: string): string {
+  const why =
+    annotationsSchema.parse(JSON.parse(annotations))[0]?.message ??
+    'no annotation';
+  return `GitHub Actions did not start the jobs of run ${runId}, so no Check can pass: ${why}`;
+}
 
 /** Conclusions that prove the base red; pending, cancelled, absent and neutral prove nothing. */
 const red = new Set(['FAILURE', 'TIMED_OUT']);
@@ -77,6 +122,21 @@ export function probeReceiver(root: string, base: string): string[] {
   try {
     const branch = read(root, `repos/{owner}/{repo}/branches/${base}`);
     const head = branchHeadSchema.parse(JSON.parse(branch)).commit.sha;
+    const runId = failedLatestRun(
+      read(root, 'repos/{owner}/{repo}/actions/runs?per_page=1'),
+    );
+    if (runId !== undefined) {
+      const jobId = refusedJob(
+        read(root, `repos/{owner}/{repo}/actions/runs/${runId}/jobs`),
+      );
+      if (jobId !== undefined)
+        return [
+          actionsRefusedGap(
+            runId,
+            read(root, `repos/{owner}/{repo}/check-runs/${jobId}/annotations`),
+          ),
+        ];
+    }
     return receiverGaps(base, {
       branch,
       rules: read(root, `repos/{owner}/{repo}/rules/branches/${base}`),
