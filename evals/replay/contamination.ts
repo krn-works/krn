@@ -223,6 +223,21 @@ export function scanRows(rowsFile: string, scratch: string): RowScan[] {
   });
 }
 
+/** The flagged rows, one line each, and the closing count line `--screen --report` and this script print. */
+export function contaminationLines(rows: RowScan[]): string[] {
+  const flagged = rows.filter((r) => contaminated(r.hits));
+  return [
+    ...flagged.map(
+      (r) =>
+        `${r.unit}/${r.rep} pass=${r.pass} ${r.hits
+          .filter((h) => !h.failed)
+          .map((h) => `${h.kind} ${h.call.slice(0, 120)}`)
+          .join(' | ')}`,
+    ),
+    `contamination: ${flagged.length} flagged of ${rows.length} rows (passes ${flagged.filter((r) => r.pass === true).length}, fails ${flagged.filter((r) => r.pass === false).length}); transcripts missing ${rows.filter((r) => !r.transcript).length}`,
+  ];
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [rowsFile, scratch] = process.argv.slice(2);
   if (!rowsFile || !scratch) {
@@ -231,16 +246,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     );
     process.exit(64);
   }
-  const rows = scanRows(rowsFile, scratch);
-  const flagged = rows.filter((r) => contaminated(r.hits));
-  for (const r of flagged)
-    console.log(
-      `${r.unit}/${r.rep} pass=${r.pass} ${r.hits
-        .filter((h) => !h.failed)
-        .map((h) => `${h.kind} ${h.call.slice(0, 120)}`)
-        .join(' | ')}`,
-    );
-  console.log(
-    `contamination: ${flagged.length} flagged of ${rows.length} rows (passes ${flagged.filter((r) => r.pass === true).length}); transcripts missing ${rows.filter((r) => !r.transcript).length}`,
-  );
+  for (const l of contaminationLines(scanRows(rowsFile, scratch)))
+    console.log(l);
 }
