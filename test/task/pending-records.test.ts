@@ -92,7 +92,10 @@ test('a pending record under any valid task id is read back from the ref', (t) =
   // pending ref, but the ref reader matched only t-xxxx names, so edit saw the open record.
   const f = fixture(t);
   addPendingTask(f.main, 'T-1', '{"id":"T-1"}\n');
-  assert.equal(pendingTaskFiles(f.main).get('T-1')?.toString(), '{"id":"T-1"}\n');
+  assert.equal(
+    pendingTaskFiles(f.main).get('T-1')?.toString(),
+    '{"id":"T-1"}\n',
+  );
 });
 
 test('publish commits every pending record as one commit cut from the base', (t) => {
