@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { z } from 'zod';
+import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
@@ -35,7 +36,7 @@ import { takePendingTask } from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { gitWith } from './git-with.ts';
-import { laneBriefText } from './lane-brief.ts';
+import { laneBrief } from './lane-brief.ts';
 import { finishLane, laneFinishUsage } from './lane-finish.ts';
 import { checkOpenRedLimit, type OpenPr } from './lane-open-red.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
@@ -74,9 +75,15 @@ function briefCommand(rest: string[]): void {
       'lane brief is empty: pass --file PATH or pipe the brief text on stdin',
     );
   const repo = repositoryRoot(root ?? process.cwd());
-  process.stdout.write(
-    laneBriefText(repo, brief, asOf, task, task !== undefined),
-  );
+  const built = laneBrief(repo, brief, asOf, task, task !== undefined);
+  if (task !== undefined)
+    recordBriefExposure(
+      mainCheckoutRoot(repo),
+      `brief-${Date.now()}`,
+      task,
+      built,
+    );
+  process.stdout.write(built.text);
 }
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
