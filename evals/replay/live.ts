@@ -11,8 +11,6 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { outsideGit } from '../../src/cli/outside-git.ts';
-import { withSessionSlot } from '../session-slot.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
 import { requireSandbox } from '../units/sandbox.ts';
 import {
@@ -23,6 +21,11 @@ import {
 import type { Unit } from '../units/unit.ts';
 import { liveAttempt, type SessionTurn } from './arm-session.ts';
 import { ARMS, type Arm } from './arms.ts';
+import {
+  type GradeCheck,
+  preflightOnce,
+  sandboxedCommitGrade,
+} from './grade-preflight.ts';
 import { baseCheckout, recordGrade, recordPatch } from './recording.ts';
 import { formatRow, type Row } from './rows.ts';
 import { eligible, readRows, type ScreenUnit } from './screen.ts';
@@ -52,6 +55,11 @@ export interface LiveOptions {
     log: string,
     turn?: SessionTurn,
   ) => Promise<DrivenSession>;
+  /**
+   * The grade preflight (grade-preflight.ts): the unit's grader red at base and green at the reference, before any
+   * session. Default: the sandboxed grade of both commits when no session stub is given; tests pass a stub.
+   */
+  gradeCheck?: ((lu: LiveUnit) => Promise<GradeCheck>) | undefined;
   /** Resolves the unit's toolchain before any session (arm-session.ts); tests pass a stub. */
   preflight?: (
     wt: string,
@@ -248,14 +256,47 @@ export async function screenLive(
     )
     .filter((t) => !done.has(`${t.u.unit.id}/${t.rep}`));
   const rows: Row[] = [];
+  // The grade preflight runs for every unit before the first session: a unit its grader cannot grade gets one
+  // screened row per missing rep and no session. Its log sits beside the rows, outside the scratch a session writes.
+  const check =
+    o.gradeCheck ??
+    (o.session === undefined
+      ? preflightOnce(
+          sandboxedCommitGrade(o),
+          join(dirname(o.rowsFile), 'grade-preflight'),
+        )
+      : undefined);
+  const checks = new Map<string, GradeCheck>();
+  if (check !== undefined)
+    for (const u of new Set(todo.map((t) => t.u)))
+      checks.set(u.unit.id, await check(u));
+  const runnable = todo.filter((t) => {
+    const c = checks.get(t.u.unit.id);
+    if (c === undefined || c.ok) return true;
+    const row: Row = {
+      unit: t.u.unit.id,
+      arm: ARMS.A.id,
+      rep: t.rep,
+      pass: null,
+      cost: null,
+      harness: o.harness,
+      model: null,
+      verdict: 'screened',
+      screenedOut: `grade preflight: ${c.reasons.join('; ')}`,
+      ...(c.tail ? { gradeTail: c.tail } : {}),
+    };
+    appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
+    rows.push(row);
+    return false;
+  });
   let next = 0;
   const width = Math.max(
     1,
     Number((o.env ?? process.env).KRN_EVAL_MAX_SESSIONS) || 4,
   );
   const work = async () => {
-    while (next < todo.length) {
-      const t = todo[next++] as (typeof todo)[number];
+    while (next < runnable.length) {
+      const t = runnable[next++] as (typeof runnable)[number];
       const row = await screenUnit(t.u, o, t.rep);
       appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
       rows.push(row);

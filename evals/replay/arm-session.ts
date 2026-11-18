@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import {
   CODEX_HOSTS,
@@ -40,6 +40,11 @@ import {
   type StreamFacts,
   streamFacts,
 } from './attempt.ts';
+import {
+  type GradeCheck,
+  preflightOnce,
+  sandboxedCommitGrade,
+} from './grade-preflight.ts';
 import {
   isolatedEnv,
   type LiveUnit,
@@ -82,6 +87,8 @@ export interface ArmOptions {
     log: string,
     turn?: SessionTurn,
   ) => Promise<DrivenSession>;
+  /** The grade preflight (grade-preflight.ts); default: the sandboxed grade of base and reference when no session stub. */
+  gradeCheck?: ((lu: LiveUnit) => Promise<GradeCheck>) | undefined;
   /** Resolves the unit's toolchain before any session; the exit code, 0 when it resolved. Default: the sandboxed install. */
   preflight?: (
     wt: string,
@@ -400,13 +407,14 @@ export async function liveAttempt(
     // A no-attempt is reported apart, never as a plain fail.
     pass: verdict === 'no-attempt' ? null : (pass ?? null),
     ...(g ? { grade: g } : {}),
-    row: { ...a.fields, verdict },
+    row: { ...a.fields, verdict, ...(g ? { gradeTail: g.tail } : {}) },
   };
 }
 
 /**
  * One session of `arm` on a checkout `prepare` has set up, and its grade; the session holds a slot, the grade does not.
- * `prepare` runs inside the checkout's lifetime and may return a note the caller keeps (token counts).
+ * `prepare` runs inside the checkout's lifetime and may return a note the caller keeps (token counts); a unit the
+ * grade preflight screens out gets no checkout, no session and no note.
  */
 export async function armRow<Note>(
   arm: Arm,
@@ -414,11 +422,37 @@ export async function armRow<Note>(
   o: ArmOptions,
   rep: number,
   prepare: (wt: string, log: string) => Note,
-): Promise<{ row: Row; note: Note }> {
+): Promise<{ row: Row; note: Note | undefined }> {
   const env = isolatedEnv(o.scratch, o.env ?? process.env);
   const log = join(o.scratch, `${unit.id}-${arm.id}-${rep}.log`);
   if (o.session === undefined) requireSandbox();
   refuseScratchInRepository(o.scratch);
+  // The grade preflight before any session (grade-preflight.ts): a unit its grader cannot grade is screened, never run.
+  const check =
+    o.gradeCheck ??
+    (o.session === undefined
+      ? preflightOnce(
+          sandboxedCommitGrade(o),
+          join(dirname(resolve(o.scratch)), 'grade-preflight'),
+        )
+      : undefined);
+  const c = check === undefined ? undefined : await check({ unit, dir });
+  if (c !== undefined && !c.ok)
+    return {
+      row: {
+        unit: unit.id,
+        arm: arm.id,
+        rep,
+        pass: null,
+        cost: null,
+        harness: o.harness,
+        model: null,
+        verdict: 'screened',
+        screenedOut: `grade preflight: ${c.reasons.join('; ')}`,
+        ...(c.tail ? { gradeTail: c.tail } : {}),
+      },
+      note: undefined,
+    };
   const wt = baseCheckout(o.sources, unit, o.scratch);
   try {
     const note = prepare(wt, log);

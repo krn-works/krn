@@ -109,10 +109,32 @@ export function report(s: Screening): string[] {
   ];
 }
 
-/** One line per attempt: unit, realized model, duration, tool calls, tests run, stop reason, verdict. */
+/**
+ * The first line of a grade tail that names a failure (a failing test, panic, error or timeout); undefined when none
+ * does, as in a passing grade.
+ */
+export function firstFailingLine(tail: string | undefined): string | undefined {
+  const lines = (tail ?? '').split('\n').map((l) => l.trim());
+  // A runner's own failure marker outranks a log line that merely says "failed".
+  return (
+    lines.find((l) =>
+      /^(--- FAIL|FAIL\b|not ok\b|panic:|✕|●|E\s|FAILED\b)|Tests?:.*failed/u.test(
+        l,
+      ),
+    ) ?? lines.find((l) => /\b(Error|failed)\b/u.test(l))
+  );
+}
+
+const failing = (r: Row): string => {
+  if (r.pass === true) return '';
+  const l = firstFailingLine(r.gradeTail);
+  return l === undefined ? '' : ` grade: ${l.slice(0, 160)}`;
+};
+
+/** One line per attempt: unit, realized model, duration, tool calls, tests run, stop reason, verdict, first failing grade line. */
 export function attemptLines(rows: Row[]): string[] {
   return rows.map(
     (r) =>
-      `attempt ${r.unit} ${r.model ?? '-'} ${r.durationMs === undefined ? '-' : `${Math.round(r.durationMs / 1000)}s`} tools=${r.toolCalls ?? '-'} tests=${r.testsRun ?? '-'} stop=${r.stopReason ?? '-'}${r.reprompted ? ' reprompted' : ''} verdict=${r.verdict ?? (r.pass === null ? 'ungraded' : r.pass ? 'pass' : 'fail')}${r.screenedOut ? ` (${r.screenedOut})` : ''}`,
+      `attempt ${r.unit} ${r.model ?? '-'} ${r.durationMs === undefined ? '-' : `${Math.round(r.durationMs / 1000)}s`} tools=${r.toolCalls ?? '-'} tests=${r.testsRun ?? '-'} stop=${r.stopReason ?? '-'}${r.reprompted ? ' reprompted' : ''} verdict=${r.verdict ?? (r.pass === null ? 'ungraded' : r.pass ? 'pass' : 'fail')}${r.screenedOut ? ` (${r.screenedOut})` : ''}${failing(r)}`,
   );
 }

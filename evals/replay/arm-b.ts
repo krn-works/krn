@@ -114,7 +114,7 @@ export async function armBRow(
   o: ArmOptions,
   rep = 1,
   asOf: string = new Date().toISOString().slice(0, 10),
-): Promise<{ row: Row; tokens: TokenCounts }> {
+): Promise<{ row: Row; tokens: TokenCounts | undefined }> {
   const { row, note } = await armRow(ARMS.B, unit, o, rep, (wt, log) => {
     const records = inForceRecords(wt, asOf);
     const injection = injectionTokens(
@@ -132,5 +132,8 @@ export async function armBRow(
     writeStatic(wt, render);
     return { static: render.tokens, injection };
   });
-  return { row: { ...row, injection: note.injection }, tokens: note };
+  return {
+    row: note === undefined ? row : { ...row, injection: note.injection },
+    tokens: note,
+  };
 }

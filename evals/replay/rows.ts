@@ -30,6 +30,8 @@ export interface Row {
   stopReason?: string;
   /** The verify-before-end gate refused the first end and re-prompted once. */
   reprompted?: boolean;
+  /** The last ~40 lines of the grader's output (screening.ts TAIL_LINES), so every verdict is auditable. */
+  gradeTail?: string;
 }
 
 /** Every file the harness runs: the replay directory and the d23 and units code its sessions and grades import. */

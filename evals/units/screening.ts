@@ -467,6 +467,22 @@ async function run(
   }
 }
 
+/** One grade: install and test exits, whether the test could not load, and the last lines of the grader's output. */
+export interface Grade {
+  install: number;
+  test: number;
+  compile: boolean;
+  /** The last TAIL_LINES lines of the test output (of the install output when the install failed). */
+  tail: string;
+}
+
+/** Lines of grader output a grade keeps, so every verdict is auditable from its row. */
+export const TAIL_LINES = 40;
+
+/** The last `n` non-empty-trailing lines of `text`. */
+export const lastLines = (text: string, n = TAIL_LINES): string =>
+  text.replace(/\s+$/, '').split('\n').slice(-n).join('\n');
+
 /** Copy the hidden test into a prepared worktree, install and run it: the grade of whatever state the worktree holds. */
 export async function gradeWorktree(
   wt: string,
@@ -474,7 +490,7 @@ export async function gradeWorktree(
   unitDir: string,
   log: string,
   scratch: string,
-): Promise<{ install: number; test: number; compile: boolean }> {
+): Promise<Grade> {
   // Absolute paths: the unit runs with the worktree as cwd, where a relative TMPDIR or cache path names nothing.
   wt = resolve(wt);
   unitDir = resolve(unitDir);
@@ -488,6 +504,7 @@ export async function gradeWorktree(
     join(wt, unit.hidden.dest),
     readFileSync(join(unitDir, unit.hidden.file)),
   );
+  const start = existsSync(log) ? readFileSync(log, 'utf8').length : 0;
   const install = await run(
     // Single quotes: the outer shell must not expand `$x`, `$?` or `$(...)` before the unit's own shell runs.
     `timeout ${INSTALL_SECONDS} sh -c ${shellWord(unit.install)}`,
@@ -496,7 +513,13 @@ export async function gradeWorktree(
     [wt],
     true,
   );
-  if (install !== 0) return { install, test: -1, compile: false };
+  if (install !== 0)
+    return {
+      install,
+      test: -1,
+      compile: false,
+      tail: lastLines(readFileSync(log, 'utf8').slice(start)),
+    };
   const mark = readFileSync(log, 'utf8').length;
   const test = await run(unit.test, wt, log, [wt], false);
   const tail = readFileSync(log, 'utf8').slice(mark);
@@ -505,7 +528,7 @@ export async function gradeWorktree(
       tail,
     ) ||
     (unit.test.includes('pytest') && test === 2);
-  return { install, test, compile };
+  return { install, test, compile, tail: lastLines(tail) };
 }
 
 /**
@@ -534,7 +557,7 @@ async function gradeAt(
   unitDir: string,
   scratch: string,
   log: string,
-): Promise<{ install: number; test: number; compile: boolean }> {
+): Promise<Grade> {
   const wt = mkdtempSync(join(scratch, 'screen-'));
   rmSync(wt, { recursive: true });
   git(clone, 'worktree', 'add', '-q', '--detach', wt, sha);
