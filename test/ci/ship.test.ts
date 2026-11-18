@@ -53,6 +53,8 @@ function receiver(options: {
   createRefusal?: string;
   rule?: { code: number; stderr: string };
   scoped?: { code: number; stdout: string };
+  /** The scoped check's answers run by run (the last repeats), overriding `scoped`. */
+  scopedRuns?: Array<{ code: number; stdout: string }>;
   /** The porcelain status after the scoped checks ran (Biome rewrote files). */
   rewritten?: string;
   diff?: string;
@@ -73,6 +75,7 @@ function receiver(options: {
   origin?: string;
 }) {
   let time = 0;
+  let scopedCalls = 0;
   let behind = options.baseMoves ?? 0;
   let rebased = 0;
   const calls: string[] = [];
@@ -146,7 +149,13 @@ function receiver(options: {
         `scripts/fast-check.ts --base origin/${options.target ?? 'main'}`,
       );
       assert.ok(a[0]?.startsWith('PR_BODY='), 'the scoped check gets PR_BODY');
-      return { code: 0, stderr: '', stdout: '', ...options.scoped };
+      scopedCalls += 1;
+      const answer = options.scopedRuns
+        ? options.scopedRuns[
+            Math.min(scopedCalls, options.scopedRuns.length) - 1
+          ]
+        : options.scoped;
+      return { code: 0, stderr: '', stdout: '', ...answer };
     }
     if (command === 'node') {
       assert.equal(line0(a), '--test test/rules/instruction-bytes.test.ts');
@@ -770,6 +779,61 @@ test('a failing scoped check refuses the push with exit 65 and records no push c
   });
   assert.ok(r.calls.some((c) => c.includes('node scripts/fast-check.ts')));
   assert.ok(!r.calls.some((c) => c.includes('git push')));
+});
+
+const timedOut = (file: string) =>
+  ` FAIL  ${file} > slow\nError: Test timed out in 60000ms.\n`;
+
+test('a scoped check that times out on different tests in a run and its rerun exits 78 after waiting for the host', async () => {
+  const r = receiver({
+    pulls: [auto],
+    scopedRuns: [
+      { code: 1, stdout: timedOut('test/evals/a.test.ts') },
+      { code: 1, stdout: timedOut('test/evals/b.test.ts') },
+    ],
+  });
+  let waits = 0;
+  await assert.rejects(
+    shipCommand(args, {
+      ...r,
+      quiet: () => {
+        waits += 1;
+      },
+    }),
+    (e: Failure) => {
+      assert.equal(e.exitCode, 78);
+      assert.match(e.message, /host load/u);
+      return true;
+    },
+  );
+  assert.equal(waits, 2);
+  assert.ok(!r.calls.some((c) => c.includes('git push')));
+});
+
+test('a scoped check that times out and passes on the rerun ships; an assertion failure stays 65', async () => {
+  const flaky = receiver({
+    pulls: [auto, merged],
+    scopedRuns: [
+      { code: 1, stdout: timedOut('test/a.test.ts') },
+      { code: 0, stdout: '' },
+    ],
+  });
+  await shipCommand(args, flaky);
+  assert.ok(flaky.calls.some((c) => c.includes('git push')));
+  const red = receiver({
+    pulls: [auto],
+    scopedRuns: [
+      {
+        code: 1,
+        stdout:
+          ' FAIL  test/a.test.ts > x\nAssertionError: expected 1 to be 2\n',
+      },
+    ],
+  });
+  await assert.rejects(shipCommand(args, red), (e: Failure) => {
+    assert.equal(e.exitCode, 65);
+    return true;
+  });
 });
 
 test('a scoped check that rewrote files refuses the push', async () => {

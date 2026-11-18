@@ -38,6 +38,7 @@ import { redCheckOf } from './red-check.ts';
 import {
   exitBudgetCapped,
   exitCredentialUnavailable,
+  exitHostLoadFlake,
   exitNoDelivery,
   exitNoProgress,
   exitSessionBlocked,
@@ -214,6 +215,7 @@ export async function laneVerdict(
             join(main, '.krn', 'tmp', `lane-run-${slug}-check.log`),
             task,
             base,
+            steps.quiet,
           )
         : undefined;
     // Flaky: test files that failed, then passed on one rerun; named in the summary and the PR body.
@@ -292,6 +294,11 @@ export async function laneVerdict(
         contractCheck !== undefined && 'failure' in contractCheck
           ? contractCheck.failure
           : 'no passing check on the final tree',
+        contractCheck !== undefined &&
+          'failure' in contractCheck &&
+          contractCheck.hostLoad
+          ? exitHostLoadFlake
+          : exitNoDelivery,
       );
 
     const bodyDir = join(main, '.krn', 'tmp');

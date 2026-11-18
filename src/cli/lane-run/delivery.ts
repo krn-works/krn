@@ -99,7 +99,11 @@ export function contractVerification(
   logPath: string,
   task?: string,
   base?: string,
-): { verified: string; flaky: string[] } | { failure: string } | undefined {
+  quiet: () => void = () => undefined,
+):
+  | { verified: string; flaky: string[] }
+  | { failure: string; hostLoad?: true }
+  | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
   // The first-test task of a vacuous base proves itself by mutation, not by a prior green baseline.
@@ -115,7 +119,7 @@ export function contractVerification(
       failure: `the test command ${contract.test} is vacuous (runs no real test), so its pass is not a proof`,
     };
   const command = contract.fast ?? contract.test;
-  const { run, flaky } = settledRun(
+  const { run, flaky, hostLoad } = settledRun(
     (line) =>
       spawnSync(line, {
         cwd: worktree,
@@ -125,13 +129,20 @@ export function contractVerification(
         timeout: 30 * 60 * 1000,
       }),
     command,
+    quiet,
   );
   if (run.status === 0)
     return { verified: `${command} PASS on the final tree`, flaky };
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
   mkdirSync(dirname(logPath), { recursive: true });
   writeFileSync(logPath, output);
-  return { failure: failedCheckDetail(command, output, logPath) };
+  const failure = failedCheckDetail(command, output, logPath);
+  return hostLoad
+    ? {
+        failure: `host load: ${failure}; the failures are timeouts only and differ between run and rerun`,
+        hostLoad: true,
+      }
+    : { failure };
 }
 
 /** The record of a commit whose ship waited on the App token: its file under .krn/tmp. */
