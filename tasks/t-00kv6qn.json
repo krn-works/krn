@@ -1,0 +1,14 @@
+{
+  "id": "t-00kv6qn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "A drain does not stop on its own failed attempt worktrees at the lane budget",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/pilot-py/lanes/preflight-proof-py.log: after 5 failed attempts (exit 73, \"rerun reuses it, claim released\") the drain stopped with exit 64: \"6 live lane worktrees (maximum 6, KRN_LANE_MAX_LIVE) ... t-0zf6ehp (no ship record)\". Failed attempts keep their worktree for a rerun, so a drain of N > 6 tasks fails on its own leftovers.\nOutcome: krn lane run --ready does not count worktrees of its own failed attempts (claim released, no live process) against the live-lane budget, or prunes them before the next start; a drain of 10 attempts never stops on its own leftovers.\nFiles: src/cli/lane-run/drain.ts, src/cli/lane.ts\nProof: a drain test with 7 failing tasks runs all 7 and never exits 64 for the lane budget."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
