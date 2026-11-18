@@ -496,7 +496,14 @@ ${synced}`;
       );
   }
 
-  const proofCommands = (runtime.proofOf ?? (() => []))(cwd, title);
+  // A pull request that only adds or edits task records proves nothing a Proof command could
+  // run: the record names work another PR delivers, so its Proof never runs here.
+  const recordsOnly = changed
+    .split('\n')
+    .every((file) => /^tasks\/[^/]+\.json$/.test(file));
+  const proofCommands = recordsOnly
+    ? []
+    : (runtime.proofOf ?? (() => []))(cwd, title);
   const proofs = proofCommands.map((command) => ({
     command,
     result: runner(
@@ -515,7 +522,10 @@ ${synced}`;
     );
   // KRN-14: a defect's regression test is red on the pre-fix source, shown before the push.
   const baseRedLines: string[] = [];
-  if ((runtime.kindOf ?? (() => undefined))(cwd, title) === 'defect') {
+  if (
+    !recordsOnly &&
+    (runtime.kindOf ?? (() => undefined))(cwd, title) === 'defect'
+  ) {
     const verdict = (runtime.baseRed ?? baseRedProof)(
       cwd,
       `origin/${target}`,
