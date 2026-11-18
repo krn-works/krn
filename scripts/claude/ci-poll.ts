@@ -10,7 +10,7 @@ const sleeps = /\bsleep\b/u;
 const ghCall = /\bgh[\s'",]+(?:pr|run|api)\b/u;
 
 // Heredoc bodies are data (notes, scripts under edit), not commands to run.
-function withoutHeredocs(command: string): string {
+export function withoutHeredocs(command: string): string {
   const kept: string[] = [];
   let end: string | undefined;
   for (const line of command.split('\n')) {

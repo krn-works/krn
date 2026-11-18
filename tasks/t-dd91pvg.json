@@ -1,7 +1,11 @@
 {
   "id": "t-dd91pvg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "bash-guards refuses an unbounded until/while sleep loop; hook tests cover refuse, timeout-bounded accept, sleep-free accept; lanes.md and CLAUDE.md name the fast verdict line and background-exit wait"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Agent wait loops on a check log are bounded and match the fast verdict line",

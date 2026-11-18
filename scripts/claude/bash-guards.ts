@@ -3,9 +3,10 @@ import { decide as stashGuard } from '../../src/hook/stash.ts';
 import { decide as unpushedDelete } from '../../src/hook/unpushed-delete.ts';
 import { decide as pollGuard } from './ci-poll.ts';
 import { judge as pipedCheck } from './piped-check.ts';
+import { decide as waitLoop } from './wait-loop.ts';
 
-// One PreToolUse entry for Bash: the four command guards run in one process instead of
-// four. Each guard stays its own module with its own tests and still runs standalone.
+// One PreToolUse entry for Bash: the command guards run in one process instead of
+// several. Each guard stays its own module with its own tests and still runs standalone.
 // A refusal (exit 2) wins over the piped-check rewrite, which is emitted only when no
 // guard refuses; guards judge the command as the agent wrote it, as when they were
 // separate entries.
@@ -16,6 +17,7 @@ const refusals = [
   },
   unpushedDelete,
   pollGuard,
+  waitLoop,
   stashGuard,
 ];
 
