@@ -1,0 +1,14 @@
+{
+  "id": "t-gxmzryy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 3,
+  "title": "Verbatim receiver captures are never rewritten by the formatter",
+  "after": [],
+  "body": [
+    "Retro of #1376: npm run fast (biome --write) reformatted a new verbatim gh capture under test/fixtures/gh, so its provenance sha256 broke and fast failed after 395s. Each capture is excluded one by one in biome.json.\nOutcome: every file listed in a test/fixtures/*/provenance.json is outside biome's includes (one directory glob), and a rule test fails when a provenance-listed capture is formatted by biome.\nProof: node --test test/rules/capture-bytes.test.ts: exit 0\nFiles: biome.json, test/rules/capture-bytes.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-ffxkars",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Edit-time standards retrieval recalls the standards the edit needs",
+  "after": [],
+  "body": [
+    "Evidence: #1380 (49fa8d1) retrieval report: edit moment recalls 3 of 12 reachable labels and 0.09 of all 33 labels, against task-start 17/17 and query 22/22. Edit time is when a standard would prevent a defect, so the brain misses most of its value there.\nOutcome: node evals/retrieval/run.ts prints edit-moment recall at least 0.75 of reachable labels and names why each unreachable label is unreachable at edit time.\nProof: node evals/retrieval/run.ts: edit recall >= 0.75 reachable\nFiles: evals/retrieval/run.ts, src/hook/"
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
