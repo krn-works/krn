@@ -1,0 +1,17 @@
+{
+  "id": "t-tmr34yq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Lane proof reports diff coverage of changed lines",
+  "after": [],
+  "body": [
+    "Outcome: a lane proof shows that every changed source line is executed by a test after the red-to-green step (diff coverage), and the proof line reports changed lines not covered.",
+    "Why: red-first proves a test failed before the fix, not that the new or changed lines run under test; untested branches slip through. The operator was told this is the recommended next lane (predecessor handoff 2026-11-18).",
+    "Files: src/brain/proof-line.ts, src/cli/lane-run/steps.ts",
+    "Proof: a test with a change that adds an unexecuted branch reports that line as uncovered; a fully covered change reports zero; the proof line in lane output carries the diff-coverage count."
+  ],
+  "kind": "feature",
+  "area": "lane"
+}

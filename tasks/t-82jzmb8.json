@@ -1,0 +1,17 @@
+{
+  "id": "t-82jzmb8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Task-record ship does not run the recorded task's Proof",
+  "after": [],
+  "body": [
+    "Outcome: `krn pr ship` (and `krn task publish`) on a pull request that only adds or edits task records under tasks/ never runs the Proof of the task it records; it ships on the required Check alone.",
+    "Why: a publish retry of t-n3t8wag through `krn pr ship` ran that task's Proof (`krn skills check`, a command the task itself will build) and refused with exit 81, blocking the record from reaching main (predecessor handoff 2026-11-18).",
+    "Files: src/ci/ship.ts",
+    "Proof: a test ships a task-records-only change whose task Proof names a missing command and asserts the ship is not refused with 81; a code PR carrying `Ticket:` still runs the Proof."
+  ],
+  "kind": "defect",
+  "area": "ship"
+}
