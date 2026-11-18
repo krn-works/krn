@@ -14,12 +14,15 @@ import {
   readExposures,
   servedExposure,
 } from '../brain/exposures.ts';
+import type { Standard } from '../brain/standards.ts';
+import { taskKey } from '../brain/task-query.ts';
 import {
   EDIT_BUDGET,
   editLine,
   editRecords,
   fileStack,
   heldOut,
+  queryStandards,
   withinBudget,
 } from '../brain/worker-packet.ts';
 import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
@@ -82,6 +85,38 @@ export function commandFiles(
   return files;
 }
 
+/**
+ * The records scoped to `file`, the ones the task's words match first. The scope list alone ranks by tier,
+ * so a file with dozens of scoped records buried the one the work needed (3 of 12 reachable labels in the
+ * first five); the task's title and Outcome rank them the way a query does. Without task text the order is
+ * the scope list's.
+ */
+export function editRecordsFor(
+  project: string,
+  file: string,
+  asOf: string,
+  taskText = '',
+): Standard[] {
+  const scoped = editRecords(project, file, asOf);
+  if (taskText.trim() === '' || scoped.length < 2) return scoped;
+  const order = queryStandards(project, {
+    text: taskText,
+    files: [file],
+    asOf,
+    budget: Number.MAX_SAFE_INTEGER,
+  }).map((hit) => hit.id);
+  const rank = (standard: Standard) => {
+    const at = order.indexOf(standard.id);
+    return at < 0 ? order.length : at;
+  };
+  return [...scoped].sort((a, b) => rank(a) - rank(b));
+}
+
+/** The retrieval text of the task a session works on: its title, Outcome and Files, or empty. */
+function sessionTaskText(project: string, main: string, id: string): string {
+  return (taskKey(project, id) ?? taskKey(main, id))?.text ?? '';
+}
+
 /** The kind of `file` the edit moment fires once for: its stack, else `*.<extension>`, else its name. */
 export function fileKind(file: string): string {
   const stack = fileStack(file);
@@ -103,6 +138,7 @@ export function editContext(
   file: string,
   asOf: string = new Date().toISOString().slice(0, 10),
   holdoutKey: string = sessionId,
+  taskText = '',
 ): string | undefined {
   const kind = fileKind(file);
   const own = readExposures(main).filter(
@@ -111,7 +147,7 @@ export function editContext(
   const shown = new Set(
     own.flatMap((exposure) => [...exposure.served, ...exposure.withheld]),
   );
-  const fresh = editRecords(project, file, asOf).filter(
+  const fresh = editRecordsFor(project, file, asOf, taskText).filter(
     (standard) => !shown.has(standard.id),
   );
   if (fresh.length === 0) return undefined;
@@ -168,6 +204,9 @@ export function main(): void {
     let blocks: string[] = [];
     try {
       const main = mainCheckout(input.project);
+      const task = process.env.KRN_TASK ?? taskId(input.project);
+      const taskText =
+        task === undefined ? '' : sessionTaskText(input.project, main, task);
       blocks = files.flatMap(
         (file) =>
           editContext(
@@ -176,7 +215,8 @@ export function main(): void {
             input.sessionId,
             file,
             undefined,
-            process.env.KRN_TASK ?? taskId(input.project) ?? input.sessionId,
+            task ?? input.sessionId,
+            taskText,
           ) ?? [],
       );
     } catch {

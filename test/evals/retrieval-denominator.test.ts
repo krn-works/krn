@@ -15,7 +15,10 @@ test('the retrieval report prints reachable and total denominators per moment', 
   const cases = (
     JSON.parse(readFileSync(casesPath, 'utf8')) as { cases: Item[] }
   ).cases;
-  const lines = result.stdout.trim().split('\n');
+  const lines = result.stdout
+    .trim()
+    .split('\n')
+    .filter((row) => row.startsWith('recall@5 '));
   assert.equal(lines.length, 3);
   for (const moment of ['task-start', 'query', 'edit']) {
     const text = lines.find((row) => row.startsWith(`recall@5 ${moment} `));
@@ -48,4 +51,23 @@ test('the retrieval report prints reachable and total denominators per moment', 
     Number(m?.[1]) < Number(m?.[2]),
     'edit drops labels no channel reaches',
   );
+});
+
+test('the edit moment recalls at least 0.75 of reachable labels and names why each unreachable label is unreachable', () => {
+  const metric = spawnSync('node', [run, '--metric', 'recall-at-5-edit'], {
+    encoding: 'utf8',
+  });
+  assert.equal(metric.status, 0, metric.stderr);
+  assert.ok(Number(metric.stdout) >= 0.75, `edit recall ${metric.stdout}`);
+  const report = spawnSync('node', [run], { encoding: 'utf8' });
+  const reasons = report.stdout
+    .split('\n')
+    .filter((row) => row.startsWith('unreachable edit '));
+  const edit = /\((\d+)\/(\d+) reachable.*of all (\d+)/u.exec(
+    report.stdout.split('\n').find((row) => row.startsWith('recall@5 edit ')) ??
+      '',
+  );
+  assert.ok(edit, 'the edit line');
+  assert.ok(reasons.length > 0, 'unreachable labels are explained');
+  for (const row of reasons) assert.match(row, /: \S/u);
 });
