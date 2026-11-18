@@ -130,14 +130,20 @@ test('a krn verb with no KRN_APP_REPOSITORY scopes gh to its cwd origin, and a c
     'https://github.com/krn-works/seo-audit-harness.git',
   );
   const unset: NodeJS.ProcessEnv = {};
-  scopeGhToOrigin(root, unset);
+  scopeGhToOrigin(() => root, unset);
   assert.equal(unset.KRN_APP_REPOSITORY, 'krn-works/seo-audit-harness');
   const caller: NodeJS.ProcessEnv = { KRN_APP_REPOSITORY: 'krn-works/other' };
-  scopeGhToOrigin(root, caller);
+  scopeGhToOrigin(() => root, caller);
   assert.equal(caller.KRN_APP_REPOSITORY, 'krn-works/other');
   const local = outsideRoot('/srv/git/plain.git');
   const none: NodeJS.ProcessEnv = {};
-  scopeGhToOrigin(local.root, none);
+  scopeGhToOrigin(() => local.root, none);
+  // A lost working directory leaves gh unscoped instead of failing before the command's own error path.
+  const lost: NodeJS.ProcessEnv = {};
+  scopeGhToOrigin(() => {
+    throw new Error('ENOENT: uv_cwd');
+  }, lost);
+  assert.equal(lost.KRN_APP_REPOSITORY, undefined);
   assert.equal(none.KRN_APP_REPOSITORY, undefined);
 });
 

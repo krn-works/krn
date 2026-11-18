@@ -39,10 +39,17 @@ export function rootRepository(root: string): string | undefined {
  * as a 404, so `krn task publish` exited 70 and `krn lane status` could not list pull requests.
  */
 export function scopeGhToOrigin(
-  cwd: string,
+  cwdOf: () => string = () => process.cwd(),
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   if (env.KRN_APP_REPOSITORY) return;
+  let cwd: string;
+  try {
+    cwd = cwdOf();
+  } catch {
+    // No working directory: leave gh unscoped; the command itself reports the failure in its own format.
+    return;
+  }
   const repository = rootRepository(cwd);
   if (repository !== undefined) env.KRN_APP_REPOSITORY = repository;
 }
