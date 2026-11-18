@@ -1,0 +1,14 @@
+{
+  "id": "t-7sp3wp6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Lane verdicts and successor relay use cross-session messages where they replace a file or Herdr hop",
+  "after": [],
+  "body": [
+    "Evidence: operator note 2026-11-18; docs https://code.claude.com/docs/en/cross-session-messaging.md: ListAgents/SendMessage since v2.1.224 (we run 2.1.326); local socket on one machine; permission boundaries stay per-session; a bypass-mode session holds inbound messages for approval unless the sender also bypasses; claude -p --bare has no inbox.\nOutcome: one successor relay and one lane verdict travel over SendMessage in a trial; the ADR 0022 amendment records pass/fail for each and names which hops move off handoff files and Herdr.\nProof: docs/adr/0022-harness-integration-and-delivery-transport.md names the trial result as pass or fail for both hops.\nFiles: docs/adr/0022-harness-integration-and-delivery-transport.md, .claude/skills/context-relay/"
+  ],
+  "kind": "research",
+  "area": "harness"
+}

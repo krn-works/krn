@@ -7,7 +7,8 @@
   "title": "npm run fast finishes a one-module change in under 90 seconds",
   "after": [],
   "body": [
-    "Lead session 2026-11-17 (t-4ejaccq, t-hswt15n, t-exqjkea fix): `npm run fast` ran 5 times at 140-515 s each (test phase 131-259 s for 21-123 related tests), about 30 min of the session spent waiting; it was the largest single cost the lead observed. Logs: .krn/tmp/fast-prune.log, .krn/worktrees/*/../../tmp/fast-stop.log (gone with worktrees; numbers quoted here).\nOutcome: `npm run fast` on a one-module change finishes in under 90 s at normal host load, without dropping a check that has caught a defect (guard, receivers, boundaries, doc table, related tests).\nProof: a timed run of `npm run fast` after a one-line change to src/cli/prune.ts prints total < 90 s; the guard still fails on a missing spec/receivers.json entry."
+    "Lead session 2026-11-17 (t-4ejaccq, t-hswt15n, t-exqjkea fix): `npm run fast` ran 5 times at 140-515 s each (test phase 131-259 s for 21-123 related tests), about 30 min of the session spent waiting; it was the largest single cost the lead observed. Logs: .krn/tmp/fast-prune.log, .krn/worktrees/*/../../tmp/fast-stop.log (gone with worktrees; numbers quoted here).\nOutcome: `npm run fast` on a one-module change finishes in under 90 s at normal host load, without dropping a check that has caught a defect (guard, receivers, boundaries, doc table, related tests).\nProof: a timed run of `npm run fast` after a one-line change to src/cli/prune.ts prints total < 90 s; the guard still fails on a missing spec/receivers.json entry.",
+    "Evidence 2026-11-18: two fast runs printed totals far above the sum of their stages. Run 1: 742.8s total, 368s test, ~11s other stages. Run 2: 922.6s total, 286s test, ~17s other stages. About 360-620s are spent outside every reported stage, so find that gap before tuning the tests."
   ],
   "kind": "research",
   "area": "ci"

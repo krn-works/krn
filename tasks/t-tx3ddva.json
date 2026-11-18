@@ -1,0 +1,14 @@
+{
+  "id": "t-tx3ddva",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Lead sessions are judged for Code Mode against KRN's hooks",
+  "after": [],
+  "body": [
+    "Source: the Code Mode doc the operator pasted 2026-11-18 (code.claude.com/docs/en/code-mode; CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1, Claude Code v2.1.323+, interactive terminal sessions only, not -p). In Code Mode, PreToolUse hooks get each tool call under its usual name, but a Bash call can arrive as `cd 'dir' && cmd`. A hook that fails or times out refuses the call. Code reaches hooks as the REPL tool (tool_input.code). Code Mode cannot start with OpenTelemetry export, DISABLE_TELEMETRY or an API key helper.\nOutcome: a written verdict on whether KRN's lead sessions can run in Code Mode. It covers: which .claude/settings.json hooks parse compound commands per part, which can exceed their timeout, whether any KRN setting blocks Code Mode from starting, and the measured tool-call count and wall time of one lead slice with and without it. Lanes keep claude -p, which Code Mode does not support.\nProof: one trial lead session with Code Mode on finishes a small slice with zero hook-refused calls, and the verdict file names the measured deltas.\nFiles: .claude/settings.json, src/hook/"
+  ],
+  "kind": "research",
+  "area": "harness"
+}

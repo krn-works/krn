@@ -1,0 +1,15 @@
+{
+  "id": "t-zr484w7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "The Check's Lint job catches a Biome error the PR did not touch",
+  "after": [],
+  "body": [
+    "Evidence: #1379 (202bad7) merged test/evals/adoption-first-ten.test.ts:105 with a Biome noUselessTernary error, and every later main Check passed. PR #1392 run 44248601482 failed on it through test/tool-scope.test.ts (npm run lint), not through the Lint job.\nOutcome: the Lint job of the Check fails on any Biome error anywhere in the tree, whatever paths a PR changes.\nProof: a PR that adds a useless boolean ternary to an untouched test file fails the Lint job.",
+    "Finding 2026-11-18: the pinned Biome 2.5.15 exits 0 locally on the pre-fix file (git show 980e3a4:test/evals/adoption-first-ten.test.ts), both alone and over the whole tree, so the miss is not a version gap. Find what made the tool-scope run in CI shard 11 (run 44248601482) flag noUselessTernary while the Lint job passed."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

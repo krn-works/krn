@@ -1,0 +1,14 @@
+{
+  "id": "t-yv53bd6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 2,
+  "title": "Edit-time standards load as native path-scoped rules, the hook serves only Bash",
+  "after": [],
+  "body": [
+    "Evidence: operator note 2026-11-18; docs https://code.claude.com/docs/en/memory.md: a .claude/rules/*.md file with paths: frontmatter loads when Claude uses Read, Write or Edit on a matching file (Bash only for single-file reads like cat/head); reloads on demand after /compact. KRN's PreToolUse hook injects 'Standards for editing X' on every call (ADR 0022 wants fewer hook processes, lower p50).\nOutcome: krn generates .claude/rules/ files from .agents/records.json path keys; the PreToolUse standards injection runs only for Bash commands naming files; tests/retrieval eval show edit recall unchanged (>= 0.76 of all labels) and hook process count per Edit drops to zero for standards.\nProof: node evals/retrieval/run.ts: edit recall >= 0.76 of all labels\nFiles: src/hook/edit-standards.ts, .claude/rules/"
+  ],
+  "kind": "feature",
+  "area": "harness"
+}
