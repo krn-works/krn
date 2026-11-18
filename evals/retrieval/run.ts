@@ -5,6 +5,7 @@
 // scored over the violated records it can carry at all: the lane packet omits enforced records
 // (the check teaches them), the query and the edit moment omit lead records, and the edit moment
 // serves only records with stack or path keys, so a violated record without them is not scored there.
+// The report prints both denominators: the reachable one (recall) and the total one (recall of all).
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
@@ -32,8 +33,15 @@ export type Score = {
   readonly moment: Moment;
   readonly cases: number;
   readonly hits: number;
+  /** Violated records the moment can reach: the denominator of recall. */
   readonly total: number;
+  /** Every violated record of every case the moment applies to, reachable or not. */
+  readonly labels: number;
+  /** Cases the moment applies to, including those with no reachable violated record. */
+  readonly applicable: number;
   readonly recall: number;
+  /** Hits over every violated record, so an unreachable label counts as a miss. */
+  readonly recallOfAll: number;
 };
 
 export type Casefile = { readonly asOf: string; readonly cases: Case[] };
@@ -98,8 +106,12 @@ export function scoreMoment(
   let hits = 0;
   let total = 0;
   let cases = 0;
+  let labels = 0;
+  let applicable = 0;
   for (const item of file.cases) {
     if (item.audience === 'lead' && moment !== 'task-start') continue;
+    applicable += 1;
+    labels += item.violated.length;
     if (moment === 'edit' && item.files.length === 0) continue;
     const { top, reachable } = served(moment, root, file.asOf, item);
     const wanted = item.violated.filter((id) => reachable.has(id));
@@ -113,7 +125,10 @@ export function scoreMoment(
     cases,
     hits,
     total,
+    labels,
+    applicable,
     recall: total === 0 ? 0 : hits / total,
+    recallOfAll: labels === 0 ? 0 : hits / labels,
   };
 }
 
@@ -124,7 +139,7 @@ export function readCases(root: string): Casefile {
 }
 
 export function line(score: Score): string {
-  return `recall@${RECALL_AT} ${score.moment} ${score.recall.toFixed(2)} (${score.hits}/${score.total} violated records, ${score.cases} cases)`;
+  return `recall@${RECALL_AT} ${score.moment} ${score.recall.toFixed(2)} (${score.hits}/${score.total} reachable violated records, ${score.cases} cases); of all ${score.labels} violated records ${score.recallOfAll.toFixed(2)} (${score.hits}/${score.labels}, ${score.applicable} cases)`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
