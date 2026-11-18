@@ -1,7 +1,11 @@
 {
   "id": "t-t463dps",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "retrieval report prints reachable and total denominators per moment; test passes"
+  },
   "created": "2026-11-17",
   "priority": 3,
   "title": "Retrieval eval reports reachable and total denominators",
