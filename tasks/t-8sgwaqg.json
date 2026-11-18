@@ -1,0 +1,17 @@
+{
+  "id": "t-8sgwaqg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "skill-harvest test reads the shared temp root",
+  "after": [],
+  "body": [
+    "Evidence 2026-11-18: lane t-sy4qhg1 saw test/brain/skill-harvest.test.ts fail on main with ENOTDIR on /mnt/storage/tmp/krn/.claude/skills; the test runs krn with cwd tmpdir() (line 52) and `standards harvest --skills tmpdir()` (line 199), so its verdict depends on whatever other processes leave under the shared temp root (that root holds a .claude directory from other runs).",
+    "Outcome: the test uses only fresh mkdtemp directories it owns; the shared temp root is never a cwd or a skills source.",
+    "Proof: node --test test/brain/skill-harvest.test.ts: pass with a .claude/skills file planted at the temp root.",
+    "Files: test/brain/skill-harvest.test.ts"
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
