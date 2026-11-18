@@ -837,7 +837,12 @@ for (const [diff, refused] of [
     if (refused)
       await assert.rejects(shipped, (e: Failure) => e.exitCode === 81);
     else {
-      assert.match(await shipped, /^verdict: merged /mu);
+      // A refusal is asserted as a value, so the base source fails this test by assertion.
+      const outcome = await shipped.then(
+        (out) => out,
+        (e: Failure) => `refused ${e.exitCode}`,
+      );
+      assert.match(outcome, /^verdict: merged /mu);
       assert.equal(
         r.calls.some((c) => c.endsWith(' sh -c krn skills check')),
         false,
