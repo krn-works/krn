@@ -43,7 +43,8 @@
       "audience": "worker",
       "task": "refuse a PR commit whose Ticket trailer differs from the PR task",
       "files": [],
-      "violated": ["r-trailer"]
+      "violated": ["r-trailer"],
+      "unreachable": "the case names no file, so no edited file exists to scope a record by"
     },
     {
       "id": "b4e4546",
@@ -163,7 +164,8 @@
         "spec/context-budget.json",
         "test/rules/commit-title.test.ts"
       ],
-      "violated": ["r-conventional-commits", "s-semantic-commits"]
+      "violated": ["r-conventional-commits", "s-semantic-commits"],
+      "unreachable": "s-semantic-commits is a pack record whose path keys would have to name commit-title code, and the pack standards index has no byte budget left for one more path key"
     },
     {
       "id": "ae78aca",
@@ -218,7 +220,8 @@
         "scripts/standards-audit.ts",
         "test/scripts/standards-audit.test.ts"
       ],
-      "violated": ["s-agent-state", "s-finish-gate"]
+      "violated": ["s-agent-state", "s-finish-gate"],
+      "unreachable": "the audit script and report it edited are not governed by the agent-state or finish-gate records, which govern a session and its Stop hook, so no path key would be true"
     },
     {
       "id": "e2bbd70",
@@ -226,7 +229,8 @@
       "audience": "worker",
       "task": "skip git-ignored .krn/tmp scratch in the scope check",
       "files": [],
-      "violated": ["r-agent-state"]
+      "violated": ["r-agent-state"],
+      "unreachable": "the case names no file, so no edited file exists to scope a record by"
     },
     {
       "id": "c9514e1",
@@ -241,7 +245,8 @@
         "docs/program/repository-workflow.md",
         "scripts/lib/shard-weights.json"
       ],
-      "violated": ["r-unknown-command"]
+      "violated": ["r-unknown-command"],
+      "unreachable": "only prose documents were edited, and r-unknown-command governs the CLI dispatch code under src/cli and bin"
     },
     {
       "id": "bd34182",
@@ -296,7 +301,8 @@
       "audience": "worker",
       "task": "adopt ignores what the contract install writes into a worktree",
       "files": ["src/adopt/adopt.ts", "test/adopt/adopt.test.ts"],
-      "violated": ["s-no-dependency-dirs-tracked"]
+      "violated": ["s-no-dependency-dirs-tracked"],
+      "unreachable": "adopt.ts ignores install output in a worktree, but s-no-dependency-dirs-tracked governs dependency manifests, so its path keys do not name adopt code"
     },
     {
       "id": "f4dd015",
@@ -307,7 +313,8 @@
         "test/claude/worker-stop.test.ts",
         "test/test-suite-runner.test.mjs"
       ],
-      "violated": ["s-no-dependency-dirs-tracked"]
+      "violated": ["s-no-dependency-dirs-tracked"],
+      "unreachable": "the stop and test-suite tests read a tracked node_modules, but s-no-dependency-dirs-tracked governs dependency manifests, not these tests"
     },
     {
       "id": "d8399da",

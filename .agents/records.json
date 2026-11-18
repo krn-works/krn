@@ -165,7 +165,13 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": ["tasks/**", "src/task/**"],
+      "paths": [
+        "tasks/**",
+        "src/task/**",
+        "src/cli/lane-brief.ts",
+        "src/cli/lane.ts",
+        "test/rules/lane-close-rule.test.ts"
+      ],
       "terms": [
         "task",
         "tasks",
@@ -246,7 +252,12 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
+      "paths": [
+        "src/cli/lane-run.ts",
+        "src/cli/lane-run/**",
+        "src/ci/ship.ts",
+        "test/cli/lane-run.test.ts"
+      ],
       "terms": [
         "trailer",
         "trailers",
@@ -455,7 +466,12 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
+      "paths": [
+        "scripts/commit-title.ts",
+        "src/ci/commit-title.ts",
+        "test/rules/commit-title.test.ts",
+        ".github/workflows/ci.yml"
+      ],
       "terms": [
         "conventional",
         "commit",
@@ -661,7 +677,11 @@
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": [],
+      "paths": [
+        "scripts/claude/piped-check.ts",
+        ".claude/settings.json",
+        "test/claude/piped-check-hook.test.ts"
+      ],
       "terms": [
         "pipe",
         "piped",

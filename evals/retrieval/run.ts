@@ -29,6 +29,8 @@ export type Case = {
   readonly task: string;
   readonly files: readonly string[];
   readonly violated: readonly string[];
+  /** Why the edit moment cannot reach this case's labels, written where no true path or stack key exists. */
+  readonly unreachable?: string;
 };
 
 export type Moment = 'task-start' | 'query' | 'edit';
