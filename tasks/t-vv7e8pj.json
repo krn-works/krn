@@ -1,0 +1,14 @@
+{
+  "id": "t-vv7e8pj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "Retrieval serves at most 3 records per moment behind a precision gate",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/lead/night/proof-path.md; grant memory proof-redesign-grant (2026-11-18).\nOutcome: the standards packet at task start, before edit and before Stop serves at most 3 records and none below a retrieval-confidence threshold; the threshold and cap are recorded in the packet output.\nFiles: src/brain/packet.ts, src/brain/standards-cli.ts\nProof: a packet test with 10 matching records serves 3, and a query with only low-confidence matches serves none."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

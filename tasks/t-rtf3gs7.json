@@ -1,0 +1,14 @@
+{
+  "id": "t-rtf3gs7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "ADR 0021 records the redesigned proof: Remember arm, 3-record cap, precision gate",
+  "after": [],
+  "body": [
+    "Source: operator grant 2026-11-18 (memory proof-redesign-grant) on the lead brief; evidence .krn/runs/lead/night/proof-path.md (literature: SkillsBench 2602.12670, arXiv 2603.15401, SWE-ContextBench 2602.08316, 2611.01181, 2602.11988; harness: evals/replay/arm-b.ts:69 B carries what C injects).\nOutcome: ADR 0021 is amended before any re-freeze: (1) arm C includes Remember: units of one repo run in commit-date order and graded failures of earlier units propose evidence-gated records served to later units; (2) at most 3 records per retrieval moment with a precision gate; (3) Stop runs executable checks only, no review step; (4) cost per resolved task and regression rate are reported beside hidden-test pass rate; (5) the MDE and n are recomputed for the expected effect, citing the literature. First verify by command whether seedStandards (src/brain/standards.ts:337) yields project records on a fresh outside clone and record the result. Plan item 5 wording in docs/program/plan.md matches the ADR.\nFiles: docs/adr/0021-proof-methodology.md, docs/program/plan.md, evals/replay/abc.prereg.md\nProof: grep shows the ADR names the Remember arm, the 3-record cap, the precision gate and the recomputed MDE; the seedStandards check command and its output are cited in the ADR."
+  ],
+  "kind": "research",
+  "area": "evals"
+}
