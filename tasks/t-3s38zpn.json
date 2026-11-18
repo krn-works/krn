@@ -1,0 +1,14 @@
+{
+  "id": "t-3s38zpn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "Sandbox placeholder files in a lane worktree do not fail standards checks at Stop",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/pilot-py/lanes/preflight-proof-py-2.log attempt t-03pvpwp exit=73 (release 32e764d): Stop refused s-test-command, s-test-exit-code, s-clean-checkout-tests because an untracked EMPTY package.json in the lane worktree makes JSON.parse fail; the worktree also holds empty untracked .npmrc .yarnrc .gitmodules .env.* (worktree /mnt/storage/tmp/krn/pilot-py/lead/.krn/worktrees/t-03pvpwp; refusal in .krn/runs/stop-check/last-refusal.txt there). These are sandbox deny-write placeholders (settings.sandbox.json), not the agent change; same files appeared in pilot TS lanes.\nOutcome: standards reflex checks and the Stop base/HEAD comparison ignore untracked empty sandbox placeholder files (or the lane removes them before Stop checks run), so a pilot-py note task passes Stop.\nFiles: src/hook/stop.ts, src/cli/lane-run/environment.ts, .claude/settings.sandbox.json\nProof: a stop-hook test on a worktree with an untracked empty package.json raises no s-test-command refusal; a pilot-py drain attempt passes Stop."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

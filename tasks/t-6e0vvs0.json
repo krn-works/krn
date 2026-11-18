@@ -1,0 +1,14 @@
+{
+  "id": "t-6e0vvs0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 1,
+  "title": "A drain stops on repeated install failures (exit 71)",
+  "after": [],
+  "body": [
+    "Evidence: #1458 (32e764d) added exit 71 for a failed contract install before the session; src/cli/lane-run/drain.ts infrastructureExits does not list 71, so a drain on a host whose install fails keeps starting tasks that all fail the same way.\nOutcome: exit 71 counts as an infrastructure exit in the drain stop rule.\nFiles: src/cli/lane-run/drain.ts, test/cli/lane-drain.test.ts\nProof: a drain test with two consecutive install failures stops after the second."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
