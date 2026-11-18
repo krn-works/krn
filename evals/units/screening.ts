@@ -3,7 +3,7 @@
 //   node evals/units/screening.ts build --candidates <jsonl> --sources <dir> [--limit N]   units + manifest rows, unverified
 //   node evals/units/screening.ts verify [--concurrency 2] [--log-dir <dir>] [--id <id>]   run base and fix, record exit codes; --id re-grades a recorded unit
 //   node evals/units/screening.ts verify --recorded [--manifest <file>]                                       count recorded verifications only
-// verify prints `units: N verified` and exits 0 when N >= 70. No model runs.
+// verify prints `units: N verified`, then the repositories covered and uncovered, and exits 0 when N >= 70. No model runs.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -105,6 +105,31 @@ export function verified(v: Verification | undefined): boolean {
     v.testFix === 0 &&
     (v.gold === undefined || v.gold === 0)
   );
+}
+
+/** Repositories the manifest samples: covered holds a verified unit, uncovered only dropped or unverified rows. */
+export function repositoryCoverage(rows: ManifestRow[]): {
+  covered: string[];
+  uncovered: string[];
+} {
+  const covered = new Set(
+    rows.filter((r) => verified(r.verification)).map((r) => r.repo),
+  );
+  const all = new Set(rows.map((r) => r.repo));
+  return {
+    covered: [...covered].sort(),
+    uncovered: [...all].filter((r) => !covered.has(r)).sort(),
+  };
+}
+
+export function coverageReport(c: {
+  covered: string[];
+  uncovered: string[];
+}): string {
+  return [
+    `repositories covered: ${c.covered.length}${c.covered.length ? ` (${c.covered.join(' ')})` : ''}`,
+    `repositories uncovered: ${c.uncovered.length}${c.uncovered.length ? ` (${c.uncovered.join(' ')})` : ''}`,
+  ].join('\n');
 }
 
 /** A regrade replaces the fields the grade owns and keeps every other recorded field (the screen's `gold`). */
@@ -704,12 +729,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         Number(flag('concurrency') ?? 2),
         flag('id'),
       );
+    const rows = readManifest();
     const n = new Set(
-      readManifest()
-        .filter((r) => verified(r.verification))
-        .map((r) => r.id),
+      rows.filter((r) => verified(r.verification)).map((r) => r.id),
     ).size;
     console.log(`units: ${n} verified`);
+    console.log(coverageReport(repositoryCoverage(rows)));
     process.exit(n >= MIN_VERIFIED ? 0 : 1);
   } else {
     console.error('usage: build | verify');
