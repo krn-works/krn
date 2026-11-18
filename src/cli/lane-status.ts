@@ -5,6 +5,7 @@ import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { contractBase } from '../repo/contract.ts';
+import { rootGhEnv } from '../repo/gh.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
 import { gitRun, isMergedOn, laneMergeVerdict, shipRecord } from './lane.ts';
 
@@ -38,7 +39,7 @@ export const ghPrLookup: PrLookup = (main, branch) => {
       '--limit',
       '1',
     ],
-    { cwd: main, encoding: 'utf8', timeout: 30_000 },
+    { cwd: main, encoding: 'utf8', env: rootGhEnv(main), timeout: 30_000 },
   );
   if (out.status !== 0) throw new Error(out.stderr);
   const [first] = JSON.parse(out.stdout) as { number: number; state: string }[];

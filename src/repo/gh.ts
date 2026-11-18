@@ -25,17 +25,42 @@ export type GhSyncReply = {
   readonly error?: Error;
 };
 
+/** The owner/name of `root`'s github.com origin, else undefined. */
+export function rootRepository(root: string): string | undefined {
+  const url = spawnSync('git', ['-C', root, 'remote', 'get-url', 'origin'], {
+    encoding: 'utf8',
+  });
+  return url.status === 0 ? repositoryOfRemote(String(url.stdout)) : undefined;
+}
+
+/**
+ * Scopes the App wrapper of every gh this process spawns to the origin of `cwd` when the caller set no
+ * KRN_APP_REPOSITORY: from an outside root the default krn-works/krn token read the outside repository
+ * as a 404, so `krn task publish` exited 70 and `krn lane status` could not list pull requests.
+ */
+export function scopeGhToOrigin(
+  cwdOf: () => string = () => process.cwd(),
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (env.KRN_APP_REPOSITORY) return;
+  let cwd: string;
+  try {
+    cwd = cwdOf();
+  } catch {
+    // No working directory: leave gh unscoped; the command itself reports the failure in its own format.
+    return;
+  }
+  const repository = rootRepository(cwd);
+  if (repository !== undefined) env.KRN_APP_REPOSITORY = repository;
+}
+
 /**
  * The environment of a gh read of `root`'s own repository. The PATH gh is the App wrapper, whose
  * token is scoped to KRN_APP_REPOSITORY (default krn-works/krn): a read of an outside repository
  * with that default sees a 404 and reports the App as not installed. The scope follows `root`'s origin.
  */
 export function rootGhEnv(root: string): NodeJS.ProcessEnv {
-  const url = spawnSync('git', ['-C', root, 'remote', 'get-url', 'origin'], {
-    encoding: 'utf8',
-  });
-  const repository =
-    url.status === 0 ? repositoryOfRemote(String(url.stdout)) : undefined;
+  const repository = rootRepository(root);
   return repository === undefined
     ? process.env
     : { ...process.env, KRN_APP_REPOSITORY: repository };

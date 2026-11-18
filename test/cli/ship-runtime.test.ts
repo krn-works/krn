@@ -26,7 +26,7 @@ test('every shipCommand caller outside src/ci/ship.ts passes cliShipRuntime', ()
   assert.deepEqual(offenders, []);
 });
 
-test('the ship runner gives git in an outside repository its App credential helper, and leaves the product repository alone', () => {
+test('the ship runner gives git and gh in an outside repository its App credential, and leaves the product repository alone', () => {
   const root = mkdtempSync(join(tmpdir(), 'ship-runner-'));
   try {
     const outside = join(root, 'outside');
@@ -46,7 +46,8 @@ test('the ship runner gives git in an outside repository its App credential help
     runner('git', ['push', 'origin', 'b'], outside);
     runner('git', ['push', 'origin', 'b'], product);
     runner('gh', ['pr', 'list'], outside);
-    const [push, productPush, gh] = seen;
+    runner('gh', ['pr', 'list'], product);
+    const [push, productPush, gh, productGh] = seen;
     assert.equal(push?.[1], '-c');
     assert.equal(push?.[2], 'credential.https://github.com.helper=');
     assert.match(
@@ -55,7 +56,15 @@ test('the ship runner gives git in an outside repository its App credential help
     );
     assert.deepEqual(push?.slice(-3), ['push', 'origin', 'b']);
     assert.deepEqual(productPush, ['git', 'push', 'origin', 'b']);
-    assert.deepEqual(gh, ['gh', 'pr', 'list']);
+    // gh's App wrapper mints for KRN_APP_REPOSITORY: `krn task publish` from the pilot root 404'd without it.
+    assert.deepEqual(gh, [
+      'env',
+      'KRN_APP_REPOSITORY=krn-works/seo-audit-harness',
+      'gh',
+      'pr',
+      'list',
+    ]);
+    assert.deepEqual(productGh, ['gh', 'pr', 'list']);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
