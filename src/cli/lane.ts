@@ -34,7 +34,7 @@ import {
 import { taskFile } from '../task/paths.ts';
 import { takePendingTask } from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
-import { repositoryRoot } from '../task/store.ts';
+import { readTask, repositoryRoot } from '../task/store.ts';
 import { gitWith } from './git-with.ts';
 import { laneBrief } from './lane-brief.ts';
 import { finishLane, laneFinishUsage } from './lane-finish.ts';
@@ -88,7 +88,9 @@ function briefCommand(rest: string[]): void {
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
 // repository or the lane temp dir, and at KRN_LANE_MAX_LIVE worktrees (default 6: raised from the 2026-11-16 usage cut of 4, t-ahsmyfp, by t-n1k2ccq;
-// .krn/runs/lead/usage/report-before-v3.md).
+// .krn/runs/lead/usage/report-before-v3.md). A failed `krn lane run` attempt keeps its worktree
+// for the rerun but releases its claim: it holds no session and never fills the budget, so a
+// drain of more tasks than the budget does not stop on its own leftovers.
 function limit(name: string, fallback: number): number {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value >= 0 && process.env[name] !== ''
@@ -133,6 +135,7 @@ export function checkLaneBudget(main: string, base?: string): void {
         return status.status === 0 && status.stdout.trim() === '';
       };
       if (merged.has(e.name) && clean()) continue;
+      if (failedAttempt(main, e.name)) continue;
       live.push(e.name);
     }
   if (live.length >= maxLive)
@@ -141,6 +144,22 @@ export function checkLaneBudget(main: string, base?: string): void {
         .map((name) => `${name} (${laneState(main, name, base)})`)
         .join(', ')}`,
     );
+}
+
+/**
+ * A worktree a failed `krn lane run` attempt left for its rerun: named after an open task whose
+ * claim was released and with no ship record. A running lane holds its claim, so it still counts.
+ */
+function failedAttempt(main: string, name: string): boolean {
+  if (!isTaskId(name) || shipRecord(main, name) !== undefined) return false;
+  try {
+    return (
+      readTask(main, name)?.status === 'open' &&
+      inspectClaim(main, name).state === 'none'
+    );
+  } catch {
+    return false;
+  }
 }
 
 function laneState(main: string, name: string, base?: string): string {

@@ -229,3 +229,133 @@ test("after a killed run the drain offers its own still-claimed task again, neve
     rmSync(scratch.base, { recursive: true, force: true });
   }
 });
+
+/** A scratch repository with `count` open tasks on origin/main, a lane environment pinned to the default budget. */
+async function budgetScratch(count: number) {
+  const { spawnSync } = await import('node:child_process');
+  const { writeFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { scratchRepository } = await import(
+    '../../evals/adoption/recovery.ts'
+  );
+  const saved = Object.fromEntries(
+    [
+      'KRN_SESSION_CLASS',
+      'KRN_LANE',
+      'KRN_TASK',
+      'KRN_LANE_MAX_LIVE',
+      'KRN_LANE_MIN_FREE_GB',
+    ].map((name) => [name, process.env[name]]),
+  );
+  for (const name of Object.keys(saved)) delete process.env[name];
+  process.env.KRN_LANE_MAX_LIVE = '6';
+  process.env.KRN_LANE_MIN_FREE_GB = '0';
+  const scratch = scratchRepository();
+  const ids = Array.from(
+    { length: count },
+    (_, index) => `t-drn${String(index).padStart(4, '0')}`,
+  );
+  for (const id of ids)
+    writeFileSync(
+      join(scratch.repo, 'tasks', `${id}.json`),
+      `${JSON.stringify({ id, status: 'open', resolution: null, created: '2026-11-18', priority: 1, title: `Leftover ${id}`, after: [], body: [`Outcome: ${id}.`] }, null, 2)}\n`,
+    );
+  const git = (...args: string[]) =>
+    assert.equal(
+      spawnSync('git', ['-C', scratch.repo, ...args]).status,
+      0,
+      args.join(' '),
+    );
+  git('add', 'tasks');
+  git('commit', '-qm', 'more tasks');
+  git('push', '-q', 'origin', 'main');
+  const restore = () => {
+    for (const [name, value] of Object.entries(saved))
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+  };
+  return { scratch, ids, restore };
+}
+
+/** What a failed `krn lane run` attempt leaves: its worktree with uncommitted work, the claim released. */
+async function failedAttempt(repo: string, id: string): Promise<void> {
+  const { writeFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { startLane } = await import('../../src/cli/lane.ts');
+  const { releaseClaim } = await import('../../src/task/claims.ts');
+  const lane = await startLane([
+    id,
+    '--task',
+    id,
+    '--actor',
+    `lane-${id}`,
+    '--root',
+    repo,
+  ]);
+  writeFileSync(join(lane.path, 'draft.txt'), 'unfinished\n');
+  await releaseClaim(repo, id);
+}
+
+test('a drain of 7 failing tasks runs all 7 and never stops on the lane budget for its own leftovers', async () => {
+  const { rmSync } = await import('node:fs');
+  const { defaultDrainSeams } = await import('../../src/cli/lane-run/drain.ts');
+  const { scratch, ids, restore } = await budgetScratch(7);
+  try {
+    const ran: string[] = [];
+    const result = await drainReady(
+      { max: 10, passthrough: [], root: scratch.repo },
+      {
+        doctor: () => ({ text: '', exitCode: 0 }),
+        nextReady: defaultDrainSeams.nextReady,
+        // A refused start is the exit 64 the CLI gives a CliUsageError: the drain records it like any verdict.
+        runTask: async (id) => {
+          ran.push(id);
+          try {
+            await failedAttempt(scratch.repo, id);
+          } catch (error) {
+            return { line: (error as Error).message, exitCode: 64 };
+          }
+          return {
+            line: `lane ${id}: no delivery (claim released)`,
+            exitCode: 73,
+          };
+        },
+        now: () => 0,
+      },
+    );
+    const seeded = ran.filter((id) => ids.includes(id));
+    assert.deepEqual(seeded.sort(), ids);
+    assert.equal(result.exitCode, 73);
+    assert.ok(!result.lines.some((line) => /lane budget|exit=64/u.test(line)));
+  } finally {
+    restore();
+    rmSync(scratch.base, { recursive: true, force: true });
+  }
+});
+
+test('the lane budget skips failed attempts but still counts a task lane that holds its claim', async () => {
+  const { rmSync } = await import('node:fs');
+  const { checkLaneBudget, startLane } = await import('../../src/cli/lane.ts');
+  const { scratch, ids, restore } = await budgetScratch(7);
+  try {
+    for (const id of ids.slice(0, 6)) await failedAttempt(scratch.repo, id);
+    assert.doesNotThrow(() => checkLaneBudget(scratch.repo, 'main'));
+    process.env.KRN_LANE_MAX_LIVE = '1';
+    await startLane([
+      ids[6] as string,
+      '--task',
+      ids[6] as string,
+      '--actor',
+      'worker',
+      '--root',
+      scratch.repo,
+    ]);
+    assert.throws(
+      () => checkLaneBudget(scratch.repo, 'main'),
+      /lane budget: 1 live lane worktrees/u,
+    );
+  } finally {
+    restore();
+    rmSync(scratch.base, { recursive: true, force: true });
+  }
+});

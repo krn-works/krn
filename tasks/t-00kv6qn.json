@@ -1,7 +1,11 @@
 {
   "id": "t-00kv6qn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "checkLaneBudget skips worktrees of failed lane-run attempts (open task, claim released, no ship record); test/cli/lane-drain.test.ts drains 7 failing tasks under the default budget of 6 with no exit 64 (red before the fix: 6 live lane worktrees)"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "A drain does not stop on its own failed attempt worktrees at the lane budget",
