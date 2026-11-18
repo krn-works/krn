@@ -46,6 +46,9 @@ function bodyField(task: TaskRecord, name: string): string | undefined {
 }
 
 const runnableProof = /^(?:node|npm|npx|krn|bin\/krn|git|\.\/\S+) /u;
+// A Proof often quotes a git command as an input to refuse (t-zvgxegd: `git commit -m "Update stuff"`); only read-only git runs.
+const readOnlyGit =
+  /^git (?:log|diff|show|status|grep|ls-files|ls-tree|rev-parse|rev-list|cat-file|merge-base|check-ignore|blame)\b/u;
 const quotes = (text: string, mark: string) => text.split(mark).length - 1;
 
 /**
@@ -78,7 +81,10 @@ export function proofCommands(task: TaskRecord): string[] {
   return [...proof.matchAll(/`([^`\n]+)`/gu)]
     .map((match) => (match[1] ?? '').trim())
     .filter(
-      (command) => runnableProof.test(command) && !placeholder.test(command),
+      (command) =>
+        runnableProof.test(command) &&
+        !placeholder.test(command) &&
+        (!command.startsWith('git ') || readOnlyGit.test(command)),
     )
     .map(proofShell);
 }

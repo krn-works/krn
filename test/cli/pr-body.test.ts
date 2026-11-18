@@ -207,6 +207,21 @@ test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
   assert.deepEqual(proofCommands(record), ['node --test a.test.ts 2>&1']);
 });
 
+test('proofCommands never runs a git span that writes', () => {
+  // Evidence: t-zvgxegd ship exit 81: the Proof example `git commit -m "Update stuff"` (an input
+  // the new hook must refuse) ran as a Proof command in the lane worktree.
+  const record = {
+    ...task,
+    body: [
+      'Proof: the hook refuses `git commit -m "Update stuff"` and `git push origin main`; `git log --oneline -1` and `git diff --check` pass.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), [
+    'git log --oneline -1',
+    'git diff --check',
+  ]);
+});
+
 test('proofCommands runs a plan `command: verdict` span as its command and checks a numeric verdict', () => {
   // Evidence: wave-1 lanes, ship exit 81: `node --test x.test.ts: pass` ran under sh with `: pass` as a file.
   const record = {
