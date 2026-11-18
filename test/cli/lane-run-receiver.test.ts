@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { receiverGaps } from '../../src/cli/lane-run/receiver.ts';
+import {
+  actionsRefusedGap,
+  failedLatestRun,
+  receiverGaps,
+  refusedJob,
+} from '../../src/cli/lane-run/receiver.ts';
 
 // Verbatim gh api replies of krn-works/krn, listed in test/fixtures/gh/provenance.json.
 const gh = (name: string) =>
@@ -52,4 +57,37 @@ test('a head with no Check run yet proves nothing and is ready', () => {
     }),
     [],
   );
+});
+
+// Verbatim replies of krn-works/seo-audit-harness while GitHub refused its jobs for billing (run 44376005035).
+test('a newest run whose jobs GitHub never started names the billing refusal', () => {
+  const runId = failedLatestRun(gh('runs-latest-billing-refused'));
+  assert.equal(runId, 44376005035);
+  const jobId = refusedJob(gh('run-44376005035-jobs-billing-refused'));
+  assert.equal(jobId, 135055234000);
+  assert.match(
+    actionsRefusedGap(
+      44376005035,
+      gh('annotations-135055234000-billing-refused'),
+    ),
+    /did not start the jobs of run 44376005035.*spending limit/u,
+  );
+});
+
+test('a green newest run needs no jobs read', () => {
+  assert.equal(failedLatestRun(gh('runs-latest-main-green')), undefined);
+});
+
+test('a job that ran its steps and failed is a red test, not a refusal', () => {
+  const ran = JSON.stringify({
+    jobs: [
+      {
+        id: 1,
+        conclusion: 'failure',
+        runner_name: 'GitHub Actions 1',
+        steps: [{ name: 'Test' }],
+      },
+    ],
+  });
+  assert.equal(refusedJob(ran), undefined);
 });

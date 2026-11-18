@@ -217,6 +217,42 @@
         "file": "branch-main-krn-works-krn.stdout.json",
         "sha256": "dd6db750022bccd687c4e00070d08349a4450cd97563eec40158e08e55fe1f92"
       }
+    },
+    {
+      "name": "runs-latest-billing-refused",
+      "command": "gh api repos/krn-works/seo-audit-harness/actions/runs?per_page=1 --jq '{total_count, workflow_runs: [.workflow_runs[] | {id, name, head_branch, status, conclusion}]}'  # gh 2.102.1, 2026-11-18",
+      "exitCode": 0,
+      "stdout": {
+        "file": "runs-latest-billing-refused.stdout.json",
+        "sha256": "57afeccd54eff6379ef53e80da5117441d1e4a7690117e650521ae1a2125347b"
+      }
+    },
+    {
+      "name": "run-44376005035-jobs-billing-refused",
+      "command": "gh api repos/krn-works/seo-audit-harness/actions/runs/44376005035/jobs  # gh 2.102.1, 2026-11-18",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-44376005035-jobs-billing-refused.stdout.json",
+        "sha256": "b7664abfe8303b8533c5587fe04c72ed61c3e7280d8bdd234b07234ea309b995"
+      }
+    },
+    {
+      "name": "annotations-135055234000-billing-refused",
+      "command": "gh api repos/krn-works/seo-audit-harness/check-runs/135055234000/annotations  # gh 2.102.1, 2026-11-18",
+      "exitCode": 0,
+      "stdout": {
+        "file": "annotations-135055234000-billing-refused.stdout.json",
+        "sha256": "730cbb6a2100b5c8b81be6c70a5fea1f3269f9345a6f88edea579dc5abca36cb"
+      }
+    },
+    {
+      "name": "runs-latest-main-green",
+      "command": "gh api repos/krn-works/seo-audit-harness/actions/runs?per_page=1&branch=main --jq '{total_count, workflow_runs: [.workflow_runs[] | {id, name, head_branch, status, conclusion}]}'  # gh 2.102.1, 2026-11-18",
+      "exitCode": 0,
+      "stdout": {
+        "file": "runs-latest-main-green.stdout.json",
+        "sha256": "d61e81a649514b03b6c3d732fb2c0c12f96248fd722b58bc37d093d82afd2acc"
+      }
     }
   ]
 }
