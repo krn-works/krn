@@ -1,0 +1,18 @@
+{
+  "id": "t-n3t8wag",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-18",
+  "priority": 0,
+  "title": "One source of truth for every skill on the host: versioned, linked, drift-checked",
+  "after": [],
+  "body": [
+    "Operator 2026-11-18: \"musimy ustalić jakiś globalny mechanizm, który będzie znajdował skillsy, wersje, linkowanie, żeby nie było rozbieżności logicznych globalnie w jakimkolwiek projekcie ... raz a porządnie\". Every skill update leaves stale copies elsewhere.",
+    "Evidence (audit 2026-11-18, this session):\n- Three skill sources with no single owner: team clone /mnt/storage/coding/krn/active/rekurencja-skills (context-relay, herdr, ... symlinked into ~/.claude/skills and ~/.agents/skills by its scripts/link-skills, kept fresh by ~/.local/bin/skills-sync + systemd timer rekurencja-skills-update.timer, which skips a clone on a branch or dirty); KRN .agents/skills (delivery-*, standards, architecture; .claude/skills -> ../.agents/skills); KRN src/adopt/skills (copies shipped to adopter repos) — architecture differs from .agents/skills (sha 2c7b10d3 vs da303eea), standards lacks OWN-INDEX.md; adopter repos hold their own copies.\n- ~/.claude/skills/typescript is a broken symlink to KRN .agents/skills/typescript (absent).\n- Host detection drifted: global context-relay/herdr required HERDR_ENV, so herdr-app sessions (HC_TERMINAL_ID) relayed into the TUI; KRN src/successor/terminal-host.ts:89 already handled hc. Fixed in rekurencja-skills branch relay-herdr-app (cd7cd6b, pushed; PR not yet opened — the KRN gh App token cannot reach that repo).\n- Memory: global-skills-minimal (skillOverrides off for domain skills), rekurencja-skills-install (install tooling local only, never in the team repo), universal-skills-dogfood, herdr-app-baseline.",
+    "Outcome: one manifest names every skill the host and each project uses, with its canonical source (repo + path) and version (commit); one command (`krn skills check` or the existing sync) links every consumer (~/.claude/skills, ~/.agents/skills, each active project's .claude/skills and adopter copies) to that source, reports drift (stale copy, broken link, differing hash, unknown skill) with a nonzero exit, and fixes it with --fix; the hourly timer runs the check and notifies on drift; KRN's own skills that adopters need ship from one place (no hand-copied src/adopt/skills twin).",
+    "Proof: `krn skills check` on this host prints 0 drift after --fix; a test plants a stale adopter copy and a broken link and asserts both are reported with exit 1 and repaired by --fix.",
+    "Files: src/adopt/skills/, .agents/skills/, src/brain/global-standards.ts, scripts/, ~/.local/bin/skills-sync (host tool), rekurencja-skills scripts/link-skills"
+  ],
+  "kind": "feature",
+  "area": "skills"
+}
