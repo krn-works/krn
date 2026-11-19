@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { bodyProblems } from '../../src/ci/pr-body-rule.ts';
+import { goalPrBody } from '../../src/cli/lane-run/delivery.ts';
 import { renderPrBody } from '../../src/cli/pr-body.ts';
 import type { TaskRecord } from '../../src/task/record.ts';
 
@@ -101,4 +102,22 @@ test('CI runs the PR body step on pull requests with PR_BODY', () => {
     /- name: Pull request body\n\s+if: \$\{\{ github\.event_name == 'pull_request' \}\}\n\s+env:\n\s+PR_BODY: \$\{\{ github\.event\.pull_request\.body \}\}\n\s+run: node scripts\/pr-body-check\.ts/u,
   );
   assert.match(workflow, /types: \[opened, synchronize, reopened, edited\]/u);
+});
+
+test('krn pr body run without --verified leaves a TODO placeholder that the rule refuses', () => {
+  const placeholder = renderPrBody({
+    task,
+    commits: ['feat(ci): check bodies (t-abc1234)'],
+    verified: '',
+    agent: 'A',
+    refs: true,
+  });
+  assert.deepEqual(bodyProblems(placeholder), [
+    '"## Verified" section is still the TODO placeholder',
+  ]);
+});
+
+test('a goal lane-run body carries Why and Verified, so ship accepts it where no tracker runs', () => {
+  const body = goalPrBody('Pages load faster.', ['perf(web): cache pages'], 'npm test: pass');
+  assert.deepEqual(bodyProblems(body, { tracked: false }), []);
 });

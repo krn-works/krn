@@ -1,6 +1,6 @@
 /**
  * The parts a pull request body must carry: a `## Why` and a `## Verified` section, each with
- * text under it, and, in a repository that tracks work in tasks/, a `Ticket:` or `Refs:` line.
+ * text under it that is not a TODO placeholder, and, in a repository that tracks work in tasks/, a `Ticket:` or `Refs:` line.
  * Returns one sentence per missing part; an empty list means the body is accepted. `krn pr ship`
  * and the CI step that reads PR_BODY both call it, so a body edited after the ship is caught.
  */
@@ -17,6 +17,8 @@ export function bodyProblems(
     if (section === null) problems.push(`missing a "## ${heading}" section`);
     else if ((section[1] ?? '').trim() === '')
       problems.push(`"## ${heading}" section is empty`);
+    else if (/^TODO\b/u.test((section[1] ?? '').trim()))
+      problems.push(`"## ${heading}" section is still the TODO placeholder`);
   }
   if (
     options.tracked !== false &&

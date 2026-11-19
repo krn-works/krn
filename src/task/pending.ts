@@ -277,6 +277,6 @@ export function commitPendingRecords(
     '-m',
     `Refs: ${first}`,
   ]);
-  const body = `## Change\n\nTask records created in the main checkout:\n\n${lines.join('\n')}\n\n## Verification\n\nkrn task check runs in CI.\n\n## Task\n\nRefs: ${first}\n`;
+  const body = `## Why\n\nTask records created in the main checkout reach the tracker:\n\n${lines.join('\n')}\n\n## Verified\n\nkrn task check runs in CI.\n\n## Task\n\nRefs: ${first}\n`;
   return { ids, title, body };
 }
