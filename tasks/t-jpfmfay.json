@@ -1,7 +1,11 @@
 {
   "id": "t-jpfmfay",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "graded replay rows carry regressed (suite on changed tree, confirmed green at base); fixture test proves true/false/false"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Replay grader records regressed on each graded row",

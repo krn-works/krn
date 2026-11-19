@@ -39,6 +39,8 @@ export interface Unit {
   install: string;
   /** Shell command run in the worktree; exit 0 is PASS. */
   test: string;
+  /** The repository's wider test command, green at base; the regression check runs it. Derived from `test` when absent. */
+  suite?: string;
 }
 
 const SHA = /^[0-9a-f]{40}$/;
