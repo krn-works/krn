@@ -66,12 +66,10 @@ test('krn pr ship --detach with a relative --worktree starts a child that finds 
   );
   assert.equal(started.status, 0, started.stderr);
   const log = join(repo, '.krn', 'worktrees', 'w', '.krn', 'tmp', 'ship.log');
-  const deadline = Date.now() + 20_000;
   let text = '';
-  while (Date.now() < deadline) {
+  for (let attempt = 0; attempt < 100 && text === ''; attempt++) {
     text = existsSync(log) ? readFileSync(log, 'utf8') : '';
-    if (text.length > 0) break;
-    spawnSync('sleep', ['0.2']);
+    if (text === '') spawnSync('sleep', ['0.2']);
   }
   assert.doesNotMatch(text, /ENOENT/);
 });
