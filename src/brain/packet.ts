@@ -20,6 +20,8 @@ export type BrainRecord = {
   readonly tier?: 'floor' | 'reflex' | 'finish';
   /** True when a command or krn check enforces the record; the check teaches it, so a lane packet omits it. */
   readonly enforced?: true;
+  /** True for a record the Remember path proposed from a graded hidden-test failure in this repository (`evidence_kind` `hidden-test`); that failure is its confidence, so the match threshold does not drop it. A research candidate or a harvest record never carries it. */
+  readonly gradedFailure?: true;
   /** Status `retired`: never enters a packet. */
   readonly retired?: true;
   /** The record's retrieval terms (`applies.terms`): words a task may use that the text does not, matched like the text itself. */
@@ -71,6 +73,9 @@ export function packetRecord(r: UnifiedRecord): BrainRecord {
     ...(r.enforcement.kind === 'advisory' ? {} : { enforced: true as const }),
     ...(r.universal === true ? { universal: true as const } : {}),
     ...(r.applies.terms.length === 0 ? {} : { terms: r.applies.terms }),
+    ...(r.evidence_kind === 'hidden-test'
+      ? { gradedFailure: true as const }
+      : {}),
     ...(r.status === 'retired' ? { retired: true as const } : {}),
   };
 }
@@ -174,7 +179,12 @@ export function brainPacket(input: {
       match: match(record),
       score: match(record) * (input.effect?.(record) ?? 1),
     }))
-    .filter((entry) => entry.score > 0 && entry.match >= (input.minMatch ?? 0))
+    .filter(
+      (entry) =>
+        entry.score > 0 &&
+        (entry.record.gradedFailure === true ||
+          entry.match >= (input.minMatch ?? 0)),
+    )
     .sort(
       (a, b) => b.score - a.score || a.record.id.localeCompare(b.record.id),
     );
