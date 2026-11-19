@@ -4,6 +4,9 @@ inputs:
   isolation:
     description: Enable unprivileged user namespaces and install bubblewrap for the sandbox tests.
     default: 'false'
+  second-node:
+    description: Install this exact Node.js through mise next to the pinned one, so the receiver toolchain tests always run a second Node. Empty installs none.
+    default: ''
 runs:
   using: composite
   steps:
@@ -92,6 +95,26 @@ runs:
         mkdir -p "$data/installs/node"
         cp -a "$(dirname "$(dirname "$(command -v node)")")" "$data/installs/node/$version"
         echo "MISE_DATA_DIR=$data" >> "$GITHUB_ENV"
+
+    # test/hook/receiver-toolchain.test.ts pins any installed Node other than
+    # the running one; with none, its real-mise tests skip and strict mode fails.
+    - name: Install mise
+      if: ${{ inputs.second-node != '' }}
+      uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+      with:
+        version: 2026.10.17
+        install: false
+        cache: false
+
+    - name: Install a second Node.js for the receiver toolchain tests
+      if: ${{ inputs.second-node != '' }}
+      shell: bash
+      env:
+        SECOND_NODE: ${{ inputs.second-node }}
+      run: |
+        set -euo pipefail
+        mise install "node@$SECOND_NODE"
+        mise ls --installed --json node
 
     - name: Install the pinned pytest for the Stop check receiver tests
       shell: bash
