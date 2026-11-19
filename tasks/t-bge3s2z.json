@@ -1,7 +1,11 @@
 {
   "id": "t-bge3s2z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "All three outcomes already shipped in #1445 and proved by existing tests: test/hook/stop.test.ts (base environment broken, base-environment.log and base-run.log under .krn/runs/stop-check; real base worktree without node_modules), test/hook/stop-loop-limit.test.ts (last-refusal.txt), test/cli/lane-run-reused-note.test.ts and test/cli/lane-run.test.ts (reused worktree named in lane prompt). Pilot drain proof clause out of scope: operator credentials are down."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "The Stop red-at-base check tells a broken base environment from a red test and saves its refusal",
