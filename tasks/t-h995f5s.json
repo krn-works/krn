@@ -1,0 +1,19 @@
+{
+  "id": "t-h995f5s",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "selectRequiredCheck prefers the plain Check; test/ci/target-checks.test.ts regression fails on base and passes after; npm run fast PASS"
+  },
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "ship gate treats the self-test's intentional expected-red check as a failed gate",
+  "after": [],
+  "body": [
+    "krn pr ship refuses PR #1512 (head 51d8970) because its gate counts the check run 'expected-red / Check' from .github/workflows/project-ci-selftest.yml as a failure. That job is red by design; 'Self-test verdict' and the required aggregate 'Check' passed. Every PR that triggers the self-test is blocked.",
+    "Outcome: krn pr ship on a head whose required Check passed and whose only red run is the self-test's expected-red job reaches the merge step (exit 0); a new regression test that fails on the base passes.\nProof: regression test under test/ci plus a real ship of PR #1512."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
