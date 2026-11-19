@@ -214,32 +214,32 @@ export const SKILL_RULES: readonly SkillRule[] = [
       [
         's-css-no-clamp',
         'Fluid values come from the generated steps',
-        'Take fluid values from the generated token steps and write no new clamp().',
+        'Take fluid sizes from the token scale and write no one-off clamp().',
       ],
       [
         's-css-specificity',
         'The block class is the only boost',
-        'Raise specificity only with the block class: no id selector, no !important and no :is() boost.',
+        'Keep selector specificity flat: no id selector, no !important and no :is() or repeated-selector boost.',
       ],
       [
         's-css-data-exception',
         'A variant is a `data-*`',
-        'Express a variant as a data-* attribute with a finite value set, never as a BEM -- or is-/has- class.',
+        'Express a component variant as one attribute or modifier with a finite, documented value set, never as a free-form class per case.',
       ],
       [
         's-css-no-block-min-height',
         '| `min-height`, `min-block-size`',
-        'Give a block no min-height: let height follow content and use .region for section padding.',
+        'Give a component no fixed min-height: let its height follow its content and leave section spacing to the layout wrapper.',
       ],
       [
         's-css-already-owned',
         '**Already owned.**',
-        'Delete a declaration that a global, composition, token or utility already produces and set the composition variable instead.',
+        "Delete a declaration that a global style, layout primitive, token or utility already produces, and set that owner's variable instead.",
       ],
       [
         's-css-layer-owner',
         '**Layer.**',
-        'Put each declaration in the layer that owns it: no colour in a composition, no layout in a utility, no component selector in globals.',
+        'Put each declaration in the layer that owns it: no colour in a layout primitive, no layout in a utility, no component selector in globals.',
       ],
     ],
   ),
@@ -251,7 +251,7 @@ export const SKILL_RULES: readonly SkillRule[] = [
       [
         's-acf-define-once',
         "A component's fields are defined **once**",
-        "Define a component's fields once as a group field in the Komponenty group and clone it into each layout.",
+        "Define a component's ACF fields once, as one group field, and clone that group into each layout that uses the component.",
       ],
       [
         's-acf-args-only',
@@ -261,17 +261,17 @@ export const SKILL_RULES: readonly SkillRule[] = [
       [
         's-acf-layout-allowlist',
         'Layout name → template path only',
-        'Map a layout name to its template only in the static allowlist inc/flexible-content-layouts.php, never from a database value.',
+        'Map a flexible-content layout name to its template through a static allowlist in code, never from a database value.',
       ],
       [
         's-acf-content-not-looks',
         'Editors choose content, not looks',
-        'Add no appearance field (size, colour, alignment, heading level) to an ACF group; the component sets its look with a profile.',
+        'Give an ACF group only content fields, no appearance field (size, colour, alignment, heading level): the component decides its own look.',
       ],
       [
         's-acf-modified-bump',
         'hand edit set',
-        'After hand-editing acf-json set modified of each changed group to date +%s before running acf json sync.',
+        'After hand-editing an acf-json file, raise the modified timestamp of each changed group before syncing, so the sync takes the file over the database copy.',
       ],
       [
         's-acf-empty-array',
@@ -314,12 +314,12 @@ export const SKILL_RULES: readonly SkillRule[] = [
       [
         's-deploy-tooling-pin',
         'Bump the SHA deliberately',
-        "Bump the pinned release-tooling SHA only after reading the receiver's changes and updating receiver.php on every server.",
+        'Bump a pinned release-tooling SHA only after reading its changes and updating every server-side counterpart it talks to.',
       ],
       [
         's-deploy-wpcli-core-path',
         'WP-CLI with `--path=…/web` never works',
-        'Run WP-CLI against the Bedrock core directory web/wp, never --path=web.',
+        'Point WP-CLI --path at the WordPress core directory (web/wp in Bedrock), never at the web root.',
       ],
     ],
   ),

@@ -1,7 +1,11 @@
 {
   "id": "t-5s9wcsn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Reworded 20 one-project pack records (s-acf-*, s-css-*, s-deploy-*, s-review-new-names, s-design-scale-values, s-wp-*) to principles with real reasons and retrieval terms; generator rows in src/brain/skill-harvest.ts match. Project names stay only in provenance. Retired s-skill-cube-review and s-skill-design-to-build are left as is."
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Pack records hold in any project they apply to",
