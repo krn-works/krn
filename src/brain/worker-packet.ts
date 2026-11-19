@@ -363,18 +363,14 @@ export function queryOutcome(
   };
 }
 
-function rankedHits(root: string, query: Query, holdout: boolean): Hit[] {
-  const base = repositoryFacts(root);
-  const facts: Repository =
-    query.stack === undefined ? base : { ...base, stack: query.stack };
-  const task = query.task ?? QUERY_TASK;
+/** The distinct records of `candidates` a query may serve: of its type, not for the lead or adoption, in force and in scope. */
+function poolIn(
+  candidates: readonly Standard[],
+  facts: Repository,
+  query: Pick<Query, 'type' | 'asOf' | 'files'>,
+): Standard[] {
   const seen = new Set<string>();
-  const unserved = query.type !== undefined && isUnservedType(query.type);
-  const pool = (
-    unserved
-      ? readDecisions(root)
-      : [...readPack(), ...readProject(root), ...conventions(root)]
-  ).filter((standard) => {
+  return candidates.filter((standard) => {
     if (seen.has(standard.id)) return false;
     seen.add(standard.id);
     return (
@@ -385,6 +381,34 @@ function rankedHits(root: string, query: Query, holdout: boolean): Hit[] {
       scoped(standard, facts, query.files)
     );
   });
+}
+
+/** The records a query over `files` scores against: every served kind in force and in scope, the population the match weights are taken over. */
+function queryPool(
+  root: string,
+  asOf: string,
+  files: readonly string[],
+): Standard[] {
+  return poolIn(
+    [...readPack(), ...readProject(root), ...conventions(root)],
+    repositoryFacts(root),
+    { asOf, files },
+  );
+}
+
+function rankedHits(root: string, query: Query, holdout: boolean): Hit[] {
+  const base = repositoryFacts(root);
+  const facts: Repository =
+    query.stack === undefined ? base : { ...base, stack: query.stack };
+  const task = query.task ?? QUERY_TASK;
+  const unserved = query.type !== undefined && isUnservedType(query.type);
+  const pool = poolIn(
+    unserved
+      ? readDecisions(root)
+      : [...readPack(), ...readProject(root), ...conventions(root)],
+    facts,
+    query,
+  );
   const byId = new Map(pool.map((standard) => [standard.id, standard]));
   const records: BrainRecord[] = pool
     .filter(
@@ -473,6 +497,54 @@ export function editRecords(
       );
     })
     .sort((a, b) => tierEffect(packetRecord(b)) - tierEffect(packetRecord(a)));
+}
+
+/**
+ * The records of `scoped` that pass the retrieval gate for the edited `file` (repository-relative) and the
+ * session's `taskText` (the claimed task, else the text the edit writes): the gate task start applies
+ * (`CONFIDENCE_THRESHOLD` on the match score of those words plus the file's path words, over the scoped records;
+ * the graded-failure exemption of `brainPacket`), so a scope match alone never serves a record. Order: the
+ * records the task's words rank in the first `QUERY_LIMIT` of every record a query would weigh, then the rest
+ * in the scope list's tier order. No cap here; `withinBudget` caps.
+ */
+export function confidentRecords(
+  root: string,
+  scoped: readonly Standard[],
+  taskText: string,
+  file: string,
+  asOf: string,
+): Standard[] {
+  const rank = (
+    pool: readonly Standard[],
+    query: string,
+    minMatch?: number,
+  ): readonly string[] => {
+    const byId = new Map(pool.map((standard) => [standard.id, standard]));
+    return brainPacket({
+      task: QUERY_TASK,
+      query,
+      records: pool.map(packetRecord),
+      asOf,
+      budget: Number.MAX_SAFE_INTEGER,
+      matchText: (record) =>
+        (byId.get(record.id)?.applies.terms ?? []).join(' '),
+      ...(minMatch === undefined ? {} : { minMatch }),
+    }).records;
+  };
+  const gated = new Set(
+    rank(scoped, `${taskText} ${file}`, CONFIDENCE_THRESHOLD),
+  );
+  const best = rank(queryPool(root, asOf, [file]), taskText).slice(
+    0,
+    QUERY_LIMIT,
+  );
+  const place = (id: string) => {
+    const at = best.indexOf(id);
+    return at < 0 ? best.length : at;
+  };
+  return scoped
+    .filter((standard) => gated.has(standard.id))
+    .sort((a, b) => place(a.id) - place(b.id));
 }
 
 /** The records of `ranked` whose rendered lines fit `budget` tokens together, in order. */

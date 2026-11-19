@@ -1,7 +1,11 @@
 {
   "id": "t-jsf5jbm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "edit moment gated by the shared confidence threshold: 5 scoped/2 weak serves 3, all weak serves none, evidence_kind-less research candidate gated; edit-standards test passes"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Before-edit retrieval applies the precision threshold, not only the cap",

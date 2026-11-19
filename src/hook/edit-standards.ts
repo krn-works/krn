@@ -18,12 +18,12 @@ import { SERVE_POLICY } from '../brain/packet.ts';
 import type { Standard } from '../brain/standards.ts';
 import { taskKey } from '../brain/task-query.ts';
 import {
+  confidentRecords,
   EDIT_BUDGET,
   editLine,
   editRecords,
   fileStack,
   heldOut,
-  queryStandards,
   withinBudget,
 } from '../brain/worker-packet.ts';
 import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
@@ -87,10 +87,9 @@ export function commandFiles(
 }
 
 /**
- * The records scoped to `file`, the ones the task's words match first. The scope list alone ranks by tier,
- * so a file with dozens of scoped records buried the one the work needed (3 of 12 reachable labels in the
- * first five); the task's title and Outcome rank them the way a query does. Without task text the order is
- * the scope list's.
+ * The records scoped to `file` that pass the retrieval gate task start applies: the task's title and
+ * Outcome (or, in a session without a task, the text the edit writes) plus the file's path must match a record
+ * with confidence at least the threshold, best match first. A scope match alone serves nothing.
  */
 export function editRecordsFor(
   project: string,
@@ -98,24 +97,36 @@ export function editRecordsFor(
   asOf: string,
   taskText = '',
 ): Standard[] {
-  const scoped = editRecords(project, file, asOf);
-  if (taskText.trim() === '' || scoped.length < 2) return scoped;
-  const order = queryStandards(project, {
-    text: taskText,
-    files: [file],
+  return confidentRecords(
+    project,
+    editRecords(project, file, asOf),
+    `${taskText} ${file}`,
+    file,
     asOf,
-    budget: Number.MAX_SAFE_INTEGER,
-  }).map((hit) => hit.id);
-  const rank = (standard: Standard) => {
-    const at = order.indexOf(standard.id);
-    return at < 0 ? order.length : at;
-  };
-  return [...scoped].sort((a, b) => rank(a) - rank(b));
+  );
 }
 
 /** The retrieval text of the task a session works on: its title, Outcome and Files, or empty. */
 function sessionTaskText(project: string, main: string, id: string): string {
   return (taskKey(project, id) ?? taskKey(main, id))?.text ?? '';
+}
+
+/** The most text of an edit the retrieval gate reads when no task words exist. */
+const SIGNAL_LIMIT = 4000;
+
+/**
+ * The words a session without a claimed task puts to the retrieval gate: the text an edit writes, or the Bash
+ * command that touches the file, bounded. Empty for any other payload.
+ */
+export function editSignal(payload: Record<string, unknown>): string {
+  const input = payload.tool_input;
+  const command =
+    typeof input === 'object' &&
+    input !== null &&
+    typeof (input as Record<string, unknown>).command === 'string'
+      ? ((input as Record<string, unknown>).command as string)
+      : '';
+  return (writtenText(payload) ?? command).slice(0, SIGNAL_LIMIT);
 }
 
 /** The kind of `file` the edit moment fires once for: its stack, else `*.<extension>`, else its name. */
@@ -206,8 +217,9 @@ export function main(): void {
     try {
       const main = mainCheckout(input.project);
       const task = process.env.KRN_TASK ?? taskId(input.project);
-      const taskText =
+      const claimed =
         task === undefined ? '' : sessionTaskText(input.project, main, task);
+      const taskText = claimed.trim() === '' ? editSignal(payload) : claimed;
       blocks = files.flatMap(
         (file) =>
           editContext(

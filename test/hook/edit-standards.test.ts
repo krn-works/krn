@@ -16,16 +16,19 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { editStandardsCommand } from '../../src/adopt/stop-hook.ts';
+import { ingestCandidate } from '../../src/brain/candidate-ingest.ts';
 import {
   appendExposure,
   readExposures,
   servedExposure,
 } from '../../src/brain/exposures.ts';
+import { heldOut } from '../../src/brain/worker-packet.ts';
 import { ruleViolations } from '../../src/hook/edit-rules.ts';
 import {
   commandFiles,
   editContext,
   editedFile,
+  editRecordsFor,
   fileKind,
 } from '../../src/hook/edit-standards.ts';
 
@@ -44,12 +47,16 @@ const bashCapture = readFileSync(
   'utf8',
 ).trim();
 
+/** The task a PHP session works on: its words are what the edit moment's confidence gate matches the PHP records against. */
+const phpTask = 't-phpedit';
+const phpTaskText = 'php composer error catch autoload';
+
 function run(cwd: string, command: string, args: string[], input = '') {
   return spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
     input,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd, KRN_TASK: phpTask },
   });
 }
 
@@ -69,6 +76,16 @@ function adoptedPhp(): string {
   git('commit', '-q', '-m', 'initial');
   const adopt = run(root, process.execPath, [cli, 'adopt', root]);
   assert.equal(adopt.status, 0, adopt.stderr);
+  mkdirSync(join(root, 'tasks'), { recursive: true });
+  writeFileSync(
+    join(root, `tasks/${phpTask}.json`),
+    JSON.stringify({
+      id: phpTask,
+      status: 'open',
+      title: phpTaskText,
+      body: [`Outcome: ${phpTaskText}`],
+    }) + '\n',
+  );
   return root;
 }
 
@@ -130,6 +147,32 @@ test('the first PHP edit of a session brings the PHP records, the second adds on
     assert.ok(
       later.every((id) => !ids(context).includes(id)),
       'the second PHP edit repeats no record',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a session with no claimed task still gets the PHP records its edit text matches', () => {
+  const root = adoptedPhp();
+  try {
+    rmSync(join(root, `tasks/${phpTask}.json`));
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: root,
+    };
+    delete env.KRN_TASK;
+    const [edit = ''] = capture;
+    const first = spawnSync(process.execPath, [cli, 'hook', 'edit'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: edit.split(capturedRoot).join(root),
+      env,
+    });
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(
+      JSON.parse(first.stdout).hookSpecificOutput.additionalContext,
+      /^Standards for editing src\/a\.php \((\d+); at most 3 records, retrieval confidence >= 2\):\n- \[s-php-/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -256,14 +299,34 @@ test('an earlier edit exposure of a kind hides only the records it served, never
   try {
     const ids = (text: string | undefined) =>
       [...(text ?? '').matchAll(/\[(s-[^\]]+)\]/gu)].map((m) => m[1] ?? '');
-    const all = ids(editContext(root, root, 'probe', 'src/a.php'));
+    const all = ids(
+      editContext(
+        root,
+        root,
+        'probe',
+        'src/a.php',
+        undefined,
+        undefined,
+        phpTaskText,
+      ),
+    );
     assert.ok(all.length > 1, 'the PHP kind has several records');
     const [first = ''] = all;
     appendExposure(root, {
       ...servedExposure('session', 'edit', [first]),
       scope: 'php',
     });
-    const later = ids(editContext(root, root, 'session', 'src/a.php'));
+    const later = ids(
+      editContext(
+        root,
+        root,
+        'session',
+        'src/a.php',
+        undefined,
+        undefined,
+        phpTaskText,
+      ),
+    );
     assert.ok(!later.includes(first), 'the served record is not repeated');
     assert.ok(later.length > 0, 'later rules of the kind are still printed');
   } finally {
@@ -283,6 +346,7 @@ test('two sessions of one task get the same holdout arm', () => {
           'src/a.php',
           undefined,
           't-aaaaaaa',
+          phpTaskText,
         );
         const withheld = readExposures(root).find(
           (exposure) => exposure.run === session,
@@ -349,4 +413,182 @@ test('the static edit rules flag a per-test timeout and pass ordinary test text'
   );
   assert.deepEqual(ruleViolations('src/a.ts', `${clock} - started`), []);
   assert.deepEqual(ruleViolations('test/a.test.ts', 'assert.ok(1);'), []);
+});
+
+const gateDay = '2026-11-19';
+const gateTask = 'tighten cache invalidation handler retries';
+const gateFile = 'src/cache.zzz';
+
+/** A record of the scoped kind (`src/**` files of a kind no stack owns, so no pack record joins the pool) with the given text. */
+const scopedRecord = (id: string, text: string) => ({
+  id,
+  type: 'standard',
+  text,
+  provenance: { origin: 'test' },
+  status: 'accepted',
+  recorded_at: gateDay,
+  valid_from: gateDay,
+  valid_to: null,
+  applies: { paths: ['src/**/*.zzz'] },
+});
+
+function gatedRepository(records: object[]): string {
+  const root = mkdtempSync(join(tmpdir(), 'krn-edit-gate-'));
+  mkdirSync(join(root, '.agents'));
+  writeFileSync(
+    join(root, '.agents/standards.json'),
+    JSON.stringify(records, null, 2),
+  );
+  return root;
+}
+
+/** The ids of the edit block for one edit of the gate file, under a holdout key that withholds none of `ids`. */
+function servedIds(root: string, ids: string[]): string[] {
+  const key =
+    Array.from({ length: 200 }, (_, n) => `key-${n}`).find((candidate) =>
+      ids.every((id) => !heldOut(candidate, id)),
+    ) ?? '';
+  assert.notEqual(key, '', 'a holdout key withholds none of the records');
+  const block = editContext(
+    root,
+    root,
+    `session-${key}`,
+    gateFile,
+    gateDay,
+    key,
+    gateTask,
+  );
+  return [...(block ?? '').matchAll(/^- \[([^\]]+)\]/gmu)].map(
+    (m) => m[1] ?? '',
+  );
+}
+
+test('the edit moment serves only the scoped records that pass the confidence threshold, at most 3', () => {
+  const strong = [
+    scopedRecord('r-one', 'Bound cache invalidation retries.'),
+    scopedRecord('r-two', 'Name the handler that cache invalidation calls.'),
+    scopedRecord('r-three', 'Tighten every retries loop in a handler.'),
+  ];
+  const weak = [
+    scopedRecord('r-weak-one', 'Keep cache keys short.'),
+    scopedRecord('r-weak-two', 'Retries need a backoff.'),
+  ];
+  const root = gatedRepository([...weak, ...strong]);
+  try {
+    assert.deepEqual(
+      servedIds(
+        root,
+        [...strong, ...weak].map((r) => r.id),
+      ).sort(),
+      ['r-one', 'r-three', 'r-two'],
+      '5 scope matches, 2 below the threshold: the 3 that pass are served',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  const crowded = gatedRepository(
+    ['a', 'b', 'c', 'd'].map((n) =>
+      scopedRecord(`r-${n}`, `Cache invalidation handler rule ${n}.`),
+    ),
+  );
+  try {
+    const ids = ['a', 'b', 'c', 'd'].map((n) => `r-${n}`);
+    assert.equal(servedIds(crowded, ids).length, 3, 'the cap still binds');
+  } finally {
+    rmSync(crowded, { recursive: true, force: true });
+  }
+});
+
+test('when every scoped record is below the confidence threshold the edit moment serves none', () => {
+  const root = gatedRepository([
+    scopedRecord('r-weak-one', 'Keep cache keys short.'),
+    scopedRecord('r-weak-two', 'Retries need a backoff.'),
+    scopedRecord('r-weak-three', 'Cache entries expire.'),
+    scopedRecord('r-weak-four', 'Retries are bounded.'),
+    scopedRecord('r-unrelated', 'Prefer named exports.'),
+  ]);
+  try {
+    assert.deepEqual(editRecordsFor(root, gateFile, gateDay, gateTask), []);
+    assert.equal(
+      editContext(root, root, 'session', gateFile, gateDay, 'key', gateTask),
+      undefined,
+    );
+    assert.deepEqual(editRecordsFor(root, gateFile, gateDay, ''), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/** A repository whose only record is the trial record of an ingested research candidate with the given text. */
+function candidateRepository(id: string, text: string): string {
+  const root = gatedRepository([]);
+  writeFileSync(join(root, '.agents/records.json'), '[]\n');
+  writeFileSync(
+    join(root, 'krn.json'),
+    '{ "conventions": ".agents/records.json" }\n',
+  );
+  const file = join(root, `${id}.json`);
+  writeFileSync(
+    file,
+    JSON.stringify({
+      schema: 'krn.candidate/v1',
+      id,
+      source: {
+        url: 'https://arxiv.org/abs/2601.00001',
+        quote: 'q',
+        sha256: 'abc',
+      },
+      pillar: 'recall',
+      claim: 'A claim.',
+      record_draft: {
+        ...scopedRecord(`r-${id}`, text),
+        status: 'trial',
+        provenance: { origin: 'https://arxiv.org/abs/2601.00001' },
+      },
+      experiment: {
+        population: 'cases',
+        metric: 'first-push-green',
+        predicted_delta: 0.05,
+        min_n: 20,
+      },
+      expires: '2027-11-19',
+      motivated_by: 'case failed',
+    }),
+  );
+  ingestCandidate(root, file, gateDay);
+  return root;
+}
+
+test('a research candidate with no evidence_kind is gated like any other record', () => {
+  const root = candidateRepository('c-one-word', 'Keep cache keys short.');
+  try {
+    const kept = JSON.parse(
+      readFileSync(join(root, '.agents/records.json'), 'utf8'),
+    )[0];
+    assert.equal(kept.evidence_kind, undefined, 'no evidence_kind');
+    assert.deepEqual(
+      editRecordsFor(root, gateFile, gateDay, gateTask),
+      [],
+      'a one-word match is withheld',
+    );
+    assert.equal(
+      editContext(root, root, 'session', gateFile, gateDay, 'key', gateTask),
+      undefined,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  const strong = candidateRepository(
+    'c-two-words',
+    'Bound cache invalidation retries.',
+  );
+  try {
+    assert.deepEqual(
+      editRecordsFor(strong, gateFile, gateDay, gateTask).map((r) => r.id),
+      ['r-c-two-words'],
+      'a two-word match is served',
+    );
+  } finally {
+    rmSync(strong, { recursive: true, force: true });
+  }
 });
