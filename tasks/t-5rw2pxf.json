@@ -1,0 +1,14 @@
+{
+  "id": "t-5rw2pxf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "The A/B/C report gives CIs and unit counts for cost and refuses a missing cost",
+  "after": [],
+  "body": [
+    "Source: S8 readiness audit 2026-11-19 (lead session); ADR 0021 points 10-11.\nEvidence: evals/d23/analysis.ts:72 pairedDifference silently drops units missing cost in one arm; evals/replay/abc.ts:223 prints no unit count for cost; no CI for USD per resolved task. Screen data: log-cost SD 0.43 over 70 units, MDE about 15 percent.\nOutcome: --report prints for cost C/A and C/B the paired log-ratio with 95% CI (unit-clustered over reps), Holm-adjusted p, the number of units in the pair, and USD per resolved task with a bootstrap CI; a row without total_cost_usd makes --report --strict fail naming it.\nProof: a report test on fixture rows with one missing cost fails strict naming the row; with full rows it prints the CI and n."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-gkwtsx7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "The S8 prereg freezes harness-sha and explains its 70 of 73 screened units",
+  "after": [],
+  "body": [
+    "Source: S8 readiness audit 2026-11-19 (lead session); ADR 0021 points 10-11.\nEvidence: evals/replay/abc.prereg.md has no harness-sha: line (matrixProblems at evals/replay/abc.ts:186 blocks the report); prereg lists 70 units, the screen 73, without stating the 3 exclusions.\nOutcome: the prereg names the three excluded units with their reason and, at freeze, the harness-sha; a check refuses a confirmatory run whose prereg lacks either.\nProof: node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report --strict names no prereg problem after the freeze."
+  ],
+  "kind": "chore",
+  "area": "evals"
+}
