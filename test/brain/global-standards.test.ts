@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   readlinkSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,8 +16,10 @@ import { fileURLToPath } from 'node:url';
 import {
   COMMIT_CONVENTION,
   commitHookCommand,
+  GATE_LINK,
   GLOBAL_BUDGET_BYTES,
   GLOBAL_FILE,
+  heavyHookCommand,
   IMPORT_LINE,
 } from '../../src/brain/global-standards.ts';
 import { parseRecords } from '../../src/brain/packet.ts';
@@ -126,7 +129,7 @@ test('the file states the commit, PR and merge convention once', () => {
   assert.doesNotMatch(text, /Commit subjects since the repository adopted/u);
 });
 
-test('the commit-format hook joins the user Claude and Codex hooks, other entries kept', () => {
+test('the commit-format and heavy-command hooks join the user Claude and Codex hooks, other entries kept', () => {
   const home = freshHome();
   mkdirSync(join(home, '.codex'));
   const other = {
@@ -144,16 +147,18 @@ test('the commit-format hook joins the user Claude and Codex hooks, other entrie
   );
   assert.equal(run(home).status, 0);
   const command = commitHookCommand(product);
-  for (const file of [
-    join(home, '.claude', 'settings.json'),
-    join(home, '.codex', 'hooks.json'),
-  ]) {
+  for (const [file, codex] of [
+    [join(home, '.claude', 'settings.json'), false],
+    [join(home, '.codex', 'hooks.json'), true],
+  ] as const) {
     const settings = JSON.parse(readFileSync(file, 'utf8'));
     const commands = settings.hooks.PreToolUse.flatMap(
       (entry: { hooks: Array<{ command: string }> }) =>
         entry.hooks.map((hook) => hook.command),
     );
     assert.ok(commands.includes(command), file);
+    assert.ok(commands.includes(heavyHookCommand(product, codex)), file);
+    assert.ok(!commands.includes(heavyHookCommand(product, !codex)), file);
   }
   const claude = JSON.parse(
     readFileSync(join(home, '.claude', 'settings.json'), 'utf8'),
@@ -161,7 +166,7 @@ test('the commit-format hook joins the user Claude and Codex hooks, other entrie
   assert.equal(claude.model, 'x');
   assert.equal(claude.hooks.PreToolUse[0].hooks[0].command, 'mine');
   assert.equal(claude.hooks.Stop[0].hooks[0].command, 'stop-mine');
-  assert.equal(claude.hooks.PreToolUse.length, 2);
+  assert.equal(claude.hooks.PreToolUse.length, 3);
   // The installed command is the real entry: it refuses a plain subject.
   const refused = spawnSync('sh', ['-c', command], {
     input: JSON.stringify({
@@ -176,6 +181,28 @@ test('the commit-format hook joins the user Claude and Codex hooks, other entrie
   assert.equal(
     JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))
       .hooks.PreToolUse.length,
-    2,
+    3,
   );
+});
+
+test('the heavy-gate host entry links the gate and runs it', () => {
+  const home = freshHome();
+  assert.equal(run(home).status, 0);
+  const link = join(home, GATE_LINK);
+  assert.equal(readlinkSync(link), join(product, 'bin', 'heavy-gate'));
+  const ran = spawnSync(link, ['run', '--', 'sh', '-c', 'exit 7'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KRN_HEAVY_GATE_DIR: join(home, 'gate'),
+      KRN_TEST_SLOT_HELD: '',
+    },
+  });
+  assert.equal(ran.status, 7, ran.stderr);
+  rmSync(link);
+  writeFileSync(link, 'mine');
+  const check = run(home, '--check');
+  assert.equal(check.status, 1);
+  assert.match(check.stderr, /heavy-gate: not a link/u);
+  assert.equal(run(home).status, 65);
 });

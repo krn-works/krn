@@ -123,7 +123,9 @@ export async function run(
     );
   } catch (error) {
     if (!(error instanceof SlotTimeoutError)) throw error;
-    process.stderr.write(`heavy-gate: ${error.message}\n`);
+    process.stderr.write(
+      `heavy-gate: ${error.message}; the host stayed busy: nothing ran, rerun the command later or in the background\n`,
+    );
     return SLOT_TIMEOUT_EXIT;
   }
 }

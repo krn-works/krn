@@ -1,0 +1,18 @@
+{
+  "id": "t-3bsxq8j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "Scheduled batch services wait for the host heavy-job gate",
+  "after": [],
+  "body": [
+    "Source: t-qj1tpbe evidence (host sampler 2026-11-19): mise-en-plesk's scheduled audit scan (`run-scheduled-scan.sh` -> `node mise-plesk-audit.js scan ...`) runs from the systemd user unit mise-en-plesk.service, which no agent hook reaches.\nOutcome: the unit's scan waits for the host heavy-job gate (a drop-in wrapping ExecStart with `heavy-gate run --`, or the project's own script calling it), decided against krn-only-scope and host-capacity-grant; other systemd user units that run batch work on this host are listed with a verdict each.\nProof: during a scheduled scan run, heavy-gate status lists the scan as a holder or waiting job."
+  ],
+  "kind": "feature",
+  "area": "host",
+  "from": {
+    "kind": "task",
+    "ref": "t-qj1tpbe"
+  }
+}

@@ -1,7 +1,8 @@
 // The user-level standards file: the in-force universal records of the whole pack and the overlay
 // (they hold in any repository and any stack): the top ones that fit the budget are rendered into one
 // KRN-owned file that ~/.claude/CLAUDE.md imports, plus links to the universal project skills and the
-// commit-format PreToolUse hook in ~/.claude/settings.json and ~/.codex/hooks.json. KRN process (tracker, lanes, ship) never goes here.
+// commit-format and heavy-command PreToolUse hooks in ~/.claude/settings.json and ~/.codex/hooks.json,
+// plus the `heavy-gate` host entry in ~/.local/bin. KRN process (tracker, lanes, ship) never goes here.
 import {
   existsSync,
   lstatSync,
@@ -120,6 +121,18 @@ export function commitHookCommand(product: string): string {
   return `node '${join(product, 'src', 'hook', 'commit-format.ts')}'`;
 }
 
+/** The command of the user-scope heavy-command hook, which sends any repository's heavy jobs through the host gate; Codex gets the refusing form. */
+export function heavyHookCommand(product: string, codex: boolean): string {
+  return `node '${join(product, 'src', 'hook', 'heavy-command.ts')}'${codex ? ' --codex' : ''}`;
+}
+
+/** The host entry of the heavy-job gate, relative to the home directory. */
+export const GATE_LINK = join('.local', 'bin', 'heavy-gate');
+
+function gateTarget(product: string): string {
+  return join(product, 'bin', 'heavy-gate');
+}
+
 type HookFile = { hooks?: Record<string, unknown> } & Record<string, unknown>;
 
 /** The hook settings `text` with one PreToolUse Bash entry for `command` added, or null when it is already there. Every other entry stays. */
@@ -145,12 +158,21 @@ export function withCommitHook(
   return `${JSON.stringify({ ...settings, hooks: { ...hooks, PreToolUse: [...pre, entry] } }, null, 2)}\n`;
 }
 
-/** The user-scope hook files the commit-format entry goes into: Claude Code always, Codex when its home exists. */
-function hookFiles(home: string): string[] {
+/** The user-scope hook files and the PreToolUse Bash commands each one holds: Claude Code always, Codex when its home exists. */
+function hookFiles(
+  home: string,
+  product: string,
+): Array<{ file: string; commands: string[] }> {
   const codex = join(home, '.codex');
+  const forHarness = (isCodex: boolean) => [
+    commitHookCommand(product),
+    heavyHookCommand(product, isCodex),
+  ];
   return [
-    join(userDir(home), 'settings.json'),
-    ...(existsSync(codex) ? [join(codex, 'hooks.json')] : []),
+    { file: join(userDir(home), 'settings.json'), commands: forHarness(false) },
+    ...(existsSync(codex)
+      ? [{ file: join(codex, 'hooks.json'), commands: forHarness(true) }]
+      : []),
   ];
 }
 
@@ -172,9 +194,12 @@ export function globalDrift(
       linkState(join(dir, 'skills', name), skillTarget(product, name)) !== 'ok'
     )
       drift.push(`skills/${name}: not a link to the KRN skill`);
-  for (const file of hookFiles(home))
-    if (withCommitHook(readOr(file), commitHookCommand(product)) !== null)
-      drift.push(`${file}: lacks the commit-format PreToolUse hook`);
+  for (const { file, commands } of hookFiles(home, product))
+    for (const command of commands)
+      if (withCommitHook(readOr(file), command) !== null)
+        drift.push(`${file}: lacks the PreToolUse hook ${command}`);
+  if (linkState(join(home, GATE_LINK), gateTarget(product)) !== 'ok')
+    drift.push(`${GATE_LINK}: not a link to the KRN heavy-job gate`);
   return drift;
 }
 
@@ -194,6 +219,11 @@ export function installGlobal(
       throw new StandardsDataError(
         `${join(dir, 'skills', name)} exists and is not a link to the KRN skill; move it first`,
       );
+  const gateLink = join(home, GATE_LINK);
+  if (linkState(gateLink, gateTarget(product)) === 'other')
+    throw new StandardsDataError(
+      `${gateLink} exists and is not a link to the KRN heavy-job gate; move it first`,
+    );
   mkdirSync(join(dir, 'skills'), { recursive: true });
   const changed: string[] = [];
   if (readOr(join(dir, GLOBAL_FILE)) !== text) {
@@ -218,11 +248,18 @@ export function installGlobal(
       changed.push(`skills/${name}`);
     }
   }
-  for (const file of hookFiles(home)) {
-    const next = withCommitHook(readOr(file), commitHookCommand(product));
-    if (next === null) continue;
-    writeFileSync(file, next);
+  for (const { file, commands } of hookFiles(home, product)) {
+    let text = readOr(file);
+    for (const command of commands)
+      text = withCommitHook(text, command) ?? text;
+    if (text === readOr(file) || text === null) continue;
+    writeFileSync(file, text);
     changed.push(file);
+  }
+  if (linkState(gateLink, gateTarget(product)) === 'absent') {
+    mkdirSync(join(home, '.local', 'bin'), { recursive: true });
+    symlinkSync(gateTarget(product), gateLink);
+    changed.push(GATE_LINK);
   }
   return changed;
 }
