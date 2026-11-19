@@ -29,6 +29,7 @@ import { type Arm, parseArms } from './arms.ts';
 import { contaminationLines, scanRows } from './contamination.ts';
 import { preflightOnce, sandboxedCommitGrade } from './grade-preflight.ts';
 import { DiskBudgetError, type LiveUnit, screenLive } from './live.ts';
+import { commitDateOrder, RepoMemory } from './memory.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import {
@@ -210,7 +211,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const model = flag('model');
     const modelOption = model === undefined ? {} : { model };
     const rows: Row[] = [];
-    for (const id of ids)
+    const memory = new RepoMemory();
+    const today = new Date().toISOString().slice(0, 10);
+    // Units of one repository run oldest commit first; arm C carries what its earlier failures taught.
+    const order = commitDateOrder(ids.map((id) => byId.get(id) as LiveUnit));
+    for (const {
+      unit: { id },
+    } of order)
       for (const arm of arms)
         for (let rep = 1; rep <= reps; rep++) {
           const options = {
@@ -222,12 +229,21 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           const unit = byId.get(id) as LiveUnit;
           let row: Row;
           if (arm.id === 'B') {
-            const b = await armBRow(unit, options, rep);
+            const b = await armBRow(
+              unit,
+              { ...options, memory: memory.forRepo(unit.unit.repo) },
+              rep,
+            );
             row = b.row;
             console.log(formatRow(row));
             if (b.tokens !== undefined) console.log(formatTokens(id, b.tokens));
           } else {
-            row = await armCRow(unit, options, rep);
+            row = await armCRow(
+              unit,
+              { ...options, memory: memory.forRepo(unit.unit.repo) },
+              rep,
+            );
+            memory.learn(unit, row, today);
             console.log(formatRow(row));
           }
           rows.push(row);

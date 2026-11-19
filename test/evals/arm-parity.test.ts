@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -15,7 +16,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { armBRow } from '../../evals/replay/arm-b.ts';
 import { armCRow } from '../../evals/replay/arm-c.ts';
-import { screenUnit } from '../../evals/replay/live.ts';
+import { type LiveUnit, screenUnit } from '../../evals/replay/live.ts';
+import { commitDateOrder, RepoMemory } from '../../evals/replay/memory.ts';
+import { trialId } from '../../src/brain/evidence-proposals.ts';
 import { sessionContext } from '../../src/hook/session-start.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
@@ -198,6 +201,94 @@ test('a scratch inside a git repository is refused before any session, not at th
       /inside the git repository/u,
     );
     assert.equal(sessions, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("arm C serves the record unit 1's graded failure proposed to unit 2 of the repo; arms A and B never see it", async (t) => {
+  requiresIsolation(t, 'live arm sandbox', ['bwrap']);
+  const root = mkdtempSync(join(tmpdir(), 'arm-parity-'));
+  try {
+    const { live, options } = fixture(root);
+    // Two units of one repository whose ids sort against their commit dates.
+    const unit = (id: string, committed: string): LiveUnit => ({
+      ...live,
+      unit: {
+        ...(live.unit as LiveUnit['unit']),
+        id,
+        committed,
+      } as LiveUnit['unit'],
+    });
+    const later = unit('t-aaaaaaa', '2026-09-02');
+    const earlier = unit('t-zzzzzzz', '2026-09-01');
+    assert.deepEqual(
+      commitDateOrder([later, earlier]).map((u) => u.unit.id),
+      ['t-zzzzzzz', 't-aaaaaaa'],
+    );
+    const seen: Record<string, string> = {};
+    const capped = {
+      result: { ok: false, detail: 'capped', cost: 1.02, capped: true },
+      notStarted: false,
+      timedOut: false,
+      stdout: budgetCapped,
+      stderr: '',
+    };
+    const memory = new RepoMemory();
+    const today = '2026-11-19';
+    // Unit 1 in arm C: the session changes the tree, the hidden test stays red, the graded failure is remembered.
+    const first = await armCRow(earlier, {
+      ...options,
+      memory: memory.forRepo(earlier.unit.repo),
+      session: async (wt) => {
+        // A change the hidden test (test -f fixed.txt) does not accept.
+        writeFileSync(join(wt, 'changed.txt'), 'x\n');
+        return capped;
+      },
+    });
+    assert.equal(first.pass, false);
+    memory.learn(earlier, first, today);
+    const proposals = memory.forRepo('o/r');
+    assert.equal(proposals.length, 1);
+    assert.equal(proposals[0]?.evidence_kind, 'hidden-test');
+    const id = trialId(proposals[0] as never);
+    const session = (arm: string) => async (wt: string) => {
+      const read = (name: string): string =>
+        existsSync(join(wt, name)) ? readFileSync(join(wt, name), 'utf8') : '';
+      seen[arm] = read('.krn/conventions.json') + read('CLAUDE.md');
+      if (arm === 'C')
+        seen.served = sessionContext(wt, 'memory-session', {}) ?? '';
+      writeFileSync(join(wt, 'changed.txt'), 'x\n');
+      return capped;
+    };
+    await screenUnit(later, {
+      ...options,
+      rowsFile: join(root, 'r'),
+      session: session('A'),
+    });
+    await armBRow(later, {
+      ...options,
+      memory: memory.forRepo('o/r'),
+      session: session('B'),
+    });
+    await armCRow(
+      later,
+      { ...options, memory: memory.forRepo('o/r'), session: session('C') },
+      1,
+      today,
+    );
+    assert.ok('A' in seen && 'B' in seen, 'the A and B sessions ran');
+    assert.ok(seen.C?.includes(id), 'arm C checkout holds the record');
+    assert.ok(!seen.A?.includes(id), 'arm A never sees it');
+    assert.ok(!seen.A?.includes(proposals[0]?.text ?? '?'));
+    assert.ok(
+      seen.B?.includes(proposals[0]?.text ?? '?'),
+      'arm B carries it statically in CLAUDE.md',
+    );
+    assert.ok(
+      seen.served?.includes(proposals[0]?.text ?? '?'),
+      `SessionStart serves the remembered record: ${seen.served}`,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

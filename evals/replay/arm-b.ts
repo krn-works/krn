@@ -4,6 +4,7 @@
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { projectStandards, renderRules } from '../../src/adopt/adopt.ts';
+import type { EvidenceProposal } from '../../src/brain/evidence-proposals.ts';
 import {
   type BrainRecord,
   packetRecord,
@@ -19,6 +20,7 @@ import {
 import { type ArmOptions, armRow, commitPreparation } from './arm-session.ts';
 import { ARMS } from './arms.ts';
 import { type LiveUnit, promptOf } from './live.ts';
+import { memoryRecords } from './memory.ts';
 import type { Row } from './rows.ts';
 
 export const STATIC_HEADER = '# Repository conventions';
@@ -71,12 +73,15 @@ export interface StaticRender {
 export function renderStatic(
   records: readonly BrainRecord[],
   target: number,
+  remembered: readonly BrainRecord[] = [],
 ): StaticRender {
   const ordered = [...records].sort(
     (a, b) => tierEffect(b) - tierEffect(a) || a.id.localeCompare(b.id),
   );
-  const chosen: BrainRecord[] = [];
+  // Records earlier units taught (memory.ts) are carried whole whatever the target, then the rest by tier.
+  const chosen: BrainRecord[] = [...remembered];
   for (const record of ordered) {
+    if (remembered.some((r) => r.id === record.id)) continue;
     if (tokens(chosen.map(line).join('\n')) >= target) break;
     chosen.push(record);
   }
@@ -111,12 +116,13 @@ export function writeStatic(wt: string, render: StaticRender): void {
 /** One arm-B session on a checkout with the static CLAUDE.md, its grade and the row's token counts. */
 export async function armBRow(
   unit: LiveUnit,
-  o: ArmOptions,
+  o: ArmOptions & { memory?: readonly EvidenceProposal[] },
   rep = 1,
   asOf: string = new Date().toISOString().slice(0, 10),
 ): Promise<{ row: Row; tokens: TokenCounts | undefined }> {
   const { row, note } = await armRow(ARMS.B, unit, o, rep, (wt, log) => {
-    const records = inForceRecords(wt, asOf);
+    const remembered = memoryRecords(o.memory ?? []);
+    const records = [...inForceRecords(wt, asOf), ...remembered];
     const injection = injectionTokens(
       records,
       wt,
@@ -124,7 +130,7 @@ export async function armBRow(
       promptOf(unit.unit),
       asOf,
     );
-    const render = renderStatic(records, injection);
+    const render = renderStatic(records, injection, remembered);
     appendFileSync(
       log,
       `static records: ${render.records.join(',')} (${render.tokens} tokens, C injects ${injection})\n`,
