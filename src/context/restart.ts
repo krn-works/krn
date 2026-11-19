@@ -136,6 +136,7 @@ export function restartText(
   event: string,
   transcriptPath?: string,
   sessionId?: string,
+  resumedTranscript?: string,
 ): string {
   const [commonDirectory = '', sha = '', branch = ''] = execFileSync(
     'git',
@@ -281,7 +282,14 @@ export function restartText(
   // An adopted repository's interactive session gets the standards that match its task; a worker's brief already has them.
   if (sessionId !== undefined && !isWorkerSession()) {
     try {
-      const block = sessionStandards(project, main, sessionId, branch);
+      const block = sessionStandards(
+        project,
+        main,
+        sessionId,
+        branch,
+        undefined,
+        resumedTranscript,
+      );
       if (block) lines.splice(next, 0, block);
     } catch {
       /* Standards must never interrupt startup. */
@@ -318,6 +326,7 @@ export function main(): void {
         input.event,
         input.source === 'compact' ? input.transcriptPath : undefined,
         input.sessionId,
+        input.source === 'resume' ? input.transcriptPath : undefined,
       ),
     );
   } catch {

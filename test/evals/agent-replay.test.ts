@@ -149,3 +149,30 @@ test('stream-json assistant events and transcript lines yield the same events', 
   ]);
   assert.deepEqual(replayEvents('not json\n{"type":"result"}'), []);
 });
+
+test('the stop-attribution grader counts the ship-recorded early return named in words, and a session-proof reply does not repeat', () => {
+  const c = REPLAY_CASES.find((x) => x.id === 'stop-attribution-unchecked');
+  assert.ok(c);
+  for (const text of [
+    'Stop did not run because recordedShip made it bail.',
+    'The Stop hook returns early: krn pr ship had recorded a merged ship for the lane, so the standards check was skipped.',
+    'src/hook/stop.ts takes the early return once a ship record exists.',
+  ])
+    assert.equal(repeats(c.grader, [{ kind: 'text', text }]), true, text);
+  assert.equal(
+    repeats(c.grader, [
+      {
+        kind: 'text',
+        text: 'No cost or turns on the lane line, so no session ran and Stop never ran.',
+      },
+    ]),
+    false,
+  );
+  assert.equal(
+    repeats(c.grader, [
+      { kind: 'tool', text: 'cat .krn/runs/hook/timing.jsonl | tail' },
+      { kind: 'text', text: 'It returns early on a ship record.' },
+    ]),
+    false,
+  );
+});
