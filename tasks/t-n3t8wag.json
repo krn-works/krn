@@ -3,7 +3,7 @@
   "status": "open",
   "resolution": null,
   "created": "2026-11-18",
-  "priority": 0,
+  "priority": 1,
   "title": "One source of truth for every skill on the host: versioned, linked, drift-checked",
   "after": [],
   "body": [
@@ -12,7 +12,8 @@
     "Outcome: one manifest names every skill the host and each project uses, with its canonical source (repo + path) and version (commit); one command (`krn skills check` or the existing sync) links every consumer (~/.claude/skills, ~/.agents/skills, each active project's .claude/skills and adopter copies) to that source, reports drift (stale copy, broken link, differing hash, unknown skill) with a nonzero exit, and fixes it with --fix; the hourly timer runs the check and notifies on drift; KRN's own skills that adopters need ship from one place (no hand-copied src/adopt/skills twin).",
     "Proof: `krn skills check` on this host prints 0 drift after --fix; a test plants a stale adopter copy and a broken link and asserts both are reported with exit 1 and repaired by --fix.",
     "Files: src/adopt/skills/, .agents/skills/, src/brain/global-standards.ts, scripts/, ~/.local/bin/skills-sync (host tool), rekurencja-skills scripts/link-skills",
-    "Scope note 2026-11-18 (lead, drift audit): the same drift check, --fix and timer also cover `krn standards install --global --check` (~/.claude/krn-standards.md went stale silently because ~/.claude/skills/architecture linked to the working checkout instead of .krn/product-release, so the install refused and nothing ran the check). Dead reference to a `typescript` skill: .agents/skills/architecture/SKILL.md:42, docs/program/repository-workflow.md:29,61."
+    "Scope note 2026-11-18 (lead, drift audit): the same drift check, --fix and timer also cover `krn standards install --global --check` (~/.claude/krn-standards.md went stale silently because ~/.claude/skills/architecture linked to the working checkout instead of .krn/product-release, so the install refused and nothing ran the check). Dead reference to a `typescript` skill: .agents/skills/architecture/SKILL.md:42, docs/program/repository-workflow.md:29,61.",
+    "Operator 2026-11-19: S8 A/B/C is the priority after the host-capacity line and t-k7xx0kq. Lowered to P1: not on the S8 path."
   ],
   "kind": "feature",
   "area": "skills"

@@ -3,11 +3,12 @@
   "status": "open",
   "resolution": null,
   "created": "2026-11-18",
-  "priority": 1,
+  "priority": 0,
   "title": "Arm C remembers: earlier units' graded failures in a repo become records for later units",
   "after": [],
   "body": [
-    "Evidence: .krn/runs/lead/night/proof-path.md; grant memory proof-redesign-grant (2026-11-18).\nOutcome: evals/replay runs units of one repo in commit-date order; a graded failure of an earlier unit proposes an evidence-gated record (S15 path) that arm C serves to later units of that repo; arms A and B never see it.\nFiles: evals/replay/arm-c.ts, evals/replay/run.ts, src/brain/\nProof: a replay test with two units of one repo shows the record from unit 1 served to unit 2 in arm C only; a pilot on the 20 non-frozen pilot units writes rows for A, B and C."
+    "Evidence: .krn/runs/lead/night/proof-path.md; grant memory proof-redesign-grant (2026-11-18).\nOutcome: evals/replay runs units of one repo in commit-date order; a graded failure of an earlier unit proposes an evidence-gated record (S15 path) that arm C serves to later units of that repo; arms A and B never see it.\nFiles: evals/replay/arm-c.ts, evals/replay/run.ts, src/brain/\nProof: a replay test with two units of one repo shows the record from unit 1 served to unit 2 in arm C only; a pilot on the 20 non-frozen pilot units writes rows for A, B and C.",
+    "Operator 2026-11-19: S8 A/B/C is the priority after the host-capacity line and t-k7xx0kq. Raised to P0 as S8 critical path."
   ],
   "kind": "feature",
   "area": "evals"

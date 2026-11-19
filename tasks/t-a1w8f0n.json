@@ -3,13 +3,14 @@
   "status": "open",
   "resolution": null,
   "created": "2026-11-18",
-  "priority": 1,
+  "priority": 0,
   "title": "A replay matrix keeps a disk budget, shares its caches and writes rows as units finish",
   "after": [],
   "body": [
     "Evidence (2026-11-18): .krn/runs/routing/matrix-20 (26 units x sonnet, gpt-6.2-sol, opus, run.sh) ran 45 min, wrote 0 rows, and filled /mnt/storage to 0 B free: scratch-{sonnet,gpt-6.2-sol,opus} under /mnt/storage/tmp/krn/matrix-20 held 4.9/5.8/5.7 GB (per-arm copies of the same go-mod and package caches); opus.log ends in src/cli/outside-git.ts:68 \"git fetch ... failed: No space left on device\". Every lane and fast run on the host failed with it (lane start refused: 0.2 GB free).",
     "Outcome: evals/replay/run.ts checks free space against a budget before each unit (the lane KRN_LANE_MIN_FREE_GB rule) and stops with a named exit instead of filling the disk; arms running in parallel share one read-only dependency cache instead of one per arm; each finished unit appends its row at once, so a stopped run keeps its rows; a unit scratch is removed after its row is written.",
-    "Proof: a replay test with a free-space probe below the budget exits with the named code before cloning; a test asserts the row file grows after each unit; a 3-arm screen of 3 units peaks below one arm-copy of the caches."
+    "Proof: a replay test with a free-space probe below the budget exits with the named code before cloning; a test asserts the row file grows after each unit; a 3-arm screen of 3 units peaks below one arm-copy of the caches.",
+    "Operator 2026-11-19: S8 A/B/C is the priority after the host-capacity line and t-k7xx0kq. Raised to P0 as S8 critical path."
   ],
   "kind": "defect",
   "area": "evals"
