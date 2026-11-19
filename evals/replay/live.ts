@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { budgetShortfall } from '../../src/repo/disk-budget.ts';
 import { withoutBrowser } from '../units/no-browser.ts';
 import { requireSandbox } from '../units/sandbox.ts';
 import {
@@ -32,7 +33,16 @@ import { eligible, readRows, type ScreenUnit } from './screen.ts';
 import type { DrivenSession } from './session.ts';
 import { SESSION_MS } from './session-args.ts';
 
+/** The exit code of a replay run that stopped on the disk budget (src/repo/disk-budget.ts) before cloning another unit. */
+export const DISK_BUDGET_EXIT = 73;
+
+export class DiskBudgetError extends Error {
+  readonly exitCode = DISK_BUDGET_EXIT;
+}
+
 export interface LiveOptions {
+  /** Free-space probe in GB per directory (tests pass a stub); defaults to the host's statfs. */
+  freeGb?: ((dir: string) => number | undefined) | undefined;
   /** Directory of clones named <owner>__<name>. */
   sources: string;
   /** Scratch directory for session checkouts and logs. */
@@ -177,6 +187,7 @@ export async function screenUnit(
   { unit, dir }: LiveUnit,
   o: LiveOptions,
   rep = 1,
+  onRow?: (row: Row) => void,
 ): Promise<Row> {
   const arm = ARMS.A;
   const slotEnv = o.env ?? process.env;
@@ -211,7 +222,7 @@ export async function screenUnit(
         test: a.grade.test,
         harness: o.harness,
       });
-    return {
+    const row: Row = {
       unit: unit.id,
       arm: arm.id,
       rep,
@@ -219,6 +230,9 @@ export async function screenUnit(
       harness: o.harness,
       ...a.row,
     };
+    // The row is written before the scratch goes: a stopped run keeps every finished unit's row.
+    onRow?.(row);
+    return row;
   } finally {
     // A session may leave read-only trees (envtest binaries, a Go module cache); a failed removal never loses the row.
     try {
@@ -239,6 +253,14 @@ export async function screenLive(
   o: LiveOptions,
 ): Promise<Row[]> {
   // Refuse before any paid session when the grade could not run sandboxed or would abort on a scratch inside a repository.
+  const stopOnBudget = () => {
+    const short = budgetShortfall([o.scratch, dirname(o.rowsFile)], o.freeGb);
+    if (short)
+      throw new DiskBudgetError(
+        `replay disk budget: only ${short.free.toFixed(1)} GB free under ${short.dir} (minimum ${short.minFree} GB, KRN_LANE_MIN_FREE_GB); stopped before cloning the next unit, rows so far are kept in ${o.rowsFile}`,
+      );
+  };
+  stopOnBudget();
   requireSandbox();
   refuseScratchInRepository(o.scratch);
   const ok = new Set(
@@ -294,14 +316,23 @@ export async function screenLive(
     1,
     Number((o.env ?? process.env).KRN_EVAL_MAX_SESSIONS) || 4,
   );
+  let stopped: DiskBudgetError | undefined;
   const work = async () => {
-    while (next < runnable.length) {
+    while (next < runnable.length && !stopped) {
+      try {
+        stopOnBudget();
+      } catch (e) {
+        stopped = e as DiskBudgetError;
+        return;
+      }
       const t = runnable[next++] as (typeof runnable)[number];
-      const row = await screenUnit(t.u, o, t.rep);
-      appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
-      rows.push(row);
+      await screenUnit(t.u, o, t.rep, (row) => {
+        appendFileSync(o.rowsFile, `${formatRow(row)}\n`);
+        rows.push(row);
+      });
     }
   };
   await Promise.all(Array.from({ length: width }, work));
+  if (stopped) throw stopped;
   return rows;
 }

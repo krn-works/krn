@@ -303,6 +303,13 @@ function build(
 
 let cacheRoot = '';
 
+/** The dependency cache of a run: KRN_EVAL_CACHE when set (arms in parallel share one), else one under the scratch. */
+export const cacheRootFor = (
+  scratch: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string =>
+  env.KRN_EVAL_CACHE ? resolve(env.KRN_EVAL_CACHE) : join(scratch, 'cache');
+
 const GB = 1024 ** 3;
 
 /** Bytes under a path, symlinks not followed. */
@@ -498,7 +505,7 @@ export async function gradeWorktree(
   // No unsandboxed fallback: a host without a working bwrap fails the grade loudly instead of recording a verdict.
   requireSandbox();
   refuseScratchInRepository(scratch);
-  cacheRoot = join(scratch, 'cache');
+  cacheRoot = cacheRootFor(scratch);
   mkdirSync(dirname(join(wt, unit.hidden.dest)), { recursive: true });
   writeFileSync(
     join(wt, unit.hidden.dest),
@@ -593,7 +600,7 @@ async function verify(
   }
   mkdirSync(logDir, { recursive: true });
   mkdirSync(scratch, { recursive: true });
-  cacheRoot = join(scratch, 'cache');
+  cacheRoot = cacheRootFor(scratch);
   // Round-robin over repositories: one unit per repository first, so a slow repository costs one wait.
   const seen = new Map<string, number>();
   const order = rows

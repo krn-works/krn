@@ -25,6 +25,7 @@ import { withSessionSlot } from '../session-slot.ts';
 import { SESSION_HOSTS, startEgress } from '../units/egress.ts';
 import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
 import {
+  cacheRootFor,
   forceRemove,
   gradeWorktree,
   INSTALL_SECONDS,
@@ -113,13 +114,24 @@ export function commitPreparation(wt: string, message: string): void {
 
 /** The cache a unit's preflight install fills and its sessions build against, shared with the grade's pins. */
 const sessionCache = (env: NodeJS.ProcessEnv): string =>
+  cacheRootFor(dirname(env.CLAUDE_CONFIG_DIR ?? env.TMPDIR ?? tmpdir()), env);
+
+/** The arm's own cache under its scratch: the Go build cache lives here even when the package caches are shared. */
+const ownCache = (env: NodeJS.ProcessEnv): string =>
   join(dirname(env.CLAUDE_CONFIG_DIR ?? env.TMPDIR ?? tmpdir()), 'cache');
 
 /** The session environment with the toolchain pins and caches the grade uses (screening.ts toolchainEnv). */
 export function withToolchain(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const cache = sessionCache(env);
   mkdirSync(cache, { recursive: true });
-  return { ...env, ...toolchainEnv(cache) };
+  const own = ownCache(env);
+  mkdirSync(own, { recursive: true });
+  // Parallel arms share the package caches (KRN_EVAL_CACHE); a build cache is written by every build, so it stays private.
+  return {
+    ...env,
+    ...toolchainEnv(cache),
+    ...(cache === own ? {} : { GOCACHE: join(own, 'go-build') }),
+  };
 }
 
 /**
@@ -144,7 +156,11 @@ export async function sandboxedPreflight(
           `timeout ${INSTALL_SECONDS} sh -c ${shellWord(unit.install)}`,
           {
             cwd: wt,
-            writable: [...sessionWritable(wt, sessionEnv), sessionCache(env)],
+            writable: [
+              ...sessionWritable(wt, sessionEnv),
+              sessionCache(env),
+              ownCache(env),
+            ],
             egress: egress.socket,
             env: sessionEnv,
           },
@@ -212,7 +228,8 @@ export async function sandboxedSession(
         writable: [
           ...sessionWritable(wt, sessionEnv),
           dirname(settings),
-          sessionCache(env),
+          // A shared dependency cache (KRN_EVAL_CACHE) is read-only to a session: the preflight install filled it.
+          ownCache(env),
           ...(codex?.writable ?? []),
         ],
         ...(isAbsolute(bin) ? { readable: [dirname(bin)] } : {}),

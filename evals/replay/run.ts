@@ -3,6 +3,9 @@
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows,
 // then a contamination line: the rows whose session reached the upstream fix, read from the transcripts under --scratch.
 // --screen --model <m> --rows <file> runs them on another model; a Codex model (gpt-6.2-sol) runs on `codex exec`.
+// --screen stops with exit 73 (before cloning the next unit) when free space falls below KRN_LANE_MIN_FREE_GB (default 5);
+// each finished unit's row is appended at once, so a stopped run keeps its rows. KRN_EVAL_CACHE names one dependency cache
+// that parallel arms share instead of one per arm.
 // --screen --session-minutes <n> lowers every attempt's time cap (default 30), the gate's re-prompt included.
 // --screen --record <dir> keeps each graded session's patch and grade (default .krn/runs/screen-recordings when
 // --rows is not given);
@@ -25,7 +28,7 @@ import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { contaminationLines, scanRows } from './contamination.ts';
 import { preflightOnce, sandboxedCommitGrade } from './grade-preflight.ts';
-import { type LiveUnit, screenLive } from './live.ts';
+import { DiskBudgetError, type LiveUnit, screenLive } from './live.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
 import {
@@ -145,23 +148,29 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.exit(screened === 0 ? 0 : 1);
     }
     if (!args.includes('--report') && flag('metric') === undefined)
-      await screenLive(loaded, {
-        sources,
-        scratch,
-        rowsFile,
-        // The tracked screening run records by default; a run into another rows file records only when asked.
-        recordings:
-          flag('record') ??
-          (flag('rows') === undefined
-            ? join(here, '..', '..', '.krn', 'runs', 'screen-recordings')
-            : undefined),
-        harness: harnessSha(here),
-        reps: Number(flag('reps') ?? 1),
-        model: flag('model'),
-        ...(flag('session-minutes') === undefined
-          ? {}
-          : { sessionMs: Number(flag('session-minutes')) * 60_000 }),
-      });
+      try {
+        await screenLive(loaded, {
+          sources,
+          scratch,
+          rowsFile,
+          // The tracked screening run records by default; a run into another rows file records only when asked.
+          recordings:
+            flag('record') ??
+            (flag('rows') === undefined
+              ? join(here, '..', '..', '.krn', 'runs', 'screen-recordings')
+              : undefined),
+          harness: harnessSha(here),
+          reps: Number(flag('reps') ?? 1),
+          model: flag('model'),
+          ...(flag('session-minutes') === undefined
+            ? {}
+            : { sessionMs: Number(flag('session-minutes')) * 60_000 }),
+        });
+      } catch (e) {
+        if (!(e instanceof DiskBudgetError)) throw e;
+        console.error(e.message);
+        process.exit(e.exitCode);
+      }
     const s = screen(units, readRows(rowsFile));
     if (flag('metric') === 'screen-a-pass-rate') {
       if (s.passRate === null) process.exit(65);

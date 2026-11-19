@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { withToolchain } from '../../evals/replay/arm-session.ts';
 import { ARMS } from '../../evals/replay/arms.ts';
 import * as live from '../../evals/replay/live.ts';
 import { armEnv } from '../../evals/replay/live.ts';
@@ -778,5 +779,124 @@ test('--screen screens out a unit its grader cannot grade before any session and
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const screenArgs = (root: string, units: string, rowsFile: string) => [
+  'evals/replay/run.ts',
+  '--screen',
+  '--units-dir',
+  units,
+  '--sources',
+  join(root, 'sources'),
+  '--scratch',
+  join(root, 'scratch'),
+  '--rows',
+  rowsFile,
+];
+
+test('--screen with free space below the budget exits 73 before cloning a unit and writes no row', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units, stub } = fixture(root);
+    const rowsFile = join(root, 'rows.jsonl');
+    const r = spawnSync('node', screenArgs(root, units, rowsFile), {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KRN_EVAL_CLAUDE: stub,
+        KRN_LANE_MIN_FREE_GB: '1000000000',
+        KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+      },
+    });
+    assert.equal(r.status, 73, r.stderr);
+    assert.match(r.stderr, /replay disk budget: only .* GB free/);
+    assert.match(r.stderr, /KRN_LANE_MIN_FREE_GB/);
+    assert.equal(existsSync(rowsFile), false);
+    const clones = existsSync(join(root, 'scratch'))
+      ? readdirSync(join(root, 'scratch')).filter((n) =>
+          n.startsWith('session-'),
+        )
+      : [];
+    assert.deepEqual(clones, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('--screen appends each unit row as the unit finishes and removes its scratch checkout after the row is written', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-live-'));
+  try {
+    const { units, stub } = fixture(root);
+    const rowsFile = join(root, 'rows.jsonl');
+    const probe = join(root, 'scratch', 'probe.log');
+    const wrapper = join(root, 'probe-claude');
+    // At each session start: rows already in the file, session checkouts alive in scratch.
+    writeFileSync(
+      wrapper,
+      `#!/bin/sh\necho "$(cat ${rowsFile} 2>/dev/null | wc -l) $(ls ${join(root, 'scratch')} | grep -c '^session-')" >> ${probe}\nexec ${stub} "$@"\n`,
+    );
+    chmodSync(wrapper, 0o755);
+    const r = spawnSync('node', screenArgs(root, units, rowsFile), {
+      cwd: repo,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KRN_EVAL_CLAUDE: wrapper,
+        KRN_EVAL_MAX_SESSIONS: '1',
+        KRN_EVAL_SLOT_DIR: join(root, 'slots'),
+      },
+    });
+    assert.equal(r.status, 0, r.stderr);
+    const seen = readFileSync(probe, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => l.trim().replace(/\s+/g, ' '));
+    // Unit 1 starts with no row and one checkout; unit 2 starts after row 1 landed and unit 1's checkout is gone.
+    assert.deepEqual(seen.slice(0, 2), ['0 1', '1 1']);
+    assert.equal(parseRows(readFileSync(rowsFile, 'utf8')).length, 2);
+    assert.deepEqual(
+      readdirSync(join(root, 'scratch')).filter((n) =>
+        n.startsWith('session-'),
+      ),
+      [],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('arms running in parallel share the package caches named by KRN_EVAL_CACHE and keep a private Go build cache', () => {
+  const shared = join(tmpdir(), 'krn-shared-cache-probe');
+  const arm = (name: string) => {
+    const scratch = join(tmpdir(), `krn-arm-${name}`);
+    return withToolchain({
+      CLAUDE_CONFIG_DIR: join(scratch, 'claude-config'),
+      KRN_EVAL_CACHE: shared,
+    });
+  };
+  try {
+    const a = arm('one');
+    const b = arm('two');
+    for (const key of ['GOMODCACHE', 'npm_config_cache', 'PIP_CACHE_DIR'])
+      assert.equal(a[key], b[key]);
+    assert.equal(a.GOMODCACHE, join(shared, 'go-mod'));
+    assert.notEqual(a.GOCACHE, b.GOCACHE);
+    // Without the variable an arm keeps its own cache under its scratch.
+    const own = withToolchain({
+      CLAUDE_CONFIG_DIR: join(tmpdir(), 'krn-arm-one', 'claude-config'),
+    });
+    assert.equal(
+      own.GOMODCACHE,
+      join(tmpdir(), 'krn-arm-one', 'cache', 'go-mod'),
+    );
+  } finally {
+    for (const d of [
+      shared,
+      join(tmpdir(), 'krn-arm-one'),
+      join(tmpdir(), 'krn-arm-two'),
+    ])
+      rmSync(d, { recursive: true, force: true });
   }
 });
