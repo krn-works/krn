@@ -272,7 +272,11 @@ test("arm C serves the record unit 1's graded failure proposed to unit 2 of the 
       rowsFile: join(root, 'r'),
       session: session('A'),
     });
-    await armBRow(later, { ...options, session: session('B') });
+    await armBRow(later, {
+      ...options,
+      memory: memory.forRepo('o/r'),
+      session: session('B'),
+    });
     await armCRow(
       later,
       { ...options, memory: memory.forRepo('o/r'), session: session('C') },
@@ -282,7 +286,11 @@ test("arm C serves the record unit 1's graded failure proposed to unit 2 of the 
     assert.ok('A' in seen && 'B' in seen, 'the A and B sessions ran');
     assert.ok(seen.C?.includes(id), 'arm C checkout holds the record');
     assert.ok(!seen.A?.includes(id), 'arm A never sees it');
-    assert.ok(!seen.B?.includes(id), 'arm B never sees it');
+    assert.ok(!seen.A?.includes(proposals[0]?.text ?? '?'));
+    assert.ok(
+      seen.B?.includes(proposals[0]?.text ?? '?'),
+      'arm B carries it statically in CLAUDE.md',
+    );
     assert.ok(
       seen.served?.includes(proposals[0]?.text ?? '?'),
       `SessionStart serves the remembered record: ${seen.served}`,

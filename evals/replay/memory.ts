@@ -1,6 +1,6 @@
 // Arm C remembers (ADR 0021 point 10): units of one repository run in commit-date order, and a graded failure of an
-// earlier unit proposes one evidence-gated trial record through the S15 path (src/brain/evidence-proposals.ts). Only
-// arm C's checkout receives those records; arms A and B never see them.
+// earlier unit proposes one evidence-gated trial record through the S15 path (src/brain/evidence-proposals.ts). Arm C serves
+// those records and arm B carries them statically; arm A never sees them.
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {

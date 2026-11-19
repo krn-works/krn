@@ -229,7 +229,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           const unit = byId.get(id) as LiveUnit;
           let row: Row;
           if (arm.id === 'B') {
-            const b = await armBRow(unit, options, rep);
+            const b = await armBRow(
+              unit,
+              { ...options, memory: memory.forRepo(unit.unit.repo) },
+              rep,
+            );
             row = b.row;
             console.log(formatRow(row));
             if (b.tokens !== undefined) console.log(formatTokens(id, b.tokens));
