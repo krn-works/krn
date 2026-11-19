@@ -1,0 +1,8 @@
+{
+  "text": "A synthetic host-load measurement times one job alone first, caps its total CPU-seconds and wall time, records the host's foreign load beside each arm, and stops when that foreign load already saturates the host, because an unsized burn harms other work and its arms are not comparable.",
+  "kind": "prose",
+  "evidence": [
+    "t-c0k4wdz measurement: first run aborted after 9 min at load 25; rerun arms saw foreign load 43-65 (re-imagine judge, elektroinstal QA)"
+  ],
+  "recorded_at": "2026-11-19"
+}
