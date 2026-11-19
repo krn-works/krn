@@ -1,8 +1,14 @@
 // Live arm C (KRN): the unit's base checkout adopts KRN (krn adopt writes the hooks, rules and contract), then one
 // headless session runs through the shared session path (arm-session.ts) and the unit's hidden test grades the result.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+} from 'node:fs';
+import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { EvidenceProposal } from '../../src/brain/evidence-proposals.ts';
 import { outsideGit } from '../../src/cli/outside-git.ts';
@@ -16,6 +22,45 @@ import type { Row } from './rows.ts';
 const krnEntry = fileURLToPath(
   new URL('../../src/cli/krn.mjs', import.meta.url),
 );
+
+/** What krn needs to run: its sources, standards store, version pin and dependencies, never evals or other units. */
+const KRN_PARTS = [
+  'src',
+  'standards',
+  'package.json',
+  '.node-version',
+  'node_modules',
+];
+
+/**
+ * Makes `krn` callable inside the session sandbox. The adopted hooks run `command -v krn || exit 2`, and the host's
+ * `krn` is a symlink into a checkout the sandbox does not mount, so without this every Bash call and every Stop was
+ * refused and arm C ended `no-attempt` (t-11kv38i, t-1182p41). A shim in scratch runs the harness's own krn entry; only
+ * the parts krn runs from are mounted read-only.
+ */
+export function krnOnPath(
+  base: NodeJS.ProcessEnv,
+  scratch: string,
+): { env: NodeJS.ProcessEnv; readable: string[] } {
+  const bin = join(scratch, 'krn-bin');
+  mkdirSync(bin, { recursive: true });
+  const shim = join(bin, 'krn');
+  writeFileSync(
+    shim,
+    `#!/bin/sh\nexec '${process.execPath}' '${krnEntry}' "$@"\n`,
+  );
+  chmodSync(shim, 0o755);
+  const root = dirname(dirname(dirname(krnEntry)));
+  return {
+    env: {
+      ...base,
+      PATH: [bin, ...(base.PATH ?? '').split(delimiter).filter(Boolean)].join(
+        delimiter,
+      ),
+    },
+    readable: KRN_PARTS.map((p) => join(root, p)).filter((p) => existsSync(p)),
+  };
+}
 
 export interface ArmCOptions extends ArmOptions {
   /** Proposals earlier units of this repository left (memory.ts); served in arm C only, as trial records. */
@@ -76,19 +121,31 @@ export async function armCRow(
   rep = 1,
   asOf: string = new Date().toISOString().slice(0, 10),
 ): Promise<Row> {
-  const { row, note } = await armRow(ARMS.C, unit, o, rep, (wt, log) => {
-    if (seedMemory(wt, o.memory ?? []) > 0)
-      commitPreparation(wt, 'chore: remembered records');
-    const injection = injectionTokens(
-      [...inForceRecords(wt, asOf), ...memoryRecords(o.memory ?? [])],
-      wt,
-      unit.unit.id,
-      promptOf(unit.unit),
-      asOf,
-    );
-    adoptKrn(wt, log);
-    claimUnitTask(wt, unit);
-    return injection;
-  });
+  const krn = krnOnPath(o.env ?? process.env, o.scratch);
+  const sandboxed: ArmCOptions = {
+    ...o,
+    env: krn.env,
+    readable: [...(o.readable ?? []), ...krn.readable],
+  };
+  const { row, note } = await armRow(
+    ARMS.C,
+    unit,
+    sandboxed,
+    rep,
+    (wt, log) => {
+      if (seedMemory(wt, o.memory ?? []) > 0)
+        commitPreparation(wt, 'chore: remembered records');
+      const injection = injectionTokens(
+        [...inForceRecords(wt, asOf), ...memoryRecords(o.memory ?? [])],
+        wt,
+        unit.unit.id,
+        promptOf(unit.unit),
+        asOf,
+      );
+      adoptKrn(wt, log);
+      claimUnitTask(wt, unit);
+      return injection;
+    },
+  );
   return note === undefined ? row : { ...row, injection: note };
 }
