@@ -91,6 +91,23 @@ export interface Contrast {
   /** Paired log of the geometric-mean cost ratio, treatment over control, per unit. */
   logCostRatio: number;
   logCostSe: number;
+  /** Holm-adjusted over the contrasts; the primary cost claim is shown when it is below alpha and C is cheaper. */
+  costAdjustedP: number;
+  costShown: boolean;
+}
+
+/** Regression rate (ADR 0021 point 10): graded rows that pass while breaking a base-passing test, per graded row. */
+export interface Regression {
+  /** Per arm: rate in 0..1 and the rows it is over. */
+  rate: Partial<Record<ArmId, { rate: number; rows: number }>>;
+  /** Treatment minus control in percentage points, clustered on the unit; undefined when no row records `regressed`. */
+  contrast?: {
+    name: string;
+    units: number;
+    diffPp: number;
+    sePp: number;
+    p: number;
+  };
 }
 
 export interface AbcReport {
@@ -100,6 +117,7 @@ export interface AbcReport {
   usdPerResolved: Record<ArmId, number | null>;
   /** Frozen-unit rows per arm whose cost is unknown (null); their spend is missing from the dollars, not zero. */
   unknownCost: Record<ArmId, number>;
+  regression: Regression;
 }
 
 /** Graded rows of frozen units only. A contrast is shown when its Holm-adjusted p is below alpha and C is better. */
@@ -110,9 +128,13 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
   const costObs = obs.filter((o) => o.costUsd > 0); // NaN (unknown cost) fails this
   const raw = prereg.contrasts.map(([t, c]) => pairedDifference(obs, t, c));
   const adjusted = holm(raw.map((r) => r.p));
+  const costRaw = prereg.contrasts.map(([t, c]) =>
+    pairedDifference(costObs, t, c, (o) => Math.log(o.costUsd)),
+  );
+  const costAdjusted = holm(costRaw.map((r) => r.p));
   const contrasts = prereg.contrasts.map(([t, c], i): Contrast => {
     const d = raw[i] as ReturnType<typeof pairedDifference>;
-    const cost = pairedDifference(costObs, t, c, (o) => Math.log(o.costUsd));
+    const cost = costRaw[i] as ReturnType<typeof pairedDifference>;
     const adjustedP = adjusted[i] as number;
     return {
       name: `${t}-${c}`,
@@ -124,6 +146,11 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       shown: adjustedP < prereg.alpha && d.diff > 0,
       logCostRatio: cost.diff,
       logCostSe: cost.se,
+      costAdjustedP: costAdjusted[i] as number,
+      costShown:
+        cost.units > 1 &&
+        (costAdjusted[i] as number) < prereg.alpha &&
+        cost.diff < 0,
     };
   });
   // Dollars per resolution count every session's spend, graded or not; unknown costs add nothing and are counted.
@@ -143,6 +170,40 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
     contrasts,
     usdPerResolved: { A: usd('A'), B: usd('B'), C: usd('C') },
     unknownCost: { A: unknown('A'), B: unknown('B'), C: unknown('C') },
+    regression: regression(graded, prereg),
+  };
+}
+
+/** Regression per arm over graded rows, and the first contrast's clustered difference; a run with no `regressed` field measures none. */
+function regression(graded: Row[], prereg: Prereg): Regression {
+  const measured = graded.some((r) => r.regressed !== undefined);
+  if (!measured) return { rate: {} };
+  const rate: Regression['rate'] = {};
+  for (const arm of ['A', 'B', 'C'] as ArmId[]) {
+    const mine = graded.filter((r) => r.arm === arm);
+    if (mine.length > 0)
+      rate[arm] = {
+        rate: mine.filter((r) => r.pass && r.regressed).length / mine.length,
+        rows: mine.length,
+      };
+  }
+  // Observation.refusal carries the regression flag so the paired, unit-clustered estimator applies unchanged.
+  const obs = graded.map((r) => ({
+    ...observation(r),
+    refusal: r.pass === true && r.regressed === true,
+  }));
+  const [t, c] = prereg.contrasts.find(([, x]) => x === 'A') ?? [];
+  if (t === undefined || c === undefined) return { rate };
+  const d = pairedDifference(obs, t, c, (o) => (o.refusal ? 1 : 0));
+  return {
+    rate,
+    contrast: {
+      name: `${t}-${c}`,
+      units: d.units,
+      diffPp: d.diff * 100,
+      sePp: d.se * 100,
+      p: d.p,
+    },
   };
 }
 
@@ -209,18 +270,36 @@ export function matrixProblems(rows: Row[], prereg: Prereg): string[] {
   return problems;
 }
 
+/** What a refused strict matrix is: `incomplete` when cells are only missing or ungraded, else `incomplete or mixed`. */
+export const matrixKind = (problems: string[]): string =>
+  problems.every((p) => /^(missing|ungraded) /.test(p))
+    ? 'incomplete'
+    : 'incomplete or mixed';
+
 const signed = (x: number) => `${x >= 0 ? '+' : ''}${x.toFixed(1)}`;
 const money = (x: number | null) => (x === null ? 'n/a' : x.toFixed(2));
 
-/** One `verdict:` line per contrast, then the cost co-primary lines. */
+const rate = (x: { rate: number; rows: number } | undefined) =>
+  x === undefined ? 'n/a' : `${(x.rate * 100).toFixed(1)}%`;
+
+/**
+ * One `verdict:` line per primary claim (ADR 0021 point 11: USD per resolved task C against A and B under Holm, then
+ * regression rate C against A), the `secondary:` pass-rate contrasts, and the cost detail lines.
+ */
 export function reportLines(r: AbcReport, prereg: Prereg): string[] {
   const lines = r.contrasts.map(
     (c) =>
-      `verdict: ${c.name} ${signed(c.estimatePp)} pp, clustered SE ${c.sePp.toFixed(1)} pp (${c.units} units), Holm p ${c.adjustedP.toFixed(4)}, ${c.shown ? 'shown' : 'not shown'} (alpha ${prereg.alpha}, MDE ${prereg.mdePp} pp)`,
+      `verdict: cost ${c.name} ratio ${Math.exp(c.logCostRatio).toFixed(2)} (log ${c.logCostRatio.toFixed(3)}, clustered SE ${c.logCostSe.toFixed(3)}), Holm p ${c.costAdjustedP.toFixed(4)}, ${c.costShown ? 'shown' : 'not shown'} (alpha ${prereg.alpha})`,
+  );
+  const g = r.regression.contrast;
+  lines.push(
+    g === undefined
+      ? 'verdict: regression not measured (no graded row records regressed)'
+      : `verdict: regression ${g.name} ${signed(g.diffPp)} pp (A ${rate(r.regression.rate.A)}, B ${rate(r.regression.rate.B)}, C ${rate(r.regression.rate.C)}), clustered SE ${g.sePp.toFixed(1)} pp (${g.units} units), p ${g.p.toFixed(4)}, descriptive`,
   );
   for (const c of r.contrasts)
     lines.push(
-      `cost: ${c.name} log ratio ${c.logCostRatio.toFixed(3)} (ratio ${Math.exp(c.logCostRatio).toFixed(2)}), clustered SE ${c.logCostSe.toFixed(3)}`,
+      `secondary: pass rate ${c.name} ${signed(c.estimatePp)} pp, clustered SE ${c.sePp.toFixed(1)} pp (${c.units} units), Holm p ${c.adjustedP.toFixed(4)}, ${c.shown ? 'shown' : 'not shown'} (alpha ${prereg.alpha}, MDE ${prereg.mdePp} pp)`,
     );
   const u = r.usdPerResolved;
   lines.push(
@@ -232,4 +311,15 @@ export function reportLines(r: AbcReport, prereg: Prereg): string[] {
       `cost: rows with unknown cost A ${k.A}, B ${k.B}, C ${k.C} (their spend is missing from the dollars above)`,
     );
   return lines;
+}
+
+/** The one number a registered metric prints; undefined when the metric is unknown or has no data. */
+export function metricValue(name: string, r: AbcReport): number | undefined {
+  if (name === 'c-minus-a-pp')
+    return r.contrasts.find((c) => c.name === 'C-A')?.estimatePp;
+  if (name === 'c-cost-per-resolved-ratio') {
+    const { A, C } = r.usdPerResolved;
+    return A === null || C === null || A === 0 ? undefined : C / A;
+  }
+  return undefined;
 }

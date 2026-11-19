@@ -1,0 +1,14 @@
+{
+  "id": "t-jpfmfay",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Replay grader records regressed on each graded row",
+  "after": [],
+  "body": [
+    "Outcome: a graded replay row carries `regressed` (evals/replay/rows.ts): true when the session's change passes the hidden test but breaks a test that passed at the base commit. `--report` then prints the regression verdict instead of \"not measured\". Evidence: t-08zbqzn built the report over the field; no grader sets it yet.\nFiles: evals/replay/rows.ts, evals/replay/abc.ts, evals/units/screening.ts\nProof: a test grades a fixture whose change breaks a base-passing test and the row carries regressed true."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

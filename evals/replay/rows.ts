@@ -37,6 +37,8 @@ export interface Row {
   stopReason?: string;
   /** The verify-before-end gate refused the first end and re-prompted once. */
   reprompted?: boolean;
+  /** The session's passing change broke a test that passed at the base commit; absent while no grader measures it. */
+  regressed?: boolean;
   /** The last ~40 lines of the grader's output (screening.ts TAIL_LINES), so every verdict is auditable. */
   gradeTail?: string;
 }
