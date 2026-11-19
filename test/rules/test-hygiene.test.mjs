@@ -84,6 +84,22 @@ export function clockProblems(file, text) {
   return problems;
 }
 
+/**
+ * Group kills a test sends: `process.kill(-x)` with x read from ps or a pid file is kill(0) when x
+ * is 0 (an empty answer), and kill(0) kills the test runner's own group, `npm run fast` with it.
+ * The same line must guard the group with `> 1`.
+ */
+export function groupKillProblems(file, text) {
+  const problems = [];
+  text.split('\n').forEach((line, index) => {
+    if (/process\.kill\(\s*-/u.test(line) && !/>\s*1\b/u.test(line))
+      problems.push(
+        `${file}:${index + 1} group kill without a "> 1" guard on the same line; an empty pgid kills the runner's own group`,
+      );
+  });
+  return problems;
+}
+
 const files = execFileSync(
   'git',
   ['ls-files', '--cached', '--others', '--exclude-standard', 'test'],
@@ -343,4 +359,25 @@ test('the serial setup rule reports exactly the seeded violations', () => {
     'seeded.test.ts:7 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
     'seeded.test.ts:23 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
   ]);
+});
+
+test('tests never kill a process group without guarding against group 0', () => {
+  const problems = files
+    .filter((file) => file !== 'test/rules/test-hygiene.test.mjs')
+    .flatMap((file) =>
+      groupKillProblems(file, readFileSync(`${root}/${file}`, 'utf8')),
+    );
+  assert.deepEqual(problems, []);
+});
+
+test('the group kill rule reports the unguarded kill and passes the guarded one', () => {
+  assert.deepEqual(
+    groupKillProblems(
+      'seeded.test.ts',
+      "process.kill(-group, 'SIGKILL');\nif (group > 1) process.kill(-group, 'SIGKILL');",
+    ),
+    [
+      "seeded.test.ts:1 group kill without a \"> 1\" guard on the same line; an empty pgid kills the runner's own group",
+    ],
+  );
 });
