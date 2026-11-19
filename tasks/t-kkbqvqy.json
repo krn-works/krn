@@ -1,0 +1,21 @@
+{
+  "id": "t-kkbqvqy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "The receiver toolchain hook test pins any installed Node other than the running one, and says so when it skips",
+  "after": [],
+  "body": [
+    "test/hook/receiver-toolchain.test.ts gates its two real-mise tests on `mise where node@24.22.1`: once the host prunes Node 24.22.1 (the workstation toolchain keeps one Node per tool), both tests stop running without a trace, and the hook's pin behaviour is no longer proven anywhere.\nFiles: test/hook/receiver-toolchain.test.ts\nOutcome: the real-mise tests pick any installed Node whose full version differs from process.version (read from `mise ls --installed --json node`) and pin that, with the inner test asserting that exact version; when no such Node is installed they are reported as skipped with the reason (node:test `skip: '<reason>'`), never silently absent. No test names a fixed old Node version.\nProof: `node --test test/hook/receiver-toolchain.test.ts` prints pass for the real-mise tests on a host with a second Node installed, and a skip line with the reason when MISE data offers none."
+  ],
+  "acceptance": [
+    {
+      "verify": "node --test test/hook/receiver-toolchain.test.ts",
+      "passes": false,
+      "exit": null
+    }
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
