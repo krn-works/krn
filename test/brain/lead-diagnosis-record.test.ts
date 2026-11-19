@@ -10,7 +10,7 @@ import {
 } from '../../src/brain/worker-packet.ts';
 
 const root = new URL('../../', import.meta.url).pathname;
-const ID = 'r-stop-skip-needs-session-proof';
+const ID = 'r-verify-premise-before-cause';
 const asOf = '2026-11-19';
 
 test('the Stop-attribution record carries its operator evidence and the replayed case names its subject', () => {

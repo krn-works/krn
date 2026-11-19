@@ -254,7 +254,7 @@ test('a resumed lead session with no claimed task is served the lead record its 
       JSON.stringify(
         records.filter((record) =>
           [
-            'r-stop-skip-needs-session-proof',
+            'r-verify-premise-before-cause',
             'r-tracker-owner',
             'r-bounded-context',
             'r-trailer',
@@ -288,7 +288,7 @@ test('a resumed lead session with no claimed task is served the lead record its 
       text,
       /Standards for this session \((\d); at most 3 records, retrieval confidence >= 2\):/u,
     );
-    assert.match(text, /- \[r-stop-skip-needs-session-proof\]/u);
+    assert.match(text, /- \[r-verify-premise-before-cause\]/u);
     assert.ok((text.match(/^- \[r-[a-z-]+\]/gmu) ?? []).length <= 3);
 
     const fresh = run(

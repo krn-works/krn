@@ -182,7 +182,7 @@ test('a task stack of distinct names conforms and an empty or duplicated one is 
 });
 
 // Records that still retell one incident. The list only shrinks: a rewritten record leaves it.
-const INCIDENT_ALLOWED = new Set(['r-stop-skip-needs-session-proof']);
+const INCIDENT_ALLOWED = new Set<string>();
 
 test('every record text states a principle, so a hand edit cannot retell one incident', () => {
   const flagged = ['.agents/records.json', 'standards/records.json'].flatMap(

@@ -797,10 +797,10 @@
     "supersedes": []
   },
   {
-    "id": "r-stop-skip-needs-session-proof",
+    "id": "r-verify-premise-before-cause",
     "type": "pitfall",
-    "text": "When you explain why a lane's Stop or standards check did not run, first prove that a session ran: the lane line shows cost and turns, and the worktree's .krn/runs/hook/timing.jsonl holds a Stop entry near the run time. No cost or turns means no session ran; no Stop entry means Stop never ran. Name that cause, never a Stop condition such as recordedShip.",
-    "why": "Operator correction: the lead attributed a skipped Stop to recordedShip in src/hook/stop.ts without checking that any session ran (transcript 20ca9bff, cut 317).",
+    "text": "Before you state the cause of a failure, verify the fact that cause depends on. When a Stop or standards check seems skipped, first prove that its session ran: the lane line shows cost and turns, and the hook timing log holds a Stop entry near the run time. Name the observed gap, never a condition you inferred from the code.",
+    "why": "A cause inferred from code before checking that the step ran at all sends the fix to the wrong place; the record of the run settles the premise in one read.",
     "audience": "lead",
     "tier": "reflex",
     "applies": {
@@ -832,6 +832,7 @@
       "origin": "operator correction, transcript 20ca9bff-68ad-4461-98c5-affe112caea3 line 326",
       "evidence": [
         "transcript 20ca9bff-68ad-4461-98c5-affe112caea3 line 326 (operator: check for a conflict and find what is wrong)",
+        "lead attributed a skipped Stop to recordedShip in src/hook/stop.ts without checking that any session ran (transcript 20ca9bff, cut 317)",
         "evals/replay/agent-replay-cases.ts#stop-attribution-unchecked"
       ],
       "proposals": []

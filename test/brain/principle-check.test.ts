@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { judgePrinciple } from '../../src/brain/principle-check.ts';
+import {
+  incidentRecords,
+  judgePrinciple,
+} from '../../src/brain/principle-check.ts';
 import { parseProposal } from '../../src/brain/proposals.ts';
 import { StandardsDataError } from '../../src/brain/standards.ts';
 
@@ -88,4 +91,25 @@ test('krn standards propose exits 65 for an incident and 0 for its principle', (
   assert.equal(refused.status, 65, refused.stderr);
   assert.match(refused.stderr, /general principle/u);
   assert.equal(run(principle).status, 0);
+});
+
+test('a record whose why retells one incident is flagged even when its text states a principle', () => {
+  const why =
+    'The lead attributed a skipped Stop to recordedShip without checking that any session ran.';
+  assert.deepEqual(
+    incidentRecords([
+      { id: 'r-x', text: principle, why, provenance: { evidence } },
+    ]).map((row) => row.id),
+    ['r-x'],
+  );
+  assert.deepEqual(
+    incidentRecords([
+      {
+        id: 'r-y',
+        text: principle,
+        why: 'A wrong premise sends the fix to the wrong place.',
+      },
+    ]),
+    [],
+  );
 });
