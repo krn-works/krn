@@ -1,0 +1,14 @@
+{
+  "id": "t-8ke8y07",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Workstation skill and toolchain audit keep one mise version per tool",
+  "after": [],
+  "body": [
+    "Operator 2026-11-19: one mise version per tool on the host, the newest stable; projects pin the same; durable rule in the workstation skill plus a read-only audit command.\nOutcome: the audit exits 0 with 'toolchain PASS' on a clean host and exits 1 with 'toolchain FAIL' listing pin drift, outdated pins, PATH duplicates and multiple installed versions; the workstation skill is in .agents/skills and linked from ~/.claude/skills and ~/.agents/skills.\nProof: node --test test of the audit on fixture mise output and a real run printed in the PR body."
+  ],
+  "kind": "feature",
+  "area": "tooling"
+}
