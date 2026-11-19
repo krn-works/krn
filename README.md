@@ -4,7 +4,7 @@ KRN is the product: fast, low-noise software creation with agents. It is a softw
 
 ## Run
 
-Use Node **24.22.1** and pnpm **12.10.1**. Run a Product CLI command with:
+Use Node **26.13.1** and pnpm **12.21.0**. Run a Product CLI command with:
 
 ```sh
 node src/cli/main.ts --version

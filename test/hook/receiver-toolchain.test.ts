@@ -88,7 +88,7 @@ test('a mise that refuses or prints no JSON keeps the env as given', () => {
   }
 });
 
-const mise = spawnSync('mise', ['where', 'node@26.10.0'], {
+const mise = spawnSync('mise', ['where', 'node@24.22.1'], {
   encoding: 'utf8',
 });
 const realMise = mise.status === 0;
@@ -96,13 +96,13 @@ const realMise = mise.status === 0;
 if (realMise)
   test('the Stop check runs the receiver pinned Node, not the Node running the hook', () => {
     const dir = receiver({
-      'mise.toml': '[tools]\nnode = "26.10.0"\n',
+      'mise.toml': '[tools]\nnode = "24.22.1"\n',
       'pin.test.mjs':
-        "import assert from 'node:assert/strict';\nimport test from 'node:test';\ntest('runs the pinned node', () => {\n  assert.match(process.version, /^v26\\.10\\./u);\n});\n",
+        "import assert from 'node:assert/strict';\nimport test from 'node:test';\ntest('runs the pinned node', () => {\n  assert.match(process.version, /^v24\\.22\\./u);\n});\n",
     });
     try {
       spawnSync('mise', ['trust', dir]);
-      assert.notEqual(process.version.slice(0, 4), 'v26.');
+      assert.notEqual(process.version.slice(0, 4), 'v24.');
       // The KRN launcher exports its own Node pin to every child.
       process.env.MISE_NODE_VERSION = process.version.slice(1);
       try {

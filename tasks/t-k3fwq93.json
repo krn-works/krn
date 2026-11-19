@@ -1,7 +1,11 @@
 {
   "id": "t-k3fwq93",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node 26.13.1 and pnpm 12.21.0 pinned in mise.toml, .node-version, package.json, README, bin/krn text, pnpm-lock.yaml; fast PASS on node 26.13.1; CI setup reads .node-version so needs no edit"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "KRN pins node 26.13.1 and pnpm 12.21.0, the newest stable",
