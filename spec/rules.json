@@ -121,6 +121,18 @@
         "deadline": "2026-12-31"
       },
       "rationale": "Low-layer tests fail fast and name the broken unit."
+    },
+    {
+      "id": "KRN-15",
+      "trigger": "a module or task takes another fix",
+      "action": "the author MUST read its earlier fixes (`node scripts/fix-churn.mjs --report`), name the defect class they share in a `Root cause:` PR body line, and end the class by a redesign in the same PR or a linked redesign task (`Redesign: <task id | this PR>`) instead of adding one more edge case",
+      "owner": "author",
+      "audience": "lead",
+      "enforcement": {
+        "kind": "test",
+        "check": "a fix touching a file fixed for FILE_LIMIT tasks needs a root cause and a redesign"
+      },
+      "rationale": "A module that keeps taking fixes has a wrong model, not many bugs; the third patch is the signal to redesign."
     }
   ]
 }

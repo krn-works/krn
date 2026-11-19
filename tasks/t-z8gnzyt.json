@@ -1,0 +1,16 @@
+{
+  "id": "t-z8gnzyt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Lane lifecycle has one recorded state that Stop, status, prune and budget read",
+  "after": [
+    "t-dqc1wm0"
+  ],
+  "body": [
+    "Source: fix-churn review 2026-11-19 (t-dqc1wm0). src/hook/stop.ts (32 fix commits) and src/cli/lane.ts (29) kept re-deriving whether a lane is done from different evidence: the ship record, branch existence, worktree existence, whether main fetched the merge, or a quoted verdict line. Fixes: #854, #860, #869, #1013, #1140, #1146, #1169, #1232, #1256, #1330, #1342 and #1349 (the late merge of the readers). Root cause: the lane lifecycle has no single state record, so Stop, status, prune, budget and lane run each infer it.\nFiles: src/cli/lane.ts, src/hook/stop.ts, src/cli/lane-run.ts, src/task/claims.ts, a new src/lane/state.ts, test/lane/\nOutcome: one module records and reads each lane's lifecycle state (claimed, started, shipped with PR and head, merged, retired) in one file under .krn/; Stop, lane status, prune, the lane budget and lane run ask that module and keep no inference of their own. A lane whose branch, worktree or main fetch is gone still reads its recorded state.\nProof: node --test test/lane/state.test.ts passes, covering each transition and the gone-branch, gone-worktree and unfetched-main cases; grep for direct ship-record or worktree probing in src/hook/stop.ts and src/cli/lane.ts finds none."
+  ],
+  "kind": "debt",
+  "area": "ci"
+}

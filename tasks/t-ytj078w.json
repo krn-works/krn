@@ -1,0 +1,16 @@
+{
+  "id": "t-ytj078w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Lines one process writes and another reads have one parser",
+  "after": [
+    "t-dqc1wm0"
+  ],
+  "body": [
+    "Source: fix-churn review 2026-11-19 (t-dqc1wm0). Processes talk to each other through lines of free text, and each reader parses them its own way: the ship verdict line (#698, #869), a Ticket line outside the trailer block (#697), the BLOCKER line (#1044), the Weakens-tests line (#814, #1351), clause proof (#1051). Each mismatch cost a fix PR after merge.\nFiles: src/ci/ship.ts, src/cli/lane-run.ts, src/cli/lane-run/verdict.ts, src/hook/stop.ts, scripts/weak-tests.mjs, a new src/repo/protocol-lines.ts\nOutcome: every line that one KRN process writes and another reads (verdict, BLOCKER, Ticket and Refs, Weakens-tests, clause proof) has one writer and one parser in one module, with a round-trip test; every reader imports that parser and no reader keeps a regular expression of its own for those lines.\nProof: node --test test/repo/protocol-lines.test.ts passes with a write-then-read case per line; `grep -rn \"verdict:\\|BLOCKER:\\|Weakens-tests\" src scripts` shows regular expressions for them only in src/repo/protocol-lines.ts."
+  ],
+  "kind": "debt",
+  "area": "ci"
+}

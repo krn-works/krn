@@ -1,6 +1,6 @@
 {
   "files": {
-    ".agents/skills/architecture/SKILL.md": 5072,
+    ".agents/skills/architecture/SKILL.md": 5550,
 
     ".agents/skills/delivery-handoff/SKILL.md": 4995,
 
@@ -8,7 +8,7 @@
 
     ".agents/skills/delivery-lead/lanes.md": 3569,
 
-    ".agents/skills/delivery-retro/SKILL.md": 2927,
+    ".agents/skills/delivery-retro/SKILL.md": 3078,
 
     ".agents/skills/standards/INDEX.md": 12400,
 
@@ -18,13 +18,13 @@
 
     ".agents/skills/workstation/SKILL.md": 4700,
 
-    "AGENTS.md": 2400,
+    "AGENTS.md": 2522,
 
     "docs/program/fable-plan-brief.md": 1845,
 
     "docs/program/hardening-checklist.md": 3183,
 
-    "docs/program/lead-rules.md": 6931,
+    "docs/program/lead-rules.md": 7357,
 
     "docs/program/plan.md": 18000,
 

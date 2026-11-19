@@ -1,0 +1,16 @@
+{
+  "id": "t-zdp1yw1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Adopt, lane run and ship are proven on a receiver matrix before merge",
+  "after": [
+    "t-dqc1wm0"
+  ],
+  "body": [
+    "Source: fix-churn review 2026-11-19 (t-dqc1wm0). Adoption and lane-run features merged and then met each receiver shape one at a time: a repository without a root package.json (#696), its own ci.yml (#678), no protection rule (#900), auto-merge refused (#1053), sandbox placeholder files (#582, #716, #1050, #1469), node and php contracts (#894). t-djnrw3t took 7 fix PRs and t-1p7dmw9 8 after their features merged.\nFiles: test/fixtures/receivers/, test/adopt/, src/adopt/adopt.ts, src/cli/lane-run.ts, spec/receivers.json\nOutcome: a receiver matrix of fixture repositories (KRN itself, no root package.json, own ci.yml, no protection, auto-merge refused, node contract, php contract, sandbox placeholders present) runs adopt, lane start and ship against fakes of git and gh in one test file; a feature touching adopt, lane run or ship adds its case to the matrix before it merges.\nProof: node --test test/adopt/receiver-matrix.test.ts passes with one case per shape above, and each listed fix PR's regression scenario is one of its cases."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}
