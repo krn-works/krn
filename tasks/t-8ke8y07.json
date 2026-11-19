@@ -1,7 +1,11 @@
 {
   "id": "t-8ke8y07",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "npm run fast PASS with test/scripts/toolchain-audit.test.ts; real host audit printed toolchain FAIL (81 outdated, 7 multi, 1 backend, 5 path, 1 tracking), exit 1"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Workstation skill and toolchain audit keep one mise version per tool",
