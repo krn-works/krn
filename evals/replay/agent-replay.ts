@@ -1,5 +1,5 @@
 // Usage: node evals/replay/agent-replay.ts --suite --dry-run [--verify]
-//        node evals/replay/agent-replay.ts --suite [--case <id>] [--reps <1..3>] [--model sonnet] [--harness <rev>] [--no-memory]
+//        node evals/replay/agent-replay.ts --suite [--case <id>] [--reps <1..5>] [--model sonnet] [--harness <rev>] [--no-memory]
 // AgentReplay: resume a recorded KRN lead session cut just before a confirmed wrong decision, under the checkout's
 // current harness, and grade by a regex whether the session repeats it. --dry-run lists each case with its cut point and
 // reads no transcript unless --verify is given (then a case whose cut line moved fails with exit 1; a missing transcript
@@ -31,7 +31,7 @@ import { ARMS } from './arms.ts';
 import { isolatedEnv } from './live.ts';
 import { sessionRan } from './session.ts';
 
-export const MAX_REPS = 3;
+export const MAX_REPS = 5;
 
 /** One listing line: the case, its cut point and what a repeat looks like. */
 export const caseLine = (c: ReplayCase): string =>
