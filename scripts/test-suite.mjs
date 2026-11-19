@@ -268,6 +268,8 @@ function childEnvironment(
       process.env.NODE_COMPILE_CACHE ??
       join(process.cwd(), '.krn/tmp/node-compile-cache'),
     KRN_TEST_EVENT_FILE: eventFile,
+    // The suite is one heavy job: the fast and Stop checks its fixtures start run inside it instead of queueing on the host gate.
+    KRN_TEST_SLOT_HELD: '1',
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
   };
   if (pnpmStoreDirectory !== undefined)

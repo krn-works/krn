@@ -697,7 +697,8 @@ export function inTestSlot<T>(
   env: NodeJS.ProcessEnv = process.env,
   write: (text: string) => void = (text) => process.stderr.write(text),
 ): Promise<T> {
-  if (slotHeld.getStore()) return work();
+  // A fast run started inside a held slot (heavy-gate run, an outer fast) runs inside it instead of queueing behind its parent.
+  if (slotHeld.getStore() || env[SLOT_HELD_ENV] === '1') return work();
   const waitStarted = performance.now();
   return withSlot(
     {

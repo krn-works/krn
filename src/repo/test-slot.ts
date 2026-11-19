@@ -1,19 +1,18 @@
-// The host test slot options shared by fast and the Stop hook: one lock under the shared checkout's .krn/tmp.
-import { spawnSync } from 'node:child_process';
+// The host test slot options shared by fast and the Stop hook: KRN's heavy checks are clients of the host-wide gate.
 import { availableParallelism } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import {
+  gateLimits,
+  hostGateDir,
+  hostPressure,
+  hostUnits,
+  SLOT_HELD_ENV,
+  sampleHost,
+} from './host-gate.ts';
+import type { SlotOptions } from './slot-lock.ts';
 
-/** The main checkout shared by every worktree, else the root itself. */
-export function sharedRoot(root: string): string {
-  const run = spawnSync('git', ['rev-parse', '--git-common-dir'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  const common = run.status === 0 ? run.stdout.trim() : '';
-  return common ? dirname(resolve(root, common)) : root;
-}
+export { SLOT_HELD_ENV };
 
-/** Default holders: one per eight cores, so a 16-core host runs two fast checks at once instead of serialising every lane. */
+/** Concurrent fast checks on an idle host: one per eight cores, so a 16-core host runs two at once. */
 export function defaultTestSlots(
   cores: number = availableParallelism(),
 ): number {
@@ -26,20 +25,30 @@ export function slotDeadlineMs(env: NodeJS.ProcessEnv = process.env): number {
   return Number.isFinite(value) && value > 0 ? value : 900_000;
 }
 
-/** Slot lock options: one lock under the shared checkout's .krn/tmp, KRN_FAST_SLOTS holders at once. */
+/**
+ * Gate options for a fast check or Stop check. By default it takes a weight of the host gate sized so
+ * defaultTestSlots checks fit an idle host, and waits while load or memory is short. KRN_FAST_SLOTS
+ * counts holders of weight 1 instead; KRN_FAST_SLOT_DIR moves the lock and turns the host probe off (tests).
+ */
 export function testSlotOptions(
-  root: string,
+  _root: string,
   env: NodeJS.ProcessEnv = process.env,
   cores: number = availableParallelism(),
-): { dir: string; slots: number; deadlineMs: number } {
-  const slots = Number(env.KRN_FAST_SLOTS);
+): SlotOptions & { dir: string; slots: number; weight: number } {
+  const deadlineMs = slotDeadlineMs(env);
+  const dir = env.KRN_FAST_SLOT_DIR ?? hostGateDir(env);
+  const pressure = env.KRN_FAST_SLOT_DIR
+    ? undefined
+    : () => hostPressure(sampleHost(), gateLimits(env));
+  const count = Number(env.KRN_FAST_SLOTS);
+  if (Number.isInteger(count) && count > 0)
+    return { deadlineMs, dir, pressure, slots: count, weight: 1 };
+  const slots = hostUnits(env, cores);
   return {
-    deadlineMs: slotDeadlineMs(env),
-    dir: env.KRN_FAST_SLOT_DIR ?? join(sharedRoot(root), '.krn/tmp/fast-slots'),
-    slots:
-      Number.isInteger(slots) && slots > 0 ? slots : defaultTestSlots(cores),
+    deadlineMs,
+    dir,
+    pressure,
+    slots,
+    weight: Math.max(1, Math.ceil(slots / defaultTestSlots(cores))),
   };
 }
-
-/** Set in the environment of a test run that already holds a slot, so a nested Stop check runs inside it instead of queueing again. */
-export const SLOT_HELD_ENV = 'KRN_TEST_SLOT_HELD';

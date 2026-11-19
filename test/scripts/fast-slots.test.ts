@@ -195,3 +195,29 @@ test('a slot recorded with this process start time stays held', async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a fast run whose environment marks a held slot runs at once even when the gate is full', async () => {
+  const { withSlot } = await import('../../src/repo/slot-lock.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    const env = {
+      KRN_FAST_SLOTS: '1',
+      KRN_FAST_SLOT_DEADLINE_MS: '100',
+      KRN_FAST_SLOT_DIR: dir,
+      KRN_TEST_SLOT_HELD: '1',
+    };
+    const messages: string[] = [];
+    const ran = await withSlot({ dir, slots: 1 }, () =>
+      inTestSlot(
+        process.cwd(),
+        async () => 'inside',
+        env,
+        (text) => messages.push(text),
+      ),
+    );
+    assert.equal(ran, 'inside');
+    assert.deepEqual(messages, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

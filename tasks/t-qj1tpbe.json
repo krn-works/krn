@@ -1,0 +1,14 @@
+{
+  "id": "t-qj1tpbe",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Other projects' heavy commands run through the host heavy-job gate",
+  "after": [],
+  "body": [
+    "Source: t-c0k4wdz shipped the host heavy-job gate (scripts/host/heavy-gate.ts, src/repo/host-gate.ts) with KRN fast and the Stop hook as its only clients. Operator grant: memory host-capacity-grant (\"wszystkie projekty\").\nOutcome: the heavy commands of the other projects on this laptop (their test runners, builds, package installs; the measured offenders were re-imagine design-bench judge runs, elektroinstal QA captures, mise-en-plesk, playwright) reach the gate without editing their code: a host entry `heavy-gate run -- <cmd>` on PATH from the released checkout, and each project's KRN wiring (its test/fast contract command or agent hook) wraps its heavy commands with it. A project whose wiring cannot be changed is named with the reason. wilq-seo is never gated.\nProof: with two projects running their test command at once, `node scripts/host/heavy-gate.ts status` lists both as holders or one waiting; the sampler (t-cpe5qv7) shows load below cores x 1.25 during their runs."
+  ],
+  "kind": "feature",
+  "area": "host"
+}
