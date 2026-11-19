@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { detachedShipArgs } from '../../src/ci/ship-live.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'ship-live-'));
@@ -24,4 +26,52 @@ test('the --worktree=<path> form and the caller directory default resolve too', 
     args: [`--worktree=${abs}`],
   });
   assert.equal(detachedShipArgs(['--title', 't'], root).worktree, root);
+});
+
+test('krn pr ship --detach with a relative --worktree starts a child that finds the worktree', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'ship-live-repo-'));
+  const git = (...args: string[]) =>
+    spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git(
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-q',
+    '--allow-empty',
+    '-m',
+    'i',
+  );
+  git('worktree', 'add', '-q', '.krn/worktrees/w', '-b', 'w');
+  const entry = fileURLToPath(
+    new URL('../../src/cli/krn.mjs', import.meta.url),
+  );
+  const started = spawnSync(
+    process.execPath,
+    [
+      entry,
+      'pr',
+      'ship',
+      '--detach',
+      '--worktree',
+      '.krn/worktrees/w',
+      '--title',
+      'fix(x): y (t-abcdefg)',
+      '--body-file',
+      'b',
+    ],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(started.status, 0, started.stderr);
+  const log = join(repo, '.krn', 'worktrees', 'w', '.krn', 'tmp', 'ship.log');
+  const deadline = Date.now() + 20_000;
+  let text = '';
+  while (Date.now() < deadline) {
+    text = existsSync(log) ? readFileSync(log, 'utf8') : '';
+    if (text.length > 0) break;
+    spawnSync('sleep', ['0.2']);
+  }
+  assert.doesNotMatch(text, /ENOENT/);
 });
