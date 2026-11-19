@@ -1,0 +1,14 @@
+{
+  "id": "t-h9mrwas",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Replay batches run on krn-dev in capped containers, after its headroom is measured",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19; operator grant: host-wide queue for all projects, krn-dev for batch work under caps (memory host-capacity-grant). Evidence: laptop Ryzen 5700U 16 threads, load 17-25, CPU 56% user 28% sys 16% idle, swap ~9 GB zram, /mnt/storage 92% full; KRN lane npm run fast took 25+ min vs 2-3; live CPU split: krn ~120%, mise-en-plesk ~140%, desktop/Chrome ~160%, elektroinstal 38%, rss-news 35%, CI containers.\nFiles: evals/replay/remote.ts, test/evals/replay-remote.test.ts\nOutcome: a measured headroom report for krn-dev (CPU, RAM, disk under the hosted sites' normal load over 24 h); then evals/replay runs units on krn-dev in containers capped at a CPU and memory limit that keeps the sites' p95 response unchanged, rows synced back; if RAM allows fewer than 2 parallel units, the report says so and recommends a dedicated box with its cost.\nProof: `node evals/replay/run.ts --screen --units 3 --host krn-dev: 3 rows written locally` with site response within 10% of baseline."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

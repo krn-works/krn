@@ -1,0 +1,14 @@
+{
+  "id": "t-cpe5qv7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A host sampler records CPU, memory and load per project every minute for capacity decisions",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19; operator grant: host-wide queue for all projects, krn-dev for batch work under caps (memory host-capacity-grant). Evidence: laptop Ryzen 5700U 16 threads, load 17-25, CPU 56% user 28% sys 16% idle, swap ~9 GB zram, /mnt/storage 92% full; KRN lane npm run fast took 25+ min vs 2-3; live CPU split: krn ~120%, mise-en-plesk ~140%, desktop/Chrome ~160%, elektroinstal 38%, rss-news 35%, CI containers.\nFiles: scripts/host/sampler.ts, scripts/host/sampler-report.ts, test/host/sampler.test.ts\nOutcome: a user systemd timer samples every minute CPU percent, RSS and process count grouped by project (cwd under /mnt/storage/coding/krn/active/<project>, tmp roots, systemd unit or scope) plus load and swap into an append-only JSONL under ~/.local/share; one command prints the last 24 h as a per-project table with peaks and the hours the host was saturated.\nProof: `node scripts/host/sampler-report.ts --hours 24: per-project table` after 24 h, CPU sums within 10% of the measured total."
+  ],
+  "kind": "feature",
+  "area": "host"
+}

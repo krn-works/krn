@@ -1,0 +1,14 @@
+{
+  "id": "t-c0k4wdz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "One host-wide heavy-job queue admits tests, builds, installs and clones of every project by free capacity",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19; operator grant: host-wide queue for all projects, krn-dev for batch work under caps (memory host-capacity-grant). Evidence: laptop Ryzen 5700U 16 threads, load 17-25, CPU 56% user 28% sys 16% idle, swap ~9 GB zram, /mnt/storage 92% full; KRN lane npm run fast took 25+ min vs 2-3; live CPU split: krn ~120%, mise-en-plesk ~140%, desktop/Chrome ~160%, elektroinstal 38%, rss-news 35%, CI containers.\nFiles: scripts/host/heavy-gate.ts, scripts/fast-check.ts, test/host/heavy-gate.test.ts\nOutcome: heavy commands of every project on this laptop (test runners, builds, package installs, git clones of eval units, KRN fast and replay) run through one host-level admission gate with a slot count derived from cores and free memory; a job waits for a slot instead of piling onto a saturated host, and KRN's own fast slots become clients of the same gate. Mechanism chosen by measurement (flock semaphore wrapper vs systemd user slices with CPUWeight/MemoryHigh per project); no project's processes are killed; wilq-seo is never throttled below its current share.\nProof: `node --test test/host/heavy-gate.test.ts: pass` (3 projects x 4 jobs, at most N concurrent, none fails) and the sampler shows load below cores x 1.25 under that load."
+  ],
+  "kind": "feature",
+  "area": "host"
+}

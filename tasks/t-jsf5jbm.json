@@ -1,0 +1,14 @@
+{
+  "id": "t-jsf5jbm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Before-edit retrieval applies the precision threshold, not only the cap",
+  "after": [],
+  "body": [
+    "Source: lane t-vv7e8pj report 2026-11-19: editContext in src/hook/edit-standards.ts caps at 3 via withinBudget but matches by file scope with no retrieval-confidence threshold; ADR 0021 point 10 requires the gate at every moment.\nFiles: src/hook/edit-standards.ts, test/hook/edit-standards.test.ts\nOutcome: the before-edit packet serves only records that pass the same precision gate as task start (scope match plus confidence >= threshold), at most 3.\nProof: `node --test test/hook/edit-standards.test.ts: pass` (5 scope matches, 2 below threshold, serves 3; only low-confidence serves none)."
+  ],
+  "kind": "defect",
+  "area": "brain"
+}
