@@ -88,21 +88,45 @@ test('a mise that refuses or prints no JSON keeps the env as given', () => {
   }
 });
 
-const mise = spawnSync('mise', ['where', 'node@24.22.1'], {
-  encoding: 'utf8',
-});
-const realMise = mise.status === 0;
+// Any installed Node other than the running one proves the hook's pin.
+function otherInstalledNode(): string | undefined {
+  const listed = spawnSync('mise', ['ls', '--installed', '--json', 'node'], {
+    encoding: 'utf8',
+  });
+  if (listed.status !== 0) return undefined;
+  try {
+    const versions = (JSON.parse(listed.stdout) as { version?: string }[])
+      .map((entry) => entry.version)
+      .filter(
+        (version): version is string =>
+          typeof version === 'string' &&
+          /^\d+\.\d+\.\d+$/u.test(version) &&
+          `v${version}` !== process.version,
+      );
+    return versions.at(-1);
+  } catch {
+    return undefined;
+  }
+}
 
-if (realMise)
-  test('the Stop check runs the receiver pinned Node, not the Node running the hook', () => {
+const pinned = otherInstalledNode();
+const realMise = {
+  skip: pinned
+    ? false
+    : 'mise lists no installed Node other than the running one, so the real-mise pin is not exercised',
+};
+
+test(
+  'the Stop check runs the receiver pinned Node, not the Node running the hook',
+  realMise,
+  () => {
     const dir = receiver({
-      'mise.toml': '[tools]\nnode = "24.22.1"\n',
-      'pin.test.mjs':
-        "import assert from 'node:assert/strict';\nimport test from 'node:test';\ntest('runs the pinned node', () => {\n  assert.match(process.version, /^v24\\.22\\./u);\n});\n",
+      'mise.toml': `[tools]\nnode = "${pinned}"\n`,
+      'pin.test.mjs': `import assert from 'node:assert/strict';\nimport test from 'node:test';\ntest('runs the pinned node', () => {\n  assert.equal(process.version, ${JSON.stringify(`v${pinned}`)});\n});\n`,
     });
     try {
       spawnSync('mise', ['trust', dir]);
-      assert.notEqual(process.version.slice(0, 4), 'v24.');
+      assert.notEqual(`v${pinned}`, process.version);
       // The KRN launcher exports its own Node pin to every child.
       process.env.MISE_NODE_VERSION = process.version.slice(1);
       try {
@@ -113,23 +137,31 @@ if (realMise)
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  },
+);
 
-if (realMise)
-  test('a lane session PATH follows the receiver pin and keeps the wrapper first', () => {
-    const dir = receiver({ 'mise.toml': '[tools]\nnode = "26.10.0"\n' });
+test(
+  'a lane session PATH follows the receiver pin and keeps the wrapper first',
+  realMise,
+  () => {
+    const dir = receiver({ 'mise.toml': `[tools]\nnode = "${pinned}"\n` });
     try {
       spawnSync('mise', ['trust', dir]);
-      const env = sessionEnvironment({ PATH: process.env.PATH }, '/c', {
-        lane: 'l',
-        receiver: dir,
-      });
+      const env = sessionEnvironment(
+        { PATH: process.env.PATH, MISE_DATA_DIR: process.env.MISE_DATA_DIR },
+        '/c',
+        {
+          lane: 'l',
+          receiver: dir,
+        },
+      );
       assert.ok(env.PATH?.startsWith(`${wrapperDirectory}${delimiter}`));
-      assert.match(env.PATH ?? '', /node\/26\.10\.0\/bin/u);
+      assert.ok(env.PATH?.includes(`node/${pinned}/bin`));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  },
+);
 
 test('a lane session without a receiver keeps the given PATH', () => {
   const env = sessionEnvironment({ PATH: '/bin' }, '/c', { lane: 'l' });

@@ -1,7 +1,11 @@
 {
   "id": "t-kkbqvqy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "real-mise tests pin any other installed Node and skip visibly with a reason"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "The receiver toolchain hook test pins any installed Node other than the running one, and says so when it skips",
@@ -12,10 +16,10 @@
   "acceptance": [
     {
       "verify": "node --test test/hook/receiver-toolchain.test.ts",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ],
-  "kind": "defect",
+  "kind": "debt",
   "area": "hook"
 }

@@ -143,6 +143,8 @@ jobs:
         uses: ./.github/actions/setup-ci
         with:
           isolation: 'true'
+          # The newest 24.x, one major below the pinned Node.
+          second-node: 24.22.1
 
       - name: Run test shard
         env:
