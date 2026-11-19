@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -455,6 +461,33 @@ test('krn pr body in a tracker repository still needs --task', () => {
     );
     assert.equal(result.status, 64);
     assert.match(result.stderr, /--task needs a task id/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('krn pr body with a value after --refs (the #1521 call) exits 64, writes no file and removes a stale one', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-refs-'));
+  try {
+    spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+    mkdirSync(join(dir, 'tasks'));
+    const out = join(dir, 'body.md');
+    const call = [cli, 'pr', 'body', '--refs', 't-wmdgs04', '--out', out];
+    const fresh = spawnSync(process.execPath, call, {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(fresh.status, 64);
+    assert.match(fresh.stderr, /Unknown pr body flag: t-wmdgs04/u);
+    assert.match(fresh.stderr, /--refs takes no value/u);
+    assert.equal(existsSync(out), false);
+    writeFileSync(out, 'stale body from an earlier run\n');
+    const stale = spawnSync(process.execPath, call, {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(stale.status, 64);
+    assert.equal(existsSync(out), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -91,6 +91,14 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node scripts/weak-tests.mjs "$BASE" "$HEAD"
 
+      # The body must hold `## Why`, `## Verified` and a `Ticket:`/`Refs:` line, the
+      # rule `krn pr ship` applies before it pushes; this catches a body edited later.
+      - name: Pull request body
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/pr-body-check.ts
+
       # A pull request whose commits carry `Ticket: <id>` must close that task;
       # work that leaves it open carries `Refs: <id>` (ADR 0015).
       - name: Task records

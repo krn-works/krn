@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ADVISOR_ARM_PREFIX } from '../outcome/lane-advisor.ts';
@@ -208,7 +208,23 @@ function commitsLeaveTaskOpen(root: string, base: string, id: string): boolean {
   return has('Refs') && !has('Ticket');
 }
 
+/**
+ * Prints the body, or writes it to --out. A call that fails (a wrong flag, a stray argument such
+ * as the id after the boolean `--refs`) writes nothing and removes the file --out names, so a
+ * caller that ships the file afterwards cannot publish a stale or empty body.
+ */
 export function prBodyCommand(args: string[]): string {
+  try {
+    return composePrBody(args);
+  } catch (error) {
+    const named = args.lastIndexOf('--out');
+    const stale = named >= 0 ? args[named + 1] : undefined;
+    if (stale !== undefined) rmSync(stale, { force: true });
+    throw error;
+  }
+}
+
+function composePrBody(args: string[]): string {
   let id: string | undefined;
   let why = '';
   let verified = '';
@@ -241,7 +257,9 @@ export function prBodyCommand(args: string[]): string {
         '--out',
       ].includes(flag)
     )
-      throw new CliUsageError(`Unknown pr body flag: ${flag}\n${prBodyUsage}`);
+      throw new CliUsageError(
+        `Unknown pr body flag: ${flag}${args[i - 1] === '--refs' ? ' (--refs takes no value; name the task with --task)' : ''}\n${prBodyUsage}`,
+      );
     const value = flagValue(
       args,
       i++,
