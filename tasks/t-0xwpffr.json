@@ -1,0 +1,14 @@
+{
+  "id": "t-0xwpffr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Hook tests build their own task identity, so a lane's base run stays green",
+  "after": [],
+  "body": [
+    "Observed 2026-11-19: `krn lane run --task t-wfc37b4` and `--task t-kkbqvqy` both stopped with \"the base suite is red\" before any session started. The base run inside the lane worktree failed two tests that pass on main: test/hook/stop.test.ts:688 ('a lane session with slug fix-x ... one with no identity is refused' got \"no commit\" instead of /names no task/) and test/claude/context-restart.test.ts:19 (additionalContext gained a '- Tasks: t-wfc37b4' line before '- Paths:'). The lane's own task identity (env such as KRN_TASK/KRN_LANE/KRN_SESSION_CLASS, or the worktree branch name) leaks into the fixtures, so every task lane is refused while these tests run in a lane worktree. Logs: .krn/worktrees/t-wfc37b4/.krn/tmp/base-run.log.\nPrinciple: a test fixture builds its whole identity (env and git) itself; nothing from the session running the suite reaches the code under test.\nFiles: test/hook/stop.test.ts, test/claude/context-restart.test.ts (and the source that reads the leaked identity, if the leak is in the code rather than the fixture)\nOutcome: both tests pass when the suite runs with KRN_TASK=t-zzzzzzz KRN_LANE=t-zzzzzzz KRN_SESSION_CLASS=lane in the environment and from a checkout on a branch named like a task id; a regression test (or the existing ones under that env) proves it.\nProof: `KRN_TASK=t-zzzzzzz KRN_LANE=t-zzzzzzz KRN_SESSION_CLASS=lane node --test test/hook/stop.test.ts test/claude/context-restart.test.ts` prints pass."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}
