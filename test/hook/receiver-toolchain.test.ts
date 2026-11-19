@@ -147,10 +147,14 @@ test(
     const dir = receiver({ 'mise.toml': `[tools]\nnode = "${pinned}"\n` });
     try {
       spawnSync('mise', ['trust', dir]);
-      const env = sessionEnvironment({ PATH: process.env.PATH }, '/c', {
-        lane: 'l',
-        receiver: dir,
-      });
+      const env = sessionEnvironment(
+        { PATH: process.env.PATH, MISE_DATA_DIR: process.env.MISE_DATA_DIR },
+        '/c',
+        {
+          lane: 'l',
+          receiver: dir,
+        },
+      );
       assert.ok(env.PATH?.startsWith(`${wrapperDirectory}${delimiter}`));
       assert.ok(env.PATH?.includes(`node/${pinned}/bin`));
     } finally {
