@@ -24,6 +24,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { outsideGit } from '../../src/cli/outside-git.ts';
 import { shellWord } from '../../src/repo/shell-text.ts';
 import { startEgress } from './egress.ts';
 import { withoutBrowser } from './no-browser.ts';
@@ -536,6 +537,52 @@ export async function gradeWorktree(
     ) ||
     (unit.test.includes('pytest') && test === 2);
   return { install, test, compile, tail: lastLines(tail) };
+}
+
+/**
+ * The command that runs the repository's tests beyond the hidden file: the unit's `suite`, else its `test` widened.
+ * Go's per-package run becomes `./...`; a runner that names the hidden file runs everything without it.
+ */
+export function suiteCommand(unit: Unit): string {
+  if (unit.suite) return unit.suite;
+  if (/\bgo test\b/.test(unit.test))
+    return unit.test.replace(/\.\/\S*/, './...');
+  return unit.test
+    .replace(shellWord(unit.hidden.dest), '')
+    .replace(unit.hidden.dest, '')
+    .trimEnd();
+}
+
+/**
+ * Install and run the unit's suite in a prepared worktree without the hidden test; the suite's exit, -1 when the
+ * install failed. Any file at the hidden path is restored to the worktree's commit or removed first.
+ */
+export async function gradeSuite(
+  wt: string,
+  unit: Unit,
+  log: string,
+  scratch: string,
+): Promise<number> {
+  wt = resolve(wt);
+  scratch = resolve(scratch);
+  requireSandbox();
+  refuseScratchInRepository(scratch);
+  cacheRoot = cacheRootFor(scratch);
+  const dest = join(wt, unit.hidden.dest);
+  if (existsSync(dest)) {
+    const tracked = outsideGit(wt, ['ls-files', '--', unit.hidden.dest]).trim();
+    if (tracked) outsideGit(wt, ['checkout', '-q', '--', unit.hidden.dest]);
+    else rmSync(dest);
+  }
+  const install = await run(
+    `timeout ${INSTALL_SECONDS} sh -c ${shellWord(unit.install)}`,
+    wt,
+    log,
+    [wt],
+    true,
+  );
+  if (install !== 0) return -1;
+  return run(suiteCommand(unit), wt, log, [wt], false);
 }
 
 /**

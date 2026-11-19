@@ -27,6 +27,7 @@ import { requireSandbox, sandboxArgv } from '../units/sandbox.ts';
 import {
   cacheRootFor,
   forceRemove,
+  gradeSuite,
   gradeWorktree,
   INSTALL_SECONDS,
   refuseScratchInRepository,
@@ -362,6 +363,33 @@ export const changedTree = (wt: string): boolean =>
   outsideGit(wt, ['status', '--porcelain']).trim() !== '';
 
 /**
+ * Whether a change that passes the hidden test breaks a test that passed at the base commit: the unit's suite
+ * (screening.ts suiteCommand) on the changed tree without the hidden file, and, only when that is red, on a fresh
+ * base checkout. Undefined when the suite is red at base too, so the unit cannot show a regression.
+ */
+export async function regressedAgainstBase(
+  { unit }: LiveUnit,
+  wt: string,
+  log: string,
+  o: { sources: string; scratch: string },
+): Promise<boolean | undefined> {
+  if ((await gradeSuite(wt, unit, log, o.scratch)) === 0) return false;
+  const base = baseCheckout(o.sources, unit, o.scratch);
+  try {
+    appendFileSync(log, `\n== ${unit.id} base suite\n`);
+    return (await gradeSuite(base, unit, log, o.scratch)) === 0
+      ? true
+      : undefined;
+  } finally {
+    try {
+      forceRemove(base);
+    } catch (e) {
+      appendFileSync(log, `cleanup: ${String(e)}\n`);
+    }
+  }
+}
+
+/**
  * The whole live attempt of `arm` on a prepared checkout, shared by every arm: the toolchain preflight (a unit whose
  * toolchain does not resolve is screened out, never run), the gated session inside a host-wide slot, and the grade of
  * the change by the unit's hidden test. `beforeGrade` sees the checkout between session and grade (patch recording).
@@ -445,6 +473,12 @@ export async function liveAttempt(
     ? await gradeWorktree(wt, unit, dir, log, o.scratch)
     : undefined;
   const pass = g ? g.install === 0 && g.test === 0 : undefined;
+  const regressed =
+    g === undefined
+      ? undefined
+      : pass === true
+        ? await regressedAgainstBase({ unit, dir }, wt, log, o)
+        : false;
   const verdict = attemptVerdict({
     ran: a.ran,
     testsRun: a.fields.testsRun,
@@ -459,6 +493,7 @@ export async function liveAttempt(
       ...a.fields,
       queueMs,
       verdict,
+      ...(regressed === undefined ? {} : { regressed }),
       ...(g ? { gradeTail: g.tail } : {}),
     },
   };
