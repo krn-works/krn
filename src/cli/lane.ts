@@ -7,7 +7,6 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
-  statfsSync,
   statSync,
 } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -21,6 +20,11 @@ import {
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
+import {
+  budgetShortfall,
+  freeGb,
+  envLimit as limit,
+} from '../repo/disk-budget.ts';
 import { removeFinishedLane, worktreeUsers } from '../repo/lane-removal.ts';
 import { laneMergeVerdict, type MergeVerdict } from '../repo/merge-verdict.ts';
 import { gitLockError } from '../repo/shell-text.ts';
@@ -91,22 +95,6 @@ function briefCommand(rest: string[]): void {
 // .krn/runs/lead/usage/report-before-v3.md). A failed `krn lane run` attempt keeps its worktree
 // for the rerun but releases its claim: it holds no session and never fills the budget, so a
 // drain of more tasks than the budget does not stop on its own leftovers.
-function limit(name: string, fallback: number): number {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) && value >= 0 && process.env[name] !== ''
-    ? value
-    : fallback;
-}
-
-function freeGb(dir: string): number | undefined {
-  try {
-    const stats = statfsSync(dir);
-    return (stats.bavail * stats.bsize) / 1024 ** 3;
-  } catch {
-    return undefined;
-  }
-}
-
 /** The short-lived worktree `krn task publish` ships task records from: no agent session, so no lane. */
 export const taskRecordsPrefix = 'task-records-';
 
@@ -115,17 +103,14 @@ export function checkLaneBudget(
   base?: string,
   slug?: string,
 ): void {
-  const minFree = limit('KRN_LANE_MIN_FREE_GB', 5);
-  for (const dir of [
+  const short = budgetShortfall([
     main,
     process.env.KRN_LANE_TMP ?? join(sep, 'mnt', 'storage', 'tmp'),
-  ]) {
-    const free = freeGb(dir);
-    if (free !== undefined && free < minFree)
-      throw new CliUsageError(
-        `lane budget: only ${free.toFixed(1)} GB free under ${dir} (minimum ${minFree} GB, KRN_LANE_MIN_FREE_GB); free disk before starting a lane`,
-      );
-  }
+  ]);
+  if (short)
+    throw new CliUsageError(
+      `lane budget: only ${short.free.toFixed(1)} GB free under ${short.dir} (minimum ${short.minFree} GB, KRN_LANE_MIN_FREE_GB); free disk before starting a lane`,
+    );
   // Publishing task records holds no paid session: it is never refused by the live-lane count.
   if (slug?.startsWith(taskRecordsPrefix)) return;
   const maxLive = limit('KRN_LANE_MAX_LIVE', 6);
