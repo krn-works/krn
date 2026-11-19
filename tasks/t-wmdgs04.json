@@ -1,0 +1,14 @@
+{
+  "id": "t-wmdgs04",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Lane start admits a lane by free host capacity instead of a fixed count",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19; operator grant: host-wide queue for all projects, krn-dev for batch work under caps (memory host-capacity-grant). Evidence: laptop Ryzen 5700U 16 threads, load 17-25, CPU 56% user 28% sys 16% idle, swap ~9 GB zram, /mnt/storage 92% full; KRN lane npm run fast took 25+ min vs 2-3; live CPU split: krn ~120%, mise-en-plesk ~140%, desktop/Chrome ~160%, elektroinstal 38%, rss-news 35%, CI containers.\nFiles: src/cli/lane.ts, test/cli/lane.test.ts\nOutcome: krn lane start refuses with a named exit when the host's free capacity (load, free memory, heavy-job queue depth) is below a threshold, naming the numbers; KRN_LANE_MAX_LIVE stays as the upper cap.\nProof: `node --test test/cli/lane.test.ts: pass` with an injected capacity probe below threshold refusing and above it starting."
+  ],
+  "kind": "feature",
+  "area": "lane"
+}
