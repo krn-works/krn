@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /** Where a ship keeps its pid and its log, inside the lane worktree (ignored state). */
 export const shipPidPath = join('.krn', 'tmp', 'ship.pid');
@@ -63,6 +63,30 @@ export function clearShipLive(worktree: string, pid = process.pid): void {
   } catch {
     /* Nothing recorded. */
   }
+}
+
+/**
+ * The worktree a detached ship runs in and the ship arguments with `--worktree` made absolute. The child
+ * starts with the worktree as its cwd, so a relative `--worktree` forwarded as given would resolve
+ * against the worktree itself and name a directory that does not exist.
+ */
+export function detachedShipArgs(
+  args: readonly string[],
+  caller: string,
+): { worktree: string; args: string[] } {
+  const out = [...args];
+  let worktree = resolve(caller);
+  for (let i = 0; i < out.length; i++) {
+    const arg = out[i] as string;
+    if (arg === '--worktree') {
+      worktree = resolve(caller, out[i + 1] ?? '.');
+      out[i + 1] = worktree;
+    } else if (arg.startsWith('--worktree=')) {
+      worktree = resolve(caller, arg.slice('--worktree='.length));
+      out[i] = `--worktree=${worktree}`;
+    }
+  }
+  return { worktree, args: out };
 }
 
 /**

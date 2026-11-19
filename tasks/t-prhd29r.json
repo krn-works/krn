@@ -1,0 +1,19 @@
+{
+  "id": "t-prhd29r",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "detachedShipArgs resolves --worktree absolute; test/ci/ship-live.test.ts; fast PASS"
+  },
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "detached ship with a relative --worktree resolves it twice and dies with git ENOENT",
+  "after": [],
+  "body": [
+    "krn pr ship --detach --worktree .krn/worktrees/<id> (a relative path, as the usage line shows) dies at once with 'spawnSync git ENOENT' in ship.log: startDetachedShip (src/ci/ship-live.ts) spawns the child with cwd = worktree but passes the same relative --worktree in argv, so the child resolves it against the worktree and gets a path that does not exist.",
+    "Outcome: a detached ship started from the repository root with a relative --worktree runs its git calls in the right worktree; a regression test that fails on the base passes (exit 0).\nProof: regression test under test/ci for startDetachedShip or its argv/cwd builder."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
