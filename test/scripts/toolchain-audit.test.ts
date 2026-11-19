@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   type AuditInput,
   audit,
+  providesCommand,
   shortName,
   verdict,
 } from '../../scripts/toolchain-audit.ts';
@@ -18,6 +22,7 @@ const clean: AuditInput = {
   pathHits: {},
   tempConfigs: [],
   foreignInstalls: [],
+  unprovided: [],
   errors: [],
 };
 
@@ -55,6 +60,7 @@ test('each kind of divergence is one finding and the verdict counts them', () =>
     pathHits: { pnpm: ['/usr/bin/pnpm'] },
     tempConfigs: ['/tmp/x/mise.toml'],
     foreignInstalls: ['github-composer-composer/2.10.3 -> /usr'],
+    unprovided: [],
     errors: ['q: mise.toml is not trusted'],
   });
   assert.deepEqual(
@@ -81,4 +87,27 @@ test('the backend prefix and owner drop, a scoped npm name stays whole', () => {
   assert.equal(shortName('npm:playwright'), 'playwright');
   assert.equal(shortName('npm:@excalidraw/cli'), '@excalidraw/cli');
   assert.equal(shortName('node'), 'node');
+});
+
+test('a pin whose install holds only composer.phar yields a provides finding naming config and fix', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'provides-'));
+  writeFileSync(join(dir, 'composer.phar'), '');
+  chmodSync(join(dir, 'composer.phar'), 0o755);
+  assert.equal(providesCommand(dir, 'composer'), false);
+  const findings = audit({
+    ...clean,
+    unprovided: [{ tool: 'github:composer/composer', config: 'p/mise.toml' }],
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.kind, 'provides');
+  assert.match(findings[0]?.line ?? '', /p\/mise\.toml/u);
+  assert.match(findings[0]?.line ?? '', /bin = "composer"/u);
+});
+
+test('a pin whose install holds a composer executable yields no provides finding', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'provides-'));
+  writeFileSync(join(dir, 'composer'), '');
+  chmodSync(join(dir, 'composer'), 0o755);
+  assert.equal(providesCommand(dir, 'composer'), true);
+  assert.deepEqual(audit(clean), []);
 });
