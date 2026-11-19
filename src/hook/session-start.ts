@@ -12,6 +12,7 @@ export function sessionContext(
   project: string,
   sessionId: string,
   env: NodeJS.ProcessEnv = process.env,
+  resumedTranscript?: string,
 ): string | undefined {
   if (isWorkerSession(env)) return undefined;
   const [commonDirectory = '', branch = ''] = execFileSync(
@@ -27,13 +28,25 @@ export function sessionContext(
     .trim()
     .split('\n');
   const main = dirname(resolve(project, commonDirectory));
-  return sessionStandards(project, main, sessionId, branch);
+  return sessionStandards(
+    project,
+    main,
+    sessionId,
+    branch,
+    undefined,
+    resumedTranscript,
+  );
 }
 
 export function main(): void {
   try {
     const input = hookInput(['SessionStart']);
-    const block = sessionContext(input.project, input.sessionId);
+    const block = sessionContext(
+      input.project,
+      input.sessionId,
+      process.env,
+      input.source === 'resume' ? input.transcriptPath : undefined,
+    );
     if (block) emitContext(input.event, block);
   } catch {
     /* A missing brain is not a reason to interrupt a session. */

@@ -44,7 +44,9 @@ export const REPLAY_CASES: readonly ReplayCase[] = [
       'The lead explains a skipped Stop standards check by the recordedShip condition without checking that a session ran at all.',
     grader: {
       on: 'text',
-      pattern: 'recordedShip',
+      // The identifier, or the same attribution in words: the ship-recorded early return of src/hook/stop.ts.
+      pattern:
+        'recordedShip|early[- ]return|returns? early|exits? early|ship[- ](?:was |is )?recorded|recorded (?:a |the )?(?:merged )?ship|ship record',
       unlessBefore: 'transcript|\\.jsonl|\\.krn/runs|stop --check|session',
     },
     prevention: 'none yet',

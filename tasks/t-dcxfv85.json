@@ -1,7 +1,11 @@
 {
   "id": "t-dcxfv85",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SessionStart on resume serves lead records keyed by the transcript tail (hook test on a transcript capture; replayed turn context held r-stop-skip-needs-session-proof in 5/5 reps). Preregistered A/B re-run: stop-attribution-unchecked repeat 5/5 vs 5/5 (c8d0aff vs HEAD), guards 0/5; the grader counts a refuting mention of recordedShip, so the primary shows no effect"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Serve lead records to a resumed lead session without a claimed task",

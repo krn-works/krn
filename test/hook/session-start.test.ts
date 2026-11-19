@@ -216,3 +216,98 @@ test('an adopted fresh repository serves the brain standards at session start, t
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+const tail = fileURLToPath(
+  new URL(
+    '../fixtures/session-resume/lead-transcript-tail.jsonl',
+    import.meta.url,
+  ),
+);
+
+const resumed = (root: string, transcript: string, source = 'resume') =>
+  JSON.stringify({
+    session_id: 'sess-resume',
+    transcript_path: transcript,
+    hook_event_name: 'SessionStart',
+    source,
+    cwd: root,
+  });
+
+const context = (stdout: string): string =>
+  (
+    JSON.parse(stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }
+  ).hookSpecificOutput.additionalContext;
+
+test('a resumed lead session with no claimed task is served the lead record its transcript tail calls for, within the cap', () => {
+  const root = adopted();
+  try {
+    const records = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL('../../.agents/records.json', import.meta.url)),
+        'utf8',
+      ),
+    ) as { id: string }[];
+    writeFileSync(
+      join(root, '.agents/records.json'),
+      JSON.stringify(
+        records.filter((record) =>
+          [
+            'r-stop-skip-needs-session-proof',
+            'r-tracker-owner',
+            'r-bounded-context',
+            'r-trailer',
+          ].includes(record.id),
+        ),
+      ),
+    );
+    const contract = join(root, 'krn.json');
+    writeFileSync(
+      contract,
+      JSON.stringify({
+        ...(JSON.parse(readFileSync(contract, 'utf8')) as object),
+        conventions: '.agents/records.json',
+      }),
+    );
+    for (const args of [
+      ['add', '-A'],
+      ['commit', '-q', '-m', 'records'],
+    ])
+      assert.equal(run(root, 'git', args).status, 0);
+
+    const resume = run(
+      root,
+      process.execPath,
+      [cli, 'hook', 'session-start'],
+      resumed(root, tail),
+    );
+    assert.equal(resume.status, 0, resume.stderr);
+    const text = context(resume.stdout);
+    assert.match(
+      text,
+      /Standards for this session \((\d); at most 3 records, retrieval confidence >= 2\):/u,
+    );
+    assert.match(text, /- \[r-stop-skip-needs-session-proof\]/u);
+    assert.ok((text.match(/^- \[r-[a-z-]+\]/gmu) ?? []).length <= 3);
+
+    const fresh = run(
+      root,
+      process.execPath,
+      [cli, 'hook', 'session-start'],
+      resumed(root, tail, 'startup'),
+    );
+    assert.doesNotMatch(context(fresh.stdout), /Standards for this/u);
+
+    const worker = run(
+      root,
+      process.execPath,
+      [cli, 'hook', 'session-start'],
+      resumed(root, tail),
+      { KRN_SESSION_CLASS: 'lane' },
+    );
+    assert.doesNotMatch(context(worker.stdout), /Standards for this/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
