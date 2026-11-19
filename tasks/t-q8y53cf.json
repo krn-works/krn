@@ -1,0 +1,14 @@
+{
+  "id": "t-q8y53cf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "Defect tasks carry a root-cause class and krn ledger counts repeats per class",
+  "after": [],
+  "body": [
+    "Source: Fable history review .krn/runs/arch-review/history.md.\nEvidence: 35% of first-parent commits in 21 days were fixes, and 65 of 84 sampled fixes had a lower test layer that would have caught them. `krn ledger --reverts` shows 0 reverts in 400 PRs and nothing calls it, because defects are fixed forward. The 202 defect task records carry no root-cause class, so repeats are invisible. The top classes are receiver coupling (13), lane lifecycle (10), output and exit contracts (10) and narrow heuristics (9).\nFiles: src/task/ (schema), src/ledger*, krn ledger\nOutcome: defect tasks carry a root-cause class from a fixed list. `krn ledger --classes` counts fixes per class over a window. A class that reaches 3 fixes in 14 days opens a task to build that class's mechanical check, as listed in the report.\nProof: a ledger test counts classes from fixtures; the task schema rejects a defect record with no class."
+  ],
+  "kind": "feature",
+  "area": "ledger"
+}

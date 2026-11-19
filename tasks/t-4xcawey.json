@@ -1,0 +1,18 @@
+{
+  "id": "t-4xcawey",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Retrieval eval measures a lexical baseline, no-match and superseded cases",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md \"S3 Retrieval\".\nOutcome: evals/retrieval gains a lexical whole-record BM25 baseline arm, no-match cases with a false-positive rate, and supersession cases (0 superseded records in top 5); the standards skill and `krn standards query --help` state the output shape (arXiv 2611.19123, 2611.20455, 2607.24882).\nProof: `node evals/retrieval/run.ts` prints recall@5 per arm including bm25, a no-match false-positive rate and stale-in-top5."
+  ],
+  "kind": "feature",
+  "area": "brain",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

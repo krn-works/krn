@@ -1,0 +1,18 @@
+{
+  "id": "t-0mx3jve",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Lanes cannot write or kill outside their worktree",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md \"S6 Harness & delivery\".\nOutcome: lane settings set permissions.blockWritesOutsideWorkingDirectories; CLAUDE_CODE_DISABLE_AGENT_PROGRESS_SUMMARIES=1 after a one-lane A/B on tokens; a lane-scoped PreToolUse guard denies pkill/killall and git add -A/. outside the lane worktree; review rounds capped at 2. Routing inputs for t-qft76jx recorded there: fixed model per lane, escalate only on red CI/timeout, effort high never max (AA index: max 56 @ $44 vs high 58 @ $7.5).\nProof: `node --test test/hook/lane-guard.test.ts` passes, and lane settings contain blockWritesOutsideWorkingDirectories."
+  ],
+  "kind": "feature",
+  "area": "harness",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

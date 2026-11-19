@@ -1,0 +1,14 @@
+{
+  "id": "t-fw5y0zm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Lane drop, Stop and claim reads use the real lane checkout and live-ship guards",
+  "after": [],
+  "body": [
+    "Source: Fable architecture review, report .krn/runs/arch-review/architecture.md (section 5).\nEvidence and fixes, each with its regression test:\n- src/cli/lane.ts:581 (M9): `krn lane drop` removes the worktree with --force and never checks for a live ship or a process inside it. Fix: reuse the guards in removeFinishedLane.\n- src/hook/stop.ts:695-698: when `git worktree add` for the base fails, Stop refuses with \"no test is red on the base\" and blames the worker. Fix: report an infrastructure error instead.\n- src/hook/stop.ts:2080-2092 against 1979-1986 (M3): the stop-loop fingerprint and the refusal file use CLAUDE_PROJECT_DIR, not the checkout judgeStop resolved. Fix: use the resolved checkout.\n- src/hook/stop.ts:1834-1843 (M12): claim files are parsed by hand with no expiry check. Fix: use the claim reader from src/task.\n- test/rules/transcript-readers.test.ts:23 (M20): the rule misses five transcript readers in stop.ts. Fix: widen the rule.\nFiles: src/cli/lane.ts, src/hook/stop.ts, test/hook/stop.test.ts, test/cli/lane.test.ts, test/rules/transcript-readers.test.ts\nOutcome: all five fixed with tests (KRN-14).\nProof: the new tests fail on the base and pass on the branch."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

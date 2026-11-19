@@ -1,0 +1,18 @@
+{
+  "id": "t-2emrjq0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Records carry evidence trust and file anchors, and preferences come only from the operator",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md \"S4 Formats & memory\"; for t-pvynhpa.\nOutcome: harvest ranks operator corrections above CI red and does not filter to failures; preference records only from operator-correction evidence; tool/web-derived records capped at fact with a trust ceiling per evidence kind; records may carry anchors {path, blob_sha} and become stale-candidate when the blob changes; consolidation only proposes trial records, never activates (Anthropic components-of-agent-memory, arXiv 2607.20668, 2607.22157, 2611.22697).\nProof: `node --test test/brain/evidence-trust.test.ts` passes, covering preference-from-operator-only, trust ceiling and blob-anchor staleness."
+  ],
+  "kind": "feature",
+  "area": "brain",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

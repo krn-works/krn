@@ -1,0 +1,14 @@
+{
+  "id": "t-hf1z9se",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Ship judges checks by name and App id and every required context",
+  "after": [],
+  "body": [
+    "Source: operator-forwarded weekly code review 2026-11-19 (800 PRs since 2026-11-12, deep pass on ship gate, lane write guard, CI). Evidence: newestCheck matches by name only and ignores the App id (src/ci/ship.ts:99) while selectRequiredCheck checks both; requiredContext takes the first required context only (src/repo/required-check.ts:148); lane-target: / admits every path with no sanity check (src/hook/scope.ts:91-109).\nFiles: src/ci/ship.ts, src/repo/required-check.ts, src/hook/scope.ts\nOutcome: the close record and open-red limit pick the check by name and App id; a repository requiring several contexts is judged on all of them; a lane-target naming / or a path above the main checkout is refused.\nProof: `node --test test/ci/ship.test.ts: pass` with a same-name check from another App ignored and two required contexts both judged."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
