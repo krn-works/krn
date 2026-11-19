@@ -1,7 +1,11 @@
 {
   "id": "t-8v6620r",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Fast plans a test that reaches a change through at most one module between, and a spawning test only for the core entry or a command's own modules and their direct imports; the rest is listed as left to CI. Over 60 merged commits the average local plan drops from 23.3 to 12.9 tests (spawning tests 490 to 157); a packet.ts change runs 24 tests, not 103. Local wall and lane-PR red Check rate are to be watched over the next two weeks."
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Local fast runs only the tests a change touches and leaves the wide set to CI",

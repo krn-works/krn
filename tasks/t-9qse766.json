@@ -1,7 +1,11 @@
 {
   "id": "t-9qse766",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-8v6620r",
+    "note": "Same outcome: fast stays fast when a widely imported module changes; delivered by t-8v6620r."
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Fast check stays fast when a widely imported module changes",

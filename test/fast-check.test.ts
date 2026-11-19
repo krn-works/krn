@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -912,6 +913,135 @@ test('a fully resolved graph gives a narrow plan with the dependency path', () =
       via: ['test/a.test.ts', 'src/a.ts', 'src/leaf.ts'],
     },
   ]);
+});
+
+test('a test that reaches a change through more than one module between is left to CI with its chain', () => {
+  const files = new Map([
+    ['test/a.test.ts', "import { a } from '../src/a.ts';"],
+    ['src/a.ts', "import { mid } from './mid.ts';"],
+    ['src/mid.ts', "import { leaf } from './leaf.ts';"],
+    ['src/leaf.ts', 'export const leaf = 1;'],
+  ]);
+  const suite = new Map([
+    ['test/a.test.ts', files.get('test/a.test.ts') ?? ''],
+  ]);
+  const read = (path: string) => files.get(path);
+  assert.deepEqual(
+    planTests(
+      ['src/leaf.ts'],
+      suite,
+      [],
+      new Set(),
+      new Map([['x', new Set<string>()]]),
+      read,
+    ),
+    [
+      {
+        path: 'test/a.test.ts',
+        reason: 'left to CI',
+        via: [
+          'import consumer',
+          'test/a.test.ts',
+          'src/a.ts',
+          'src/mid.ts',
+          'src/leaf.ts',
+        ],
+      },
+    ],
+  );
+  assert.deepEqual(
+    selectTests(
+      ['src/leaf.ts'],
+      suite,
+      [],
+      new Set(),
+      new Map([['x', new Set<string>()]]),
+      read,
+    ),
+    [],
+  );
+});
+
+test("a spawning test runs locally for its command's own imports and is left to CI for deeper ones", () => {
+  const spawning = new Map([
+    ['test/cli/x.test.ts', "spawnSync('bin/krn', ['ledger']);"],
+  ]);
+  const full = new Map([
+    ['ledger', new Set(['src/ledger/cli.ts', 'src/ledger/rows.ts'])],
+  ]);
+  const core = new Map([['ledger', new Set(['src/ledger/cli.ts'])]]);
+  const plan = (changed: string) =>
+    planTests(
+      [changed],
+      spawning,
+      [],
+      new Set(),
+      full,
+      () => undefined,
+      core,
+    ).map((entry) => [entry.path, entry.reason]);
+  assert.deepEqual(plan('src/ledger/cli.ts'), [
+    ['test/cli/x.test.ts', 'spawns entry'],
+  ]);
+  assert.deepEqual(plan('src/ledger/rows.ts'), [
+    ['test/cli/x.test.ts', 'left to CI'],
+  ]);
+  assert.deepEqual(
+    selectTests(
+      ['src/ledger/rows.ts'],
+      spawning,
+      [],
+      new Set(),
+      full,
+      () => undefined,
+      core,
+    ),
+    [],
+  );
+});
+
+// KRN-12: the real repository's tests and CLI entry; a widely imported module plans only the
+// tests that import it directly, and leaves its transitive consumers to CI.
+test('a change to a widely imported module plans its direct importers and leaves the rest to CI', () => {
+  const tests = new Map<string, string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (/\.test\.(?:ts|mjs|js)$/u.test(path))
+        tests.set(path, readFileSync(path, 'utf8'));
+    }
+  };
+  walk('test');
+  const read = (path: string): string | undefined =>
+    existsSync(path) && lstatSync(path).isFile()
+      ? readFileSync(path, 'utf8')
+      : undefined;
+  const target = 'src/brain/packet.ts';
+  const plan = planTests(
+    [target],
+    tests,
+    [],
+    new Set(),
+    cliCommandModules('.'),
+    read,
+    cliCommandModules('.', 1),
+  );
+  const run = plan.filter((entry) => entry.reason !== 'left to CI');
+  for (const entry of run)
+    assert.ok(
+      ['names path', 'rule', 'tree', 'covers'].includes(entry.reason) ||
+        (entry.reason === 'import consumer' && entry.via.length <= 3),
+      `${entry.path}: ${entry.reason} ${entry.via.join(' > ')}`,
+    );
+  assert.ok(
+    run.filter((entry) => entry.reason === 'names path').length > 0,
+    'its direct importers run',
+  );
+  assert.ok(
+    plan.some((entry) => entry.reason === 'left to CI'),
+    'its transitive consumers are left to CI',
+  );
 });
 
 test('fast check runs tsc and the tests once when Biome rewrites a changed file', () => {
