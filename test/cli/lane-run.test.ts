@@ -1268,6 +1268,81 @@ test('a ship that throws releases the claim and a rerun ships', async () => {
   }
 });
 
+test('a rerun after a session that closed its task but never reached ship starts a new session', async () => {
+  // Seen on pilot-py t-2s70evn: a killed session left the task closed, and the rerun shipped it with no session and no Stop.
+  const { base, repo, claude } = fixture(deliver(undefined, false));
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'unreachable',
+    mint: async () => undefined,
+  };
+  const sessions = join(base, 'sessions');
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    writeFileSync(
+      claude,
+      `#!/bin/sh\necho run >> '${sessions}'\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    assert.equal(existsSync(sessions), true, 'the rerun started no session');
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a handed-off commit that conflicts with the moved base reruns in a session told to rebase, not a repeated ship', async () => {
+  // Seen on pilot-py t-03pvpwp: every rerun shipped the same commit and hit the same conflict (exit 76).
+  const { base, repo, claude } = fixture(
+    `printf 'lane\\n' >> shared.txt; git add shared.txt; ${deliver()}`,
+    { 'shared.txt': 'seed\n' },
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  const shipped: string[][] = [];
+  const steps = {
+    start: startLane,
+    ship: async (args: string[]) => {
+      shipped.push(args);
+      throw new Error('push rejected');
+    },
+    mint: async () => undefined,
+  };
+  const argv = join(base, 'argv');
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    assert.equal(shipped.length, 1);
+    assert.ok(
+      shipped[0]?.includes('--force'),
+      'a lane ship may push a rebased branch',
+    );
+    writeFileSync(join(repo, 'shared.txt'), 'seed\nbase\n');
+    git(repo, 'commit', '-qam', 'base moves');
+    git(repo, 'push', '-q', 'origin', 'main');
+    writeFileSync(
+      claude,
+      `#!/bin/sh\nprintf '%s\\n' "$@" > '${argv}'\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    assert.equal(existsSync(argv), true, 'the rerun shipped without a session');
+    assert.match(
+      readFileSync(argv, 'utf8'),
+      /Base moved: this lane branch conflicts with origin\/main in shared\.txt/u,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('a rerun that ships an earlier delivery installs the dependencies its final check needs', async () => {
   // Seen on pilot-py: the rerun of a delivered lane skipped the session and the install, so the final check found no .venv.
   // No fast-pass marker: the runner proves the tree with the contract test itself.
