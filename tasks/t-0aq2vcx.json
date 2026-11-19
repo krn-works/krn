@@ -1,7 +1,11 @@
 {
   "id": "t-0aq2vcx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "project-ci.yml runs every job on the runner input (label or JSON array)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "The reusable project CI runs every job on the runner its caller names",

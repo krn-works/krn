@@ -41,7 +41,7 @@ on:
         type: number
         default: 1
       runner:
-        description: Hosted runner label
+        description: Runner for every job, either one label or a JSON array of labels such as ["self-hosted","linux","x64","krn-ci-isolated"]
         type: string
         default: ubuntu-24.04
       timeout-minutes:
@@ -55,7 +55,7 @@ permissions:
 jobs:
   plan:
     name: Plan
-    runs-on: ubuntu-24.04
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     timeout-minutes: 5
     outputs:
       shards: ${{ steps.plan.outputs.shards }}
@@ -83,7 +83,7 @@ jobs:
     name: Lint
     needs: plan
     if: ${{ inputs.lint != '' }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - name: Checkout
@@ -105,7 +105,7 @@ jobs:
     name: Typecheck
     needs: plan
     if: ${{ inputs.typecheck != '' }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - name: Checkout
@@ -127,7 +127,7 @@ jobs:
     name: Test (${{ matrix.shard }}/${{ inputs.test-shards }})
     needs: plan
     if: ${{ inputs.test != '' }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     strategy:
       fail-fast: false
@@ -160,7 +160,7 @@ jobs:
       - lint
       - typecheck
       - test
-    runs-on: ubuntu-24.04
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     timeout-minutes: 5
     steps:
       # A job may be skipped only because its command is empty; any other

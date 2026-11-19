@@ -411,6 +411,12 @@ test('shared project CI pins its actions and ends in one aggregate Check that th
     [...jobs.keys()],
     ['plan', 'lint', 'typecheck', 'test', 'check'],
   );
+  for (const [name, body] of jobs)
+    assert.match(
+      body,
+      /^ {4}runs-on: \$\{\{ startsWith\(inputs\.runner, '\['\) && fromJSON\(inputs\.runner\) \|\| inputs\.runner \}\}$/mu,
+      `${name} runs on the runner input`,
+    );
   assert.match(jobs.get('check') ?? '', /^ {4}name: Check$/mu);
   assert.match(jobs.get('check') ?? '', /^ {4}if: \$\{\{ always\(\) \}\}$/mu);
 
