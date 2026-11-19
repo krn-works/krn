@@ -13,6 +13,9 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { stopCommand } from '../../src/adopt/stop-hook.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 // KRN-12: the portability probe fixtures (foreign repositories of other stacks and
 // layouts) run through the real `krn adopt --no-canary`, `krn repo contract` and

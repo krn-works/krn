@@ -5,6 +5,9 @@ import {
   drainReady,
   parseDrainRequest,
 } from '../../src/cli/lane-run/drain.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 function seams(
   queue: string[],

@@ -1,0 +1,6 @@
+{
+  "text": "A command that admits work by live host load or memory takes its probe as an injected dependency, and every test that reaches it pins the thresholds through one shared helper, so the suite verdict never depends on how busy the test machine is; prove it by running the reaching tests with the thresholds forced to refuse.",
+  "kind": "check",
+  "evidence": ["test/helpers/lane-host.ts"],
+  "recorded_at": "2026-11-19"
+}

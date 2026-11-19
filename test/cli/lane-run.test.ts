@@ -53,6 +53,9 @@ import {
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
 import { rerunCommand } from '../../src/repo/contract.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
 Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');

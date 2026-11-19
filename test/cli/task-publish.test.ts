@@ -13,7 +13,10 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { publishCommand } from '../../src/cli/task-publish.ts';
 import { pendingTaskFiles } from '../../src/task/pending.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
 import { withCategories } from '../task/task-fixture.ts';
+
+admitLanesOnAnyHost();
 
 delete process.env.KRN_SESSION_CLASS;
 // KRN-12: a real origin, a real main checkout and a real `krn task create`; only gh is faked.

@@ -25,10 +25,19 @@ import {
   freeGb,
   envLimit as limit,
 } from '../repo/disk-budget.ts';
+import {
+  type HostCapacity,
+  hostGateDir,
+  hostUnits,
+  laneHostShortfall,
+  laneLimits,
+  sampleHost,
+} from '../repo/host-gate.ts';
 import { removeFinishedLane, worktreeUsers } from '../repo/lane-removal.ts';
 import { laneMergeVerdict, type MergeVerdict } from '../repo/merge-verdict.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
+import { slotHolders } from '../repo/slot-lock.ts';
 import {
   claimTask,
   inspectClaim,
@@ -46,8 +55,8 @@ import { checkOpenRedLimit, type OpenPr } from './lane-open-red.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
 
 export const laneUsage = [
-  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session the worktree links the node_modules of the main checkout when git ignores the link (or the nested worktree resolves it), else the krn.json `install` command runs in it, and a failed install exits 71 with the claim released and no session started; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
+  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; any lane is refused with exit 75 while host load per core reaches KRN_LANE_LOAD_PER_CORE (default 1.25), available memory is below KRN_LANE_MIN_MB (default 2048) or the host heavy-job gate is full; prints the path and branch',
+  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session the worktree links the node_modules of the main checkout when git ignores the link (or the nested worktree resolves it), else the krn.json `install` command runs in it, and a failed install exits 71 with the claim released and no session started; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75, as does a start the host has no free capacity for; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   laneFinishUsage,
   'krn lane status [--root DIR]  one line per lane worktree: `live` (its `krn pr ship` runs, pid alive), `merged` (its ship merged on the base), `orphaned` (committed past the base, no pull request and no live ship: run `krn pr ship` or `krn lane finish`), `pr-open` (a pull request exists, no live ship), `empty` (no commit past the base) or `unknown` (gh cannot say)',
@@ -579,6 +588,7 @@ type CeilingReading = { share: number; ceiling: number; over: boolean } | null;
 
 /** The ceiling reading of the last merged-PR window; tests inject a fixture. */
 export type LaneDeps = {
+  capacity?: () => HostCapacity;
   ceiling?: (main: string) => Promise<CeilingReading>;
   openPrs?: (main: string) => OpenPr[] | undefined;
 };
@@ -587,6 +597,38 @@ async function windowCeiling(main: string): Promise<CeilingReading> {
   return nonDeliveryCeiling(
     await collectWindow({ last: CEILING_WINDOW_PRS, root: main }),
   );
+}
+
+/** The live host reading: load and memory now, plus the units held in the host-wide heavy-job gate. */
+export function readHostCapacity(
+  env: NodeJS.ProcessEnv = process.env,
+): HostCapacity {
+  return {
+    capacity: hostUnits(env),
+    sample: sampleHost(),
+    usedUnits: slotHolders(hostGateDir(env)).reduce(
+      (sum, holder) => sum + holder.weight,
+      0,
+    ),
+  };
+}
+
+/** A lane start the host has no room for now; exit 75 (temporary): retry once load, memory or the gate frees up. */
+export class LaneCapacityError extends Error {
+  readonly exitCode = 75;
+}
+
+/** Refuses a lane while the host lacks free capacity; KRN_LANE_MAX_LIVE stays the upper cap on top of it. */
+export function checkLaneCapacity(
+  slug: string,
+  read: () => HostCapacity = readHostCapacity,
+): void {
+  if (slug.startsWith(taskRecordsPrefix)) return;
+  const short = laneHostShortfall(read(), laneLimits());
+  if (short)
+    throw new LaneCapacityError(
+      `lane capacity: host has no room for another lane: ${short}; wait for running work to finish`,
+    );
 }
 
 /** Refuses a non-delivery lane while non-delivery spend is above the ceiling; delivery lanes and an unpriced window pass. */
@@ -668,6 +710,8 @@ export async function startLane(
     throw new CliUsageError(
       `krn.json is not on origin/${base}: commit the files krn adopt wrote and merge them to ${base} before starting lanes`,
     );
+  // A temporary refusal comes after every configuration error, so a retry is never wasted on one.
+  checkLaneCapacity(slug, deps.capacity);
   // A record pending on the publish ref moves into the checkout, then into the lane like any untracked one.
   if (task !== undefined) takePendingTask(origin, task);
   const carried =

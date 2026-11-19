@@ -1,7 +1,11 @@
 {
   "id": "t-wmdgs04",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane start refuses with exit 75 while host load per core, available memory or a full host heavy-job gate leave no room (KRN_LANE_LOAD_PER_CORE, KRN_LANE_MIN_MB); KRN_LANE_MAX_LIVE stays the upper cap"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Lane start admits a lane by free host capacity instead of a fixed count",
