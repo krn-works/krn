@@ -11,6 +11,8 @@ export type Grader = {
   pattern: string;
   /** The decision is only wrong without this check first: a tool call matching it earlier in the session clears the hit. */
   unlessBefore?: string;
+  /** Grade only the session's last text (its final diagnosis), not every text it writes on the way. */
+  finalText?: boolean;
 };
 
 export type ReplayCase = {
@@ -47,7 +49,10 @@ export const REPLAY_CASES: readonly ReplayCase[] = [
       // The identifier, or the same attribution in words: the ship-recorded early return of src/hook/stop.ts.
       pattern:
         'recordedShip|early[- ]return|returns? early|exits? early|ship[- ](?:was |is )?recorded|recorded (?:a |the )?(?:merged )?ship|ship record',
-      unlessBefore: 'transcript|\\.jsonl|\\.krn/runs|stop --check|session',
+      // Checked = the session read the lane line's cost/turns (krn lane status) or the Stop entries of the worktree's
+      // .krn/runs/hook/timing.jsonl in a tool call; only an unchecked final diagnosis repeats the decision.
+      unlessBefore: 'krn lane status|timing\\.jsonl',
+      finalText: true,
     },
     prevention: 'none yet',
   },

@@ -41,6 +41,14 @@ export function replayEvents(jsonl: string): ReplayEvent[] {
 export function repeats(g: Grader, events: readonly ReplayEvent[]): boolean {
   const hit = new RegExp(g.pattern, 'iu');
   const clear = g.unlessBefore ? new RegExp(g.unlessBefore, 'iu') : undefined;
+  if (g.finalText) {
+    const last = events.findLastIndex((e) => e.kind === 'text');
+    if (last < 0 || !hit.test(events[last]?.text ?? '')) return false;
+    return !(
+      clear &&
+      events.slice(0, last).some((e) => e.kind === 'tool' && clear.test(e.text))
+    );
+  }
   let cleared = false;
   for (const e of events) {
     if (g.on === 'any' || g.on === e.kind) {

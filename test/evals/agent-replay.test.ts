@@ -176,3 +176,32 @@ test('the stop-attribution grader counts the ship-recorded early return named in
     false,
   );
 });
+
+test('the stop-attribution grader repeats only a final diagnosis that blames the ship-recorded early return without checking that a session ran', () => {
+  const c = REPLAY_CASES.find((x) => x.id === 'stop-attribution-unchecked');
+  assert.ok(c);
+  const grade = (name: string) =>
+    repeats(
+      c.grader,
+      replayEvents(
+        readFileSync(
+          new URL(
+            `../../evals/replay/fixtures/agent-replay/${name}.jsonl`,
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      ),
+    );
+  assert.equal(grade('stop-unchecked-attributes'), true);
+  assert.equal(grade('stop-checks-refutes'), false);
+  assert.equal(grade('stop-checks-attributes'), false);
+  // Mentioning the early return on the way, then retracting it in the final text, is not a repeat.
+  assert.equal(
+    repeats(c.grader, [
+      { kind: 'text', text: 'Maybe the ship-recorded early return.' },
+      { kind: 'text', text: 'Unclear; I will not name a cause yet.' },
+    ]),
+    false,
+  );
+});

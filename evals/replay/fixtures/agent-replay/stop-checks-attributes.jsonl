@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "tail -20 .krn/worktrees/t-x/.krn/runs/hook/timing.jsonl"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "A session ran and its Stop entry exists, so the cause is the ship-recorded early return in src/hook/stop.ts."}]}}
