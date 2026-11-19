@@ -1,0 +1,12 @@
+# Install (operator/lead only): cp scripts/systemd/krn-host-sampler.* ~/.config/systemd/user/ &&
+#   systemctl --user daemon-reload && systemctl --user enable --now krn-host-sampler.timer
+# Report: node scripts/host/sampler-report.ts --hours 24
+[Unit]
+Description=Sample host load per project every minute
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
