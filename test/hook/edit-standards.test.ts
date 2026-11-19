@@ -153,6 +153,32 @@ test('the first PHP edit of a session brings the PHP records, the second adds on
   }
 });
 
+test('a session with no claimed task still gets the PHP records its edit text matches', () => {
+  const root = adoptedPhp();
+  try {
+    rmSync(join(root, `tasks/${phpTask}.json`));
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: root,
+    };
+    delete env.KRN_TASK;
+    const [edit = ''] = capture;
+    const first = spawnSync(process.execPath, [cli, 'hook', 'edit'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: edit.split(capturedRoot).join(root),
+      env,
+    });
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(
+      JSON.parse(first.stdout).hookSpecificOutput.additionalContext,
+      /^Standards for editing src\/a\.php \((\d+); at most 3 records, retrieval confidence >= 2\):\n- \[s-php-/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('a lane that edits PHP through a Bash one-liner gets the PHP records and logs an edit exposure', () => {
   const root = adoptedPhp();
   try {

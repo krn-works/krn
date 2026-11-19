@@ -88,8 +88,8 @@ export function commandFiles(
 
 /**
  * The records scoped to `file` that pass the retrieval gate task start applies: the task's title and
- * Outcome plus the file's path must match a record with confidence at least the threshold, best match first.
- * A scope match alone, or a task with no words, serves nothing.
+ * Outcome (or, in a session without a task, the text the edit writes) plus the file's path must match a record
+ * with confidence at least the threshold, best match first. A scope match alone serves nothing.
  */
 export function editRecordsFor(
   project: string,
@@ -98,8 +98,10 @@ export function editRecordsFor(
   taskText = '',
 ): Standard[] {
   return confidentRecords(
+    project,
     editRecords(project, file, asOf),
     `${taskText} ${file}`,
+    file,
     asOf,
   );
 }
@@ -107,6 +109,24 @@ export function editRecordsFor(
 /** The retrieval text of the task a session works on: its title, Outcome and Files, or empty. */
 function sessionTaskText(project: string, main: string, id: string): string {
   return (taskKey(project, id) ?? taskKey(main, id))?.text ?? '';
+}
+
+/** The most text of an edit the retrieval gate reads when no task words exist. */
+const SIGNAL_LIMIT = 4000;
+
+/**
+ * The words a session without a claimed task puts to the retrieval gate: the text an edit writes, or the Bash
+ * command that touches the file, bounded. Empty for any other payload.
+ */
+export function editSignal(payload: Record<string, unknown>): string {
+  const input = payload.tool_input;
+  const command =
+    typeof input === 'object' &&
+    input !== null &&
+    typeof (input as Record<string, unknown>).command === 'string'
+      ? ((input as Record<string, unknown>).command as string)
+      : '';
+  return (writtenText(payload) ?? command).slice(0, SIGNAL_LIMIT);
 }
 
 /** The kind of `file` the edit moment fires once for: its stack, else `*.<extension>`, else its name. */
@@ -197,8 +217,9 @@ export function main(): void {
     try {
       const main = mainCheckout(input.project);
       const task = process.env.KRN_TASK ?? taskId(input.project);
-      const taskText =
+      const claimed =
         task === undefined ? '' : sessionTaskText(input.project, main, task);
+      const taskText = claimed.trim() === '' ? editSignal(payload) : claimed;
       blocks = files.flatMap(
         (file) =>
           editContext(
