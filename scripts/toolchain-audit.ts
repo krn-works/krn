@@ -7,6 +7,7 @@ import {
   accessSync,
   constants,
   existsSync,
+  lstatSync,
   readdirSync,
   readFileSync,
   readlinkSync,
@@ -14,7 +15,7 @@ import {
   statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { delimiter, join, sep } from 'node:path';
+import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export type Installed = Record<
@@ -35,10 +36,18 @@ export type AuditInput = {
   latest: Record<string, string>;
   pathHits: Record<string, string[]>;
   tempConfigs: string[];
+  foreignInstalls: string[];
   errors: string[];
 };
 export type Finding = {
-  kind: 'outdated' | 'multi' | 'backend' | 'path' | 'tracking' | 'error';
+  kind:
+    | 'outdated'
+    | 'multi'
+    | 'backend'
+    | 'path'
+    | 'tracking'
+    | 'foreign'
+    | 'error';
   line: string;
 };
 
@@ -93,6 +102,10 @@ export function audit(input: AuditInput): Finding[] {
       kind: 'tracking',
       line: `tracking ${input.tempConfigs.length} temporary configs keep versions from mise prune (e.g. ${input.tempConfigs[0]})`,
     });
+  // An install directory that resolves outside mise exposes that directory's binaries as shims
+  // (a link to /usr made mise shim all of /usr/bin, git included).
+  for (const f of input.foreignInstalls)
+    findings.push({ kind: 'foreign', line: `foreign ${f}` });
   for (const e of input.errors)
     findings.push({ kind: 'error', line: `error ${e}` });
   return findings;
@@ -243,7 +256,10 @@ function collect(roots: string[]): AuditInput {
       try {
         accessSync(path, constants.X_OK);
         // A link into mise (e.g. ~/.local/bin/codex -> the shim) is mise's copy, not a duplicate.
-        if (!realpathSync(path).startsWith(miseData)) hits.add(path);
+        const target = lstatSync(path).isSymbolicLink()
+          ? resolve(dirname(path), readlinkSync(path))
+          : realpathSync(path);
+        if (!target.startsWith(miseData)) hits.add(path);
       } catch {
         // not in this PATH directory
       }
@@ -262,6 +278,22 @@ function collect(roots: string[]): AuditInput {
         // not a link: mise wrote something else here
       }
     }
+  const installs = join(miseData, 'installs');
+  const foreignInstalls: string[] = [];
+  if (existsSync(installs))
+    for (const tool of readdirSync(installs).filter((t) =>
+      statSync(join(installs, t)).isDirectory(),
+    ))
+      for (const version of readdirSync(join(installs, tool))) {
+        const path = join(installs, tool, version);
+        try {
+          const target = realpathSync(path);
+          if (!target.startsWith(`${miseData}${sep}`))
+            foreignInstalls.push(`${tool}/${version} -> ${target}`);
+        } catch {
+          // dangling alias link: mise repairs it on the next install
+        }
+      }
   return {
     installed,
     outdated,
@@ -269,6 +301,7 @@ function collect(roots: string[]): AuditInput {
     latest,
     pathHits,
     tempConfigs,
+    foreignInstalls,
     errors,
   };
 }
