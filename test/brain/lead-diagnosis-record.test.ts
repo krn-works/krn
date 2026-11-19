@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { REPLAY_CASES } from '../../evals/replay/agent-replay-cases.ts';
 import { parseUnified } from '../../src/brain/record.ts';
-import { laneCandidates, lanePacket } from '../../src/brain/worker-packet.ts';
+import {
+  editRecords,
+  laneCandidates,
+  lanePacket,
+} from '../../src/brain/worker-packet.ts';
 
 const root = new URL('../../', import.meta.url).pathname;
 const ID = 'r-stop-skip-needs-session-proof';
@@ -54,4 +58,9 @@ test('a lead record is served in a lead packet and never in a worker packet', ()
     'worker',
   );
   assert.ok(!worker?.records.includes(ID));
+});
+
+test('the edit moment never serves the lead record, even for the file it names', () => {
+  const served = editRecords(root, 'src/hook/stop.ts', asOf).map((r) => r.id);
+  assert.ok(!served.includes(ID));
 });

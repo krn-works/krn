@@ -1,0 +1,18 @@
+{
+  "id": "t-dcxfv85",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Serve lead records to a resumed lead session without a claimed task",
+  "after": [],
+  "body": [
+    "Outcome: a lead-audience record reaches a lead session at a moment the lead's wrong decision can still be prevented, including a resumed session with no claimed task.\nEvidence: t-rx92cvg A/B. Record r-stop-skip-needs-session-proof (audience lead) is served only by the SessionStart block of a claimed task (src/hook/session-standards.ts) and the lead lane packet; the edit moment and `krn standards query` exclude lead records (src/brain/worker-packet.ts). A replay resumes with no claimed task, so the SessionStart hook output holds Branch/HEAD/Plan and no standards block, and the record is not served on the replayed turn.\nProof: the replayed stop-attribution-unchecked turn carries the record in its SessionStart or UserPromptSubmit context; then re-run the 4-case A/B (5 reps, sonnet, harness c8d0aff vs the fixed HEAD).\nNote: the replay grader matched only the identifier recordedShip; one probe rep explained the skip by the same ship-recorded early return without naming it, so a repeat can read as 0/1; widen the grader pattern to the early-return wording first."
+  ],
+  "kind": "defect",
+  "area": "brain",
+  "from": {
+    "kind": "task",
+    "ref": "t-rx92cvg"
+  }
+}
