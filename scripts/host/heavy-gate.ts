@@ -18,7 +18,7 @@ import {
   withSlot,
 } from '../../src/repo/slot-lock.ts';
 
-const USAGE = `usage: heavy-gate run [--weight N] [--deadline-ms N] -- <command> [args...]
+const USAGE = `usage: heavy-gate run [--weight N] [--deadline-ms N [--soft]] -- <command> [args...]
        heavy-gate status [--json]
 `;
 
@@ -32,6 +32,8 @@ export function defaultJobWeight(units: number): number {
 type RunArgs = {
   weight: number | undefined;
   deadlineMs: number | undefined;
+  /** Past the deadline, run without a slot instead of exiting 75 (a scheduled job that must not miss its cycle). */
+  soft: boolean;
   command: string[];
 };
 
@@ -39,6 +41,7 @@ export function parseRun(args: readonly string[]): RunArgs {
   const parsed: RunArgs = {
     command: [],
     deadlineMs: undefined,
+    soft: false,
     weight: undefined,
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -59,11 +62,14 @@ export function parseRun(args: readonly string[]): RunArgs {
         throw new Usage(`${arg} needs a positive integer, got ${text}`);
       return number;
     };
-    if (arg === '--weight') parsed.weight = value();
+    if (arg === '--soft') parsed.soft = true;
+    else if (arg === '--weight') parsed.weight = value();
     else if (arg === '--deadline-ms') parsed.deadlineMs = value();
     else throw new Usage(`unknown argument ${arg}`);
   }
   if (parsed.command.length === 0) throw new Usage('run needs -- <command>');
+  if (parsed.soft && parsed.deadlineMs === undefined)
+    throw new Usage('--soft needs --deadline-ms');
   return parsed;
 }
 
@@ -123,6 +129,12 @@ export async function run(
     );
   } catch (error) {
     if (!(error instanceof SlotTimeoutError)) throw error;
+    if (parsed.soft) {
+      process.stderr.write(
+        `heavy-gate: ${error.message}; --soft: running without a slot\n`,
+      );
+      return runChild(parsed.command, env);
+    }
     process.stderr.write(
       `heavy-gate: ${error.message}; the host stayed busy: nothing ran, rerun the command later or in the background\n`,
     );
