@@ -1,0 +1,18 @@
+{
+  "id": "t-xwp1ft2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Codex agents' heavy jobs run through the host heavy-job gate",
+  "after": [],
+  "body": [
+    "Source: t-qj1tpbe shipped src/hook/heavy-command.ts; `krn standards install --global` writes its `--codex` entry into ~/.codex/hooks.json, but Codex skips a user hook entry until the operator trusts it (per-entry trusted_hash in ~/.codex/config.toml), and a live `codex exec` run with the untrusted entry ran `npm test` ungated. Hook trust needs its own operator grant.\nOutcome: the operator trusts the entry once; a verbatim Codex PreToolUse payload capture lands under test/fixtures/codex-hooks and the heavy-command test feeds it to the real entry (KRN-12); Codex-launched heavy jobs (elektroinstal QA replay, measured top CPU user on 2026-11-19) run through heavy-gate.\nProof: a codex exec session's npm test shows KRN_TEST_SLOT_HELD=1, and the capture-fed heavy-command test passes."
+  ],
+  "kind": "feature",
+  "area": "host",
+  "from": {
+    "kind": "task",
+    "ref": "t-qj1tpbe"
+  }
+}

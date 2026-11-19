@@ -2,7 +2,10 @@
 set -euo pipefail
 
 source_path=${BASH_SOURCE[0]}
+# Any name on the link chain equal to heavy-gate selects the host heavy-job gate entry.
+gate=
 while [[ -L "$source_path" ]]; do
+  [[ "$(basename "$source_path")" == heavy-gate ]] && gate=1
   source_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
   target=$(readlink "$source_path")
   if [[ "$target" != /* ]]; then
@@ -54,5 +57,10 @@ export MISE_NODE_VERSION=$version
 PATH="$(dirname "$node"):$PATH"
 
 export PATH
+
+# The same entry linked as `heavy-gate` runs the host heavy-job gate with the pinned Node.
+if [[ -n "$gate" ]]; then
+  exec "$node" "$root/scripts/host/heavy-gate.ts" "$@"
+fi
 
 exec "$node" "$root/src/cli/krn.mjs" "$@"

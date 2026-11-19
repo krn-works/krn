@@ -98,7 +98,7 @@ export function shellTokens(command: string): Token[] {
 }
 
 /** The commands of `command`: each a list of words, separators dropped. */
-function commands(command: string): string[][] {
+export function commands(command: string): string[][] {
   const out: string[][] = [[]];
   for (const token of shellTokens(command)) {
     if ('separator' in token) out.push([]);
