@@ -23,6 +23,7 @@ export interface BodyInput {
   why?: string;
   commits: string[];
   verified: string;
+  /** The model that ran the work; empty when unknown, and the body then has no Agent line. */
   agent: string;
   refs: boolean;
   lane?: boolean;
@@ -164,8 +165,7 @@ ${outcome === undefined ? '' : `Outcome: ${outcome}\n\n`}${change}
 
 ${verified || 'TODO: command: verdict'}
 
-${assumed}${tracked}Agent: ${input.agent}
-${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n${input.effort === undefined ? '' : `${EFFORT_PREFIX}${input.effort}\n`}` : ''}
+${assumed}${tracked}${input.agent === '' ? '' : `Agent: ${input.agent}\n`}${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n${input.effort === undefined ? '' : `${EFFORT_PREFIX}${input.effort}\n`}` : ''}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 `;
 }
@@ -227,8 +227,9 @@ export function prBodyCommand(args: string[]): string {
 function composePrBody(args: string[]): string {
   let id: string | undefined;
   let why = '';
-  let verified = '';
-  let agent = 'Claude Sonnet 5.5 in Claude Code';
+  const verifiedValues: string[] = [];
+  // The running model is never guessed: --agent, else the session's own declaration, else no Agent line.
+  let agent = process.env.KRN_AGENT_MODEL ?? process.env.ANTHROPIC_MODEL ?? '';
   let refs = false;
   let lane = false;
   let assumptions = '';
@@ -267,7 +268,7 @@ function composePrBody(args: string[]): string {
     );
     if (flag === '--task') id = value;
     else if (flag === '--why') why = value;
-    else if (flag === '--verified') verified = value;
+    else if (flag === '--verified') verifiedValues.push(value);
     else if (flag === '--agent') agent = value;
     else if (flag === '--assumptions') assumptions = value;
     else if (flag === '--base') base = value;
@@ -294,7 +295,10 @@ function composePrBody(args: string[]): string {
     ...(task === undefined ? {} : { task }),
     why,
     commits: commitsSince(root, range),
-    verified,
+    verified:
+      verifiedValues.length > 1
+        ? verifiedValues.map((line) => `- ${line}`).join('\n')
+        : (verifiedValues[0] ?? ''),
     agent,
     refs: refs || (id !== undefined && commitsLeaveTaskOpen(root, range, id)),
     lane,

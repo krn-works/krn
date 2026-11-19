@@ -441,9 +441,9 @@ test('krn pr body in a repository without a task tracker prints the sections wit
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /^## Why\n\nCustomers saw yesterday prices\.\n\n## What changed\n\n- fix\(web\): a cached page no longer shows stale prices\n\n## Verified\n\nnpm test: pass\n\nAgent: /u,
+      /^## Why\n\nCustomers saw yesterday prices\.\n\n## What changed\n\n- fix\(web\): a cached page no longer shows stale prices\n\n## Verified\n\nnpm test: pass\n\n/u,
     );
-    assert.doesNotMatch(result.stdout, /## Task|Ticket:|Refs:/u);
+    assert.doesNotMatch(result.stdout, /## Task|Ticket:|Refs:|Agent:/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -488,6 +488,77 @@ test('krn pr body with a value after --refs (the #1521 call) exits 64, writes no
     });
     assert.equal(stale.status, 64);
     assert.equal(existsSync(out), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('repeated --verified keeps every value, one bullet each; --agent or the session model names the Agent line, else none', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-verified-'));
+  try {
+    spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+    spawnSync(
+      'git',
+      [
+        '-C',
+        dir,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@example.invalid',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'seed',
+      ],
+      { encoding: 'utf8' },
+    );
+    const body = (extra: string[], env: Record<string, string> = {}) =>
+      spawnSync(
+        process.execPath,
+        [
+          cli,
+          'pr',
+          'body',
+          '--base',
+          'HEAD',
+          '--why',
+          'w',
+          '--verified',
+          'a: pass',
+          '--verified',
+          'b: pass',
+          '--verified',
+          'c: pass',
+          ...extra,
+        ],
+        {
+          cwd: dir,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            KRN_AGENT_MODEL: '',
+            ANTHROPIC_MODEL: '',
+            ...env,
+          },
+        },
+      );
+    const plain = body([]);
+    assert.equal(plain.status, 0, plain.stderr);
+    assert.match(
+      plain.stdout,
+      /## Verified\n\n- a: pass\n- b: pass\n- c: pass\n/u,
+    );
+    assert.doesNotMatch(plain.stdout, /Agent:/u);
+    assert.match(
+      body(['--agent', 'Claude Opus 5.5']).stdout,
+      /\nAgent: Claude Opus 5.5\n/u,
+    );
+    assert.match(
+      body([], { KRN_AGENT_MODEL: 'Claude Opus 5.5' }).stdout,
+      /\nAgent: Claude Opus 5.5\n/u,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
