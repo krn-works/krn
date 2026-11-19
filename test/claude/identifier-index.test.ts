@@ -56,6 +56,15 @@ test('extracts task ids, PRs, short SHAs, normalized paths and error types', () 
   ]);
 });
 
+test('a task id inside the session checkout path is not a task the session worked on', () => {
+  const lane = '/repo/.krn/worktrees/t-abc1234';
+  const ids = extractIdentifiers(`read ${lane}/src/a.ts for t-def5678`, [
+    lane,
+    '/repo',
+  ]).map((id) => `${id.kind}:${id.value}`);
+  assert.deepEqual(ids, ['path:src/a.ts', 'task:t-def5678']);
+});
+
 test('ranks what the agent acted on above tool-result noise and caps each kind at 40', () => {
   const listing = Array.from({ length: 60 }, (_, i) => `src/f${i}.ts`).join(
     '\n',

@@ -42,6 +42,16 @@ export function normalizePath(raw: string, roots: Roots): string {
   return path.replace(/^\.\//u, '');
 }
 
+// Character ranges of the session's own checkout paths in a text.
+function rootSpans(text: string, roots: Roots): [number, number][] {
+  const spans: [number, number][] = [];
+  for (const root of [roots].flat()) {
+    for (let at = text.indexOf(root); at >= 0; at = text.indexOf(root, at + 1))
+      spans.push([at, at + root.length]);
+  }
+  return spans;
+}
+
 // Identifiers in one text, in order of appearance (duplicates kept).
 export function extractIdentifiers(text: string, root: Roots): Identifier[] {
   const found: { at: number; id: Identifier }[] = [];
@@ -49,13 +59,17 @@ export function extractIdentifiers(text: string, root: Roots): Identifier[] {
     kind: IdentifierKind,
     pattern: RegExp,
     map = (v: string) => v,
+    skip: [number, number][] = [],
   ) => {
     for (const match of text.matchAll(pattern)) {
+      const at = match.index ?? 0;
+      if (skip.some(([from, to]) => at >= from && at < to)) continue;
       const value = map(match[1] ?? match[0]);
       if (value) found.push({ at: match.index ?? 0, id: { kind, value } });
     }
   };
-  add('task', /\b(t-[a-z0-9]{7})\b/gu);
+  // A task id inside the session's own checkout path names where it runs, not a task it worked on.
+  add('task', /\b(t-[a-z0-9]{7})\b/gu, undefined, rootSpans(text, root));
   add(
     'pr',
     /(?:(?<![\w&])#|\/pull\/|\bpr (?:view|merge|checks|create|edit|close|update-branch|diff) )(\d{2,5})\b/gu,
