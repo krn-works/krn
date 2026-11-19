@@ -110,7 +110,10 @@ test('the gated command runs the original through bash with its quoting intact',
     'bash',
     [
       '-c',
-      gated(command, 1000, 'env').replace(' run --deadline-ms 1000 --', ''),
+      gated(command, 1000, 'env', ['^echo ']).replace(
+        ' run --deadline-ms 1000 --',
+        '',
+      ),
     ],
     { encoding: 'utf8' },
   );
@@ -135,17 +138,122 @@ test('a light command passes with no output', () => {
   assert.equal(result.stdout, '');
 });
 
-test('wilq-seo is never gated, by cwd or by a path in the command', () => {
+test('wilq-seo is never gated, by cwd or by the directory the command runs in', () => {
   const env = {};
   assert.match(
     exemption('npm test', join(repo('wilq-seo'), 'sub'), env) ?? '',
     /wilq-seo is never gated/u,
   );
-  assert.match(
-    exemption('cd /x/wilq-seo && npm test', repo('shop'), env) ?? '',
-    /wilq-seo/u,
-  );
+  for (const command of [
+    'cd /x/wilq-seo && npm test',
+    "cd '/x/wilq-seo/app' && npm test",
+    'npm --prefix /x/wilq-seo test',
+    'pnpm -C ../wilq-seo build',
+    'pnpm --dir=/x/wilq-seo install',
+  ])
+    assert.match(
+      exemption(command, repo('shop'), env) ?? '',
+      /wilq-seo/u,
+      command,
+    );
   assert.equal(run('npm test', repo('wilq-seo')).stdout, '');
+});
+
+test('an excluded name in a comment, a message or an argument does not exempt the command', () => {
+  const shop = repo('shop');
+  for (const command of [
+    'npm test # wilq-seo',
+    'npm test && echo wilq-seo',
+    'npm install wilq-seo',
+    'npx vitest run test/wilq-seo/a.test.ts',
+    "npm run build -- --name 'x/wilq-seo'",
+  ])
+    assert.equal(exemption(command, shop, {}), undefined, command);
+});
+
+test('a compound gates only its heavy steps, so a server started after an install or build holds no slot', () => {
+  const gate = '/g/heavy-gate';
+  const wrap = (inner: string, ms = 1000) =>
+    `'${gate}' run --deadline-ms ${ms} -- bash -c '${inner}'`;
+  for (const [command, expected] of [
+    ['npm install && npm run dev', `${wrap('npm install')} && npm run dev`],
+    ['pnpm build && pnpm start', `${wrap('pnpm build')} && pnpm start`],
+    ['npm i && node server.js', `${wrap('npm i')} && node server.js`],
+    [
+      'npm ci; npm run build && npx serve dist',
+      `${wrap('npm ci; npm run build')} && npx serve dist`,
+    ],
+    ['cd app && npm ci && npm test', `cd app && ${wrap('npm ci && npm test')}`],
+    ['npm test 2>&1 | tail -5', wrap('npm test 2>&1 | tail -5')],
+    [
+      'npm ci && echo ok && npm test',
+      `${wrap('npm ci', 500)} && echo ok && ${wrap('npm test', 500)}`,
+    ],
+    [
+      'npm run build & npm test',
+      `${wrap('npm run build', 500)} & ${wrap('npm test', 500)}`,
+    ],
+    // Syntax the split does not follow is gated whole, as before, unless it starts a server.
+    [
+      'for d in a b; do npm test; done',
+      wrap('for d in a b; do npm test; done'),
+    ],
+    [
+      'cd "$(git rev-parse --show-toplevel)" && npm test',
+      `cd "$(git rev-parse --show-toplevel)" && ${wrap('npm test')}`,
+    ],
+    ['(npm i && npm run dev)', '(npm i && npm run dev)'],
+    // A gated step runs in a child shell: state an earlier step sets in this shell must reach it.
+    ['T=unit; npm test -- $T', wrap('T=unit; npm test -- $T')],
+    [
+      'set -o pipefail; npm test | tail -5',
+      wrap('set -o pipefail; npm test | tail -5'),
+    ],
+    ['source .env && npm run build', wrap('source .env && npm run build')],
+    ['X=1; npm i && npm run dev', 'X=1; npm i && npm run dev'],
+    [
+      'FOO=1 npm test && npm run dev',
+      `${wrap('FOO=1 npm test')} && npm run dev`,
+    ],
+  ] as const)
+    assert.equal(gated(command, 1000, gate), expected, command);
+  const shop = repo('shop');
+  const none = { exclude: [], heavy: [] };
+  assert.equal(
+    judge(payload('(npm i && npm run dev)', shop), {}, none),
+    undefined,
+  );
+  assert.deepEqual(judge(payload('npm i && npm run dev', shop), {}, none), {
+    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i' && npm run dev`,
+  });
+});
+
+test('through the real gate, only the heavy step of a compound runs inside a slot', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'heavy-compound-'));
+  const shim = join(dir, 'heavy-gate');
+  const gateScript = fileURLToPath(
+    new URL('../../scripts/host/heavy-gate.ts', import.meta.url),
+  );
+  writeFileSync(
+    shim,
+    `#!/bin/sh\nexec '${process.execPath}' '${gateScript}' "$@"\n`,
+    { mode: 0o755 },
+  );
+  // The stand-in heavy step is `echo` (a host pattern); the light step after it is `printf`.
+  const command = gated(
+    `echo in=$KRN_TEST_SLOT_HELD && printf 'out=%s\\n' "$KRN_TEST_SLOT_HELD"`,
+    5000,
+    shim,
+    ['^echo '],
+  );
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    KRN_HEAVY_GATE_DIR: join(dir, 'slots'),
+  };
+  delete env.KRN_TEST_SLOT_HELD;
+  const result = spawnSync('bash', ['-c', command], { encoding: 'utf8', env });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'in=1\nout=\n');
 });
 
 test('KRN_HEAVY_GATE_EXCLUDE replaces the excluded repositories', () => {

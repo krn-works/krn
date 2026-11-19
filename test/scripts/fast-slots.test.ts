@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import fs, {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { inTestSlot } from '../../scripts/fast-check.ts';
+import { processStart, withSlotSync } from '../../src/repo/slot-lock.ts';
 
 function gate(): { open: () => void; opened: Promise<void> } {
   let open = (): void => {};
@@ -218,6 +227,68 @@ test('a fast run whose environment marks a held slot runs at once even when the 
     assert.equal(ran, 'inside');
     assert.deepEqual(messages, []);
   } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a bare slot directory is reclaimed once stale and held while fresh', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  try {
+    mkdirSync(join(dir, 'slot-0'));
+    assert.throws(
+      () => withSlotSync({ dir, pollMs: 5, deadlineMs: 40 }, () => 'ran'),
+      { name: 'SlotTimeoutError' },
+    );
+    // Its taker died between mkdir and the pid record.
+    const dayAgo = new Date(Date.now() - 86_400_000);
+    utimesSync(join(dir, 'slot-0'), dayAgo, dayAgo);
+    assert.equal(
+      withSlotSync({ dir, deadlineMs: 2000 }, () => 'ran'),
+      'ran',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an abandoned mutex is reclaimed whole, but never the one a live process took meanwhile', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-slots-'));
+  const mutex = join(dir, '.mutex');
+  const record = join(mutex, 'pid');
+  const take = (text: string) => {
+    rmSync(mutex, { recursive: true, force: true });
+    mkdirSync(mutex);
+    writeFileSync(record, text);
+  };
+  const read = fs.readFileSync;
+  try {
+    take('999999999 1 1');
+    assert.equal(
+      withSlotSync({ dir, deadlineMs: 2000 }, () => 'ran'),
+      'ran',
+    );
+    assert.deepEqual(readdirSync(dir), []);
+    take('999999999 1 1');
+    const live = `${process.pid} ${processStart(process.pid) ?? '-'} 1`;
+    let swapped = false;
+    // Right after this waiter reads the dead owner, another waiter reclaims that mutex and a live pass takes a new one.
+    fs.readFileSync = ((path: fs.PathOrFileDescriptor, options?: unknown) => {
+      const text = read(path, options as BufferEncoding);
+      if (!swapped && path === record) {
+        swapped = true;
+        take(live);
+      }
+      return text;
+    }) as typeof fs.readFileSync;
+    syncBuiltinESMExports();
+    assert.throws(
+      () => withSlotSync({ dir, pollMs: 5, deadlineMs: 50 }, () => 'ran'),
+      { name: 'SlotTimeoutError' },
+    );
+    assert.equal(read(record, 'utf8'), live);
+  } finally {
+    fs.readFileSync = read;
+    syncBuiltinESMExports();
     rmSync(dir, { recursive: true, force: true });
   }
 });

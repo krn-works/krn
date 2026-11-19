@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
@@ -203,8 +203,9 @@ function segmentTargets(segment: string, redirectsOnly = false): string[] {
 }
 
 /**
- * Write targets with the directory each one is relative to: a `cd DIR` segment moves the
- * directory for the segments after it, so `cd <worktree> && echo x > out` writes the worktree.
+ * Where each write target lands: a `cd DIR` segment moves the directory for the segments after it,
+ * so `cd <worktree> && echo x > out` writes the worktree. `cd` and every target follow symlinks
+ * (`landing`); a descriptor device keeps its text and a target the shell still expands stays opaque.
  */
 export function bashTargets(
   command: string,
@@ -220,12 +221,18 @@ export function bashTargets(
     if (cd) {
       const to = expandHome(cd[1] as string, home);
       // `cd -` and `cd $D` go where the hook cannot see: later relative targets stay opaque.
-      dir = to === '-' || opaque(to) ? join(UNRESOLVED, to) : resolve(dir, to);
+      dir =
+        to === '-' || opaque(to) || opaque(dir)
+          ? join(UNRESOLVED, to)
+          : landing(to, dir);
       continue;
     }
     for (const raw of segmentTargets(segment, redirectsOnly)) {
       const target = expandHome(raw, home);
-      found.push(isAbsolute(target) ? target : resolve(dir, target));
+      if (isDevice(target)) found.push(target);
+      else if (opaque(target) || (opaque(dir) && !isAbsolute(target)))
+        found.push(join(UNRESOLVED, target));
+      else found.push(landing(target, dir));
     }
   }
   return found;
@@ -246,8 +253,9 @@ function opaque(target: string): boolean {
 }
 
 /**
- * Device files a write may name outside any worktree, matched on the raw text: a lexical resolve
- * cannot see that /dev/fd links to /proc/self/fd, so `/dev/fd/../root/<path>` reaches any file.
+ * Device files a write may name outside any worktree: the null sink and the session's own terminal and
+ * descriptors, matched on the raw text. A lexical resolve cannot see that /dev/fd links to /proc/self/fd,
+ * so `/dev/fd/../root/<path>` reaches any file and `/dev/fd/5/../1` is not /dev/fd/1.
  */
 function isDevice(target: string): boolean {
   return /^\/dev\/(?:null|stdout|stderr|stdin|tty|zero|fd\/\d+)$/u.test(target);
@@ -275,20 +283,69 @@ function commandTargets(command: string): string[] {
 }
 
 /**
+ * Where a write to `target` lands, as the kernel walks it: the longest existing prefix is resolved by
+ * realpath(3) with its `..` taken after each symlink (`link/../x` is beside the link's target, not beside
+ * the link), and only the missing tail is joined lexically, since it holds no link yet. Every guard here
+ * compares landing paths only: a prefix test on the spelling let `/dev/../<other repo>`, `/dev/fd/../root`
+ * and a link inside the worktree write outside it.
+ */
+export function landing(target: string, cwd: string): string {
+  const parts = (isAbsolute(target) ? target : `${cwd}${sep}${target}`)
+    .split(sep)
+    .filter((part) => part !== '' && part !== '.');
+  for (let at = parts.length; at >= 0; at--) {
+    try {
+      const real = realpathSync.native(sep + parts.slice(0, at).join(sep));
+      return resolve(real, ...parts.slice(at));
+    } catch {
+      // Not there yet: try the parent and join this part lexically.
+    }
+  }
+  return resolve(sep, ...parts);
+}
+
+/** True when `target` is `base` or below it; both are landing paths. */
+function inside(base: string, target: string): boolean {
+  const rel = relative(base, target);
+  return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
+}
+
+/**
+ * The first target under none of the allowed bases: a descriptor device is never outside, a target the
+ * shell still expands always is.
+ */
+function outside(
+  targets: readonly string[],
+  allowed: readonly string[],
+): string | undefined {
+  const bases = allowed.map((base) => landing(base, sep));
+  return targets.find(
+    (target) =>
+      !isDevice(target) &&
+      (opaque(target) || !bases.some((base) => inside(base, target))),
+  );
+}
+
+const worktreeMarker = `${sep}.krn${sep}worktrees${sep}`;
+
+/** The harness scratchpad, which lives under CLAUDE_CODE_TMPDIR. */
+const scratchpad = (env: NodeJS.ProcessEnv) =>
+  env.CLAUDE_CODE_TMPDIR ? [env.CLAUDE_CODE_TMPDIR] : [];
+
+/**
  * A lane runs in <main>/.krn/worktrees/<slug>. A write under <main> that is neither inside that
  * worktree nor under <main>/.krn/runs lands in the main checkout (the ci-wait lane did this).
- * A session whose root is not a KRN worktree has no main checkout to protect.
+ * A session whose root is not a KRN worktree has no main checkout to protect. Both are landing paths.
  */
 export function outsideOwnWorktree(root: string, target: string): boolean {
-  const marker = `${sep}.krn${sep}worktrees${sep}`;
-  const at = root.indexOf(marker);
+  const at = root.indexOf(worktreeMarker);
   if (at < 0) return false;
   const main = root.slice(0, at);
-  const inside = (base: string) => {
-    const rel = relative(base, target);
-    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
-  };
-  return inside(main) && !inside(root) && !inside(join(main, '.krn', 'runs'));
+  return (
+    inside(main, target) &&
+    !inside(root, target) &&
+    !inside(join(main, '.krn', 'runs'), target)
+  );
 }
 
 /**
@@ -296,18 +353,14 @@ export function outsideOwnWorktree(root: string, target: string): boolean {
  * itself. Any write there outside <main>/.krn (runs, worktrees) belongs in its worktree instead.
  */
 export function inMainCheckout(root: string, target: string): boolean {
-  if (root.includes(`${sep}.krn${sep}worktrees${sep}`)) return false;
-  const inside = (base: string) => {
-    const rel = relative(base, target);
-    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
-  };
-  return inside(root) && !inside(join(root, '.krn'));
+  if (root.includes(worktreeMarker)) return false;
+  return inside(root, target) && !inside(join(root, '.krn'), target);
 }
 
 /**
  * Output a worker redirects (`>`, `>>`, `tee`) to an absolute path belongs in its worktree: the scratch rule
  * keeps logs under <worktree>/.krn/tmp. A lane redirected `krn pr ship` to /tmp/x (2026-11-17, t-gv984e8).
- * Outside the worktree stay allowed: /dev/* and the harness scratchpad, which lives under CLAUDE_CODE_TMPDIR.
+ * Outside the worktree stay allowed: descriptor devices and the harness scratchpad.
  */
 export function strayRedirect(
   command: string,
@@ -316,24 +369,13 @@ export function strayRedirect(
   env: NodeJS.ProcessEnv,
   extra: readonly string[] = [],
 ): string | undefined {
-  const inside = (base: string, target: string) => {
-    const rel = relative(base, target);
-    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
-  };
-  const marker = `${sep}.krn${sep}worktrees${sep}`;
-  const at = root.indexOf(marker);
-  const allowed = [
+  const at = root.indexOf(worktreeMarker);
+  return outside(bashTargets(command, landing(cwd, sep), true, env.HOME), [
     root,
     ...extra,
     ...(at < 0 ? [] : [join(root.slice(0, at), '.krn', 'runs')]),
-    ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
-  ];
-  return bashTargets(command, cwd, true, env.HOME).find(
-    (target) =>
-      !isDevice(target) &&
-      (opaque(target) ||
-        !allowed.some((base) => inside(base, resolve(cwd, target)))),
-  );
+    ...scratchpad(env),
+  ]);
 }
 
 export interface Verdict {
@@ -342,35 +384,23 @@ export interface Verdict {
 }
 
 /**
- * A write target outside the lane's own worktree, in any repository: Edit, Write and Bash get the same verdict.
- * Allowed: the worktree, <main>/.krn/runs, the harness scratchpad, /dev/*, and the lane-target paths.
+ * A landing target outside the lane's own worktree, in any repository: Edit, Write and Bash get the same verdict.
+ * Allowed: the worktree, <main>/.krn/runs, the harness scratchpad, descriptor devices, and the lane-target paths.
  */
 export function foreignTarget(
   root: string,
-  targets: string[],
-  cwd: string,
+  targets: readonly string[],
   env: NodeJS.ProcessEnv,
   admitted: readonly string[],
 ): string | undefined {
-  const marker = `${sep}.krn${sep}worktrees${sep}`;
-  const at = root.indexOf(marker);
+  const at = root.indexOf(worktreeMarker);
   if (at < 0) return undefined;
-  const inside = (base: string, target: string) => {
-    const rel = relative(base, target);
-    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
-  };
-  const allowed = [
+  return outside(targets, [
     root,
     join(root.slice(0, at), '.krn', 'runs'),
-    ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
+    ...scratchpad(env),
     ...admitted,
-  ];
-  return targets.find(
-    (target) =>
-      !isDevice(target) &&
-      (opaque(target) ||
-        !allowed.some((base) => inside(base, resolve(cwd, target)))),
-  );
+  ]);
 }
 
 /** The refusal text, or undefined when the call is allowed. */
@@ -394,35 +424,34 @@ export function judge(
     tool_input?: Record<string, unknown>;
   } | null;
   if (!fields || typeof fields.tool_input !== 'object') return {};
-  const root = resolve(
+  const root = landing(
     env.CLAUDE_PROJECT_DIR ??
       (typeof fields.cwd === 'string' ? fields.cwd : process.cwd()),
+    process.cwd(),
   );
   const who = worker(env, root, branch, payload);
   if (!who) return {};
   if (who.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
-  const cwd = typeof fields.cwd === 'string' ? fields.cwd : root;
+  const cwd = typeof fields.cwd === 'string' ? resolve(fields.cwd) : root;
   const input = fields.tool_input;
+  // Judged where each write lands, never by its spelling.
   const targets: string[] = [];
+  const land = (path: string) => (isDevice(path) ? path : landing(path, cwd));
   if (fields.tool_name === 'Write' || fields.tool_name === 'Edit') {
-    if (typeof input.file_path === 'string') targets.push(input.file_path);
+    if (typeof input.file_path === 'string')
+      targets.push(land(input.file_path));
   } else if (fields.tool_name === 'NotebookEdit') {
     if (typeof input.notebook_path === 'string')
-      targets.push(input.notebook_path);
+      targets.push(land(input.notebook_path));
   } else if (fields.tool_name === 'Bash') {
     if (typeof input.command === 'string')
       targets.push(
-        ...bashTargets(input.command, resolve(cwd), false, env.HOME),
+        ...bashTargets(input.command, landing(cwd, sep), false, env.HOME),
       );
   } else return {};
-  const escaped = targets.find((target) =>
-    outsideOwnWorktree(
-      root,
-      isAbsolute(target) ? target : resolve(cwd, target),
-    ),
-  );
+  const escaped = targets.find((target) => outsideOwnWorktree(root, target));
   const admitted = laneTargets(env, root, branch);
-  const foreign = foreignTarget(root, targets, cwd, env, admitted);
+  const foreign = foreignTarget(root, targets, env, admitted);
   if (foreign !== undefined && escaped === undefined)
     return {
       refusal: `Refused: ${foreign} is outside this lane's worktree (${root}). Nothing in this call ran. Write under your worktree; a foreign repository needs a \`lane-target: <path>\` line in the brief (src/hook/scope.ts).`,
@@ -445,11 +474,7 @@ export function judge(
       };
   }
   if (isLaneSubagent(payload)) {
-    const absolute = (target: string) =>
-      isAbsolute(target) ? target : resolve(cwd, target);
-    const main = targets.find((target) =>
-      inMainCheckout(root, absolute(target)),
-    );
+    const main = targets.find((target) => inMainCheckout(root, target));
     if (main !== undefined) {
       const marker = join(root, '.krn', 'worktrees');
       const own = relative(marker, resolve(cwd));
@@ -466,10 +491,7 @@ export function judge(
   if (who.unscoped) return {};
   const notes: string[] = [];
   for (const target of targets) {
-    const path = relative(
-      root,
-      isAbsolute(target) ? target : resolve(cwd, target),
-    );
+    const path = relative(root, target);
     if (path.startsWith('..') || covers(who.scope, path)) continue;
     if (under(harness, path)) {
       notes.push(path);

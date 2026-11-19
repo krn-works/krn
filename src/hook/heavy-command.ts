@@ -107,6 +107,77 @@ function programs(command: string): string[] {
   return commands(executableText(command)).map(program);
 }
 
+/** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */
+function startsServer(command: string): boolean {
+  return programs(command).some((text) => longLived.test(text));
+}
+
+type Step = { text: string; op: string };
+
+/**
+ * A step that changes the shell's own state (an assignment, options, an alias, a sourced file): a gated
+ * step after it runs in a child `bash -c`, which would not see an unexported variable or `set -o pipefail`.
+ */
+const shellState =
+  /^\s*(?:(?:set|shopt|alias|source|\.|declare|typeset|local|readonly|eval|enable|trap)(?:\s|$)|[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]*\])?\+?=)/u;
+
+/** A reserved word that opens or continues compound syntax the step split does not follow. */
+const compoundWord =
+  /^\s*(?:if|then|elif|else|fi|for|select|while|until|do|done|case|esac|function)(?:\s|$)/u;
+
+/**
+ * The top-level steps of a command list, each with the operator after it (`&&`, `||`, `;`, `&` or a
+ * newline); a pipeline stays one step. Undefined when the text holds syntax the split does not follow:
+ * a subshell, group, command substitution, heredoc or compound command.
+ */
+function steps(command: string): Step[] | undefined {
+  const found: Step[] = [];
+  let start = 0;
+  let i = 0;
+  const cut = (op: string) => {
+    found.push({ text: command.slice(start, i), op });
+    i += op.length;
+    start = i;
+  };
+  while (i < command.length) {
+    const c = command[i] as string;
+    if (c === "'") {
+      const end = command.indexOf("'", i + 1);
+      if (end < 0) return undefined;
+      i = end + 1;
+    } else if (c === '"') {
+      let j = i + 1;
+      while (j < command.length && command[j] !== '"') {
+        if (command[j] === '`' || command.startsWith('$(', j)) return undefined;
+        j += command[j] === '\\' ? 2 : 1;
+      }
+      if (j >= command.length) return undefined;
+      i = j + 1;
+    } else if (c === '\\') i += 2;
+    else if (c === '#' && (i === 0 || /[\s;&|]/u.test(command[i - 1] ?? ''))) {
+      const eol = command.indexOf('\n', i);
+      i = eol < 0 ? command.length : eol;
+    } else if (command.startsWith('${', i)) {
+      const end = command.indexOf('}', i);
+      if (end < 0) return undefined;
+      i = end + 1;
+    } else if ('(){}`'.includes(c) || command.startsWith('<<', i))
+      return undefined;
+    else if (command.startsWith('&&', i) || command.startsWith('||', i))
+      cut(command.slice(i, i + 2));
+    else if (c === ';' || c === '\n') cut(c);
+    else if (
+      c === '&' &&
+      !/[<>|]/u.test(command[i - 1] ?? '') &&
+      command[i + 1] !== '>'
+    )
+      cut(c);
+    else i += 1;
+  }
+  found.push({ text: command.slice(start), op: '' });
+  return found.some((step) => compoundWord.test(step.text)) ? undefined : found;
+}
+
 /** True when one of the commands of `command` is a heavy job (test run, build, install, browser test, or a host pattern) that ends on its own. */
 export function isHeavy(
   command: string,
@@ -146,6 +217,34 @@ function homes(dir: string): string[] {
   return target ? [dir, resolve(root, target.trim())] : [dir];
 }
 
+const dirFlag = /^(?:-C|--prefix|--dir|--cwd)(?:=(.+))?$/u;
+
+/**
+ * The directories `command` runs in besides its cwd: `cd` and `pushd` operands and the values of
+ * `-C`, `--prefix`, `--dir` and `--cwd`. A word in a comment, a message or a file argument is none.
+ */
+function runDirs(command: string): string[] {
+  const found: string[] = [];
+  for (const words of commands(command)) {
+    const comment = words.findIndex((word) => word.startsWith('#'));
+    const live = comment < 0 ? words : words.slice(0, comment);
+    const first = live.findIndex(
+      (word) => !/^[A-Za-z_][A-Za-z0-9_]*=/u.test(word),
+    );
+    const name = live[first];
+    if (name === 'cd' || name === 'pushd') {
+      const operand = live.slice(first + 1).find((w) => !w.startsWith('-'));
+      if (operand) found.push(operand);
+    }
+    live.forEach((word, at) => {
+      const flag = dirFlag.exec(word);
+      const value = flag && (flag[1] ?? live[at + 1]);
+      if (value) found.push(value);
+    });
+  }
+  return found;
+}
+
 /** Why the command is left alone in `cwd`, else undefined. */
 export function exemption(
   command: string,
@@ -167,12 +266,13 @@ export function exemption(
           .map((name) => name.trim())
           .filter(Boolean);
   const dir = real(cwd);
-  const segments = homes(dir).flatMap((path) => path.split(sep));
-  const named = exclude.find(
-    (name) =>
-      segments.includes(name) ||
-      command.split(/[\s'"]/u).some((word) => word.split('/').includes(name)),
-  );
+  const segments = [
+    dir,
+    ...runDirs(command).map((to) => real(resolve(dir, to))),
+  ]
+    .flatMap(homes)
+    .flatMap((path) => path.split(sep));
+  const named = exclude.find((name) => segments.includes(name));
   if (named) return `${named} is never gated`;
   if (existsSync(join(repoRoot(dir), 'scripts', 'host', 'heavy-gate.ts')))
     return 'KRN gates its own checks';
@@ -189,14 +289,62 @@ export function deadlineMs(input: Record<string, unknown>): number {
 /** Leading `cd DIR &&` steps: they stay outside the gate, so the Bash tool keeps the directory change. */
 const leadingCd = /^(?:cd\s+(?:'[^']*'|"[^"]*"|[^\s;&|]+)\s*&&\s*)+/u;
 
-/** The command run through the gate; no permission decision is made, so the normal permission flow applies to it. */
+/**
+ * The command with its heavy steps run through the gate; no permission decision is made, so the normal
+ * permission flow applies to it. Only heavy steps hold a slot: `npm i && npm run dev` gates the install,
+ * never the server after it. Adjacent heavy steps joined by `&&`, `||`, `;` or a newline share one slot,
+ * and several gated runs split the deadline. Syntax the step split does not follow is gated whole, as
+ * before, unless it starts a server; then it is left unchanged.
+ */
 export function gated(
   command: string,
   deadline: number,
   gate = gateEntry,
+  extra: readonly string[] = [],
 ): string {
-  const cd = leadingCd.exec(command)?.[0] ?? '';
-  return `${cd}${shellWord(gate)} run --deadline-ms ${deadline} -- bash -c ${shellWord(command.slice(cd.length))}`;
+  const wrap = (text: string, ms: number) =>
+    `${shellWord(gate)} run --deadline-ms ${ms} -- bash -c ${shellWord(text)}`;
+  const whole = () => {
+    if (startsServer(command)) return command;
+    const cd = leadingCd.exec(command)?.[0] ?? '';
+    return `${cd}${wrap(command.slice(cd.length), deadline)}`;
+  };
+  const list = steps(command);
+  if (list === undefined) return whole();
+  const runs: { from: number; to: number }[] = [];
+  list.forEach((step, at) => {
+    if (!isHeavy(step.text, extra) || startsServer(step.text)) return;
+    const last = runs.at(-1);
+    // A background `&` ends a run: the gate would not wait for the job it puts in the background.
+    if (last?.to === at - 1 && list[at - 1]?.op !== '&') last.to = at;
+    else runs.push({ from: at, to: at });
+  });
+  const lastRun = runs.at(-1)?.from ?? 0;
+  if (
+    list.some(
+      (step, at) =>
+        at < lastRun &&
+        !runs.some(({ from, to }) => at >= from && at <= to) &&
+        shellState.test(step.text),
+    )
+  )
+    return whole();
+  const share = Math.floor(deadline / Math.max(1, runs.length));
+  let out = '';
+  let at = 0;
+  for (const { from, to } of runs) {
+    for (; at < from; at += 1) out += `${list[at]?.text}${list[at]?.op}`;
+    const inner = list
+      .slice(from, to + 1)
+      .map((step, k) => step.text + (from + k < to ? step.op : ''))
+      .join('');
+    const lead = /^\s*/u.exec(inner)?.[0] ?? '';
+    const trail = /\s*$/u.exec(inner)?.[0] ?? '';
+    out += `${lead}${wrap(inner.trim(), share)}${trail}${list[to]?.op}`;
+    at = to + 1;
+  }
+  for (; at < list.length; at += 1) out += `${list[at]?.text}${list[at]?.op}`;
+  return out;
 }
 
 export type Verdict = { rewrite: string } | undefined;
@@ -217,7 +365,8 @@ export function judge(
     return undefined;
   const dir = typeof cwd === 'string' ? cwd : process.cwd();
   if (exemption(command, dir, env, config)) return undefined;
-  return { rewrite: gated(command, deadlineMs(input)) };
+  const rewrite = gated(command, deadlineMs(input), gateEntry, config.heavy);
+  return rewrite === command ? undefined : { rewrite };
 }
 
 export function main(argv: readonly string[] = process.argv.slice(2)): void {
