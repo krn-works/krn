@@ -20,7 +20,12 @@ import { pathToFileURL } from 'node:url';
 
 export type Installed = Record<
   string,
-  { version: string; active?: boolean; source?: { path: string } }[]
+  {
+    version: string;
+    active?: boolean;
+    source?: { path: string };
+    install_path?: string;
+  }[]
 >;
 export type Outdated = {
   tool: string;
@@ -47,6 +52,7 @@ export type Finding = {
     | 'path'
     | 'tracking'
     | 'foreign'
+    | 'provides'
     | 'error';
   line: string;
 };
@@ -56,6 +62,26 @@ export function shortName(tool: string): string {
   const bare = tool.includes(':') ? tool.slice(tool.indexOf(':') + 1) : tool;
   if (bare.startsWith('@')) return bare;
   return bare.split('/').at(-1) ?? bare;
+}
+
+/** True when the install directory (or its `bin`, or one directory below) holds an executable named `name`. */
+export function providesCommand(installPath: string, name: string): boolean {
+  const dirs = [installPath, join(installPath, 'bin')];
+  try {
+    for (const e of readdirSync(installPath))
+      if (statSync(join(installPath, e)).isDirectory())
+        dirs.push(join(installPath, e), join(installPath, e, 'bin'));
+  } catch {
+    return true; // an unreadable install is reported elsewhere, not as a missing command
+  }
+  return dirs.some((d) => {
+    try {
+      accessSync(join(d, name), constants.X_OK);
+      return statSync(join(d, name)).isFile();
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function audit(input: AuditInput): Finding[] {
@@ -106,6 +132,26 @@ export function audit(input: AuditInput): Finding[] {
   // (a link to /usr made mise shim all of /usr/bin, git included).
   for (const f of input.foreignInstalls)
     findings.push({ kind: 'foreign', line: `foreign ${f}` });
+  // A pin whose install holds no command of its name leaves that command to a copy outside mise.
+  for (const [tool, versions] of Object.entries(input.installed))
+    for (const v of versions) {
+      const name = shortName(tool);
+      if (
+        v.active !== true ||
+        v.install_path === undefined ||
+        v.source === undefined ||
+        input.pathHits[name] === undefined ||
+        providesCommand(v.install_path, name)
+      )
+        continue;
+      const fix = /^(github|aqua|http):/u.test(tool)
+        ? `pin it as { version = "${v.version}", bin = "${name}" }`
+        : `pin a backend that installs \`${name}\``;
+      findings.push({
+        kind: 'provides',
+        line: `provides ${v.source.path} ${tool} installs no \`${name}\` command, so ${name} resolves outside mise; ${fix}`,
+      });
+    }
   for (const e of input.errors)
     findings.push({ kind: 'error', line: `error ${e}` });
   return findings;

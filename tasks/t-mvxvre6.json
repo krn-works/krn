@@ -1,7 +1,11 @@
 {
   "id": "t-mvxvre6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "toolchain audit flags a pin that installs no command of its name; workstation skill states the rule"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "The toolchain audit flags a pin whose mise install does not provide the command the project calls",

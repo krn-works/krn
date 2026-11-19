@@ -10,14 +10,16 @@ One tool, one version, everywhere: the newest stable release, installed once by 
 
 ## Rules
 
-1. **mise owns developer tools.** Global exact pins live in `~/.config/mise/config.toml`; a project pins in its `mise.toml` (or `.tool-versions`). Never install a developer tool with pacman, yay, `npm -g`, `pipx`, `go install` or a copied binary in `~/.local/bin` beside mise; remove such a duplicate once mise provides the tool, after repointing every config that names its absolute path (`grep -rn /usr/bin/<tool> ~/.gitconfig ~/.config ~/.bash*`, e.g. the git credential helper) to `~/.local/share/mise/shims/<tool>`. Never fake a mise install by linking its directory to a system or project directory: mise then shims every binary there (a link to `/usr` shimmed all of `/usr/bin`, git included). pacman and yay stay for system packages only, and the distribution's own python stays. Scripts never run `mise use -g`.
+1. **mise owns developer tools.** Global exact pins live in `~/.config/mise/config.toml`; a project pins in its `mise.toml` (or `.tool-versions`). Never install a developer tool with pacman, yay, `npm -g`, `pipx`, `go install` or a copied binary in `~/.local/bin` beside mise; remove such a duplicate once mise provides the tool, after repointing every config that names its absolute path to `~/.local/share/mise/shims/<tool>`. Never fake a mise install by linking its directory to a system or project directory: mise then shims every binary there. pacman and yay stay for system packages only, and the distribution's own python stays. Scripts never run `mise use -g`.
 2. **The newest stable release.** Pin exact versions, never `latest`, a range or a prerelease (keep a prerelease only when no stable exists or the stable is older, and say why in the config comment).
 3. **Projects pin the global version.** A project pin differs from the global pin only with a written reason in the same file. `package.json` `packageManager`, `.node-version`, `.nvmrc`, `engines` and the CI tool version move with the mise pin in the same commit.
 4. **A bump is one sweep, in this order:** global pin → every project (pin, `packageManager`, lockfile, CI version) on its own branch through that repository's delivery workflow → install → that repository's gate. A red gate reverts that repository only and is reported with the failing output; never skip a repository because the jump is large. Only after every repository is green: `mise prune` (never a version a running process uses, e.g. the claude or codex binary of a live session: check `pgrep -a`).
 5. **Hooks and scripts resolve tools through mise.** Agent sessions can put mise tool paths after `/usr/bin`, so a system copy wins. A hook puts the pinned tool's directory first: `PATH="$(mise where pnpm@<pinned>):$PATH"`, failing with the install command when it is missing.
 6. **Do not edit the distribution's mise file** (`/etc/mise/conf.d/*`) by hand; use the omarchy skill. Its `latest` entries float: a project pin follows the version they currently resolve to.
 7. **Temporary configs are not projects.** Run experiments under the scratchpad or `.krn/tmp`, and when done delete them; mise keeps tracking their `mise.toml` and `mise prune` then keeps their versions.
-8. Secrets stay out of configs, repositories and logs; use environment variables or Bitwarden (`bw`).
+8. **A pin must provide the command the project calls**: `"github:composer/composer" = { version = "2.11.2", bin = "composer" }`, not `"2.x"` (which installs only `composer.phar`).
+9. Commit a version bump in another repository by pathspec (`git commit -- <files>`) after re-reading its index.
+10. Secrets stay out of configs, repositories and logs; use environment variables or Bitwarden (`bw`).
 
 ## Audit
 
@@ -35,6 +37,7 @@ It prints one line per finding, then `toolchain PASS` (exit 0) or `toolchain FAI
 - `path <name>`: a copy outside mise on PATH; remove it with its own package manager.
 - `tracking <n>`: temporary configs that keep versions alive; delete the temporary directories.
 - `foreign <tool>/<version> -> <target>`: a mise install that links outside mise; delete it and `mise install` the real version, then `mise reshim`.
+- `provides <config> <tool>`: the pin installs no command of its name; use `bin = "<name>"`.
 - `error <dir>`: mise could not read a project (usually an untrusted config); trust it or report it.
 
-Report the verdict line and what you changed to the operator; a FAIL you leave is listed with its reason.
+Report the verdict line and what you changed to the operator.

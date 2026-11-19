@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   type AuditInput,
@@ -81,4 +84,41 @@ test('the backend prefix and owner drop, a scoped npm name stays whole', () => {
   assert.equal(shortName('npm:playwright'), 'playwright');
   assert.equal(shortName('npm:@excalidraw/cli'), '@excalidraw/cli');
   assert.equal(shortName('node'), 'node');
+});
+
+function composerPin(file: string): AuditInput {
+  const dir = mkdtempSync(join(tmpdir(), 'provides-'));
+  writeFileSync(join(dir, file), '');
+  chmodSync(join(dir, file), 0o755);
+  return {
+    ...clean,
+    installed: {
+      'github:composer/composer': [
+        {
+          version: '2.11.2',
+          active: true,
+          source: { path: 'p/mise.toml' },
+          install_path: dir,
+        },
+      ],
+    },
+    pathHits: { composer: ['/elsewhere/composer'] },
+  };
+}
+
+test('a pin whose install holds only composer.phar yields a provides finding naming config and fix', () => {
+  const findings = audit(composerPin('composer.phar')).filter(
+    (f) => f.kind === 'provides',
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.kind, 'provides');
+  assert.match(findings[0]?.line ?? '', /p\/mise\.toml/u);
+  assert.match(findings[0]?.line ?? '', /bin = "composer"/u);
+});
+
+test('a pin whose install holds a composer executable yields no provides finding', () => {
+  assert.deepEqual(
+    audit(composerPin('composer')).filter((f) => f.kind === 'provides'),
+    [],
+  );
 });
