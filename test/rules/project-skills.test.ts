@@ -12,6 +12,7 @@ const expected = [
   'delivery-lead',
   'delivery-retro',
   'standards',
+  'workstation',
 ];
 
 function skill(name: string): string {
