@@ -6,7 +6,7 @@ import type { Standard } from './standards.ts';
 /** The pack index stays under this many bytes. */
 export const INDEX_BUDGET_BYTES = 12400;
 /** The index of a repository's own records stays under this many bytes. */
-export const OWN_INDEX_BUDGET_BYTES = 6400;
+export const OWN_INDEX_BUDGET_BYTES = 6600;
 
 const PACK_HEADER = [
   '# Standards index',

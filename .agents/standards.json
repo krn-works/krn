@@ -1179,28 +1179,27 @@
     "type": "standard",
     "area": "ci",
     "layer": "krn-delivery",
-    "text": "A pull request body holds `## Why`, `## Verified` and a `Ticket:` or `Refs:` line. `krn pr ship` refuses one without them (exit 65) and CI reads PR_BODY with the same rule. CI runs `node --test test/rules/pr-body.test.ts`.",
+    "text": "A PR body holds Why, Verified and a Ticket or Refs line. `krn pr ship` refuses one without them (exit 65). CI runs `node scripts/pr-body-check.ts`.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": [],
       "paths": [
-        "src/ci/ship.ts",
-        "src/ci/pr-body-rule.ts",
-        "src/cli/pr-body.ts",
         "scripts/pr-body-check.ts",
-        ".github/workflows/ci.yml"
+        "src/ci/pr-body-rule.ts",
+        "src/ci/ship.ts",
+        "src/cli/pr-body.ts"
       ],
       "terms": ["pull", "body", "why", "verified", "ticket", "refs", "ship"]
     },
     "enforcement": {
       "kind": "command",
-      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/pr-body.test.ts'"
+      "run": "node scripts/ci-check-wired.ts 'node scripts/pr-body-check.ts'"
     },
     "provenance": {
       "origin": "pull requests merged with a body holding only the attribution line",
-      "evidence": ["test/rules/pr-body.test.ts"],
+      "evidence": ["scripts/pr-body-check.ts", "test/ci/pr-body-rule.test.ts"],
       "proposals": []
     },
     "status": "accepted",

@@ -211,12 +211,16 @@ test('a lane that closed before its PR existed gets the PR and Check written ont
         cwd: repo,
         run,
         gh,
+        readBody: () =>
+          '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-abc1234\n',
         completeClose: completeCloseExposure,
       });
       await shipCommand(args, {
         cwd: repo,
         run,
         gh,
+        readBody: () =>
+          '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-abc1234\n',
         completeClose: completeCloseExposure,
       });
     } finally {

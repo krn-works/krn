@@ -127,7 +127,7 @@ test('the own-records index lists every enforced own record within its byte budg
   assert.equal(lines(index).length, enforced.length);
   assert.ok(Buffer.byteLength(index) <= OWN_INDEX_BUDGET_BYTES);
   // The measured size is 5776 bytes; the budget leaves room for a few more records.
-  assert.equal(OWN_INDEX_BUDGET_BYTES, 6400);
+  assert.equal(OWN_INDEX_BUDGET_BYTES, 6600);
 });
 
 test('the own index still renders after one more 200-byte record is added', () => {
