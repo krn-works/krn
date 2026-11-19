@@ -18,6 +18,8 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: ['harness', 'repo', 'task'],
   state: [],
   ci: ['repo'],
+  // The lane lifecycle reader (ADR 0026); Stop imports it once it asks lane state instead of inferring it.
+  lane: ['repo'],
   adopt: ['brain', 'harness', 'task', 'repo'],
   repo: [],
   'cli-kit': [],
@@ -42,6 +44,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     // `krn lane run` delegates its session to the replay driver until the verb goes (S24).
     'evals/replay/session.ts',
     'evals/replay/session-result.ts',
+    'lane',
   ],
 };
 
@@ -58,6 +61,7 @@ export const PRODUCT: readonly string[] = [
   'adopt',
   'repo',
   'harness',
+  'lane',
 ];
 export const WORKSHOP: readonly string[] = [
   'successor',
@@ -203,6 +207,8 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   bw: [],
   git: [
     'src/cli/doctor-claims.ts',
+    // The one reader of lane state (ADR 0026): ship records, the lane tip and the merge on the base.
+    'src/lane/state.ts',
     'src/repo/lane-removal.ts',
     'src/repo/test-slot.ts',
     // Reads the root's origin to scope the App token of a gh read to that repository.

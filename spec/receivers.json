@@ -144,6 +144,10 @@
       "receivers": ["git"],
       "real": "test/cli/lane.test.ts"
     },
+    "src/lane/state.ts": {
+      "receivers": ["git"],
+      "real": "test/lane/state.test.ts"
+    },
     "src/cli/pr-body.ts": {
       "receivers": ["git"],
       "real": "test/cli/pr-body.test.ts"

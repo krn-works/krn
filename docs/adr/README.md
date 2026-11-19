@@ -19,3 +19,4 @@
 | [0025](0025-agent-instruction-surface.md) | proposed; extends 0019 and 0024 | One text per rule (records and briefs cite it), one merge route that checks the PR body, skills from one source with a lane skill of their own, sessions that read their own tree. |
 | [0026](0026-standards-simplification.md) | proposed | A rule is stated once, at its check or in AGENTS.md; KRN's own JSON rule stores go; the shipped pack stays one catalog. |
 | [0027](0027-ship-state-model.md) | proposed | Ship and its sibling readers branch on one pure GitHub PR state classifier with a verbatim fixture per state, and one gh client owns retries. |
+| [0026](0026-lane-lifecycle.md) | proposed | One reader of lane state (`src/lane/state.ts`), then one recorded lifecycle per lane; one parser per protocol line; seven ordered migration steps. |

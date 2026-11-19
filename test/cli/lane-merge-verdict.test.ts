@@ -188,3 +188,19 @@ test('laneMergeVerdict decides merged, pr-open, closed and unshipped from the re
   assert.equal(verdict({ merged: onBase, pr: { state: 'OPEN' } }), 'pr-open');
   assert.equal(verdict({ merged: onBase }), 'unshipped');
 });
+
+test('a ship record without a head is merged for status, budget and prune alike (ADR 0026)', () => {
+  // Before src/lane/state.ts, status passed no commit time and read this lane as `empty`, while budget and
+  // prune read it as merged and prune removed it.
+  const { repo, tree, sha } = shippedLane('headless');
+  writeFileSync(
+    join(repo, '.krn', 'runs', 'ship', 'headless.json'),
+    `${JSON.stringify({ branch: 'headless', sha, task: 't-abc1234', at: new Date(Date.now() + 60_000).toISOString() })}\n`,
+  );
+  const status = laneState(repo, 'main', 'headless', noPr).state;
+  const { budget, pruned } = callers(repo, tree, 'headless', noPr);
+  assert.deepEqual(
+    { status, budget, pruned },
+    { status: 'merged', budget: 'free', pruned: true },
+  );
+});

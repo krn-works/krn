@@ -4,10 +4,11 @@ import { join } from 'node:path';
 import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { readLane } from '../lane/state.ts';
 import { contractBase } from '../repo/contract.ts';
 import { rootGhEnv } from '../repo/gh.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
-import { gitRun, isMergedOn, laneMergeVerdict, shipRecord } from './lane.ts';
+import { gitRun } from './lane.ts';
 
 export type LaneState =
   | 'live'
@@ -56,16 +57,9 @@ export function laneState(
   const tree = join(main, '.krn', 'worktrees', name);
   const pid = liveShipPid(tree);
   if (pid !== undefined) return { state: 'live', detail: `pid ${pid}` };
-  const record = shipRecord(main, name);
-  const headOf = gitRun(tree, ['rev-parse', 'HEAD']);
-  const verdict = (pr?: { state: string }) =>
-    laneMergeVerdict({
-      record,
-      head: headOf.status === 0 ? headOf.stdout.trim() : undefined,
-      merged: (sha) => isMergedOn(main, base, sha),
-      pr,
-    });
-  if (record && verdict() === 'merged')
+  // The merge verdict is src/lane/state.ts's, the one budget and prune read; status adds the PR lookup.
+  const { record, verdict: recorded } = readLane(main, base, name);
+  if (record && recorded === 'merged')
     return { state: 'merged', detail: record.sha.slice(0, 12) };
   const ahead = gitRun(tree, ['rev-list', '--count', `origin/${base}..HEAD`]);
   if (ahead.status !== 0) return { state: 'unknown', detail: 'git failed' };
@@ -73,7 +67,7 @@ export function laneState(
     return { state: 'empty', detail: 'no commit past the base' };
   try {
     const pr = prOf(main, name);
-    const decided = verdict(pr);
+    const decided = readLane(main, base, name, pr).verdict;
     if (decided === 'unshipped')
       return {
         state: 'orphaned',
