@@ -221,6 +221,9 @@ export function runDrain(
     ...process.env,
     PATH: `${scratch.bin}:${process.env.PATH ?? ''}`,
     KRN_LANE_CLAUDE: join(scratch.bin, 'claude'),
+    // The scratch batch measures recovery, not the machine running it: a busy host must not refuse its lanes.
+    KRN_LANE_LOAD_PER_CORE: '1000000',
+    KRN_LANE_MIN_MB: '0',
     RECOVERY_STATE: scratch.state,
     RECOVERY_ORIGIN: scratch.origin,
     RECOVERY_KILLED: scratch.killed,
