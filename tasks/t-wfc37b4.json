@@ -1,7 +1,11 @@
 {
   "id": "t-wfc37b4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scope hook refuses every write outside the lane worktree; lane-target admits one foreign path"
+  },
   "created": "2026-11-19",
   "priority": 2,
   "title": "The lane scope guard refuses every write outside the worktree the same way, with an explicit foreign target",
