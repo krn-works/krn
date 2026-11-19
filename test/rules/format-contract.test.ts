@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { exposureOf, readExposures } from '../../src/brain/exposures.ts';
+import { incidentRecords } from '../../src/brain/principle-check.ts';
 import { laneCandidates } from '../../src/brain/worker-packet.ts';
 import { parseContractFile } from '../../src/repo/contract.ts';
 import {
@@ -178,4 +179,26 @@ test('a task stack of distinct names conforms and an empty or duplicated one is 
   assert.deepEqual(validate(stack, ['typescript', 'node']), []);
   assert.deepEqual(validate(stack, []), ['$: fewer than 1 items']);
   assert.deepEqual(validate(stack, ['node', 'node']), ['$: duplicate items']);
+});
+
+// Records that still retell one incident. The list only shrinks: a rewritten record leaves it.
+const INCIDENT_ALLOWED = new Set(['r-stop-skip-needs-session-proof']);
+
+test('every record text states a principle, so a hand edit cannot retell one incident', () => {
+  const flagged = ['.agents/records.json', 'standards/records.json'].flatMap(
+    (file) =>
+      incidentRecords(read(file) as Parameters<typeof incidentRecords>[0]).map(
+        (row) => ({ ...row, file }),
+      ),
+  );
+  assert.deepEqual(
+    flagged.filter((row) => !INCIDENT_ALLOWED.has(row.id)),
+    [],
+    'state the principle and move the incident into provenance.evidence',
+  );
+  assert.deepEqual(
+    [...INCIDENT_ALLOWED].filter((id) => !flagged.some((r) => r.id === id)),
+    [],
+    'remove the rewritten record from INCIDENT_ALLOWED',
+  );
 });
