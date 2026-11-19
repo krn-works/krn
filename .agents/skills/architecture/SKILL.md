@@ -39,4 +39,4 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 - **Test through the interface.** A test that needs a private symbol is a signal to move the seam, not to export more.
 - **Types-only files** are shared vocabulary, not a deepening target; split large ones by owner.
 
-For TypeScript expression of these rules (export minimisation, barrels, types at the seam) use the `typescript` skill.
+For TypeScript expression of these rules (export minimisation, barrels, types at the seam) use the `standards` skill.

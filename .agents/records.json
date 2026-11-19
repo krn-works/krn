@@ -159,7 +159,7 @@
   {
     "id": "r-tracker-owner",
     "type": "standard",
-    "text": "Task status lives in tasks/<id>.json and only the lead changes it with krn task (ready, claim, release, close). A worker never edits, closes or deletes a tracker file, even when its task is finished.",
+    "text": "Task status lives in tasks/<id>.json and the lead changes it with krn task (ready, claim, release, close). A lane closes only its own task record, inside its own worktree, in the pull request that carries Ticket:, and edits or deletes no other tracker file.",
     "audience": "all",
     "tier": "reflex",
     "applies": {

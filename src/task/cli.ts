@@ -66,7 +66,7 @@ interface CommandOutput {
 const quickstart = [
   'krn task — agent quickstart',
   'Lead runs the loop: krn task ready → krn task claim --next --actor lead → work in a worktree → krn task release ID or krn task close ID --as done in the delivering PR.',
-  'Workers receive the task id in their brief and do not mutate tracker state.',
+  'Workers receive the task id in their brief; a lane closes only its own task, in its own pull request, and changes no other record.',
   `Records: tasks/<id>.json (tracked; ids at most ${TASK_ID_MAX_LENGTH} characters); claims: .krn/task-claims/<id>.json (ignored, shared from the main checkout).`,
   'Exit codes: 0 success; 64 usage; 65 invalid task data; 70 internal error; 75 held claim or no ready task.',
   '',

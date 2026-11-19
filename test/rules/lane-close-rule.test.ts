@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { closureRule, laneBriefText } from '../../src/cli/lane-brief.ts';
@@ -21,6 +22,23 @@ test('KRN-11 and lanes.md agree that a lane closes its own task in its own PR', 
     /a lane closes only its own task, in its own pull request/u,
   );
   assert.match(read('AGENTS.md'), /a lane closes its own task record/u);
+});
+
+// The lane packet serves r-tracker-owner beside the closure line, and `krn task --help` is what a
+// worker reads first; both once told a lane never to close its task while KRN-11 says it must.
+test('the tracker-owner record and krn task help agree with KRN-11', () => {
+  const record = (
+    JSON.parse(read('.agents/records.json')) as { id: string; text: string }[]
+  ).find((r) => r.id === 'r-tracker-owner');
+  assert.match(record?.text ?? '', /A lane closes only its own task record/u);
+  assert.doesNotMatch(record?.text ?? '', /never edits, closes/u);
+  const help = execFileSync(
+    process.execPath,
+    [`${root}src/cli/main.ts`, 'task', '--help'],
+    { encoding: 'utf8' },
+  );
+  assert.match(help, /a lane closes only its own task/u);
+  assert.doesNotMatch(help, /do not mutate tracker state/u);
 });
 
 test('the lane brief for a task names the close command and the Ticket trailer', () => {
