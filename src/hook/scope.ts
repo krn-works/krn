@@ -185,10 +185,12 @@ function maskQuotes(command: string): string {
 // Write targets a Bash command shows cheaply: redirections, tee and sed -i operands.
 function segmentTargets(segment: string, redirectsOnly = false): string[] {
   const found: string[] = [];
+  // `>`, `>>`, `&>`, `&>>`, `>|`, `>&`, `<>` with an optional fd; `>&2` and `>&-` duplicate a descriptor.
   for (const match of segment.matchAll(
-    /(?:^|[^>&\d<])\d*>>?\s*([^\s|;&<>()]+)/gu,
+    /(?:^|[^>&\d<])(?:&|\d*)(?:>>?\|?|>&|<>)\s*([^\s|;&<>()]+)/gu,
   ))
-    found.push(match[1] as string);
+    if (!/^\d+-?$|^-$/u.test(match[1] as string))
+      found.push(match[1] as string);
   for (const match of segment.matchAll(/\btee\s+(?:-\w+\s+)*([^\s|;&<>]+)/gu))
     found.push(match[1] as string);
   if (redirectsOnly) return found.filter((target) => target !== '/dev/null');
@@ -208,21 +210,47 @@ export function bashTargets(
   command: string,
   cwd: string,
   redirectsOnly = false,
+  home = process.env.HOME ?? '',
 ): string[] {
-  const text = maskQuotes(stripHeredocs(command));
+  const text = maskQuotes(stripHeredocs(command.replace(/\\\n/gu, ' ')));
   const found: string[] = [];
   let dir = cwd;
   for (const segment of text.split(/&&|\|\||[;\n]|(?<![>&])&(?![>&])/u)) {
-    const cd = /^\s*cd\s+([^\s|]+)\s*$/u.exec(segment);
+    const cd = /^\s*(?:cd|pushd)\s+(?:--\s+)?([^\s|]+)\s*$/u.exec(segment);
     if (cd) {
-      const to = cd[1] as string;
-      dir = to.startsWith('~') || to === '-' ? dir : resolve(dir, to);
+      const to = expandHome(cd[1] as string, home);
+      // `cd -` and `cd $D` go where the hook cannot see: later relative targets stay opaque.
+      dir = to === '-' || opaque(to) ? join(UNRESOLVED, to) : resolve(dir, to);
       continue;
     }
-    for (const target of segmentTargets(segment, redirectsOnly))
+    for (const raw of segmentTargets(segment, redirectsOnly)) {
+      const target = expandHome(raw, home);
       found.push(isAbsolute(target) ? target : resolve(dir, target));
+    }
   }
   return found;
+}
+
+/** Stands for a directory the hook cannot resolve; no allowed base lies under it. */
+const UNRESOLVED = '/$unresolved';
+
+/** `~`, `~/x`, `$HOME/x` and `${HOME}/x` name the home directory; any other expansion stays opaque. */
+function expandHome(target: string, home: string): string {
+  if (!home) return target;
+  return target.replace(/^(?:~(?=\/|$)|\$HOME\b|\$\{HOME\})/u, home);
+}
+
+/** A target whose text the shell still expands (`$T`, `` `cmd` ``, `~user`) names no path the hook can check. */
+function opaque(target: string): boolean {
+  return /[$`]|^~/u.test(target);
+}
+
+/**
+ * Device files a write may name outside any worktree, matched on the raw text: a lexical resolve
+ * cannot see that /dev/fd links to /proc/self/fd, so `/dev/fd/../root/<path>` reaches any file.
+ */
+function isDevice(target: string): boolean {
+  return /^\/dev\/(?:null|stdout|stderr|stdin|tty|zero|fd\/\d+)$/u.test(target);
 }
 
 /** Operands of rm, mv, cp and git add/checkout --/commit; anything else is unknown and allowed. */
@@ -300,14 +328,12 @@ export function strayRedirect(
     ...(at < 0 ? [] : [join(root.slice(0, at), '.krn', 'runs')]),
     ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
   ];
-  // Resolved first: `/dev/../home/x` starts with /dev/ but names /home/x.
-  return bashTargets(command, cwd, true)
-    .map((target) => resolve(cwd, target))
-    .find(
-      (target) =>
-        !target.startsWith('/dev/') &&
-        !allowed.some((base) => inside(base, target)),
-    );
+  return bashTargets(command, cwd, true, env.HOME).find(
+    (target) =>
+      !isDevice(target) &&
+      (opaque(target) ||
+        !allowed.some((base) => inside(base, resolve(cwd, target)))),
+  );
 }
 
 export interface Verdict {
@@ -339,15 +365,11 @@ export function foreignTarget(
     ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
     ...admitted,
   ];
-  return (
-    targets
-      // resolve() normalizes an absolute path too: `/dev/../home/x` starts with /dev/ but names /home/x.
-      .map((target) => resolve(cwd, target))
-      .find(
-        (target) =>
-          !target.startsWith('/dev/') &&
-          !allowed.some((base) => inside(base, target)),
-      )
+  return targets.find(
+    (target) =>
+      !isDevice(target) &&
+      (opaque(target) ||
+        !allowed.some((base) => inside(base, resolve(cwd, target)))),
   );
 }
 
@@ -389,7 +411,9 @@ export function judge(
       targets.push(input.notebook_path);
   } else if (fields.tool_name === 'Bash') {
     if (typeof input.command === 'string')
-      targets.push(...bashTargets(input.command, resolve(cwd)));
+      targets.push(
+        ...bashTargets(input.command, resolve(cwd), false, env.HOME),
+      );
   } else return {};
   const escaped = targets.find((target) =>
     outsideOwnWorktree(
