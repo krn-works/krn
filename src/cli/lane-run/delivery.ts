@@ -92,6 +92,27 @@ export function goalPrBody(
 }
 
 /**
+ * A passing check ran Biome with --write: a format-only rewrite of tracked files is the check's own
+ * output, committed here instead of leaving the tree dirty. Untracked files are left for the dirty-tree stop.
+ */
+function commitCheckRewrite(worktree: string): void {
+  let dirty = '';
+  try {
+    dirty = git(worktree, ['status', '--porcelain', '--untracked-files=no']);
+  } catch {
+    return;
+  }
+  if (dirty.trim() === '') return;
+  git(worktree, ['add', '-u']);
+  git(worktree, [
+    'commit',
+    '-q',
+    '-m',
+    'style: apply the final check formatting rewrite',
+  ]);
+}
+
+/**
  * The runner's own proof where the repository has no fast-pass marker: the contract's quick
  * check (else its tests) passes on the final tree.
  */
@@ -131,8 +152,10 @@ export function contractVerification(
       }),
     command,
   );
-  if (run.status === 0)
+  if (run.status === 0) {
+    commitCheckRewrite(worktree);
     return { verified: `${command} PASS on the final tree`, flaky };
+  }
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
   mkdirSync(dirname(logPath), { recursive: true });
   writeFileSync(logPath, output);

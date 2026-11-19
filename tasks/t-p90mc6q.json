@@ -1,7 +1,11 @@
 {
   "id": "t-p90mc6q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship runs only scripts/fast-check.ts scoped check (test/ci/ship.test.ts: never the full suite; format-only rewrite committed); lane final check now commits a format rewrite (test/cli/lane-run-host-load.test.ts); required Check stays the only full gate. Out of scope: the next-5-ships under 15 minutes measurement after merge."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Ship's local check is bounded like T3: CI is the only full gate",
