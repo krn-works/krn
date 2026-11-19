@@ -40,6 +40,8 @@ A lesson that holds in other repositories too also becomes a standards proposal 
 
 `krn standards propose --text "<the lesson as one statement>" --kind check|template|skill|prose --evidence <#PR, commit SHA, path or https URL>`
 
+Write the principle, keep the incident as evidence (`--evidence`); a text that retells one incident is refused (exit 65).
+
 It writes one file under `.agents/standards-proposals/`; commit it with the slice. Evidence is mandatory.
 
 ## Output

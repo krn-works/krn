@@ -2,6 +2,7 @@
 // .agents/standards-proposals/, and the harvest that groups them across repositories into
 // candidates for the KRN pack. Pure parsing, naming and grouping; the caller owns the filesystem.
 import { createHash } from 'node:crypto';
+import { incidentMessage, judgePrinciple } from './principle-check.ts';
 import { recursEnough, reference, StandardsDataError } from './standards.ts';
 
 /** Where a repository keeps its proposals, relative to its root; tracked, one file per proposal. */
@@ -57,6 +58,13 @@ export function parseProposal(value: unknown, where = 'proposal'): Proposal {
     Number.isNaN(Date.parse(`${p.recorded_at}T00:00:00Z`))
   )
     fail(`${where}.recorded_at`, 'expected a YYYY-MM-DD date');
+  const verdict = judgePrinciple({
+    text: p.text,
+    evidence,
+    enforced: p.kind === 'check',
+  });
+  if (!verdict.principle)
+    fail(`${where}.text`, incidentMessage(verdict.signals));
   return {
     text: p.text.trim(),
     kind: p.kind as ProposalKind,

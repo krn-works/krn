@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { FormatError } from '../repo/formats.ts';
+import { incidentMessage, judgePrinciple } from './principle-check.ts';
 import { parseResearchCandidate, RESEARCH_DIR } from './proposals.ts';
 import { parseUnified, RecordSchema } from './record.ts';
 import { StandardsDataError } from './standards.ts';
@@ -174,6 +175,13 @@ export function ingestCandidate(
     );
   if (draft.data.status !== 'trial')
     bad(`${file}.record_draft.status`, 'expected "trial"');
+  const verdict = judgePrinciple({
+    text: draft.data.text,
+    evidence: draft.data.provenance.evidence,
+    enforced: draft.data.enforcement.kind !== 'advisory',
+  });
+  if (!verdict.principle)
+    bad(`${file}.record_draft.text`, incidentMessage(verdict.signals));
   const experiment = object(row.experiment, `${file}.experiment`);
   for (const key of ['population', 'metric'])
     if (typeof experiment[key] !== 'string' || experiment[key] === '')
