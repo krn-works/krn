@@ -17,8 +17,12 @@ const missing = (number: number): OpenPr => ({
 });
 const green = (number: number): OpenPr => ({
   number,
-  statusCheckRollup: [{ name: 'ci / Check', conclusion: 'SUCCESS' }],
+  statusCheckRollup: [{ name: 'Check', conclusion: 'SUCCESS' }],
 });
+
+/** The open-red check with the plain `Check` as the required context, so no test asks GitHub. */
+const checkWith = (read: () => OpenPr[] | undefined) =>
+  checkOpenRedLimit('.', read, () => 'Check');
 
 function withMax<T>(value: string | undefined, run: () => T): T {
   const before = process.env.KRN_OPEN_RED_MAX;
@@ -35,14 +39,14 @@ function withMax<T>(value: string | undefined, run: () => T): T {
 test('three open PRs with a red or missing Check refuse a lane, naming the reason', () => {
   const prs = [red, missing(2), { ...red, number: 3 }, green(4)];
   assert.throws(
-    () => withMax(undefined, () => checkOpenRedLimit('.', () => prs)),
+    () => withMax(undefined, () => checkWith(() => prs)),
     /open-red limit: 3 open PRs.*KRN_OPEN_RED_MAX.*#1, #2, #3/,
   );
 });
 
 test('two red or missing PRs pass; a green one never counts', () => {
   const prs = [red, missing(2), green(3), green(4)];
-  withMax(undefined, () => checkOpenRedLimit('.', () => prs));
+  withMax(undefined, () => checkWith(() => prs));
 });
 
 test('a newer green Check outranks an older red run', () => {
@@ -61,21 +65,16 @@ test('a newer green Check outranks an older red run', () => {
       },
     ],
   };
-  withMax('1', () => checkOpenRedLimit('.', () => [rerun]));
+  withMax('1', () => checkWith(() => [rerun]));
 });
 
 test('KRN_OPEN_RED_MAX moves the limit', () => {
-  assert.throws(
-    () => withMax('1', () => checkOpenRedLimit('.', () => [red])),
-    /maximum 1/,
-  );
-  withMax('4', () =>
-    checkOpenRedLimit('.', () => [red, missing(2), missing(3)]),
-  );
+  assert.throws(() => withMax('1', () => checkWith(() => [red])), /maximum 1/);
+  withMax('4', () => checkWith(() => [red, missing(2), missing(3)]));
 });
 
 test('an unreadable PR list passes', () => {
-  withMax(undefined, () => checkOpenRedLimit('.', () => undefined));
+  withMax(undefined, () => checkWith(() => undefined));
 });
 
 const now = Date.now();
@@ -133,8 +132,24 @@ test('only a failed Check and a stale PR with no run count; a pending Check and 
     [13, 14],
   );
   assert.throws(
-    () => withMax('2', () => checkOpenRedLimit('.', () => prs)),
+    () => withMax('2', () => checkWith(() => prs)),
     /2 open PRs.*#13, #14/,
   );
-  withMax('3', () => checkOpenRedLimit('.', () => prs));
+  withMax('3', () => checkWith(() => prs));
+});
+
+test('a red-by-design reusable-workflow Check beside no required Check is not red', () => {
+  const pr: OpenPr = {
+    number: 9,
+    statusCheckRollup: [
+      {
+        name: 'expected-red / Check',
+        status: 'COMPLETED',
+        conclusion: 'FAILURE',
+      },
+      { name: 'Lint', status: 'IN_PROGRESS' },
+    ],
+  };
+  assert.equal(redOrMissing(pr), false);
+  assert.equal(redOrMissing(pr, Date.now(), 'expected-red / Check'), true);
 });
