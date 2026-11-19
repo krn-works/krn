@@ -2178,7 +2178,7 @@
     "id": "s-skill-cube-css",
     "type": "standard",
     "text": "Theme CSS carries no `!important` without a comment on the same line.",
-    "why": "CUBE CSS boosts specificity only with the block class; an uncommented `!important` is the escape hatch that breaks the cascade the other layers rely on.",
+    "why": "An uncommented !important overrides the cascade every other rule relies on, and the next override needs another one.",
     "audience": "worker",
     "tier": "finish",
     "applies": {
@@ -2189,17 +2189,12 @@
         "skill",
         "cube",
         "css",
-        "boosts",
-        "specificity",
-        "block",
-        "class",
+        "important",
         "uncommented",
-        "escape",
-        "hatch",
-        "breaks",
+        "comment",
+        "specificity",
         "cascade",
-        "other",
-        "layers"
+        "override"
       ]
     },
     "enforcement": {
@@ -3847,8 +3842,8 @@
   {
     "id": "s-acf-define-once",
     "type": "standard",
-    "text": "Define a component's fields once as a group field in the Komponenty group and clone it into each layout.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "text": "Define a component's ACF fields once, as one group field, and clone that group into each layout that uses the component.",
+    "why": "Fields defined per layout drift apart; one definition keeps every layout of the component on the same data shape.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -3859,17 +3854,11 @@
         "acf",
         "define",
         "once",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
         "component",
-        "fields"
+        "fields",
+        "group",
+        "clone",
+        "layout"
       ]
     },
     "enforcement": {
@@ -3892,29 +3881,14 @@
     "id": "s-acf-args-only",
     "type": "standard",
     "text": "Read only $args in a component template and call no get_field() or get_sub_field().",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "why": "A template that reads only its input renders the same data wherever it is placed and can be tested without the database.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": [
-        "acf",
-        "args",
-        "only",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "component",
-        "template"
-      ]
+      "terms": ["acf", "args", "component", "template", "input", "field"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -3935,8 +3909,8 @@
   {
     "id": "s-acf-layout-allowlist",
     "type": "standard",
-    "text": "Map a layout name to its template only in the static allowlist inc/flexible-content-layouts.php, never from a database value.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "text": "Map a flexible-content layout name to its template through a static allowlist in code, never from a database value.",
+    "why": "A template path taken from stored data lets edited content choose which file runs.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -3947,17 +3921,10 @@
         "acf",
         "layout",
         "allowlist",
-        "harvested",
-        "boilerplate",
-        "skill",
         "component",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "template"
+        "template",
+        "name",
+        "static"
       ]
     },
     "enforcement": {
@@ -3979,30 +3946,15 @@
   {
     "id": "s-acf-content-not-looks",
     "type": "standard",
-    "text": "Add no appearance field (size, colour, alignment, heading level) to an ACF group; the component sets its look with a profile.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "text": "Give an ACF group only content fields, no appearance field (size, colour, alignment, heading level): the component decides its own look.",
+    "why": "Appearance fields let editors break the design system page by page and multiply the states each component must render.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": [
-        "acf",
-        "content",
-        "not",
-        "looks",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "appearance"
-      ]
+      "terms": ["acf", "content", "looks", "appearance", "fields", "design"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4023,8 +3975,8 @@
   {
     "id": "s-acf-modified-bump",
     "type": "standard",
-    "text": "After hand-editing acf-json set modified of each changed group to date +%s before running acf json sync.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "text": "After hand-editing an acf-json file, raise the modified timestamp of each changed group before syncing, so the sync takes the file over the database copy.",
+    "why": "ACF syncs a local JSON group only when its modified time is newer than the stored one; an unchanged timestamp silently keeps the old fields.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4035,17 +3987,11 @@
         "acf",
         "modified",
         "bump",
-        "harvested",
-        "boilerplate",
-        "skill",
         "component",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "editing"
+        "editing",
+        "json",
+        "sync",
+        "timestamp"
       ]
     },
     "enforcement": {
@@ -4068,29 +4014,14 @@
     "id": "s-acf-empty-array",
     "type": "standard",
     "text": "Test is_array() on an ACF repeater or image value, because empty comes back as false or an empty string.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "why": "ACF returns false or an empty string for an empty repeater or image, so code that assumes an array fails on empty content.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
       "paths": ["**/*.php", "**/acf-json/*.json"],
-      "terms": [
-        "acf",
-        "empty",
-        "array",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "component",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "repeater"
-      ]
+      "terms": ["acf", "empty", "array", "component", "repeater", "image"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4112,7 +4043,7 @@
     "id": "s-acf-keep-keys",
     "type": "standard",
     "text": "Never rename an existing ACF key: keys are stored identity and a rename needs a data migration.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "why": "Field keys are the stored identity of the values; a renamed key orphans every saved value under the old key.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4123,17 +4054,10 @@
         "acf",
         "keep",
         "keys",
-        "harvested",
-        "boilerplate",
-        "skill",
         "component",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "rename"
+        "rename",
+        "key",
+        "migration"
       ]
     },
     "enforcement": {
@@ -4156,7 +4080,7 @@
     "id": "s-wp-escape-output",
     "type": "standard",
     "text": "Escape every printed value at the output boundary with esc_html, esc_attr, esc_url or wp_kses_post.",
-    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "why": "Escaping at output protects every caller however the value was stored, so one missed sanitiser never becomes a script injection.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4167,17 +4091,12 @@
         "wp",
         "escape",
         "output",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "acf",
-        "component",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file"
+        "printed",
+        "value",
+        "html",
+        "attribute",
+        "url",
+        "kses"
       ]
     },
     "enforcement": {
@@ -4200,29 +4119,14 @@
     "id": "s-css-token-values",
     "type": "standard",
     "text": "Take every space, size, colour, weight, radius and duration from a design token, never a hand-written value.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "why": "Hand-written values drift from the design scale and cannot be changed in one place.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
       "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": [
-        "css",
-        "token",
-        "values",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "space"
-      ]
+      "terms": ["css", "token", "values", "space", "size", "colour"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4243,30 +4147,15 @@
   {
     "id": "s-css-no-clamp",
     "type": "standard",
-    "text": "Take fluid values from the generated token steps and write no new clamp().",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Take fluid sizes from the token scale and write no one-off clamp().",
+    "why": "A one-off fluid formula escapes the scale, so the page stops scaling as one system.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
       "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": [
-        "css",
-        "no",
-        "clamp",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "fluid"
-      ]
+      "terms": ["css", "clamp", "fluid", "scale"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4287,30 +4176,15 @@
   {
     "id": "s-css-specificity",
     "type": "standard",
-    "text": "Raise specificity only with the block class: no id selector, no !important and no :is() boost.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Keep selector specificity flat: no id selector, no !important and no :is() or repeated-selector boost.",
+    "why": "Each specificity boost forces a stronger one in the next override, and the cascade stops being predictable.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
       "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": [
-        "css",
-        "specificity",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "raise",
-        "block"
-      ]
+      "terms": ["css", "specificity", "raise", "block", "selector"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4331,8 +4205,8 @@
   {
     "id": "s-css-data-exception",
     "type": "standard",
-    "text": "Express a variant as a data-* attribute with a finite value set, never as a BEM -- or is-/has- class.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Express a component variant as one attribute or modifier with a finite, documented value set, never as a free-form class per case.",
+    "why": "A finite value set keeps every variant enumerable, so review and tests can cover each state.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4343,17 +4217,10 @@
         "css",
         "data",
         "exception",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "express"
+        "express",
+        "variant",
+        "state",
+        "attribute"
       ]
     },
     "enforcement": {
@@ -4375,8 +4242,8 @@
   {
     "id": "s-css-no-block-min-height",
     "type": "standard",
-    "text": "Give a block no min-height: let height follow content and use .region for section padding.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Give a component no fixed min-height: let its height follow its content and leave section spacing to the layout wrapper.",
+    "why": "A fixed height clips or pads content that changes length, which breaks on real content and other viewports.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4385,19 +4252,12 @@
       "paths": ["**/*.css", "web/app/themes/**"],
       "terms": [
         "css",
-        "no",
         "block",
         "min",
         "height",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching"
+        "content",
+        "section",
+        "padding"
       ]
     },
     "enforcement": {
@@ -4419,8 +4279,8 @@
   {
     "id": "s-css-already-owned",
     "type": "standard",
-    "text": "Delete a declaration that a global, composition, token or utility already produces and set the composition variable instead.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Delete a declaration that a global style, layout primitive, token or utility already produces, and set that owner's variable instead.",
+    "why": "A duplicated declaration hides the owner and diverges when the owner changes.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4431,17 +4291,10 @@
         "css",
         "already",
         "owned",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "delete"
+        "delete",
+        "duplicate",
+        "declaration",
+        "owner"
       ]
     },
     "enforcement": {
@@ -4463,30 +4316,15 @@
   {
     "id": "s-css-layer-owner",
     "type": "standard",
-    "text": "Put each declaration in the layer that owns it: no colour in a composition, no layout in a utility, no component selector in globals.",
-    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "text": "Put each declaration in the layer that owns it: no colour in a layout primitive, no layout in a utility, no component selector in globals.",
+    "why": "A declaration in the wrong layer is overridden or leaks in places its author never saw.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["frontend"],
       "paths": ["**/*.css", "web/app/themes/**"],
-      "terms": [
-        "css",
-        "layer",
-        "owner",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "declaration"
-      ]
+      "terms": ["css", "layer", "owner", "declaration", "layout", "utility"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4508,7 +4346,7 @@
     "id": "s-review-new-names",
     "type": "standard",
     "text": "Name the consumer of each new token, variable, selector or field and the existing one it duplicates; a pixel-only addition is a finding.",
-    "why": "Harvested from the boilerplate-2026 skill cube-review so a session meets it on the first edit of a matching file.",
+    "why": "A new name without a consumer, or one that duplicates an existing one, grows the system without adding a capability.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4524,17 +4362,10 @@
         "review",
         "new",
         "names",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "cube",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "consumer"
+        "consumer",
+        "token",
+        "variable",
+        "selector"
       ]
     },
     "enforcement": {
@@ -4557,7 +4388,7 @@
     "id": "s-design-scale-values",
     "type": "standard",
     "text": "Map design values to the nearest step of the token scale instead of chasing a pixel, and make a genuinely new value a token.",
-    "why": "Harvested from the boilerplate-2026 skill design-to-build so a session meets it on the first edit of a matching file.",
+    "why": "Matching a design pixel by pixel adds values the scale lacks; the nearest step keeps the page consistent.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4569,22 +4400,7 @@
         "**/*.php",
         "**/acf-json/*.json"
       ],
-      "terms": [
-        "design",
-        "scale",
-        "values",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "build",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "nearest"
-      ]
+      "terms": ["design", "scale", "values", "nearest", "step", "pixel"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4605,30 +4421,15 @@
   {
     "id": "s-deploy-tooling-pin",
     "type": "standard",
-    "text": "Bump the pinned release-tooling SHA only after reading the receiver's changes and updating receiver.php on every server.",
-    "why": "Harvested from the boilerplate-2026 skill plesk-deploy so a session meets it on the first edit of a matching file.",
+    "text": "Bump a pinned release-tooling SHA only after reading its changes and updating every server-side counterpart it talks to.",
+    "why": "The pinned tooling and its server side are one protocol; moving one end alone breaks the next release.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
       "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
-      "terms": [
-        "deploy",
-        "tooling",
-        "pin",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "plesk",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "pinned"
-      ]
+      "terms": ["deploy", "tooling", "pin", "pinned", "release", "server"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4649,30 +4450,15 @@
   {
     "id": "s-deploy-wpcli-core-path",
     "type": "standard",
-    "text": "Run WP-CLI against the Bedrock core directory web/wp, never --path=web.",
-    "why": "Harvested from the boilerplate-2026 skill plesk-deploy so a session meets it on the first edit of a matching file.",
+    "text": "Point WP-CLI --path at the WordPress core directory (web/wp in Bedrock), never at the web root.",
+    "why": "With the web root as path WP-CLI finds no core and fails, or runs against the wrong install.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": ["wordpress"],
       "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
-      "terms": [
-        "deploy",
-        "wpcli",
-        "core",
-        "path",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "plesk",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file"
-      ]
+      "terms": ["deploy", "wpcli", "core", "path", "bedrock"]
     },
     "enforcement": {
       "kind": "advisory"
@@ -4694,7 +4480,7 @@
     "id": "s-wp-never-mutate-production",
     "type": "standard",
     "text": "Never mutate production, remote files, databases or credentials from the local runtime.",
-    "why": "Harvested from the boilerplate-2026 skill wp-runtime so a session meets it on the first edit of a matching file.",
+    "why": "Local changes to production bypass review, release and rollback; production changes only through the release.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -4703,19 +4489,11 @@
       "paths": ["mise.toml", ".ddev/**"],
       "terms": [
         "wp",
-        "never",
         "mutate",
         "production",
-        "harvested",
-        "boilerplate",
-        "skill",
-        "session",
-        "meets",
-        "first",
-        "edit",
-        "matching",
-        "file",
-        "remote"
+        "remote",
+        "database",
+        "credentials"
       ]
     },
     "enforcement": {
