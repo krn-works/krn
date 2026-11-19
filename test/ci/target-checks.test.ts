@@ -41,6 +41,22 @@ test('the aggregate of a reusable workflow is selected, a job named like it is n
   assert.equal(selectRequiredCheck([run({ name: 'Recheck' })]), undefined);
 });
 
+test('a reusable-workflow Check that is red by design never overrides the plain required Check', () => {
+  const required = run({ startedAt: '2026-11-17T10:00:00Z' });
+  const expectedRed = run({
+    name: 'expected-red / Check',
+    conclusion: 'FAILURE',
+    startedAt: '2026-11-17T10:05:00Z',
+  });
+  const green = run({
+    name: 'green / Check',
+    startedAt: '2026-11-17T10:06:00Z',
+  });
+  assert.equal(selectRequiredCheck([required, expectedRed, green]), required);
+  assert.equal(selectRequiredCheck([expectedRed, required]), required);
+  assert.equal(selectRequiredCheck([expectedRed]), expectedRed);
+});
+
 test('only SUCCESS is green: skipped, neutral and missing conclusions are not', () => {
   assert.equal(isGreen('SUCCESS'), true);
   for (const c of [

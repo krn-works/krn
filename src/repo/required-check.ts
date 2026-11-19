@@ -29,14 +29,20 @@ export function isRequiredCheckName(name: string | undefined): boolean {
 /**
  * The newest run of the required check: its name is the aggregate name and its App is the required one.
  * A rerun leaves older runs beside it and only the latest speaks for the head (later entry wins a tie).
+ * A plain `Check` is the required context itself; a `<caller job> / Check` row is only the required
+ * context of a repository whose caller names it so, so it is judged only while no plain `Check` exists.
+ * Another workflow's reusable-workflow aggregate (a self-test that is red by design) never overrides it.
  */
 export function selectRequiredCheck(
   runs: readonly CheckFact[],
 ): CheckFact | undefined {
+  const candidates = runs.filter(
+    (run) =>
+      run.appId === REQUIRED_CHECK_APP_ID && isRequiredCheckName(run.name),
+  );
+  const plain = candidates.filter((run) => run.name === REQUIRED_CHECK_NAME);
   let newest: CheckFact | undefined;
-  for (const run of runs) {
-    if (run.appId !== REQUIRED_CHECK_APP_ID || !isRequiredCheckName(run.name))
-      continue;
+  for (const run of plain.length > 0 ? plain : candidates) {
     if (
       newest === undefined ||
       (run.startedAt ?? '') >= (newest.startedAt ?? '')
