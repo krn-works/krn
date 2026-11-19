@@ -155,14 +155,44 @@ test('a full gate past the deadline exits 75', async () => {
   }
 });
 
+test('a soft run past the deadline runs its command without a slot', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'heavy-gate-'));
+  try {
+    const dir = join(root, 'gate');
+    const out = join(root, 'held');
+    const code = await withSlot({ dir, slots: 1 }, () =>
+      runGate(
+        [
+          'run',
+          '--deadline-ms',
+          '200',
+          '--soft',
+          '--',
+          process.execPath,
+          '-e',
+          `require('node:fs').writeFileSync(${JSON.stringify(out)}, process.env.KRN_TEST_SLOT_HELD ?? 'none'); process.exit(4)`,
+        ],
+        gateEnv(dir, 1),
+        root,
+      ),
+    );
+    assert.equal(code, 4);
+    assert.equal(readFileSync(out, 'utf8'), 'none');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('run without a command, or with a bad weight, is a usage error', async () => {
   assert.throws(() => parseRun([]), /run needs -- <command>/);
   assert.throws(() => parseRun(['--weight', '0', '--', 'x']), /positive/);
   assert.deepEqual(parseRun(['--weight', '2', '--', 'npm', 'test']), {
     command: ['npm', 'test'],
     deadlineMs: undefined,
+    soft: false,
     weight: 2,
   });
+  assert.throws(() => parseRun(['--soft', '--', 'x']), /--soft needs/);
   const code = await runGate([], gateEnv(tmpdir(), 1), tmpdir());
   assert.equal(code, 64);
 });
