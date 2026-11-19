@@ -23,6 +23,10 @@ const allowSkip = new Map([
     'Skips only when the probe re-enters itself, an environment guard.',
   ],
   [
+    'test/hook/receiver-toolchain.test.ts',
+    'Skips only when mise has no second Node installed, an environment guard.',
+  ],
+  [
     'test/task/claims-recovery.test.ts',
     'Skips only when running as root, an environment guard.',
   ],
