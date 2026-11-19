@@ -125,6 +125,15 @@ function bodyOf(bodies: string[]): string {
 
 const sleep = async () => {};
 
+/** Lane notes holding only the verification line a ship needs. */
+function writeVerified(worktree: string): void {
+  mkdirSync(join(worktree, '.krn', 'tmp'), { recursive: true });
+  writeFileSync(
+    join(worktree, LANE_NOTES_PATH),
+    JSON.stringify({ verified: 'npm run fast: pass' }),
+  );
+}
+
 test('finish ships a pushed lane with its recorded notes and gets verdict merged', async () => {
   const { base, repo, worktree } = fixture('Ticket');
   try {
@@ -167,6 +176,7 @@ test('finish reads Refs above a separate Co-Authored-By paragraph', async () => 
     '\n\nCo-Authored-By: Agent <noreply@example.com>',
   );
   try {
+    writeVerified(worktree);
     const { gh, bodies } = fakeGh(worktree);
     const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
       gh,
@@ -179,9 +189,10 @@ test('finish reads Refs above a separate Co-Authored-By paragraph', async () => 
   }
 });
 
-test('finish without notes derives Refs from the commit trailer and still ships', async () => {
+test('finish with notes naming no task derives Refs from the commit trailer and ships', async () => {
   const { base, repo, worktree } = fixture('Refs');
   try {
+    writeVerified(worktree);
     const { gh, bodies } = fakeGh(worktree);
     const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
       gh,
@@ -191,6 +202,24 @@ test('finish without notes derives Refs from the commit trailer and still ships'
     const body = bodyOf(bodies);
     assert.match(body, /Refs: t-abc1234/u);
     assert.doesNotMatch(body, /Ticket:|Weakens-tests|## Assumptions/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('finish without a recorded verification is refused with exit 65 before any push', async () => {
+  const { base, repo, worktree } = fixture('Refs');
+  try {
+    const { calls, gh } = fakeGh(worktree);
+    await assert.rejects(
+      finishLane(['stopped', '--repo', 'o/r', '--root', repo], { gh, sleep }),
+      (error: Error & { exitCode?: number }) =>
+        error.exitCode === 65 &&
+        /Verified.*TODO placeholder/u.test(error.message),
+    );
+    assert.ok(
+      !calls.some((call) => call.includes('pr') && call.includes('create')),
+    );
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

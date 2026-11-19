@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ADVISOR_ARM_PREFIX } from '../outcome/lane-advisor.ts';
@@ -23,6 +23,7 @@ export interface BodyInput {
   why?: string;
   commits: string[];
   verified: string;
+  /** The model that ran the work; empty when unknown, and the body then has no Agent line. */
   agent: string;
   refs: boolean;
   lane?: boolean;
@@ -75,18 +76,24 @@ export function proofShell(span: string): string {
 // `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd); a bare `...` stands for arguments the same way.
 const placeholder = /<[A-Za-z][^<>]*>|(?:^|\s)\.\.\.(?:\s|$)/u;
 
-/** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and name no `<placeholder>`. */
+/**
+ * The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and
+ * name no `<placeholder>`. When any span has the `cmd: verdict` form the task-quality rule asks for,
+ * only those spans run: a Proof that also mentions a command in prose (`a \`krn pr body\` output is
+ * accepted`) must not run the mention.
+ */
 export function proofCommands(task: TaskRecord): string[] {
   const proof = bodyField(task, 'Proof') ?? '';
-  return [...proof.matchAll(/`([^`\n]+)`/gu)]
+  const runnable = [...proof.matchAll(/`([^`\n]+)`/gu)]
     .map((match) => (match[1] ?? '').trim())
     .filter(
       (command) =>
         runnableProof.test(command) &&
         !placeholder.test(command) &&
         (!command.startsWith('git ') || readOnlyGit.test(command)),
-    )
-    .map(proofShell);
+    );
+  const verdicts = runnable.filter((span) => proofShell(span) !== span);
+  return (verdicts.length > 0 ? verdicts : runnable).map(proofShell);
 }
 
 /** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
@@ -164,8 +171,7 @@ ${outcome === undefined ? '' : `Outcome: ${outcome}\n\n`}${change}
 
 ${verified || 'TODO: command: verdict'}
 
-${assumed}${tracked}Agent: ${input.agent}
-${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n${input.effort === undefined ? '' : `${EFFORT_PREFIX}${input.effort}\n`}` : ''}
+${assumed}${tracked}${input.agent === '' ? '' : `Agent: ${input.agent}\n`}${input.lane ? `\n${LANE_MARKER}\n${ADVISOR_ARM_PREFIX}${input.advisor ?? 'none'}\n${input.effort === undefined ? '' : `${EFFORT_PREFIX}${input.effort}\n`}` : ''}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 `;
 }
@@ -208,11 +214,28 @@ function commitsLeaveTaskOpen(root: string, base: string, id: string): boolean {
   return has('Refs') && !has('Ticket');
 }
 
+/**
+ * Prints the body, or writes it to --out. A call that fails (a wrong flag, a stray argument such
+ * as the id after the boolean `--refs`) writes nothing and removes the file --out names, so a
+ * caller that ships the file afterwards cannot publish a stale or empty body.
+ */
 export function prBodyCommand(args: string[]): string {
+  try {
+    return composePrBody(args);
+  } catch (error) {
+    const named = args.lastIndexOf('--out');
+    const stale = named >= 0 ? args[named + 1] : undefined;
+    if (stale !== undefined) rmSync(stale, { force: true });
+    throw error;
+  }
+}
+
+function composePrBody(args: string[]): string {
   let id: string | undefined;
   let why = '';
-  let verified = '';
-  let agent = 'Claude Sonnet 5.5 in Claude Code';
+  const verifiedValues: string[] = [];
+  // The running model is never guessed: --agent, else the session's own declaration, else no Agent line.
+  let agent = process.env.KRN_AGENT_MODEL ?? process.env.ANTHROPIC_MODEL ?? '';
   let refs = false;
   let lane = false;
   let assumptions = '';
@@ -241,7 +264,9 @@ export function prBodyCommand(args: string[]): string {
         '--out',
       ].includes(flag)
     )
-      throw new CliUsageError(`Unknown pr body flag: ${flag}\n${prBodyUsage}`);
+      throw new CliUsageError(
+        `Unknown pr body flag: ${flag}${args[i - 1] === '--refs' ? ' (--refs takes no value; name the task with --task)' : ''}\n${prBodyUsage}`,
+      );
     const value = flagValue(
       args,
       i++,
@@ -249,7 +274,7 @@ export function prBodyCommand(args: string[]): string {
     );
     if (flag === '--task') id = value;
     else if (flag === '--why') why = value;
-    else if (flag === '--verified') verified = value;
+    else if (flag === '--verified') verifiedValues.push(value);
     else if (flag === '--agent') agent = value;
     else if (flag === '--assumptions') assumptions = value;
     else if (flag === '--base') base = value;
@@ -276,7 +301,10 @@ export function prBodyCommand(args: string[]): string {
     ...(task === undefined ? {} : { task }),
     why,
     commits: commitsSince(root, range),
-    verified,
+    verified:
+      verifiedValues.length > 1
+        ? verifiedValues.map((line) => `- ${line}`).join('\n')
+        : (verifiedValues[0] ?? ''),
     agent,
     refs: refs || (id !== undefined && commitsLeaveTaskOpen(root, range, id)),
     lane,

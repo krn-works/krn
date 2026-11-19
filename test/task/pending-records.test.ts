@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { bodyProblems } from '../../src/ci/pr-body-rule.ts';
 import {
   addPendingTask,
   commitPendingRecords,
@@ -116,6 +117,8 @@ test('publish commits every pending record as one commit cut from the base', (t)
     [`tasks/${first}.json`, `tasks/${second}.json`].sort(),
   );
   assert.match(f.git(lane, 'log', '-1', '--format=%B'), /^Refs: t-/mu);
+  // The publish body passes the same rule krn pr ship and CI apply to every PR body.
+  assert.deepEqual(bodyProblems(commit.body), []);
   assert.match(
     commit.title,
     /^chore\(tasks\): 2 task records \(t-[a-z0-9]+\)$/u,

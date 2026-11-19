@@ -3,9 +3,14 @@ import { completeCloseExposure } from '../brain/close-exposure.ts';
 import { type Runner, run } from '../ci/command.ts';
 import { shipCommand, shipUsage } from '../ci/ship.ts';
 import { detachedShipArgs, startDetachedShip } from '../ci/ship-live.ts';
-import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
+import {
+  contractBase,
+  contractDeployAcknowledged,
+  contractTracker,
+} from '../repo/contract.ts';
 import { rootRepository } from '../repo/gh.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
+import { repositoryRoot } from '../task/store.ts';
 import { outsideCredentialArgs, productRepository } from './outside-git.ts';
 import { kindOfTitle, proofOfTitle } from './pr-body.ts';
 
@@ -52,6 +57,7 @@ export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
   baseOf: contractBase,
   proofOf: proofOfTitle,
   kindOf: kindOfTitle,
+  tracked: (cwd) => contractTracker(repositoryRoot(cwd)) === 'krn',
   completeClose: completeCloseExposure,
   releaseClaim: (main, worktree, task) => {
     releaseClosedClaims(main, worktree, task);

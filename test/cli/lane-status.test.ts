@@ -81,7 +81,7 @@ function status(repo: string, env: NodeJS.ProcessEnv): string {
 
 function detach(repo: string, worktree: string, env: NodeJS.ProcessEnv) {
   const body = join(repo, '..', 'body.md');
-  writeFileSync(body, 'Outcome: x\n');
+  writeFileSync(body, '## Why\n\nx\n\n## Verified\n\ny\n\nRefs: t-abc1234\n');
   return spawnSync(
     process.execPath,
     [
@@ -157,7 +157,14 @@ test('a ship started with --detach outlives the process that started it and show
     process.kill(pid, 0);
     assert.match(status(repo, env), /^stalled live pid \d+$/mu);
   } finally {
-    process.kill(-group, 'SIGKILL');
+    // An empty ps answer (the ship already gone) parses as 0, and kill(-0) is kill(0): it would
+    // kill this runner's own process group, npm run fast with it. Only a real other group is killed.
+    const own = Number(
+      spawnSync('ps', ['-o', 'pgid=', '-p', String(process.pid)], {
+        encoding: 'utf8',
+      }).stdout,
+    );
+    if (group > 1 && group !== own) process.kill(-group, 'SIGKILL');
   }
   await waitFor(() => {
     try {

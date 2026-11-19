@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -23,6 +23,11 @@ test('krn pr ship --detach with a relative --worktree starts a child that finds 
     'i',
   );
   git('worktree', 'add', '-q', '.krn/worktrees/w', '-b', 'w');
+  // The body sits beside the caller, not in the worktree: the child must still read it.
+  writeFileSync(
+    join(repo, 'b'),
+    '## Why\n\nx\n\n## Verified\n\ny\n\nRefs: t-abcdefg\n',
+  );
   const entry = fileURLToPath(
     new URL('../../src/cli/krn.mjs', import.meta.url),
   );

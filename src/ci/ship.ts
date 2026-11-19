@@ -21,6 +21,7 @@ import { CommandFailure, checked, type Runner, run } from './command.ts';
 import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
 import { readFastPass } from './fast-pass.ts';
+import { bodyProblems } from './pr-body-rule.ts';
 import { clearShipLive, markShipLive } from './ship-live.ts';
 import { taskMerge, taskMergeFields } from './task-merge.ts';
 import {
@@ -30,7 +31,7 @@ import {
 } from './test-failures.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 the body file lacks `## Why`, `## Verified` or a Ticket/Refs line, or the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -155,6 +156,10 @@ async function shipRun(
     baseRed?: typeof baseRedProof;
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
     publish?: (cwd: string, text: string) => string;
+    /** Reads the body file; the default reads the disk. */
+    readBody?: (path: string) => string;
+    /** Whether the repository at a path tracks work in tasks/ (its PR body then names a Ticket or Refs); the default says yes, the cli supplies the contract's. */
+    tracked?: (cwd: string) => boolean;
     /** The pids of other processes working inside a path; the default reads /proc. */
     worktreeUsers?: (path: string) => number[] | undefined;
     /** Releases the claim in `main` of a task whose record in `worktree` is closed; the cli supplies the tracker's. */
@@ -184,6 +189,18 @@ async function shipRun(
   const cwd =
     values.worktree === undefined ? caller : resolve(caller, values.worktree);
   const body = resolve(caller, bodyFile);
+  // The body rule runs before any git or gh call, so a refused body leaves no trace.
+  const readBody = runtime.readBody ?? ((path) => readFileSync(path, 'utf8'));
+  const missing = bodyProblems(readBody(body), {
+    tracked: (runtime.tracked ?? (() => true))(cwd),
+  });
+  if (missing.length > 0)
+    throw Object.assign(
+      new Error(
+        `refused body: ${missing.join('; ')}; write it with \`krn pr body\` (--task, --verified) or add the parts`,
+      ),
+      { exitCode: 65 },
+    );
   const runner = runtime.run ?? run;
   const wait = runtime.sleep ?? sleep;
   // Every GitHub call that names a repository uses an App token minted for that repository.
@@ -488,7 +505,7 @@ ${synced}`;
   // the same text before the push as on the PR, in the scoped check and in every Proof command.
   let bodyText: string | undefined;
   const prBody = (): string => {
-    bodyText ??= readFileSync(body, 'utf8');
+    bodyText ??= readBody(body);
     return bodyText;
   };
   const recorded = (runtime.fastPass ?? readFastPass)(cwd);

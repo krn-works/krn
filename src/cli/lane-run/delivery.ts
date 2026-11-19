@@ -88,7 +88,7 @@ export function goalPrBody(
   commits: readonly string[],
   verified: string,
 ): string {
-  return `## Problem\n\n${goal.trim()}\n\n## Change\n\n${commits.map((line) => `- ${line}`).join('\n')}\n\n## Verification\n\n${verified}\n`;
+  return `## Why\n\n${goal.trim()}\n\n## What changed\n\n${commits.map((line) => `- ${line}`).join('\n')}\n\n## Verified\n\n${verified}\n`;
 }
 
 /**

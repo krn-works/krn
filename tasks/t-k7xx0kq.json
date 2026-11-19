@@ -1,7 +1,11 @@
 {
   "id": "t-k7xx0kq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node --test test/rules/pr-body.test.ts test/ci/ship.test.ts test/cli/pr-body.test.ts: pass; ship refuses a near-empty body with exit 65 and no git/gh call, krn pr body output accepted, CI step script refuses bad PR_BODY"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "krn pr ship refuses a body without Why, Verified and a Ticket/Refs line",

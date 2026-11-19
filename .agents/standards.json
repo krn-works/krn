@@ -1175,6 +1175,40 @@
     "supersedes": []
   },
   {
+    "id": "s-ci-pr-body",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A PR body holds Why, Verified and a Ticket or Refs line. `krn pr ship` refuses one without them (exit 65). CI runs `node scripts/pr-body-check.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [
+        "scripts/pr-body-check.ts",
+        "src/ci/pr-body-rule.ts",
+        "src/ci/ship.ts",
+        "src/cli/pr-body.ts"
+      ],
+      "terms": ["pull", "body", "why", "verified", "ticket", "refs", "ship"]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node scripts/pr-body-check.ts'"
+    },
+    "provenance": {
+      "origin": "pull requests merged with a body holding only the attribution line",
+      "evidence": ["scripts/pr-body-check.ts", "test/ci/pr-body-rule.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-19",
+    "valid_from": "2026-11-19",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-ci-transcript-readers",
     "type": "standard",
     "area": "ci",

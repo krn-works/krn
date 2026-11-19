@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -194,6 +200,17 @@ test('proofCommands keeps the runnable backtick spans of the Proof field', () =>
     'npm run fast',
   ]);
   assert.deepEqual(proofCommands(task), []);
+});
+
+test('proofCommands runs only the cmd: verdict spans when the Proof has one, never a command named in prose', () => {
+  // Evidence: the t-k7xx0kq ship stopped with exit 64: its Proof says a `krn pr body` output is accepted.
+  const record = {
+    ...task,
+    body: [
+      'Proof: `node --test test/ci/ship.test.ts: pass` with a near-empty body refused (exit 65, no push) and a `krn pr body` output accepted.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), ['node --test test/ci/ship.test.ts']);
 });
 
 test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
@@ -435,9 +452,9 @@ test('krn pr body in a repository without a task tracker prints the sections wit
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /^## Why\n\nCustomers saw yesterday prices\.\n\n## What changed\n\n- fix\(web\): a cached page no longer shows stale prices\n\n## Verified\n\nnpm test: pass\n\nAgent: /u,
+      /^## Why\n\nCustomers saw yesterday prices\.\n\n## What changed\n\n- fix\(web\): a cached page no longer shows stale prices\n\n## Verified\n\nnpm test: pass\n\n/u,
     );
-    assert.doesNotMatch(result.stdout, /## Task|Ticket:|Refs:/u);
+    assert.doesNotMatch(result.stdout, /## Task|Ticket:|Refs:|Agent:/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -455,6 +472,104 @@ test('krn pr body in a tracker repository still needs --task', () => {
     );
     assert.equal(result.status, 64);
     assert.match(result.stderr, /--task needs a task id/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('krn pr body with a value after --refs (the #1521 call) exits 64, writes no file and removes a stale one', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-refs-'));
+  try {
+    spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+    mkdirSync(join(dir, 'tasks'));
+    const out = join(dir, 'body.md');
+    const call = [cli, 'pr', 'body', '--refs', 't-wmdgs04', '--out', out];
+    const fresh = spawnSync(process.execPath, call, {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(fresh.status, 64);
+    assert.match(fresh.stderr, /Unknown pr body flag: t-wmdgs04/u);
+    assert.match(fresh.stderr, /--refs takes no value/u);
+    assert.equal(existsSync(out), false);
+    writeFileSync(out, 'stale body from an earlier run\n');
+    const stale = spawnSync(process.execPath, call, {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(stale.status, 64);
+    assert.equal(existsSync(out), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('repeated --verified keeps every value, one bullet each; --agent or the session model names the Agent line, else none', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-verified-'));
+  try {
+    spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+    spawnSync(
+      'git',
+      [
+        '-C',
+        dir,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@example.invalid',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'seed',
+      ],
+      { encoding: 'utf8' },
+    );
+    const body = (extra: string[], env: Record<string, string> = {}) =>
+      spawnSync(
+        process.execPath,
+        [
+          cli,
+          'pr',
+          'body',
+          '--base',
+          'HEAD',
+          '--why',
+          'w',
+          '--verified',
+          'a: pass',
+          '--verified',
+          'b: pass',
+          '--verified',
+          'c: pass',
+          ...extra,
+        ],
+        {
+          cwd: dir,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            KRN_AGENT_MODEL: '',
+            ANTHROPIC_MODEL: '',
+            ...env,
+          },
+        },
+      );
+    const plain = body([]);
+    assert.equal(plain.status, 0, plain.stderr);
+    assert.match(
+      plain.stdout,
+      /## Verified\n\n- a: pass\n- b: pass\n- c: pass\n/u,
+    );
+    assert.doesNotMatch(plain.stdout, /Agent:/u);
+    assert.match(
+      body(['--agent', 'Claude Opus 5.5']).stdout,
+      /\nAgent: Claude Opus 5.5\n/u,
+    );
+    assert.match(
+      body([], { KRN_AGENT_MODEL: 'Claude Opus 5.5' }).stdout,
+      /\nAgent: Claude Opus 5.5\n/u,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

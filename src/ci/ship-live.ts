@@ -66,9 +66,9 @@ export function clearShipLive(worktree: string, pid = process.pid): void {
 }
 
 /**
- * The worktree a detached ship runs in and the ship arguments with `--worktree` made absolute. The child
- * starts with the worktree as its cwd, so a relative `--worktree` forwarded as given would resolve
- * against the worktree itself and name a directory that does not exist.
+ * The worktree a detached ship runs in and the ship arguments with `--worktree` and `--body-file` made
+ * absolute. The child starts with the worktree as its cwd, so a relative path forwarded as given would
+ * resolve against the worktree itself and name a file or directory that does not exist.
  */
 export function detachedShipArgs(
   args: readonly string[],
@@ -85,6 +85,11 @@ export function detachedShipArgs(
       worktree = resolve(caller, arg.slice('--worktree='.length));
       out[i] = `--worktree=${worktree}`;
     }
+    if (arg === '--body-file' && out[i + 1] !== undefined)
+      out[i + 1] = resolve(caller, out[i + 1] as string);
+    else if (arg.startsWith('--body-file='))
+      out[i] =
+        `--body-file=${resolve(caller, arg.slice('--body-file='.length))}`;
   }
   return { worktree, args: out };
 }

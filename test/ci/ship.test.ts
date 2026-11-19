@@ -16,6 +16,7 @@ import {
   proofEnvironment,
   shipCommand,
 } from '../../src/ci/ship.ts';
+import { renderPrBody } from '../../src/cli/pr-body.ts';
 import { capture } from '../receivers/capture.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
@@ -26,7 +27,7 @@ const merge = 'c'.repeat(40);
 const newHead = 'e'.repeat(40);
 const title = 'feat(ci): ship a PR in one call (t-3ag9eqn)';
 const weakensBody =
-  '## Problem\n\nx\n\nWeakens-tests: test/x.test.ts drops a dead assertion\n';
+  '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n\nWeakens-tests: test/x.test.ts drops a dead assertion\n';
 const bodyFile = join(mkdtempSync(join(tmpdir(), 'ship-body-')), 'body.md');
 writeFileSync(bodyFile, weakensBody);
 const args = ['--title', title, '--body-file', bodyFile, '--repo', 'o/r'];
@@ -449,6 +450,67 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   );
 });
 
+test('a near-empty body is refused with exit 65 naming every missing part, before any git or gh call', async () => {
+  const empty = join(mkdtempSync(join(tmpdir(), 'ship-empty-')), 'body.md');
+  writeFileSync(
+    empty,
+    '\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n',
+  );
+  const r = receiver({ pulls: [auto, merged] });
+  await assert.rejects(
+    shipCommand(['--title', title, '--body-file', empty, '--repo', 'o/r'], r),
+    (e: Failure) => {
+      assert.equal(e.exitCode, 65);
+      assert.match(e.message, /"## Why"/u);
+      assert.match(e.message, /"## Verified"/u);
+      assert.match(e.message, /Ticket.*Refs/u);
+      return true;
+    },
+  );
+  assert.equal(r.calls.length, 0, r.calls.join('\n'));
+});
+
+test('a body written by krn pr body is accepted by ship', async () => {
+  const written = join(mkdtempSync(join(tmpdir(), 'ship-written-')), 'b.md');
+  writeFileSync(
+    written,
+    renderPrBody({
+      task: {
+        id: 't-3ag9eqn' as never,
+        status: 'open',
+        resolution: null,
+        created: '2026-11-19',
+        priority: 3,
+        title: 'Ship',
+        after: [],
+        body: ['Outcome: ship.\nWhy: one call.'],
+      },
+      commits: ['feat(ci): ship a PR in one call (t-3ag9eqn)'],
+      verified: 'npm run fast: PASS',
+      agent: 'A',
+      refs: false,
+    }),
+  );
+  const r = receiver({ pulls: [auto, merged] });
+  const out = await shipCommand(
+    ['--title', title, '--body-file', written, '--repo', 'o/r'],
+    r,
+  );
+  assert.match(out, /^verdict: merged /mu);
+  assert.ok(r.calls.some((c) => c.includes('push')));
+});
+
+test('a tracker-less repository ships a body without a Ticket or Refs line', async () => {
+  const plain = join(mkdtempSync(join(tmpdir(), 'ship-plain-')), 'b.md');
+  writeFileSync(plain, '## Why\n\nx\n\n## Verified\n\ny\n');
+  const r = receiver({ pulls: [auto, merged] });
+  const out = await shipCommand(
+    ['--title', title, '--body-file', plain, '--repo', 'o/r'],
+    { ...r, tracked: () => false },
+  );
+  assert.match(out, /^verdict: merged /mu);
+});
+
 test('a red Check exits 74 and keeps the worktree', async () => {
   const r = receiver({ pulls: [auto], check: 'failure' });
   await assert.rejects(shipCommand(args, r), (e: Failure) => {
@@ -513,7 +575,7 @@ test('ship --worktree runs from the repository root and cleans up the named work
       '--worktree',
       '.krn/worktrees/feat-x',
     ],
-    { ...r, fastPass: () => '7'.repeat(40) },
+    { ...r, fastPass: () => '7'.repeat(40), readBody: () => weakensBody },
   );
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   for (const step of ['git status', 'git push'])
@@ -890,7 +952,7 @@ test('an adopted repository without the instruction-bytes rule ships without run
 test('ship runs the task Proof commands, records command and exit in the PR body', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ship-proof-'));
   const file = join(dir, 'body.md');
-  writeFileSync(file, '## Problem\n\nx\n');
+  writeFileSync(file, '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n');
   const r = receiver({ pulls: [auto, merged] });
   let published = '';
   const out = await shipCommand(
@@ -908,11 +970,12 @@ test('ship runs the task Proof commands, records command and exit in the PR body
   assert.ok(
     r.calls.some(
       (c) =>
-        c.startsWith('env PR_BODY=## Problem\n\nx\n ') &&
-        c.endsWith(' sh -c node --test test/x.test.ts'),
+        c.startsWith(
+          'env PR_BODY=## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n ',
+        ) && c.endsWith(' sh -c node --test test/x.test.ts'),
     ),
   );
-  assert.match(published, /^## Problem/mu);
+  assert.match(published, /^## Why/mu);
   assert.match(published, /^- `node --test test\/x\.test\.ts`: exit 0$/mu);
   assert.ok(
     r.calls.some((c) => c.includes('--body-file /r/published.md')),
@@ -927,7 +990,10 @@ for (const [diff, refused] of [
   test(`a Proof naming a missing command ${refused ? 'still refuses a diff that touches code' : 'never refuses a task-records-only diff'} with exit 81`, async () => {
     const r = receiver({ pulls: [auto, merged], proofExit: 127, diff });
     const file = join(mkdtempSync(join(tmpdir(), 'ship-records-')), 'body.md');
-    writeFileSync(file, '## Problem\n\nx\n');
+    writeFileSync(
+      file,
+      '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n',
+    );
     const shipped = shipCommand(
       ['--title', title, '--body-file', file, '--repo', 'o/r'],
       { ...r, proofOf: () => ['krn skills check'], publish: () => '/r/p.md' },
@@ -954,7 +1020,10 @@ for (const force of [false, true]) {
   test(`ship refuses with exit 81 before the push when a Proof command fails (force=${force})`, async () => {
     const r = receiver({ pulls: [auto, merged], proofExit: 3 });
     const file = join(mkdtempSync(join(tmpdir(), 'ship-proof-')), 'body.md');
-    writeFileSync(file, '## Problem\n\nx\n');
+    writeFileSync(
+      file,
+      '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n',
+    );
     const withBody = ['--title', title, '--body-file', file, '--repo', 'o/r'];
     await assert.rejects(
       shipCommand([...withBody, ...(force ? ['--force'] : [])], {
@@ -1007,6 +1076,7 @@ test('a gh refusal reaches the caller with the receiver stderr, without a retry'
   await assert.rejects(
     shipCommand(['--title', title, '--body-file', 'body.md'], {
       ...r,
+      readBody: () => weakensBody,
       run: (command: string, a: string[], at?: string) => {
         if (command !== 'gh') return r.run(command, a, at);
         asked++;
@@ -1105,6 +1175,7 @@ test('before the push an unanswered gh call is tried three times', async () => {
   await assert.rejects(
     shipCommand(['--title', title, '--body-file', 'body.md'], {
       ...rest,
+      readBody: () => weakensBody,
       run: (command: string, a: string[], at?: string) => {
         if (command !== 'gh') return r.run(command, a, at);
         asked++;
@@ -1224,7 +1295,7 @@ for (const declared of [true, false]) {
     const file = join(repo, 'body.md');
     writeFileSync(
       file,
-      `## Problem\n\nx\n${declared ? '\nWeakens-tests: the dropped assertion duplicated the first\n' : ''}`,
+      `## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n${declared ? '\nWeakens-tests: the dropped assertion duplicated the first\n' : ''}`,
     );
     const r = receiver({ pulls: [auto, merged] });
     const proof = `node ${join(process.cwd(), 'scripts/weak-tests.mjs')} HEAD~1 HEAD`;
@@ -1784,7 +1855,7 @@ const sideTest = (expected: number) =>
   `import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { side } from '../src/area.ts';\ntest('side is ${expected}', () => {\n  assert.equal(side(), ${expected});\n});\n`;
 const shipDefect = (dir: string, kind: string | undefined) => {
   const file = join(mkdtempSync(join(tmpdir(), 'ship-body-')), 'body.md');
-  writeFileSync(file, '## Problem\n\nx\n');
+  writeFileSync(file, '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n');
   const r = receiver({ pulls: [auto, merged], cwd: dir });
   let published = '';
   return {
