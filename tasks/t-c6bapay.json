@@ -1,0 +1,18 @@
+{
+  "id": "t-c6bapay",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Codex arm C loads its project hooks in replay sessions",
+  "after": [],
+  "body": [
+    "Source: sector sweep 2026-11-19, .krn/runs/research/sector-sweep-1119/report.md \"Confirmed defect\".\nWhy: a replay/S8 row on a Codex model runs arm C without KRN's project hooks, so its result is invalid.\nEvidence: src/harness/codex.ts codexExecArgs passes --ignore-user-config; codex 0.170.0 in a fresh dir prints \"Untrusted project-local configuration is disabled\"; --trust cannot be combined with --ignore-user-config (probe dir .krn/tmp/trustprobe).\nOutcome: a Codex arm-C session loads the arm's hooks (or the harness refuses to run a Codex arm it cannot equip); regression test at the harness-args layer (KRN-14).\nFiles: src/harness/codex.ts, evals/replay/session-args.ts.\nProof: `node --test test/harness/codex-args.test.ts` passes, asserting a Codex arm-C session receives its hooks or is refused."
+  ],
+  "kind": "defect",
+  "area": "harness",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

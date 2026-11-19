@@ -1,0 +1,14 @@
+{
+  "id": "t-3yxd327",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "Task records ride in slice PRs, never their own PR; audit skips tasks/",
+  "after": [],
+  "body": [
+    "Source: operator-forwarded weekly process review, 2026-11-19.\nEvidence: measured over 7 days on origin/main (.krn/runs/arch-review/metrics.md): 144 chore(tasks) commits, and 84 of the last 300 merged PRs were chore(tasks). tasks/ held 9.4% of changed lines, not the 45% in the review. The records-only PRs are still noise in audit and review.\nFiles: src/task/ (publish), src/ci/ship.ts, docs/program/repository-workflow.md\nOutcome: pending task records ride in the next slice PR that ship opens; a records-only publish happens at most once a day; audit and review tooling skips tasks/.\nProof: a ship test shows pending records land in the slice PR; a publish test refuses a second records-only PR within a day."
+  ],
+  "kind": "debt",
+  "area": "task"
+}

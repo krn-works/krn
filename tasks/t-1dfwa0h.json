@@ -1,0 +1,18 @@
+{
+  "id": "t-1dfwa0h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "S8 preregistration counts cost by token type and controls noise and grader access",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md sections \"S2 Proof\", \"Cost split\"; operator approval 2026-11-19 (memory s8-prereg-amendment-grant).\nOutcome: ADR 0021 amended, then evals/replay/abc.prereg.md gains: cost by token type (uncached/cached/output) from logged tokens with one fixed price vector plus cache-price sensitivity (today session-result.ts:213 uses total_cost_usd only); interleaved paired runs on the same units with a three-state verdict; infra-error flag + exclusion rule; grader outside the agent's write scope, regrade from clean checkout, touched tests/CI = unresolved; rule for quota-truncated runs; per-repo strata; report intervals not ranks; one A/A arm (19% flip rate, arXiv 2611.19359).\nProof: `node --test test/evals/replay-cost.test.ts` passes, asserting per-token-type cost rows and the A/A arm in the prereg."
+  ],
+  "kind": "feature",
+  "area": "eval",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

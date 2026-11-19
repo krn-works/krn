@@ -1,0 +1,14 @@
+{
+  "id": "t-s27778b",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Retro reads session transcripts and review comments and ranks recurring causes",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-19 marked Matt Pocock 'Watch me ship a 21,000-line feature with mattpocock/skills' (youtu.be/jVBlkOF8sHk, transcript in rss-news item 0e3384e12aa0) as very important; lead analysis mapped his loop onto KRN. Evidence: his retro skill read ~30 session transcripts plus 12 PR review comments and returned one root cause (standards silent on his review points while existing code did the opposite) and ~20 ranked fixes; KRN's delivery-retro works from the lead's memory and friction notes, krn state retro measures PR/CI/interventions only.\nFiles: .agents/skills/delivery-retro/SKILL.md, src/cli/state*.ts (krn state retro), test for the transcript reader\nOutcome: krn state retro --sessions N reads the last N Claude/Codex session transcripts of this repo (and the PR review comments of the PRs they shipped) through subagents that each return refusals, retries, red-CI causes and operator corrections with transcript:line pointers; delivery-retro starts from that ranked list and turns each recurring item into a check, a rule or a task.\nProof: a test over two captured session transcripts (KRN-12) prints the ranked causes with pointers; one real run over the last 20 sessions lands its top 3 items as tasks or checks."
+  ],
+  "kind": "feature",
+  "area": "retro"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-y2zr6qb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Ship survives a transient API error, prints its verdict before cleanup and states every exit",
+  "after": [],
+  "body": [
+    "Source: Fable architecture review, report .krn/runs/arch-review/architecture.md (section 5, M-items). The review is read-only, and every scenario comes from reading the code.\nEvidence and fixes, each with its regression test:\n- src/ci/ship.ts:63-64: a single HTTP 502 or 429 while waiting for Check ends ship with exit 70 and leaves the PR open with no verdict. Fix: retry transient API errors with backoff.\n- src/ci/ship.ts:868-876 (M6): the verdict is printed only after the release script and cleanup finish, so a throw there turns a merged PR into a non-zero exit. Fix: print `verdict: merged` first and treat cleanup errors as warnings.\n- src/ci/ship.ts:306: KRN_TASK from the environment wins over the task id in the title, so the claim or record can land on the wrong task. Fix: the title wins, or refuse when they differ.\n- src/ci/ship.ts:34 and 719 (M14): exits 69 and 70 are missing from the usage text, and a plain Error exits 64. Fix: document every exit and give every error path a stated code.\n- src/ci/ship-live.ts:25-28: a ship run inside `krn lane run` has no \"ship\" in its cmdline, so it reads as orphaned and a second ship can start. Fix: detect a live ship by its record or lock, not by cmdline.\nFiles: src/ci/ship.ts, src/ci/ship-live.ts, src/cli-kit/command-error.ts, test/ci/ship*.test.ts\nOutcome: all five defects fixed, each with a test at the lowest layer (KRN-14).\nProof: the new tests fail on the base and pass on the branch."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

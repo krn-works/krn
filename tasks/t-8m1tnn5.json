@@ -1,0 +1,14 @@
+{
+  "id": "t-8m1tnn5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A resumed lane kills the cut session's process group before reusing its worktree",
+  "after": [],
+  "body": [
+    "Source: CI run 44619672635 (PR #1530) and main 0a2096f; root cause in an Opus read of evals/replay/session.ts and src/cli/lane-run/prepare.ts.\nEvidence: test/evals/adoption-recovery-session-cut.test.ts fails on CI and passes 8 of 8 runs locally. driveSession starts the worker in its own process group (evals/replay/session.ts:71-77, detached: true). The batch kill signals only the drain's group, so the worker survives, holds .git/worktrees/<lane>/index.lock and commits by itself while the resume reuses the same worktree (prepare.ts:164-177, reclaimLane :377). The result is two writers in one worktree.\nFiles: src/cli/lane-run/prepare.ts, evals/replay/session.ts, src/repo/lane-removal.ts (worktreeUsers), test/cli/lane-run*.test.ts\nOutcome: the session records its pgid under .krn/runs/<lane>/. Before prepare reuses a worktree it kills that group when any of the group's processes has its cwd in the worktree, and waits until the group is gone. A real lane session gets the same guard.\nProof: a prepare-layer test starts a detached process with its cwd in the lane worktree and a recorded pgid, then shows the process is gone before the session starts. The session-cut eval stays green across repeated CI runs."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

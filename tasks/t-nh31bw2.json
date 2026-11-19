@@ -1,0 +1,18 @@
+{
+  "id": "t-nh31bw2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "Replay compares hook-enforced records with injected records",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md \"S1\" (arXiv 2611.19549: enforced 0 violations vs 21-55%; prompted 17pp worse, ns; 2611.24491).\nOutcome: replay gains an \"enforced\" arm compiling the most-violated records to PreToolUse deny hooks, compared per record against injection; an S8 follow-up, not part of the confirmatory run.\nProof: `node evals/replay/run.ts --arms C,CE --units 1 --dry` prints rows for both arms."
+  ],
+  "kind": "research",
+  "area": "eval",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

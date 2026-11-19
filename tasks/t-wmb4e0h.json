@@ -1,0 +1,18 @@
+{
+  "id": "t-wmb4e0h",
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-1kt1vb9",
+    "note": ""
+  },
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A lane's /dev/.. path cannot write into another repository",
+  "after": [],
+  "body": [
+    "Source: operator-forwarded weekly code review 2026-11-19 (800 PRs since 2026-11-12, deep pass on ship gate, lane write guard, CI). Evidence: src/hook/scope.ts:343 and :305 skip any target starting with /dev/ before normalizing, so Write /dev/../home/other/repo/a.ts and 'echo x > /dev/../...' are allowed while /home/other/repo/a.ts is refused.\nFiles: src/hook/scope.ts, test/hook/scope.test.ts\nOutcome: every write target is resolved before the /dev/ test in both guards; a /dev/.. path to another repository is refused like its plain form.\nProof: `node --test test/hook/scope.test.ts: pass` with Write and Bash /dev/../ targets refused."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

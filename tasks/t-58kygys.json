@@ -1,0 +1,18 @@
+{
+  "id": "t-58kygys",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Checks catch weakened tests and prove fix tests fail without the fix",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/research/sector-sweep-1119/report.md \"S7 Onboarding\".\nOutcome: scripts/weak-tests.mjs also flags loosened assertions, continue-on-error and workflow edits, and runs at Stop; fix PRs prove their regression test fails on base, passes on head and fails on revert (KRN-14; ADAPT arXiv 2611.16114, Trail of Bits regression-hunt); adopt writes .claude/settings.local.json to .gitignore with a CI check that it is not tracked; adopt --verify runs `claude doctor`. Actions lockfile stays a candidate until `gh actions-lock` exists on the host.\nProof: `node --test test/rules/weak-tests.test.ts test/adopt/settings-local-ignore.test.ts` passes."
+  ],
+  "kind": "feature",
+  "area": "ci",
+  "from": {
+    "kind": "finding",
+    "ref": "sector-sweep-1119"
+  }
+}

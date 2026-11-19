@@ -1,0 +1,14 @@
+{
+  "id": "t-51aakpm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Fork pull requests never run on a self-hosted runner in adopting repositories",
+  "after": [],
+  "body": [
+    "Source: operator-forwarded weekly code review 2026-11-19 (800 PRs since 2026-11-12, deep pass on ship gate, lane write guard, CI). Evidence: .github/workflows/project-ci.yml:58 applies the caller's runner input (possibly a self-hosted label) to every job including Plan and the aggregate Check, so a fork PR in an adopting repository would run on a self-hosted machine.\nFiles: .github/workflows/project-ci.yml, test/ci/project-ci-workflow.test.ts\nOutcome: a pull_request from a fork never runs on a self-hosted runner: the reusable workflow falls back to a GitHub-hosted runner when the head repository differs from the base.\nProof: `node --test test/ci/project-ci-workflow.test.ts: pass` asserting the fork condition on every job's runs-on."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

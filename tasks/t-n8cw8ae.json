@@ -1,0 +1,14 @@
+{
+  "id": "t-n8cw8ae",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Task create validates only its own record, never another pending record's refs",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19.\nEvidence: `krn task create` exited 65 with `pending tasks/t-wmb4e0h.json: unknown resolution ref \"t-1kt1vb9\"`. An unrelated pending record named a task that existed only on an open branch, and that blocked every new task.\nFiles: src/task/ (create validation), test/task/*.test.ts\nOutcome: create exits 0 and writes its record when another pending record names an unknown task; it prints one warning line naming that record.\nProof: a test with a pending record that names an unknown task shows create succeeding with a warning."
+  ],
+  "kind": "defect",
+  "area": "task"
+}
