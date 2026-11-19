@@ -282,12 +282,13 @@ export function subjectsInForce(root: string): Map<string, string> {
   return subjects;
 }
 
-/** Appends the trial record of each proposal to the conventions file; a record already there is kept. */
+/** Appends the trial record of each proposal to `file` (the conventions file by default); a record already there is kept. */
 export function writeTrialRecords(
   root: string,
   proposals: readonly EvidenceProposal[],
+  file = '.agents/records.json',
 ): number {
-  const path = join(root, '.agents/records.json');
+  const path = join(root, file);
   const existing = existsSync(path)
     ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>[])
     : [];

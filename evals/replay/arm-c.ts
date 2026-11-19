@@ -4,18 +4,23 @@ import { spawnSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { EvidenceProposal } from '../../src/brain/evidence-proposals.ts';
 import { outsideGit } from '../../src/cli/outside-git.ts';
 import { inForceRecords, injectionTokens } from './arm-b.ts';
 import { type ArmOptions, armRow, commitPreparation } from './arm-session.ts';
 import { ARMS } from './arms.ts';
 import { type LiveUnit, promptOf } from './live.ts';
+import { memoryRecords, seedMemory } from './memory.ts';
 import type { Row } from './rows.ts';
 
 const krnEntry = fileURLToPath(
   new URL('../../src/cli/krn.mjs', import.meta.url),
 );
 
-export type ArmCOptions = ArmOptions;
+export interface ArmCOptions extends ArmOptions {
+  /** Proposals earlier units of this repository left (memory.ts); served in arm C only, as trial records. */
+  memory?: readonly EvidenceProposal[];
+}
 
 /** Adopts KRN into the checkout and commits the adoption, so the session's change is the only uncommitted work. */
 export function adoptKrn(wt: string, log: string): void {
@@ -72,8 +77,10 @@ export async function armCRow(
   asOf: string = new Date().toISOString().slice(0, 10),
 ): Promise<Row> {
   const { row, note } = await armRow(ARMS.C, unit, o, rep, (wt, log) => {
+    if (seedMemory(wt, o.memory ?? []) > 0)
+      commitPreparation(wt, 'chore: remembered records');
     const injection = injectionTokens(
-      inForceRecords(wt, asOf),
+      [...inForceRecords(wt, asOf), ...memoryRecords(o.memory ?? [])],
       wt,
       unit.unit.id,
       promptOf(unit.unit),
