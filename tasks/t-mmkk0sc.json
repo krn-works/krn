@@ -1,0 +1,14 @@
+{
+  "id": "t-mmkk0sc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "A second ship on a live-shipping pull request is refused",
+  "after": [],
+  "body": [
+    "Files: src/cli/lane-finish.ts, src/cli/pr.ts, src/cli/help.ts\nOutcome: a second `krn pr ship` on a pull request whose ship is already live refuses (or attaches to the live one) instead of starting a duplicate CI run; a stale failed `Check` from a cancelled run on the same HEAD no longer blocks auto-merge.\nEvidence: 2026-11-19 PR #1496 on 79646fd: two ships ran at once; runs 44536426232 and 44536433429 cancelled each other, leaving a `Check` FAILURE beside a `Check` SUCCESS on the same SHA and the PR BLOCKED with auto-merge off until the cancelled run was rerun by hand.\nDo: detect a live ship for the same branch (pid file under .krn/) and refuse with a clear exit; on exit 74 distinguish all-jobs-cancelled from a red test and say \"rerun, do not re-ship\".\nProof: a test that a second ship on a branch with a live ship exits non-zero without pushing or starting a run."
+  ],
+  "kind": "defect",
+  "area": "pr"
+}
