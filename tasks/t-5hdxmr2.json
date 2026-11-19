@@ -1,0 +1,14 @@
+{
+  "id": "t-5hdxmr2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "The toolchain audit flags a mise install that links outside mise",
+  "after": [],
+  "body": [
+    "Observed 2026-11-19: mise installs github-composer-composer/2.10.3 and ubi-composer-composer/2.10.3 were symlinks to /usr (a hand-made link to the pacman composer); the next mise install reshimmed all of /usr/bin into ~/.local/share/mise/shims (4698 shims, git among them), so every git call in the operator shell went through mise and starship timed out. Fixed on the host by removing the links and reshimming (87 shims).\nFiles: scripts/toolchain-audit.ts, test/scripts/toolchain-audit.test.ts\nOutcome: the toolchain audit prints 'foreign <tool>/<version> -> <target>' for every mise install directory that resolves outside the mise data directory and counts it in the FAIL verdict.\nProof: node --test test/scripts/toolchain-audit.test.ts prints pass with a foreign-install case."
+  ],
+  "kind": "defect",
+  "area": "tooling"
+}
