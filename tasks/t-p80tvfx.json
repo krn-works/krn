@@ -1,7 +1,11 @@
 {
   "id": "t-p80tvfx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pilot-py rerun on release 93b51b7 (.krn/runs/pilot-py/lanes/preflight-proof-py-4.log): t-03pvpwp, the never-shipped lane that conflicted in tests/test_notes.py, ran a real session (cost $0.13, turns 4), its Stop ran at 06:37:23Z with code 0 (worktree .krn/runs/hook/timing.jsonl), no empty placeholder left in the worktree root, merged d96a589."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "A pilot-py drain attempt passes Stop on a release that clears sandbox placeholders",
