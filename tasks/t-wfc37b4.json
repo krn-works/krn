@@ -1,0 +1,14 @@
+{
+  "id": "t-wfc37b4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "The lane scope guard refuses every write outside the worktree the same way, with an explicit foreign target",
+  "after": [],
+  "body": [
+    "Observed 2026-11-19 (toolchain sweep): the lane scope hook refused a Bash write to krn-codex-skills/.node-version from a krn-lane (\"outside this lane's worktree\"), yet sibling krn-lane agents launched the same way in the same minute edited and committed files in other repositories (visual-builder-CF7 041b0fc, 3d-wkladki-wp 396ec36, podolog-warszawa 9cceae3). The guard is inconsistent: either every write outside the lane worktree is refused (Bash, Edit, Write, git -C) or the lead can grant a lane an explicit foreign target.\nFiles: src/hook/scope.ts, test/hook/\nOutcome: a hook test shows the same verdict for an Edit, a Write and a Bash redirect to a path outside the lane worktree, and a brief line (for example 'lane-target: <path>') admits one named foreign repository.\nProof: node --test of the lane scope hook covering Edit, Write and Bash outside the worktree prints pass."
+  ],
+  "kind": "defect",
+  "area": "hooks"
+}
