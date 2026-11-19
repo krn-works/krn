@@ -388,6 +388,26 @@ test('Edit, Write and Bash outside the lane worktree get one refusal; lane-targe
     call('Bash', { command: `echo 1 > ${foreign}` }),
     call('Bash', { command: `sed -i s/a/b/ ${foreign}` }),
     call('Bash', { command: 'git -C /r/other commit -m x' }),
+    // /dev/.. starts with /dev/ but names the other repository.
+    call('Write', { file_path: `/dev/..${foreign}` }),
+    call('Bash', { command: `echo 1 > /dev/..${foreign}` }),
+    // /dev/fd links to /proc/self/fd, so /dev/fd/../root reaches / while a lexical resolve says /dev/root.
+    call('Write', { file_path: `/dev/fd/../root${foreign}` }),
+    call('Bash', { command: `echo 1 > /dev/fd/../root${foreign}` }),
+    call('Bash', { command: 'echo 1 > /dev/shm/x' }),
+    // Every redirect operator, and a target on a continued line.
+    call('Bash', { command: `echo 1 &> ${foreign}` }),
+    call('Bash', { command: `echo 1 &>> ${foreign}` }),
+    call('Bash', { command: `echo 1 >| ${foreign}` }),
+    call('Bash', { command: `echo 1 >& ${foreign}` }),
+    call('Bash', { command: `echo 1 1<> ${foreign}` }),
+    call('Bash', { command: `echo 1 > \\\n${foreign}` }),
+    // Home and variables expand where the hook cannot follow.
+    call('Bash', { command: 'echo 1 > ~/x' }),
+    call('Bash', { command: 'echo 1 > $HOME/x' }),
+    call('Bash', { command: 'T=/r/other/a; echo 1 > $T' }),
+    call('Bash', { command: 'cd $D && echo 1 > a' }),
+    call('Bash', { command: 'cd -- /r/other && echo 1 > a' }),
   ])
     assert.match(
       decide(payload, env) ?? '',
@@ -398,6 +418,15 @@ test('Edit, Write and Bash outside the lane worktree get one refusal; lane-targe
     decide(call('Edit', { file_path: `${wt}/src/a.ts` }), env),
     undefined,
   );
+  for (const command of [
+    'echo 1 > /dev/null',
+    'echo 1 >&2',
+    'npm test > .krn/tmp/x.log 2>&1',
+    'echo 1 1>&-',
+    'echo 1 > /dev/fd/2',
+    'echo 1 &> /dev/null',
+  ])
+    assert.equal(decide(call('Bash', { command }), env), undefined, command);
   const admitted = { ...env, KRN_LANE_TARGET: '/r/other' };
   for (const payload of [
     call('Edit', { file_path: foreign }),

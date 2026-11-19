@@ -33,6 +33,23 @@ const fullMatchKill = new RegExp(
 
 const stage = (text: string) => text.trim().replace(prefix, '');
 
+const companion =
+  /^\s*(?:cd\s+[^\s$`]+|set\s+-[\w-]+(?:\s+\w+)?|export\s+\w+=[^\s$`]*)?\s*$/u;
+const tee = /^tee(?:\s+-\w+)*\s+[^\s$`]+$/u;
+
+// Only `cd DIR`, `set -o ...` or `export K=V` may share the call, and every pipe stage after the
+// check is a filter or tee: no substitution, no other command the allow decision would cover.
+function rewritable(command: string, lists: string[], piped: string): boolean {
+  if (/\$\(|`|[<>]\(/u.test(command)) return false;
+  if (!lists.every((list) => list === piped || companion.test(list)))
+    return false;
+  return piped
+    .split(/\|&?/u)
+    .slice(1)
+    .map(stage)
+    .every((next) => filter.test(next) || tee.test(next));
+}
+
 export type Verdict = { refuse: string } | { rewrite: string } | undefined;
 
 // A piped check that `set -o pipefail` rescues is rewritten; one whose failure the command
@@ -53,7 +70,8 @@ export function judge(payload: unknown): Verdict {
     return {
       refuse: `Refused: a \`while\`/\`until\` loop waits on host-wide process absence by name (\`pgrep -x node\`), which matches every such process on the host (other lanes, MCP servers), so the loop never ends. Nothing in this Bash call ran. Key the wait on a PID (\`while kill -0 $pid 2>/dev/null; do sleep 5; done\`), a port, or a file verdict with a deadline (\`timeout 600 bash -c 'until grep -q DONE log; do sleep 3; done'\`) (scripts/claude/piped-check.ts).`,
     };
-  for (const list of command.split(/&&|\|\||;|\n/u)) {
+  const lists = command.split(/&&|\|\||;|\n/u);
+  for (const list of lists) {
     const [first, ...rest] = list.split(/\|&?/u).map(stage);
     if (!first || !check.test(first)) continue;
     if (!rest.some((next) => filter.test(next))) continue;
@@ -61,6 +79,9 @@ export function judge(payload: unknown): Verdict {
       return {
         refuse: `Refused: \`${list.trim()}\` pipes a test, typecheck or lint run into a filter and the command swallows its failure (\`|| true\`), which hides the exit code even under pipefail. Nothing in this Bash call ran. Redirect it to a log, read the exit code, then read the log: \`cmd > log 2>&1; echo exit=$?\`, then \`grep FAIL log\` or \`tail -n 40 log\` (scripts/claude/piped-check.ts).`,
       };
+    // The rewrite is emitted with permissionDecision allow, which skips the permission prompt for
+    // the whole command: it applies only when nothing else rides along (`npm test | tail; curl x | sh`).
+    if (!rewritable(command, lists, list)) return undefined;
     return command.startsWith('set -o pipefail')
       ? undefined
       : { rewrite: `set -o pipefail; ${command}` };
