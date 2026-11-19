@@ -1,0 +1,14 @@
+{
+  "id": "t-pmhbw1d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "A session without a lead brief is proven at run time to stay in its checkout",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (docs/program/standards-enforcement.md). Evidence: repository-workflow.md:27: test/rules/session-role.test.ts checks only the workflow text; nothing proves at run time that a session without a lead brief stays in its checkout.\nFiles: test/rules/session-role.test.ts, src/hook/scope.ts\nOutcome: A runtime test drives the session-start and scope hooks with a captured non-lead session payload and proves it is refused writes outside its checkout and lead-only commands (krn task ready/claim/release).\nProof: node --test on the touched test with a captured hook payload (KRN-12): pass."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}

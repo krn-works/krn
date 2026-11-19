@@ -1,0 +1,14 @@
+{
+  "id": "t-dymfm46",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Receiver captures carry provenance and a pending entry cannot outlive its task",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (docs/program/standards-enforcement.md). Evidence: KRN-12/r-receiver-tests: test/rules/receiver-evidence.test.mjs accepts any spec/receivers.json entry, including 'pending:', and never checks that a capture is verbatim receiver output.\nFiles: test/rules/receiver-evidence.test.mjs, spec/receivers.json\nOutcome: Each capture entry records its provenance (receiver command, version, sha256 of the capture file) and the rule test fails on a hash mismatch or on a 'pending:' entry whose task is closed or missing.\nProof: node --test test/rules/receiver-evidence.test.mjs: an edited capture and a pending entry naming a closed task each fail."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

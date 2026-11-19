@@ -508,7 +508,7 @@
   {
     "id": "r-biome-clean",
     "type": "convention",
-    "text": "Code and JSON must pass Biome: before every commit run npm run fast (biome --write, tsc, related tests), not only your own tests; generated files such as scripts/lib/shard-weights.mjs must pass Biome too.",
+    "text": "Code and JSON must pass Biome: before every commit run npm run fast (biome --write, tsc, related tests), not only your own tests; generated files such as scripts/lib/shard-weights.json must pass Biome too.",
     "audience": "all",
     "tier": "reflex",
     "applies": {
@@ -722,13 +722,17 @@
   {
     "id": "r-shard-weights",
     "type": "pitfall",
-    "text": "A new test file needs a weight in scripts/lib/shard-weights.mjs; npm run fast reports a missing one.",
+    "text": "A new test file needs a weight in scripts/lib/shard-weights.json; npm run fast reports a missing one.",
     "audience": "all",
     "tier": "reflex",
     "applies": {
       "stacks": [],
       "needs": [],
-      "paths": ["scripts/lib/shard-weights.mjs", "test/**"],
+      "paths": [
+        "scripts/lib/shard-weights.json",
+        "scripts/lib/shard-weights.mjs",
+        "test/**"
+      ],
       "terms": [
         "shard",
         "shards",

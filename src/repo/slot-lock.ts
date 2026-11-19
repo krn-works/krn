@@ -20,8 +20,8 @@ export type SlotOptions = {
   pollMs?: number;
   /** How long to wait for a slot before giving up with a SlotTimeoutError; unset waits forever. */
   deadlineMs?: number | undefined;
-  /** Asked only while another holder runs: a reason to wait (host load, memory), or undefined to admit. */
-  pressure?: (() => string | undefined) | undefined;
+  /** Asked only while another holder runs, with the live holders and the weight asking in: a reason to wait (host load, memory), or undefined to admit. */
+  pressure?: ((admission: Admission) => string | undefined) | undefined;
   /** Called once, with the pid of a holder, when the caller starts to wait. */
   onWait?: (holderPid: number | undefined, reason: string) => void;
 };
@@ -93,6 +93,15 @@ function holding(entry: Holder): boolean {
   return entry.start === undefined || now === undefined || now === entry.start;
 }
 
+/** Milliseconds since a slot was taken (its directory's mtime); 0 when it vanished meanwhile. */
+function slotAge(slot: string, now: number): number {
+  try {
+    return Math.max(0, now - statSync(slot).mtimeMs);
+  } catch {
+    return 0;
+  }
+}
+
 function record(weight: number): string {
   return `${process.pid} ${processStart(process.pid) ?? '-'} ${weight}`;
 }
@@ -123,6 +132,12 @@ function lockMutex(dir: string): (() => void) | undefined {
   return () => rmSync(mutex, { recursive: true, force: true });
 }
 
+/** A live holder's weight and how long ago it took its slot. */
+export type HeldSlot = { weight: number; ageMs: number };
+
+/** What a pressure probe is asked about: the holders already running and the weight of the job asking in. */
+export type Admission = { held: HeldSlot[]; weight: number };
+
 type Pass =
   | { kind: 'taken'; release: () => void }
   | { kind: 'wait'; holderPid: number | undefined; reason: string };
@@ -137,6 +152,8 @@ function tryTake(options: SlotOptions): Pass {
     return { kind: 'wait', holderPid: undefined, reason: 'admission busy' };
   try {
     const taken = new Set<number>();
+    const held: HeldSlot[] = [];
+    const now = Date.now();
     let used = 0;
     let first: number | undefined;
     for (const name of readdirSync(options.dir)) {
@@ -151,6 +168,7 @@ function tryTake(options: SlotOptions): Pass {
       }
       taken.add(Number(match[1]));
       used += entry?.weight ?? 1;
+      held.push({ weight: entry?.weight ?? 1, ageMs: slotAge(slot, now) });
       first ??= entry?.pid;
     }
     if (used > 0 && used + weight > capacity)
@@ -159,7 +177,8 @@ function tryTake(options: SlotOptions): Pass {
         holderPid: first,
         reason: `capacity ${used}+${weight} > ${capacity}`,
       };
-    const pressure = used > 0 ? options.pressure?.() : undefined;
+    const pressure =
+      used > 0 ? options.pressure?.({ held, weight }) : undefined;
     if (pressure) return { kind: 'wait', holderPid: first, reason: pressure };
     let index = 0;
     while (taken.has(index)) index += 1;

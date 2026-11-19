@@ -8,7 +8,7 @@ import {
   SLOT_HELD_ENV,
   sampleHost,
 } from './host-gate.ts';
-import type { SlotOptions } from './slot-lock.ts';
+import type { Admission, SlotOptions } from './slot-lock.ts';
 
 export { SLOT_HELD_ENV };
 
@@ -39,7 +39,8 @@ export function testSlotOptions(
   const dir = env.KRN_FAST_SLOT_DIR ?? hostGateDir(env);
   const pressure = env.KRN_FAST_SLOT_DIR
     ? undefined
-    : () => hostPressure(sampleHost(), gateLimits(env));
+    : (admission: Admission) =>
+        hostPressure(sampleHost(), gateLimits(env), admission);
   const count = Number(env.KRN_FAST_SLOTS);
   if (Number.isInteger(count) && count > 0)
     return { deadlineMs, dir, pressure, slots: count, weight: 1 };

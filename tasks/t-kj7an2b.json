@@ -1,0 +1,14 @@
+{
+  "id": "t-kj7an2b",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A check piped into a filter or masked with || true is refused for every check command",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: r-piped-checks forbids piping a check into a filter or masking it with '|| true'; scripts/claude/piped-check.ts:30 covers only pkill/pgrep -f, so 'npm test | tail' and 'npm run fast || true' pass.\nFiles: scripts/claude/piped-check.ts, test/claude/piped-check.test.ts\nOutcome: The Bash guard refuses a check command (contract test/fast/lint/typecheck, node --test, npm test/run, tsc, biome) piped into a filter or followed by '|| true', unless set -o pipefail precedes it or the output is redirected to a file with the exit code echoed.\nProof: node --test test/claude/piped-check.test.ts: refused and allowed forms each covered."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}

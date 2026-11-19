@@ -1,0 +1,14 @@
+{
+  "id": "t-d4h4pcs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Every worker session is refused /tmp scratch, writes outside its worktree and plan.md edits",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: r-agent-state/r-state-paths: only lane sessions are blocked from writing the main checkout (src/hook/scope.ts); lanes.md forbids /tmp scratch (only a comment at scope.ts:281) and lane edits to docs/program/plan.md, nothing refuses them.\nFiles: src/hook/scope.ts, test/hook/scope.test.ts\nOutcome: The edit/Bash scope hook refuses, for every worker session, writes to /tmp or outside its worktree and edits to docs/program/plan.md, naming .krn/tmp/ as the place to write; a CI rule test fails when an untracked agent-state file is tracked outside .krn/.\nProof: node --test test/hook/scope.test.ts: pass with refused /tmp, refused plan.md and allowed .krn/tmp writes."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}

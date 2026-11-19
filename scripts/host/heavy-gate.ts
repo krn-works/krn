@@ -114,7 +114,8 @@ export async function run(
           process.stderr.write(
             `heavy-gate: waiting for a host slot (${reason}${pid ? `, held by pid ${pid}` : ''})\n`,
           ),
-        pressure: () => hostPressure(sampleHost(), gateLimits(env)),
+        pressure: (admission) =>
+          hostPressure(sampleHost(), gateLimits(env), admission),
         slots: units,
         weight: parsed.weight ?? defaultJobWeight(units),
       },

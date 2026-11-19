@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { availableParallelism, freemem, homedir, loadavg } from 'node:os';
 import { join } from 'node:path';
+import type { Admission } from './slot-lock.ts';
 
 /** Directory every project's heavy jobs share: KRN_HEAVY_GATE_DIR, else $XDG_STATE_HOME/krn/heavy-gate. */
 export function hostGateDir(env: NodeJS.ProcessEnv = process.env): string {
@@ -59,14 +60,33 @@ export function gateLimits(env: NodeJS.ProcessEnv = process.env): GateLimits {
   };
 }
 
-/** Why the host has no room for another heavy job, or undefined when it has. */
+/** Time constant of the kernel's one-minute load average. */
+const LOAD1_TAU_MS = 60_000;
+
+/**
+ * Load the host will carry once admitted jobs show up in load1, which lags by about a minute:
+ * each holder adds the part of its weight load1 has not caught up with yet, and the job asking in adds its whole weight.
+ */
+export function projectedLoad(load1: number, admission?: Admission): number {
+  if (admission === undefined) return load1;
+  let pending = admission.weight;
+  for (const slot of admission.held)
+    pending += slot.weight * Math.exp(-slot.ageMs / LOAD1_TAU_MS);
+  return load1 + pending;
+}
+
+/** Why the host has no room for another heavy job, or undefined when it has; with an admission, the load is projected over the holders and the job asking in. */
 export function hostPressure(
   sample: HostSample,
   limits: GateLimits = gateLimits(),
+  admission?: Admission,
 ): string | undefined {
   const ceiling = sample.cores * limits.loadPerCore;
-  if (sample.load1 >= ceiling)
-    return `load ${sample.load1.toFixed(1)} >= ${ceiling.toFixed(1)}`;
+  const load = projectedLoad(sample.load1, admission);
+  if (admission === undefined ? load >= ceiling : load > ceiling)
+    return admission === undefined
+      ? `load ${sample.load1.toFixed(1)} >= ${ceiling.toFixed(1)}`
+      : `projected load ${load.toFixed(1)} (load1 ${sample.load1.toFixed(1)} + admitted jobs) > ${ceiling.toFixed(1)}`;
   if (sample.availableMb < limits.minAvailableMb)
     return `available memory ${sample.availableMb} MB < ${limits.minAvailableMb} MB`;
   return undefined;

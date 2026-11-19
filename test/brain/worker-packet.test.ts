@@ -101,7 +101,7 @@ test('KRN states the biome rule with npm run fast and generated files in its lan
     .find((l) => l.startsWith('- [r-biome-clean]'));
   assert.match(biome ?? '', /before every commit run npm run fast/u);
   assert.match(biome ?? '', /not only your own tests/u);
-  assert.match(biome ?? '', /scripts\/lib\/shard-weights\.mjs/u);
+  assert.match(biome ?? '', /scripts\/lib\/shard-weights\.json/u);
 });
 
 test('the brain area holds no KRN-only record ids, live-records path or FR-40 import', () => {

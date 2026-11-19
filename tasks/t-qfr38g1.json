@@ -1,0 +1,14 @@
+{
+  "id": "t-qfr38g1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "One health command proves the merge ruleset and finds unpruned merged lanes",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: repository-workflow.md:54 terminal closeout and KRN-07/squash-only (repository-workflow.md:31) depend on state outside the diff: merged lane branches and worktrees are pruned only on the next lane start, and the ruleset requiring the Check on exact HEAD and squash merges is never verified from the repo.\nFiles: src/cli/doctor.ts (or the existing health command), test/cli/doctor.test.ts\nOutcome: One health command reports merged-but-unpruned branches/worktrees and verifies through gh api that the base ruleset requires the aggregate Check (App 15368), strict up-to-date HEAD and squash-only merges, exiting non-zero on drift; it runs in the nightly housekeeping.\nProof: node --test on the touched test with a captured gh api ruleset payload (KRN-12): a drifted ruleset fails, the live one passes."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}
