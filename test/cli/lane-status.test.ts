@@ -13,6 +13,9 @@ import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 delete process.env.KRN_SESSION_CLASS;
 // KRN-12: real git repositories, the real `krn lane start`, `krn pr ship --detach` and

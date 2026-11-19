@@ -18,6 +18,9 @@ import { startLane } from '../../src/cli/lane.ts';
 import { taskBrief } from '../../src/cli/lane-run/brief.ts';
 import { redCheckBrief } from '../../src/cli/lane-run/red-check.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 // A lane session exports these; the tests start lanes of their own and must not inherit its class.
 for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])

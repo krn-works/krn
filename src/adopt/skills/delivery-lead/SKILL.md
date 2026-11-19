@@ -16,7 +16,7 @@ Your context window is the scarcest resource: accuracy drops as inputs grow and 
 - Pass pointers (paths, SHAs, task ids), not file contents; never paste what a file already holds.
 - Verify with commands that print a verdict (exit code, counts), never by reading output; if a check needs reading, script it.
 - Obey context advisories from the hook: finish the current step, then run the `delivery-handoff` skill.
-- Run independent ready tasks as background lanes, at most 6 lanes at once (`krn lane start` refuses past `KRN_LANE_MAX_LIVE`), while you ship slices yourself.
+- Run independent ready tasks as background lanes, at most 6 lanes at once (`krn lane start` refuses past `KRN_LANE_MAX_LIVE`, and with exit 75 while host load, memory or the heavy-job gate leave no room), while you ship slices yourself.
 
 ## The loop
 

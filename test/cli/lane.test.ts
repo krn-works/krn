@@ -15,10 +15,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { addLaneWorktree, fetchBase } from '../../src/cli/lane.ts';
+import {
+  addLaneWorktree,
+  checkLaneCapacity,
+  fetchBase,
+  LaneCapacityError,
+} from '../../src/cli/lane.ts';
+import { laneHostShortfall } from '../../src/repo/host-gate.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
 
 // A lane session exports its class; these tests start lanes of their own.
 delete process.env.KRN_SESSION_CLASS;
+
+admitLanesOnAnyHost();
 
 // KRN-12: runs `krn lane start` against real temporary git repositories.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -349,6 +358,21 @@ test('lane start refuses when the live lane worktree count reaches the maximum',
   }
 });
 
+test('lane start reads the live host and exits 75 when available memory is below KRN_LANE_MIN_MB', () => {
+  const { base, repo } = fixture();
+  try {
+    const result = budgetLane(repo, { KRN_LANE_MIN_MB: '999999999999' }, 'x');
+    assert.equal(result.status, 75, result.stderr);
+    assert.match(
+      result.stderr,
+      /lane capacity: host has no room for another lane: available memory \d+ MB < 999999999999 MB/u,
+    );
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'x')), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start refuses a non-delivery lane above the ceiling and lets delivery through', async () => {
   const { checkLaneCeiling, startLane } = await import('../../src/cli/lane.ts');
   const over = async () => ({ share: 0.75, ceiling: 0.3, over: true });
@@ -373,6 +397,63 @@ test('lane start refuses a non-delivery lane above the ceiling and lets delivery
     startLane(['probe', '--class', 'other', '--root', repo]),
     /--class must be/,
   );
+});
+
+const roomy = {
+  capacity: 16,
+  sample: { availableMb: 8000, cores: 16, load1: 4 },
+  usedUnits: 4,
+};
+const limits = { loadPerCore: 1.25, minAvailableMb: 2048 };
+
+test('lane capacity refuses on load, memory or a full heavy-job gate and names the numbers', () => {
+  assert.equal(laneHostShortfall(roomy, limits), undefined);
+  const loaded = { ...roomy, sample: { ...roomy.sample, load1: 23.1 } };
+  assert.match(
+    laneHostShortfall(loaded, limits) ?? '',
+    /^load 23\.1 >= 20\.0 \(load 23\.1 on 16 cores, 8000 MB available, gate 4\/16 units;/u,
+  );
+  const starved = { ...roomy, sample: { ...roomy.sample, availableMb: 900 } };
+  assert.match(
+    laneHostShortfall(starved, limits) ?? '',
+    /^available memory 900 MB < 2048 MB/u,
+  );
+  assert.match(
+    laneHostShortfall({ ...roomy, usedUnits: 16 }, limits) ?? '',
+    /^heavy-job gate full 16\/16 units/u,
+  );
+  // A task-records publish holds no session: the capacity check never refuses it.
+  checkLaneCapacity('task-records-x', () => ({ ...roomy, usedUnits: 16 }));
+});
+
+test('lane start refuses with exit 75 below free host capacity and starts above it', async () => {
+  const { startLane } = await import('../../src/cli/lane.ts');
+  const { base, repo } = fixture();
+  try {
+    const full = () => ({ ...roomy, usedUnits: 16 });
+    await assert.rejects(
+      startLane(['busy', '--task', 't-abc1234', '--root', repo], {
+        capacity: full,
+      }),
+      (error: unknown) =>
+        error instanceof LaneCapacityError &&
+        error.exitCode === 75 &&
+        /lane capacity: .*gate 16\/16 units/u.test(error.message),
+    );
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'busy')), false);
+    assert.equal(
+      existsSync(join(repo, '.krn', 'task-claims', 't-abc1234.json')),
+      false,
+    );
+    const started = await startLane(
+      ['idle', '--task', 't-abc1234', '--root', repo],
+      { capacity: () => roomy },
+    );
+    assert.equal(started.slug, 'idle');
+    assert.ok(existsSync(started.path));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('a second lane of the same actor shares the claim on one task', () => {

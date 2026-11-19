@@ -74,3 +74,34 @@ export function hostPressure(
 
 /** Set in the environment of a job that holds a gate slot, so a nested heavy command runs inside it instead of queueing again. */
 export const SLOT_HELD_ENV = 'KRN_TEST_SLOT_HELD';
+
+/** What a new lane is admitted on: the host sample plus the heavy-gate units held out of its capacity. */
+export type HostCapacity = {
+  sample: HostSample;
+  usedUnits: number;
+  capacity: number;
+};
+
+/** Lane admission thresholds: KRN_LANE_LOAD_PER_CORE and KRN_LANE_MIN_MB, defaulting to the heavy-gate values. */
+export function laneLimits(env: NodeJS.ProcessEnv = process.env): GateLimits {
+  return gateLimits({
+    KRN_HEAVY_GATE_LOAD_PER_CORE:
+      env.KRN_LANE_LOAD_PER_CORE ?? env.KRN_HEAVY_GATE_LOAD_PER_CORE,
+    KRN_HEAVY_GATE_MIN_MB: env.KRN_LANE_MIN_MB ?? env.KRN_HEAVY_GATE_MIN_MB,
+  });
+}
+
+/** Why the host has no room for another lane (load, memory or a full heavy-job gate), naming the numbers; undefined when it has. */
+export function laneHostShortfall(
+  host: HostCapacity,
+  limits: GateLimits,
+): string | undefined {
+  const pressure = hostPressure(host.sample, limits);
+  const full =
+    host.usedUnits >= host.capacity
+      ? `heavy-job gate full ${host.usedUnits}/${host.capacity} units`
+      : undefined;
+  const reason = pressure ?? full;
+  if (reason === undefined) return undefined;
+  return `${reason} (load ${host.sample.load1.toFixed(1)} on ${host.sample.cores} cores, ${host.sample.availableMb} MB available, gate ${host.usedUnits}/${host.capacity} units; limits ${limits.loadPerCore}/core and ${limits.minAvailableMb} MB, KRN_LANE_LOAD_PER_CORE, KRN_LANE_MIN_MB)`;
+}

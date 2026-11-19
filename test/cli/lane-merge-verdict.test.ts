@@ -18,6 +18,9 @@ import {
 } from '../../src/cli/lane.ts';
 import { laneState } from '../../src/cli/lane-status.ts';
 import { recordedShip } from '../../src/hook/stop.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 delete process.env.KRN_SESSION_CLASS;
 // KRN-12: real git repositories and the real `krn lane start`; only the pull request lookup is a stub.

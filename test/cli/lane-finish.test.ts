@@ -13,6 +13,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { finishLane, LANE_NOTES_PATH } from '../../src/cli/lane-finish.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 delete process.env.KRN_SESSION_CLASS;
 // KRN-12: real git repositories and a real `krn lane start`; only gh is faked, answering
