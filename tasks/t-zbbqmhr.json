@@ -1,0 +1,14 @@
+{
+  "id": "t-zbbqmhr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A lane rerun ships only a commit the runner tried to ship, and rebases a conflicting one in a session",
+  "after": [],
+  "body": [
+    "Evidence: pilot-py run 3 (.krn/runs/pilot-py/lanes/preflight-proof-py-3.log, release 54777d5). t-2s70evn: its session was killed after a code-2 Stop refusal on 2026-11-18 (worktree .krn/runs/hook/timing.jsonl, only Stop 21:27:56Z code 2), yet the rerun shipped it with no session (no cost/turns, no Stop) because src/cli/lane-run/prepare.ts treats a task closed in the worktree as \"delivered\". t-03pvpwp (BLOCKER-ended run 2) took the same path, and ship refused with a conflict in tests/test_notes.py (exit 74); every rerun repeats it, since no session is ever offered to rebase.\nOutcome: a rerun ships without a session only when the runner recorded that it reached ship at the worktree's HEAD after a session passed; and a resumed delivery that conflicts with the fetched origin base starts a session told to rebase, resolve and rerun the full suite. A killed or BLOCKER-ended session's closed task gets a fresh session.\nProof: unit tests in test/cli/lane-run; then a pilot-py drain rerun of t-03pvpwp shows cost/turns, a code-0 Stop in its timing.jsonl and a merge."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}

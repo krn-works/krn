@@ -327,6 +327,8 @@ export async function laneVerdict(
     // Ship removes the worktree of a merged lane, so the proof is counted from the tree before it ships.
     const proved = proofOfLane();
     const checked = checkRecords();
+    // The runner hands this checked commit to ship: a rerun at the same HEAD resumes it without a session (t-zbbqmhr).
+    parkCommit(parkedFile(main, slug), git(path, ['rev-parse', 'HEAD']));
     const shipped = await steps.ship([
       '--worktree',
       path,
@@ -336,6 +338,8 @@ export async function laneVerdict(
       title,
       '--body-file',
       bodyFile,
+      // A rerun's session may have rebased the lane's own branch; the lease still refuses a remote it did not see.
+      '--force',
     ]);
     // Ship ends a merge with cleanup lines after its verdict, so read the verdict line itself.
     const lines = shipped.trim().split('\n');

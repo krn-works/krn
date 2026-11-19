@@ -8,6 +8,8 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { briefClauses } from '../../brain/proof-line.ts';
+import { run } from '../../ci/command.ts';
+import { conflictedPaths } from '../../ci/conflict-check.ts';
 import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { laneAdvisor } from '../../outcome/lane-advisor.ts';
 import { effortHistory, laneEffort } from '../../outcome/lane-effort.ts';
@@ -162,11 +164,29 @@ export async function prepareLane(
   const existing = join(main, '.krn', 'worktrees', lane);
   const reused = existsSync(existing);
   const holder = actor ?? `lane-${lane}`;
+  // Only a commit the runner itself handed to ship (after a session passed its gates) resumes without a session:
+  // a task closed by a killed or BLOCKER-ended session is unchecked work (t-zbbqmhr).
+  const parked =
+    reused &&
+    red === undefined &&
+    parkedAt(parkedFile(main, lane), git(existing, ['rev-parse', 'HEAD']));
+  // A resumed delivery that no longer merges onto the moved base needs a session to rebase it; shipping it again only repeats the conflict.
+  const conflicts = reused ? baseConflicts(existing, base) : [];
+  const resumed = parked && conflicts.length === 0;
   // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
-  const started = existsSync(existing)
+  const started = reused
     ? task === undefined
       ? reusableLane(existing, lane)
-      : await reclaimLane(main, existing, lane, task, holder, origin, base)
+      : await reclaimLane(
+          main,
+          existing,
+          lane,
+          task,
+          holder,
+          origin,
+          base,
+          resumed,
+        )
     : await steps.start([
         lane,
         ...(task === undefined ? [] : ['--task', task]),
@@ -175,18 +195,6 @@ export async function prepareLane(
         '--root',
         origin,
       ]);
-  // A rerun after a failed ship finds the task closed in its worktree: the commit is delivered, so it ships without a session.
-  // After a red Check the closed task is the failed delivery, so the rerun needs a session.
-  const delivered =
-    task !== undefined &&
-    red === undefined &&
-    getTask(started.path, task).status === 'closed';
-  // A commit parked while the App token was locked is checked work: resume ships it, no worker rerun.
-  const parkedPath = parkedFile(main, lane);
-  const parked =
-    existsSync(parkedPath) &&
-    parkedAt(parkedPath, git(started.path, ['rev-parse', 'HEAD']));
-  const resumed = delivered || (red === undefined && parked);
   // The session and the final check need the contract dependencies in the worktree, a resumed delivery too;
   // a failed install starts no session and frees the task.
   const missing = laneDependencies(main, started.path, environment);
@@ -215,9 +223,11 @@ export async function prepareLane(
     main,
     base,
     brief:
-      reused && red === undefined && !delivered && !parked
-        ? `${reusedLaneNote(started.path, base)}${brief}`
-        : brief,
+      conflicts.length > 0
+        ? `${conflictNote(base, conflicts)}${brief}`
+        : reused && red === undefined && !resumed
+          ? `${reusedLaneNote(started.path, base)}${brief}`
+          : brief,
     packet: prompt.packet,
     servedTokens: prompt.tokens,
     servedIds: prompt.served,
@@ -250,6 +260,24 @@ export function reusedLaneNote(path: string, base: string): string {
     commits(`origin/${base}..HEAD`) ?? commits(`${base}..HEAD`) ?? [];
   if (ahead.length === 0) return '';
   return `Reused worktree: this lane branch already holds ${ahead.length} commit(s) from a failed attempt (${ahead.slice(0, 5).join('; ')}). A Stop refusal about a test or file in them concerns that earlier work: read .krn/runs/stop-check/last-refusal.txt, then fix or replace those commits, or end with a line \`BLOCKER: <what stops you>\`.\n\n`;
+}
+
+/**
+ * The paths where the lane branch conflicts with the freshly fetched `origin/<base>`; empty when it merges cleanly
+ * or when the trial cannot run (an unreachable remote is not a conflict, ship's own check still guards the push).
+ */
+export function baseConflicts(path: string, base: string): string[] {
+  try {
+    git(path, ['fetch', '-q', 'origin', base]);
+    return conflictedPaths(path, base, run);
+  } catch {
+    return [];
+  }
+}
+
+/** The prompt note for a rerun whose lane branch conflicts with the moved base: rebase, resolve, rerun everything. */
+export function conflictNote(base: string, paths: readonly string[]): string {
+  return `Base moved: this lane branch conflicts with origin/${base} in ${paths.join(', ')}. First run \`git fetch origin ${base} && git rebase origin/${base}\`, resolve each conflict keeping the intent of both sides, then rerun the full test suite (a test that lists or counts files can fail after a clean merge) and fix what fails before you finish.\n\n`;
 }
 
 /** The worktree a failed run left behind, when it is the lane's own; anything else is a usage error. */
@@ -350,11 +378,13 @@ export async function reclaimLane(
   actor: string,
   origin: string,
   base: string,
+  resumed = false,
 ): Promise<{ path: string; slug: string }> {
   const lane = reusableLane(path, slug);
   carryEditedRecord(origin, path, task, base);
-  // The task closed in the lane worktree: an earlier run delivered it and only the ship failed.
-  if (getTask(path, task).status === 'closed') return lane;
+  // A resumed delivery ships the runner's own checked commit without a session; a task closed in the worktree
+  // cannot be claimed again, and its rerun session works under the lane identity alone (as after a red Check).
+  if (resumed || getTask(path, task).status === 'closed') return lane;
   // A run that died before it released its own claim leaves it live: the same actor and worktree resume it.
   const held = inspectClaim(main, task);
   if (
