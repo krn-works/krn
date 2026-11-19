@@ -51,10 +51,19 @@ export class Unavailable extends Error {}
 const INSTALLATION_TOKEN = /^ghs_[A-Za-z0-9._-]{36,2048}$/u;
 
 type Env = NodeJS.ProcessEnv;
-type Cached = { token: string; expires_at: string };
+type Cached = {
+  token: string;
+  expires_at: string;
+  /** The permissions GitHub granted the installation token, kept so a probe can read them without a mint. */
+  permissions?: Record<string, string>;
+};
 
 // The JSON replies this module reads, one schema each (a shape mismatch is "not usable").
-const cacheSchema = z.object({ token: z.unknown(), expires_at: z.unknown() });
+const cacheSchema = z.object({
+  token: z.unknown(),
+  expires_at: z.unknown(),
+  permissions: z.unknown().optional(),
+});
 const bwListSchema = z.object({
   data: z.object({ data: z.array(z.unknown()) }),
 });
@@ -65,9 +74,11 @@ const bwItemSchema = z.object({
 });
 const bwFieldSchema = z.object({ name: z.string(), value: z.string() });
 const installationSchema = z.object({ id: z.unknown() });
+const permissionsSchema = z.record(z.string(), z.string());
 const tokenReplySchema = z.object({
   token: z.unknown(),
   expires_at: z.unknown(),
+  permissions: z.unknown().optional(),
 });
 
 function base64url(value: Buffer | string): string {
@@ -125,6 +136,22 @@ function readCache(env: Env, now: number): string | undefined {
     // no usable cache: mint again
   }
   return undefined;
+}
+
+/** The permissions recorded with the cached installation token, or undefined when the cache holds none. */
+export function cachedPermissions(
+  env: Env,
+): Record<string, string> | undefined {
+  const path = cachePath(env);
+  if (!path) return undefined;
+  try {
+    const cached = cacheSchema.safeParse(
+      readJson(readFileSync(path, 'utf8')),
+    ).data;
+    return permissionsSchema.safeParse(cached?.permissions).data;
+  } catch {
+    return undefined;
+  }
 }
 
 export function writeCache(env: Env, value: Cached): void {
@@ -277,9 +304,14 @@ export async function mintToken(
   }
   const token = reply?.token;
   const expires = reply?.expires_at;
+  const granted = permissionsSchema.safeParse(reply?.permissions).data;
   if (typeof token !== 'string' || typeof expires !== 'string')
     throw new Unavailable('GitHub answered without a token');
-  writeCache(env, { token, expires_at: expires });
+  writeCache(env, {
+    token,
+    expires_at: expires,
+    ...(granted === undefined ? {} : { permissions: granted }),
+  });
   return token;
 }
 

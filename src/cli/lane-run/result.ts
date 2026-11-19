@@ -6,6 +6,11 @@ export const exitInstallFailed = 71;
 /** The receiver cannot take a delivery (no required Check on the base, a red base, or GitHub unreachable); no session started. */
 export const exitReceiverNotReady = 72;
 
+/** The base suite is red in the untouched lane worktree; no session started. Shares 72 with the receiver: both mean the base cannot take a delivery. */
+export const exitBaseRed = 72;
+/** The base suite failed with timeouts only: host load; no session started. */
+export const exitBaseHostLoad = 78;
+
 export const exitNoDelivery = 74;
 /** The session ended with a `BLOCKER:` line; the verdict prints it instead of the tree state. */
 export const exitSessionBlocked = 73;

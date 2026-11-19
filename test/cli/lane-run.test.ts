@@ -489,6 +489,7 @@ for (const [name, fixtureName, pattern] of [
           mint: async () => undefined,
           receiver: async (_root, branch) =>
             receiverGaps(branch, {
+              repo: read('repo-krn-works-krn'),
               branch: read(
                 missing
                   ? 'branch-unprotected-krn-works-krn'
@@ -1578,16 +1579,105 @@ async function runPrepared(
   }
 }
 
-test('lane run runs the contract install before the session and runs no baseline', async () => {
+test('lane run runs the contract install before the session', async () => {
   const out = await runPrepared({
     'krn.json': JSON.stringify({
       install:
         'mkdir -p node_modules/dep && echo {} > node_modules/dep/package.json',
-      test: 'exit 1',
+      test: 'true',
     }),
   });
   assert.equal(out.started, true, out.verdict.line);
   assert.equal(out.installed, true);
+});
+
+// The base suite runs once on the untouched worktree before the session; the red node:test capture is verbatim.
+const redBaseFiles = {
+  'krn.json': JSON.stringify({
+    test: 'cat red.txt; exit 1',
+    tracker: 'krn',
+  }),
+  'red.txt': readFileSync(
+    fileURLToPath(
+      new URL('../fixtures/node-test/failing-run.stdout.txt', import.meta.url),
+    ),
+    'utf8',
+  ),
+};
+
+test('lane run exits 72 naming the failing files of a red base and spawns no session', async () => {
+  const out = await runPrepared(redBaseFiles);
+  assert.equal(out.verdict.exitCode, 72, out.verdict.line);
+  assert.match(
+    out.verdict.line,
+    /the base suite is red \(failing files test\/math\.test\.mjs;.*no session started/u,
+  );
+  assert.equal(out.started, false);
+  assert.notEqual(out.claim.state, 'live');
+});
+
+test('lane run exits 78 when the base suite fails with timeouts only', async () => {
+  const out = await runPrepared({
+    'krn.json': JSON.stringify({
+      test: 'echo "FAIL test/slow.test.ts > waits"; echo "Error: Test timed out in 5000ms."; exit 1',
+      tracker: 'krn',
+    }),
+  });
+  assert.equal(out.verdict.exitCode, 78, out.verdict.line);
+  assert.match(out.verdict.line, /timeouts only .*test\/slow\.test\.ts/u);
+  assert.equal(out.started, false);
+});
+
+test('lane run names a red base that prints no failing file by its exit status', async () => {
+  const out = await runPrepared({
+    'krn.json': JSON.stringify({ test: 'exit 3', tracker: 'krn' }),
+  });
+  assert.equal(out.verdict.exitCode, 72, out.verdict.line);
+  assert.match(out.verdict.line, /exit 3 exited 3|exited 3/u);
+  assert.equal(out.started, false);
+});
+
+test('a green base run is cached per base SHA: a second run does not rerun the suite', async () => {
+  const { base, repo, claude } = fixture('echo x > started', {
+    'krn.json': JSON.stringify({
+      test: 'test -f started || echo run >> "$KRN_COUNT_FILE"',
+      tracker: 'krn',
+    }),
+  });
+  const counter = join(base, 'count');
+  process.env.KRN_LANE_CLAUDE = claude;
+  process.env.KRN_COUNT_FILE = counter;
+  const steps = {
+    start: startLane,
+    ship: async () => 'unreachable',
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode !== 72, true, first.line);
+    // Only the base run counts: the final check runs after the session wrote `started`.
+    const runs = () => readFileSync(counter, 'utf8').split('\n').length - 1;
+    const afterFirst = runs();
+    assert.equal(afterFirst, 1);
+    // The same base SHA on a fresh lane worktree: the cached green answers.
+    git(
+      repo,
+      'worktree',
+      'remove',
+      '--force',
+      join(repo, '.krn', 'worktrees', 't-abc1234'),
+    );
+    git(repo, 'branch', '-D', 't-abc1234');
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    assert.equal(runs(), afterFirst);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    delete process.env.KRN_COUNT_FILE;
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 // KRN-12: the pilot-py contract shape (a venv install, a test command that needs .venv); offline, without pip.
@@ -1595,7 +1685,7 @@ test('lane run builds the Python venv of the contract before the session starts'
   const { base, repo } = fixture('true', {
     'krn.json': JSON.stringify({
       install: 'python3 -m venv --without-pip .venv',
-      test: '.venv/bin/python -m pytest',
+      test: '.venv/bin/python -c pass',
       tracker: 'krn',
     }),
     '.gitignore': '.krn\n.venv/\n',

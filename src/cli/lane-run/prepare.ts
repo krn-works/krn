@@ -24,6 +24,8 @@ import { getTask } from '../../task/store.ts';
 import { git } from '../git-with.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
+
+import { baseSuiteFailure } from './base-run.ts';
 import { isBootstrapTask, isGreenBaseTask } from './bootstrap.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
@@ -144,7 +146,12 @@ export async function prepareLane(
     task !== undefined &&
     (isBootstrapTask(main, task) || isGreenBaseTask(main, task));
   if (repository !== undefined && !exempt) {
-    const gaps = await (steps.receiver ?? defaultSteps.receiver)(origin, base);
+    const gaps = await (steps.receiver ?? defaultSteps.receiver)(origin, base, {
+      env: environment,
+      editsWorkflows:
+        task !== undefined &&
+        getTask(main, task).body.join('\n').includes('.github/workflows'),
+    });
     if (gaps.length > 0)
       return {
         line: `lane ${label}: receiver not ready, no session started: ${gaps.join('; ')}`,
@@ -190,6 +197,18 @@ export async function prepareLane(
       line: `lane ${label}: preflight install failed, no session started: ${missing.replace(/\s+/gu, ' ')} (worktree ${started.path}, rerun reuses it${task === undefined ? '' : ', claim released'})`,
       exitCode: exitInstallFailed,
     };
+  }
+  // The untouched base runs its suite once before a paid session: a red or unrunnable base fails the lane here.
+  if (!resumed && red === undefined && !exempt) {
+    const failed = baseSuiteFailure(main, started.path, base);
+    if (failed !== undefined) {
+      if (task !== undefined)
+        await releaseClaim(main, task).catch(() => undefined);
+      return {
+        line: `lane ${label}: ${failed.detail.replace(/\s+/gu, ' ')}, no session started (worktree ${started.path}, rerun reuses it${task === undefined ? '' : ', claim released'})`,
+        exitCode: failed.exitCode,
+      };
+    }
   }
   return {
     ...request,

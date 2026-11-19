@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { shipCommand } from '../../ci/ship.ts';
 import { rootGhEnv } from '../../repo/gh.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
+import type { ReceiverProbeOptions } from './receiver.ts';
 
 export interface LaneVerdict {
   line: string;
@@ -21,7 +22,11 @@ export interface LaneRunSteps {
   /** `gh run view RUN --log-failed` output, read when a rerun follows a red Check. */
   ciLogs?(run: string, cwd: string): Promise<string>;
   /** Why the GitHub receiver of `root` cannot take a delivery on `base`; empty when it can. */
-  receiver?(root: string, base: string): Promise<string[]>;
+  receiver?(
+    root: string,
+    base: string,
+    options?: ReceiverProbeOptions,
+  ): Promise<string[]>;
 }
 
 /** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
@@ -51,8 +56,8 @@ export const defaultSteps: Required<LaneRunSteps> = {
       throw new Error(result.stderr?.trim() || 'gh run view failed');
     return result.stdout;
   },
-  receiver: async (root, base) =>
-    (await import('./receiver.ts')).probeReceiver(root, base),
+  receiver: async (root, base, options) =>
+    (await import('./receiver.ts')).probeReceiver(root, base, options),
   start: async (args) => (await import('../lane.ts')).startLane(args),
   ship: async (args) =>
     shipCommand(args, (await import('../pr.ts')).cliShipRuntime),
