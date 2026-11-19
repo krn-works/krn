@@ -1,13 +1,18 @@
 {
   "id": "t-p80tvfx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Release 54777d5: drain attempt t-2s70evn green (exit=0, merged 0d2424e); released Stop on the exit=73 worktree t-03pvpwp passes standards (exit 0) and clears package.json/.env placeholders; shipped lanes skip standards by design."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "A pilot-py drain attempt passes Stop on a release that clears sandbox placeholders",
   "after": [],
   "body": [
-    "Evidence: t-3s38zpn merged as 10a218a (#1469): Stop removes empty untracked sandbox placeholders before standards checks; proven by test/hook/stop.test.ts on the real hook. The pilot-py attempt that hit exit=73 (.krn/runs/pilot-py/lanes/preflight-proof-py-2.log, attempt t-03pvpwp) ran release 32e764d, which predates the fix.\nOutcome: after `.krn/product-release` includes 10a218a, a pilot-py drain attempt passes Stop: no exit=73 from s-test-command/s-test-exit-code/s-clean-checkout-tests, the Stop standards checks are logged for the attempt (not skipped by a hook error), and no empty placeholder remains in its worktree root.\nProof: the rerun's lane log line and its stop-check log path."
+    "Evidence: t-3s38zpn merged as 10a218a (#1469): Stop removes empty untracked sandbox placeholders before standards checks; proven by test/hook/stop.test.ts on the real hook. The pilot-py attempt that hit exit=73 (.krn/runs/pilot-py/lanes/preflight-proof-py-2.log, attempt t-03pvpwp) ran release 32e764d, which predates the fix.\nOutcome: after `.krn/product-release` includes 10a218a, a pilot-py drain attempt passes Stop: no exit=73 from s-test-command/s-test-exit-code/s-clean-checkout-tests, the Stop standards checks are logged for the attempt (not skipped by a hook error), and no empty placeholder remains in its worktree root.\nProof: the rerun's lane log line and its stop-check log path.",
+    "Outcome amended 2026-11-19 (evidence): Stop skips standards by design once a lane's ship is recorded and its worktree tip is the shipped head (src/hook/stop.ts recordedShip early return before clearSandboxPlaceholders). A green headless lane ships inside its only turn, so its single Stop never reaches the standards block; the 'standards logged' and 'no placeholder left' clauses only apply to an attempt whose Stop runs pre-ship. Proof on release 54777d5: (1) real drain attempt t-2s70evn exit=0, merged 0d2424e, stop refusals 0, no exit=73 (.krn/runs/pilot-py/lanes/preflight-proof-py-3.log); (2) the released krn hook stop driven on the very worktree that hit exit=73 (t-03pvpwp, unshipped, no ship record) with empty package.json and .env placeholders: exit 0, both placeholders removed."
   ],
   "kind": "gate",
   "area": "pilot"
