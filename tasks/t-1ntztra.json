@@ -11,6 +11,7 @@
     "t-r35kjgy"
   ],
   "body": [
-    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S8 (Sector 2 — Proof (ADR 0021; north-star item 5)); program t-b160jt0.\nWhy: ADR 0021 — moves the north-star items named in the plan sector.\nOutcome: preregistered confirmatory run, 3 reps, Holm over C−A and C−B, cost co-primary; \"not shown\" is a published result\nFiles: see ADR 0021 Consequences.\nProof: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report: verdict line per contrast`\nPredicted: metric abc-c-minus-a-pp >= 15\nAfter: S7, S10, S11"
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S8 (Sector 2 — Proof (ADR 0021; north-star item 5)); program t-b160jt0.\nWhy: ADR 0021 — moves the north-star items named in the plan sector.\nOutcome: preregistered confirmatory run, 3 reps, Holm over C−A and C−B, cost co-primary; \"not shown\" is a published result\nFiles: see ADR 0021 Consequences.\nProof: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report: verdict line per contrast`\nPredicted: metric abc-c-minus-a-pp >= 15\nAfter: S7, S10, S11",
+    "Amended 2026-11-19 (operator chose option b of t-kcjr0pf, ADR 0021 point 11): primary claims are USD per resolved task (C against A and B, paired log-cost ratio, Holm), regression rate (C against A) and per-record measured effect; hidden-test pass rate C−A/C−B is secondary. Predicted: metric abc-c-cost-per-resolved-ratio < 1 (spec/metrics.json; the --report --metric flag lands with t-08zbqzn)."
   ]
 }
