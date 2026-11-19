@@ -1,9 +1,8 @@
-import { resolve } from 'node:path';
 import { deployRemedy, deployWorkflows } from '../adopt/deploy.ts';
 import { completeCloseExposure } from '../brain/close-exposure.ts';
 import { type Runner, run } from '../ci/command.ts';
 import { shipCommand, shipUsage } from '../ci/ship.ts';
-import { startDetachedShip } from '../ci/ship-live.ts';
+import { detachedShipArgs, startDetachedShip } from '../ci/ship-live.ts';
 import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
 import { rootRepository } from '../repo/gh.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
@@ -68,9 +67,10 @@ export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
 export async function prCommand(args: string[]): Promise<void> {
   const [verb, ...rest] = args;
   if (verb === 'ship' && rest.includes('--detach')) {
-    const args = rest.filter((arg) => arg !== '--detach');
-    const at = args.indexOf('--worktree');
-    const worktree = resolve(at >= 0 ? (args[at + 1] ?? '.') : '.');
+    const { worktree, args } = detachedShipArgs(
+      rest.filter((arg) => arg !== '--detach'),
+      process.cwd(),
+    );
     const started = startDetachedShip(worktree, [
       ...process.execArgv,
       ...process.argv.slice(1, 2),
