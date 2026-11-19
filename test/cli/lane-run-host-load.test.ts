@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -101,4 +102,25 @@ test('a final check that times out once and passes on the rerun is flaky, not re
   const result = contractVerification(dir, log);
   assert.ok(result !== undefined && 'verified' in result);
   assert.deepEqual(result.flaky, ['test/a.test.ts']);
+});
+
+test('a passing final check that rewrote tracked files has the rewrite committed, not left dirty', () => {
+  const { dir, log } = check([''], [0]);
+  const sh = (...a: string[]) =>
+    execFileSync('git', a, { cwd: dir, encoding: 'utf8' });
+  sh('init', '-q');
+  sh('config', 'user.email', 'a@b.c');
+  sh('config', 'user.name', 'n');
+  writeFileSync(join(dir, 'x.ts'), 'a  =1\n');
+  writeFileSync(join(dir, '.gitignore'), 'count\ncheck.mjs\ncheck.log\n');
+  sh('add', 'x.ts', '.gitignore', 'krn.json');
+  sh('commit', '-q', '-m', 'base');
+  writeFileSync(
+    join(dir, 'check.mjs'),
+    "import { writeFileSync } from 'node:fs';\nwriteFileSync('x.ts', 'a = 1\\n');\n",
+  );
+  const result = contractVerification(dir, log);
+  assert.ok(result !== undefined && 'verified' in result);
+  assert.equal(sh('status', '--porcelain').trim(), '');
+  assert.match(sh('log', '-1', '--format=%s'), /^style: /u);
 });
