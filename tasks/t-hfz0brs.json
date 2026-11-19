@@ -1,0 +1,14 @@
+{
+  "id": "t-hfz0brs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "CI rejects branch commits whose task id, trailer or title breaks the commit rules",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: r-trailer and r-commit-title-id/r-conventional-commits are checked only on the PR title (scripts/commit-title.ts) and Ticket only against an open task (src/task/branch-tickets.ts); a branch commit with (t-id) in its title and no Ticket:/Refs:, or Refs: naming a missing task, passes.\nFiles: src/task/branch-tickets.ts, scripts/commit-title.ts, test/task/branch-tickets.test.ts\nOutcome: CI rejects a PR whose base..head commits include one titled with a task id but lacking a Ticket:/Refs: trailer, a Ticket/Refs naming a task absent from tasks/, or a title not in 'type(scope): outcome (t-id)' form; the message names commit and rule.\nProof: node --test on the touched test: a hand-built branch with each bad commit kind fails, a krn-made branch passes."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

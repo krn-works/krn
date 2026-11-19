@@ -15,8 +15,9 @@ import {
   gateLimits,
   hostGateDir,
   hostPressure,
+  projectedLoad,
 } from '../../src/repo/host-gate.ts';
-import { withSlot } from '../../src/repo/slot-lock.ts';
+import { type Admission, withSlot } from '../../src/repo/slot-lock.ts';
 import { defaultTestSlots, testSlotOptions } from '../../src/repo/test-slot.ts';
 
 const GATE = join(import.meta.dirname, '../../scripts/host/heavy-gate.ts');
@@ -290,6 +291,70 @@ test('host pressure names load past cores x 1.25 and available memory under 2 GB
     hostPressure({ availableMb: 1500, cores: 16, load1: 4 }, limits),
     'available memory 1500 MB < 2048 MB',
   );
+});
+
+test('a burst is admitted on projected load: fresh holders count in full until load1 catches up', () => {
+  const limits = gateLimits({});
+  const idle = { availableMb: 8000, cores: 16, load1: 9 };
+  // load1 still shows the host before the burst: 9 + 4 fresh + 4 asking = 17 fits under 20.
+  assert.equal(
+    hostPressure(idle, limits, { held: [{ ageMs: 0, weight: 4 }], weight: 4 }),
+    undefined,
+  );
+  // A second fresh holder makes 9 + 8 + 4 = 21: the third job waits although load1 alone is 9.
+  assert.match(
+    hostPressure(idle, limits, {
+      held: [
+        { ageMs: 0, weight: 4 },
+        { ageMs: 0, weight: 4 },
+      ],
+      weight: 4,
+    }) ?? '',
+    /^projected load 21\.0 .* > 20\.0$/u,
+  );
+  // A holder load1 has long caught up with adds nothing beyond load1 itself.
+  assert.ok(
+    Math.abs(
+      projectedLoad(15, { held: [{ ageMs: 600_000, weight: 4 }], weight: 4 }) -
+        19,
+    ) < 0.01,
+  );
+  assert.equal(projectedLoad(15), 15);
+});
+
+test('the gate hands its pressure probe the live holders, so a burst on a lagging load1 is held back', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'heavy-gate-'));
+  try {
+    const seen: number[] = [];
+    const probe = (admission: Admission) => {
+      seen.push(admission.held.length);
+      return hostPressure(
+        { availableMb: 8000, cores: 16, load1: 9 },
+        gateLimits({}),
+        admission,
+      );
+    };
+    const options = {
+      deadlineMs: 50,
+      dir,
+      pollMs: 5,
+      pressure: probe,
+      slots: 16,
+      weight: 4,
+    };
+    await withSlot(options, () =>
+      withSlot(options, async () => {
+        await assert.rejects(
+          withSlot(options, async () => 'third'),
+          { name: 'SlotTimeoutError' },
+        );
+      }),
+    );
+    assert.equal(seen[0], 1);
+    assert.ok(seen.slice(1).every((held) => held === 2));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('the gate lives outside every checkout and KRN fast takes a weight that fits defaultTestSlots checks', () => {

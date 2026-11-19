@@ -1,0 +1,14 @@
+{
+  "id": "t-h5ssdnk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Agents cannot skip git hooks or force-push without lease, and commits run biome on staged files",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: r-biome-clean says fast runs before every commit, but core.hooksPath is empty and .git/hooks holds samples only; lanes.md forbids --no-verify, HUSKY=0 and a changed core.hooksPath, and lead-rules.md:45 requires --force-with-lease, yet no Bash guard refuses them (scripts/claude/bash-guards.ts).\nFiles: scripts/claude/bash-guards.ts, test/claude/bash-guards.test.ts\nOutcome: The agent Bash guard refuses git commit/push with --no-verify, HUSKY=0, git config core.hooksPath, and git push --force/-f without --force-with-lease, with exit 2 and the rule named; a tracked pre-commit hook (installed by krn lane start into each worktree) runs biome check on staged files.\nProof: node --test test/claude/bash-guards.test.ts: pass with one refused case per form and one allowed --force-with-lease."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}

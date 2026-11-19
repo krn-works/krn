@@ -1,0 +1,14 @@
+{
+  "id": "t-qhgdby6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A fix PR carries a regression test and new identifiers carry no phase or ticket tokens",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (operator: close every standards gap for good). Evidence: KRN-14/r-regression-layer: a fix PR needs a regression test, and no check requires one; r-role-names is checked on paths only (test/rules/path-token-guard.test.mjs), not on identifiers or test names.\nFiles: scripts/weak-tests.mjs, test/rules/path-token-guard.test.mjs\nOutcome: CI rejects a PR whose title is fix(...) and whose diff changes no test file unless its body has a 'No-regression-test: <reason>' line; the token guard also scans added identifiers and test names for phase/ticket/round/date tokens.\nProof: node --test on both touched tests: a fix diff without a test fails, with one passes; an added test name with a ticket id fails."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

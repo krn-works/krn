@@ -1,0 +1,14 @@
+{
+  "id": "t-4kr78d9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Past the handoff threshold the lead cannot start new lanes or agents",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19, standards enforcement audit after #1521 (docs/program/standards-enforcement.md). Evidence: KRN-13 and lead-rules.md:38: above 100k context the lead must not start a new unrelated task or a long detached run; src/context/gauge.ts only advises.\nFiles: src/context/gauge.ts, scripts/claude/*, test/context/gauge.test.ts\nOutcome: Past the handoff threshold the PreToolUse hook refuses krn lane start and a new Agent launch for the lead (draining running lanes stays allowed) and names delivery-handoff as the next step.\nProof: node --test on the touched test: a launch above the threshold is refused, one below and a SendMessage to a running lane are allowed."
+  ],
+  "kind": "gate",
+  "area": "hook"
+}
