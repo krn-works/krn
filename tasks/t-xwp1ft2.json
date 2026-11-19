@@ -1,7 +1,11 @@
 {
   "id": "t-xwp1ft2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "#1525 added heavy-gate run --soft. Host drop-ins (untracked host config): ~/.config/systemd/user/mise-en-plesk.service.d/95-heavy-gate.conf wraps both scan steps in heavy-gate run --weight 1 --deadline-ms 120000 --soft, Nice=10, CPUWeight=20, gate dir writable under ProtectHome; krn-housekeeping.service.d/95-heavy-gate.conf gates the daily sweep (weight 2, 30 min soft). Proof 2026-11-19 19:43: the scan cycle (pid 2973844, nice 10) is a gate holder in heavy-gate status; load 6.5 on 16 cores (< 20). Other user units, verdict no gate (a few CPU-seconds per run): rss-news-ingest, rss-news-transcribe, aiws-panel-straznik, krn-nginx-watch, krn-npm-nginx-watch, rekurencja-skills-update, krn-pvemem-dev-obs, mise-plesk-decom-dns, mise-plesk-wp-register, betting-coupon-audit, pm-relay-sunday, krn-host-sampler."
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Codex agents' heavy jobs run through the host heavy-job gate",
