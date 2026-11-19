@@ -214,7 +214,8 @@ test('finish without a recorded verification is refused with exit 65 before any 
     await assert.rejects(
       finishLane(['stopped', '--repo', 'o/r', '--root', repo], { gh, sleep }),
       (error: Error & { exitCode?: number }) =>
-        error.exitCode === 65 && /Verified.*TODO placeholder/u.test(error.message),
+        error.exitCode === 65 &&
+        /Verified.*TODO placeholder/u.test(error.message),
     );
     assert.ok(
       !calls.some((call) => call.includes('pr') && call.includes('create')),

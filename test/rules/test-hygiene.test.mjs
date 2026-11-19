@@ -377,7 +377,7 @@ test('the group kill rule reports the unguarded kill and passes the guarded one'
       "process.kill(-group, 'SIGKILL');\nif (group > 1) process.kill(-group, 'SIGKILL');",
     ),
     [
-      "seeded.test.ts:1 group kill without a \"> 1\" guard on the same line; an empty pgid kills the runner's own group",
+      'seeded.test.ts:1 group kill without a "> 1" guard on the same line; an empty pgid kills the runner\'s own group',
     ],
   );
 });

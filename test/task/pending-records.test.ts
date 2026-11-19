@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { bodyProblems } from '../../src/ci/pr-body-rule.ts';
 import {
   addPendingTask,
   commitPendingRecords,
@@ -20,7 +21,6 @@ import {
   removePendingTasks,
   takePendingTask,
 } from '../../src/task/pending.ts';
-import { bodyProblems } from '../../src/ci/pr-body-rule.ts';
 import { createTask } from '../../src/task/store.ts';
 import { QUALITY_PARAGRAPHS, withCategories } from './task-fixture.ts';
 

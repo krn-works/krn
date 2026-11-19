@@ -118,6 +118,10 @@ test('krn pr body run without --verified leaves a TODO placeholder that the rule
 });
 
 test('a goal lane-run body carries Why and Verified, so ship accepts it where no tracker runs', () => {
-  const body = goalPrBody('Pages load faster.', ['perf(web): cache pages'], 'npm test: pass');
+  const body = goalPrBody(
+    'Pages load faster.',
+    ['perf(web): cache pages'],
+    'npm test: pass',
+  );
   assert.deepEqual(bodyProblems(body, { tracked: false }), []);
 });
