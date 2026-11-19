@@ -1,7 +1,8 @@
 // The receiver probe a lane runs before its paid session: GitHub must gate the base, the base must not be red and Actions must start jobs.
 
 import { z } from 'zod';
-import { requiredContexts } from '../../adopt/verify.ts';
+import { verifyGaps } from '../../adopt/verify.ts';
+import { cachedPermissions } from '../../ci/app-token.ts';
 import { ghApiSync } from '../../repo/gh.ts';
 import {
   type CheckFact,
@@ -10,10 +11,16 @@ import {
 
 /** The answers of the three `gh api` reads the probe makes, stdout verbatim. */
 export interface ReceiverReplies {
+  /** `gh api repos/<repo>`: the repository settings (auto-merge). */
+  repo: string;
   branch: string;
   rules: string;
   /** `gh api repos/<repo>/commits/<base head>/check-runs`. */
   checkRuns: string;
+  /** The permissions GitHub granted the delivery token; undefined when unknown (an older cache, no cache). */
+  permissions?: Record<string, string> | undefined;
+  /** Whether the lane edits `.github/workflows`, the one change that needs the `workflows` permission. */
+  editsWorkflows?: boolean;
 }
 
 const checkRunsSchema = z.object({
@@ -83,9 +90,17 @@ const red = new Set(['FAILURE', 'TIMED_OUT']);
  * or that Check finished red on the base head. A missing or pending Check run on the head is not a gap.
  */
 export function receiverGaps(base: string, replies: ReceiverReplies): string[] {
-  if (requiredContexts(replies.branch, replies.rules).length !== 1)
+  // The adopt check: auto-merge allowed and one required check from GitHub Actions.
+  const settings = verifyGaps(replies.repo, replies.branch, replies.rules);
+  if (settings.length > 0)
+    return settings.map((gap) => `${gap}, so no delivery can merge on ${base}`);
+  if (
+    replies.editsWorkflows === true &&
+    replies.permissions !== undefined &&
+    replies.permissions.workflows !== 'write'
+  )
     return [
-      `branch ${base} has no single required status check from GitHub Actions, so no delivery can merge`,
+      'the delivery GitHub App token lacks the workflows permission (write), so a push that edits .github/workflows is refused; grant the App Workflows (write)',
     ];
   const runs: CheckFact[] = checkRunsSchema
     .parse(JSON.parse(replies.checkRuns))
@@ -117,8 +132,18 @@ function read(root: string, path: string): string {
   return reply.stdout;
 }
 
+export interface ReceiverProbeOptions {
+  /** The lane session environment: names the App token cache the permissions are read from. */
+  env?: NodeJS.ProcessEnv;
+  editsWorkflows?: boolean;
+}
+
 /** The probe against GitHub from the checkout `root`, with the identity gh has there; an unreachable receiver is a gap. */
-export function probeReceiver(root: string, base: string): string[] {
+export function probeReceiver(
+  root: string,
+  base: string,
+  options: ReceiverProbeOptions = {},
+): string[] {
   try {
     const branch = read(root, `repos/{owner}/{repo}/branches/${base}`);
     const head = branchHeadSchema.parse(JSON.parse(branch)).commit.sha;
@@ -138,6 +163,9 @@ export function probeReceiver(root: string, base: string): string[] {
         ];
     }
     return receiverGaps(base, {
+      repo: read(root, 'repos/{owner}/{repo}'),
+      permissions: cachedPermissions(options.env ?? process.env),
+      editsWorkflows: options.editsWorkflows === true,
       branch,
       rules: read(root, `repos/{owner}/{repo}/rules/branches/${base}`),
       checkRuns: read(

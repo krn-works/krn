@@ -16,6 +16,7 @@ const gh = (name: string) =>
   );
 
 const gated = {
+  repo: gh('repo-krn-works-krn'),
   branch: gh('branch-main-krn-works-krn'),
   rules: gh('rules-branches-main-krn-works-krn'),
 };
@@ -41,6 +42,7 @@ test('a base whose head Check failed is a red baseline', () => {
 
 test('a branch without a required Check from GitHub Actions is not ready', () => {
   const gaps = receiverGaps('doctor-skill-perms', {
+    repo: gh('repo-krn-works-krn'),
     branch: gh('branch-unprotected-krn-works-krn'),
     rules: gh('rules-branches-unprotected-krn-works-krn'),
     checkRuns: gh('check-runs-main-green'),
@@ -90,4 +92,45 @@ test('a job that ran its steps and failed is a red test, not a refusal', () => {
     ],
   });
   assert.equal(refusedJob(ran), undefined);
+});
+
+test('a repository with auto-merge disabled is not ready', () => {
+  const repo = JSON.stringify({
+    ...JSON.parse(gh('repo-krn-works-krn')),
+    allow_auto_merge: false,
+  });
+  const gaps = receiverGaps('main', {
+    ...gated,
+    repo,
+    checkRuns: gh('check-runs-main-green'),
+  });
+  assert.equal(gaps.length, 1);
+  assert.match(gaps[0] ?? '', /auto-merge is not allowed/u);
+});
+
+test('a token without the workflows permission cannot deliver a workflow edit', () => {
+  const replies = { ...gated, checkRuns: gh('check-runs-main-green') };
+  const gaps = receiverGaps('main', {
+    ...replies,
+    editsWorkflows: true,
+    permissions: { contents: 'write', pull_requests: 'write' },
+  });
+  assert.match(gaps[0] ?? '', /lacks the workflows permission/u);
+  assert.deepEqual(
+    receiverGaps('main', {
+      ...replies,
+      editsWorkflows: true,
+      permissions: { workflows: 'write' },
+    }),
+    [],
+  );
+  // A lane that edits no workflow, or a token whose permissions are unknown, is not refused.
+  assert.deepEqual(
+    receiverGaps('main', { ...replies, permissions: { contents: 'write' } }),
+    [],
+  );
+  assert.deepEqual(
+    receiverGaps('main', { ...replies, editsWorkflows: true }),
+    [],
+  );
 });

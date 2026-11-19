@@ -1,7 +1,11 @@
 {
   "id": "t-r54977a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Base suite preflight proven by lane-run tests: red base exits 72 naming files with no session, timeouts-only exits 78, green cached per base SHA; receiver probe reuses verifyGaps (auto-merge) and checks the workflows permission. Pilot-py drain proof out of scope (operator credentials down)."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Lane run proves the base suite green in the lane worktree before the session",
