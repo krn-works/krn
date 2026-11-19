@@ -147,7 +147,10 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       logCostRatio: cost.diff,
       logCostSe: cost.se,
       costAdjustedP: costAdjusted[i] as number,
-      costShown: (costAdjusted[i] as number) < prereg.alpha && cost.diff < 0,
+      costShown:
+        cost.units > 1 &&
+        (costAdjusted[i] as number) < prereg.alpha &&
+        cost.diff < 0,
     };
   });
   // Dollars per resolution count every session's spend, graded or not; unknown costs add nothing and are counted.

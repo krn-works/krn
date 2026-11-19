@@ -1,0 +1,14 @@
+{
+  "id": "t-5zg9mch",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Arm C ends no-attempt on units arms A and B attempt",
+  "after": [],
+  "body": [
+    "Outcome: find why arm C ends with verdict no-attempt (0 tests run, no change after the re-prompt) on t-11kv38i and t-1182p41 where arm A and B attempted the same units, and fix it. Evidence: the 3-unit live proof of t-08zbqzn (rows 2 of 3 arm-C ungraded, C USD per resolved n/a).\nFiles: evals/replay/arm-c.ts, evals/replay/arm-session.ts\nProof: a re-run of the two units on arm C writes a graded row, or a test names the cause."
+  ],
+  "kind": "defect",
+  "area": "evals"
+}

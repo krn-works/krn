@@ -1,7 +1,11 @@
 {
   "id": "t-08zbqzn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node evals/replay/run.ts --prereg runs A/B/C resumable (test/evals/replay-matrix.test.ts); live 3-unit 1-rep run wrote 9 rows on harness 607a02868536; --report prints primary verdicts"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "One command runs the frozen A/B/C matrix from the prereg units on one harness sha, resumable",
