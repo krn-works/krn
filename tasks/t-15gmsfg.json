@@ -1,0 +1,15 @@
+{
+  "id": "t-15gmsfg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "ship gate judges a reusable-workflow Check that finishes before the required plain Check",
+  "after": [],
+  "body": [
+    "After t-h995f5s, selectRequiredCheck (src/repo/required-check.ts) still falls back to a '<caller> / Check' row when the plain 'Check' row does not exist yet. On PR #1512 (head f5a32bd, run 44562471129) 'expected-red / Check' from project-ci-selftest.yml finished red before the plain Check started, so krn pr ship reported 'gate: expected-red / Check concluded failure' and stopped. The gate must judge the context the repository actually requires (ruleset/branch protection required_status_checks, e.g. [{context: Check, integration_id: 15368}]) and wait while that exact context is absent, using '<caller> / Check' only when that is the required context (foreign-repo fixtures).",
+    "Outcome: krn pr ship on a head where a red-by-design '<x> / Check' completes before the required plain Check waits for the plain Check instead of failing; regression test failing on the base passes (exit 0).\nProof: regression test in test/ci/target-checks.test.ts (or the selector's lowest layer) with fixture: only 'expected-red / Check' failure present and required context 'Check'."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

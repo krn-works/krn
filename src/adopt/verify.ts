@@ -17,7 +17,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { projectPath } from '../harness/claude.ts';
-import { REQUIRED_CHECK_APP_ID } from '../repo/ci-admission-contract.ts';
 import {
   CONTRACT_FILE,
   contractBase,
@@ -28,7 +27,7 @@ import {
   withinPackage,
 } from '../repo/contract.ts';
 import { ghApiSync } from '../repo/gh.ts';
-import { isRequiredCheckName } from '../repo/required-check.ts';
+import { requiredContexts } from '../repo/required-check.ts';
 import { deployRemedy, deployWorkflows } from './deploy.ts';
 import { isKrnStopCommand } from './stop-hook.ts';
 import { GATE_KEYS, type GateKey, workflowGates } from './workflow-gates.ts';
@@ -37,43 +36,6 @@ const repoSchema = z.object({
   default_branch: z.string().min(1),
   allow_auto_merge: z.boolean().optional(),
 });
-
-const ACTIONS_APP_ID = REQUIRED_CHECK_APP_ID;
-const branchSchema = z.object({
-  protection: z
-    .object({
-      required_status_checks: z
-        .object({
-          checks: z
-            .array(
-              z.object({ context: z.string(), app_id: z.number().nullable() }),
-            )
-            .optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-});
-
-/** Active rules of a branch (`gh api repos/<repo>/rules/branches/<branch>`): rulesets, not classic protection. */
-const rulesSchema = z.array(
-  z.object({
-    type: z.string(),
-    parameters: z
-      .object({
-        required_status_checks: z
-          .array(
-            z.object({
-              context: z.string(),
-              integration_id: z.number().optional(),
-            }),
-          )
-          .optional(),
-      })
-      .passthrough()
-      .optional(),
-  }),
-);
 
 export interface VerifyReport {
   ok: boolean;
@@ -104,29 +66,6 @@ export function hasGithubHost(url: string | undefined): boolean {
     host.toLowerCase() === 'github.com' ||
     (extra !== undefined && host.toLowerCase() === extra.toLowerCase())
   );
-}
-
-/**
- * The required check names from GitHub Actions in the answers of `gh api repos/<repo>/branches/<branch>`
- * (classic protection) and `gh api repos/<repo>/rules/branches/<branch>` (rulesets).
- */
-export function requiredContexts(
-  branchBody: string,
-  rulesBody = '[]',
-): string[] {
-  const contexts = new Set<string>();
-  for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
-    ?.required_status_checks?.checks ?? [])
-    if (check.app_id === ACTIONS_APP_ID && isRequiredCheckName(check.context))
-      contexts.add(check.context);
-  for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
-    for (const check of rule.parameters?.required_status_checks ?? [])
-      if (
-        check.integration_id === ACTIONS_APP_ID &&
-        isRequiredCheckName(check.context)
-      )
-        contexts.add(check.context);
-  return [...contexts];
 }
 
 /**

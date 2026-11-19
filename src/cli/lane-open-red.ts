@@ -1,6 +1,8 @@
 import { newestCheck } from '../ci/ship.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
-import { ghPrListOpenSync } from '../repo/gh.ts';
+import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
+import { ghApiSync, ghPrListOpenSync } from '../repo/gh.ts';
+import { requiredContext } from '../repo/required-check.ts';
 
 type Run = {
   name?: string;
@@ -38,9 +40,16 @@ const runningStatuses = new Set([
  * run at all and is older than the grace period. A Check that is queued or in progress, or any
  * job of the head still running before the aggregate appears, is pending and never counts.
  */
-export function redOrMissing(pr: OpenPr, now: number = Date.now()): boolean {
+export function redOrMissing(
+  pr: OpenPr,
+  now: number = Date.now(),
+  context: string = REQUIRED_CHECK_NAME,
+): boolean {
   const rollup = (pr.statusCheckRollup ?? []) as Run[];
-  const check = newestCheck(rollup as Parameters<typeof newestCheck>[0]);
+  const check = newestCheck(
+    rollup as Parameters<typeof newestCheck>[0],
+    context,
+  );
   if (check !== undefined) {
     if (runningStatuses.has(check.status ?? '')) return false;
     return redConclusions.has(check.conclusion ?? '');
@@ -62,6 +71,26 @@ export function readOpenPrs(main: string): OpenPr[] | undefined {
   }
 }
 
+/** The context the repository requires on its default branch; the plain `Check` when it cannot be read. */
+function requiredContextOf(main: string): string {
+  try {
+    const repo = ghApiSync(main, 'repos/{owner}/{repo}');
+    if (repo.status !== 0) return REQUIRED_CHECK_NAME;
+    const base = (JSON.parse(repo.stdout) as { default_branch?: string })
+      .default_branch;
+    if (base === undefined) return REQUIRED_CHECK_NAME;
+    const branch = ghApiSync(main, `repos/{owner}/{repo}/branches/${base}`);
+    const rules = ghApiSync(
+      main,
+      `repos/{owner}/{repo}/rules/branches/${base}`,
+    );
+    if (branch.status !== 0 || rules.status !== 0) return REQUIRED_CHECK_NAME;
+    return requiredContext(branch.stdout, rules.stdout);
+  } catch {
+    return REQUIRED_CHECK_NAME;
+  }
+}
+
 /**
  * Refuses a new lane while KRN_OPEN_RED_MAX (default 3) open PRs have a red or missing Check.
  * When the PR list cannot be read (gh missing, offline, unauthenticated) the check passes: an
@@ -70,6 +99,7 @@ export function readOpenPrs(main: string): OpenPr[] | undefined {
 export function checkOpenRedLimit(
   main: string,
   read: (main: string) => OpenPr[] | undefined = readOpenPrs,
+  contextOf: (main: string) => string = requiredContextOf,
 ): void {
   const raw = process.env.KRN_OPEN_RED_MAX;
   const parsed = Number(raw);
@@ -79,7 +109,10 @@ export function checkOpenRedLimit(
       : 3;
   const prs = read(main);
   if (prs === undefined) return;
-  const red = prs.filter((pr) => redOrMissing(pr)).map((pr) => `#${pr.number}`);
+  const required = contextOf(main);
+  const red = prs
+    .filter((pr) => redOrMissing(pr, Date.now(), required))
+    .map((pr) => `#${pr.number}`);
   if (red.length >= max)
     throw new CliUsageError(
       `open-red limit: ${red.length} open PRs have a red or missing Check (maximum ${max}, KRN_OPEN_RED_MAX): ${red.join(', ')}; fix or close one before starting a lane`,

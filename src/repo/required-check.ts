@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   REQUIRED_CHECK_APP_ID,
   REQUIRED_CHECK_NAME,
@@ -27,22 +28,20 @@ export function isRequiredCheckName(name: string | undefined): boolean {
 }
 
 /**
- * The newest run of the required check: its name is the aggregate name and its App is the required one.
- * A rerun leaves older runs beside it and only the latest speaks for the head (later entry wins a tie).
- * A plain `Check` is the required context itself; a `<caller job> / Check` row is only the required
- * context of a repository whose caller names it so, so it is judged only while no plain `Check` exists.
- * Another workflow's reusable-workflow aggregate (a self-test that is red by design) never overrides it.
+ * The newest run of the required check: its name is exactly the context the repository requires
+ * (`Check` unless a ruleset or branch protection names another, such as a caller's `ci / Check`)
+ * and its App is the required one. A rerun leaves older runs beside it and only the latest speaks
+ * for the head (later entry wins a tie). Any other name never stands in for it, so a reusable-workflow
+ * aggregate that is red by design and finishes first never speaks for the head: the context is absent,
+ * which callers treat as pending.
  */
 export function selectRequiredCheck(
   runs: readonly CheckFact[],
+  context: string = REQUIRED_CHECK_NAME,
 ): CheckFact | undefined {
-  const candidates = runs.filter(
-    (run) =>
-      run.appId === REQUIRED_CHECK_APP_ID && isRequiredCheckName(run.name),
-  );
-  const plain = candidates.filter((run) => run.name === REQUIRED_CHECK_NAME);
   let newest: CheckFact | undefined;
-  for (const run of plain.length > 0 ? plain : candidates) {
+  for (const run of runs) {
+    if (run.appId !== REQUIRED_CHECK_APP_ID || run.name !== context) continue;
     if (
       newest === undefined ||
       (run.startedAt ?? '') >= (newest.startedAt ?? '')
@@ -79,4 +78,76 @@ export function supersededByRerun(
       actionsRun(run) === owner &&
       run.status !== 'COMPLETED',
   );
+}
+
+const branchSchema = z.object({
+  protection: z
+    .object({
+      required_status_checks: z
+        .object({
+          checks: z
+            .array(
+              z.object({ context: z.string(), app_id: z.number().nullable() }),
+            )
+            .optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+/** Active rules of a branch (`gh api repos/<repo>/rules/branches/<branch>`): rulesets, not classic protection. */
+const rulesSchema = z.array(
+  z.object({
+    type: z.string(),
+    parameters: z
+      .object({
+        required_status_checks: z
+          .array(
+            z.object({
+              context: z.string(),
+              integration_id: z.number().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+  }),
+);
+
+/**
+ * The required check names from GitHub Actions in the answers of `gh api repos/<repo>/branches/<branch>`
+ * (classic protection) and `gh api repos/<repo>/rules/branches/<branch>` (rulesets).
+ */
+export function requiredContexts(
+  branchBody: string,
+  rulesBody = '[]',
+): string[] {
+  const contexts = new Set<string>();
+  for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
+    ?.required_status_checks?.checks ?? [])
+    if (
+      check.app_id === REQUIRED_CHECK_APP_ID &&
+      isRequiredCheckName(check.context)
+    )
+      contexts.add(check.context);
+  for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
+    for (const check of rule.parameters?.required_status_checks ?? [])
+      if (
+        check.integration_id === REQUIRED_CHECK_APP_ID &&
+        isRequiredCheckName(check.context)
+      )
+        contexts.add(check.context);
+  return [...contexts];
+}
+
+/** The one required context a repository names, else the plain `Check`: what a delivery gate judges. */
+export function requiredContext(branchBody: string, rulesBody = '[]'): string {
+  try {
+    const [only] = requiredContexts(branchBody, rulesBody);
+    return only ?? REQUIRED_CHECK_NAME;
+  } catch {
+    return REQUIRED_CHECK_NAME;
+  }
 }

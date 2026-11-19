@@ -3,13 +3,14 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
+import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { repositoryOfRemote } from '../repo/remote.ts';
 import {
   CHECK_FACT_FILTER,
   type CheckFact,
   isGreen,
-  isRequiredCheckName,
+  requiredContext,
   selectRequiredCheck,
   supersededByRerun,
 } from '../repo/required-check.ts';
@@ -86,15 +87,16 @@ const prView = z.object({
 });
 type PrView = z.infer<typeof prView>;
 /**
- * The newest aggregate Check of the head: a rerun or a superseded run leaves older runs in the
+ * The newest required Check (exactly the required context) of the head: a rerun or a superseded run leaves older runs in the
  * rollup, and only the latest one speaks for the head. Ordered by start time, later entry on a tie.
  */
 export function newestCheck(
   rollup: PrView['statusCheckRollup'],
+  context: string = REQUIRED_CHECK_NAME,
 ): PrView['statusCheckRollup'][number] | undefined {
   let newest: PrView['statusCheckRollup'][number] | undefined;
   for (const run of rollup) {
-    if (!isRequiredCheckName(run.name)) continue;
+    if (run.name !== context) continue;
     if (
       newest === undefined ||
       (run.startedAt ?? '') >= (newest.startedAt ?? '')
@@ -246,6 +248,20 @@ async function shipRun(
       ])
     ).trim();
 
+  // The gate judges the context the repository requires, and waits while that exact context is absent.
+  const requiredName = await (async () => {
+    try {
+      const branchBody = await gh(['api', `repos/${repo}/branches/${target}`]);
+      const rulesBody = await gh([
+        'api',
+        `repos/${repo}/rules/branches/${target}`,
+      ]);
+      return requiredContext(branchBody, rulesBody);
+    } catch {
+      return REQUIRED_CHECK_NAME;
+    }
+  })();
+
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
     git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
@@ -323,7 +339,7 @@ ${synced}`;
       !Number.isInteger(pr)
     )
       return;
-    const conclusion = newestCheck(rollup)?.conclusion;
+    const conclusion = newestCheck(rollup, requiredName)?.conclusion;
     try {
       runtime.completeClose(main, {
         task,
@@ -818,6 +834,7 @@ ${synced}`;
   const outcome = await waitForMerge({
     view,
     checks,
+    context: requiredName,
     queued,
     head,
     mergeCurrent,
@@ -856,6 +873,8 @@ async function waitForMerge(options: {
   view: () => Promise<PrView>;
   /** The check runs of the head with their App ids: the required check is selected by name and App. */
   checks: (head: string) => Promise<CheckFact[]>;
+  /** The context the repository requires; the plain `Check` when unset. */
+  context?: string;
   /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
   queued: (head: string) => Promise<boolean>;
   head: string;
@@ -917,7 +936,7 @@ async function waitForMerge(options: {
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
     const facts = await options.checks(head);
-    const check = selectRequiredCheck(facts);
+    const check = selectRequiredCheck(facts, options.context);
     const conclusion = check?.conclusion || undefined;
     // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
     const settled =

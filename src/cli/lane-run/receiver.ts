@@ -6,6 +6,7 @@ import { cachedPermissions } from '../../ci/app-token.ts';
 import { ghApiSync } from '../../repo/gh.ts';
 import {
   type CheckFact,
+  requiredContext,
   selectRequiredCheck,
 } from '../../repo/required-check.ts';
 
@@ -111,7 +112,10 @@ export function receiverGaps(base: string, replies: ReceiverReplies): string[] {
       status: run.status?.toUpperCase() ?? null,
       conclusion: run.conclusion?.toUpperCase() ?? null,
     }));
-  const check = selectRequiredCheck(runs);
+  const check = selectRequiredCheck(
+    runs,
+    requiredContext(replies.branch, replies.rules),
+  );
   if (
     check?.status === 'COMPLETED' &&
     red.has(check.conclusion ?? '') &&

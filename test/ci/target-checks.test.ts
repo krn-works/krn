@@ -36,7 +36,8 @@ test('a same-named Check of a foreign App is never the required check', () => {
 
 test('the aggregate of a reusable workflow is selected, a job named like it is not', () => {
   const nested = run({ name: 'ci / Check' });
-  assert.equal(selectRequiredCheck([nested]), nested);
+  assert.equal(selectRequiredCheck([nested], 'ci / Check'), nested);
+  assert.equal(selectRequiredCheck([nested]), undefined);
   assert.equal(selectRequiredCheck([run({ name: 'Lint' })]), undefined);
   assert.equal(selectRequiredCheck([run({ name: 'Recheck' })]), undefined);
 });
@@ -54,7 +55,11 @@ test('a reusable-workflow Check that is red by design never overrides the plain 
   });
   assert.equal(selectRequiredCheck([required, expectedRed, green]), required);
   assert.equal(selectRequiredCheck([expectedRed, required]), required);
-  assert.equal(selectRequiredCheck([expectedRed]), expectedRed);
+  assert.equal(selectRequiredCheck([expectedRed]), undefined);
+  assert.equal(
+    selectRequiredCheck([expectedRed], 'expected-red / Check'),
+    expectedRed,
+  );
 });
 
 test('only SUCCESS is green: skipped, neutral and missing conclusions are not', () => {
