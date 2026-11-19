@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -43,6 +43,8 @@ function run(command: string, cwd: string, args: string[] = [], extra = {}) {
   const env = { ...process.env };
   delete env.KRN_TEST_SLOT_HELD;
   delete env.KRN_HEAVY_GATE_EXCLUDE;
+  // An empty config home: the host's own heavy-gate.json never changes a verdict here.
+  env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'cfg-'));
   return spawnSync(process.execPath, [entry, ...args], {
     input: JSON.stringify(payload(command, cwd, extra)),
     encoding: 'utf8',
@@ -158,7 +160,14 @@ test('a command already gated, inside a slot or in a KRN checkout passes unchang
   assert.ok(exemption(`'/a/bin/heavy-gate' run -- npm test`, shop, {}));
   assert.ok(exemption('npm test', shop, { KRN_TEST_SLOT_HELD: '1' }));
   assert.ok(exemption('npm test', join(repo('krn', true), 'sub'), {}));
-  assert.equal(judge(payload('npm test', repo('krn', true)), {}), undefined);
+  assert.equal(
+    judge(
+      payload('npm test', repo('krn', true)),
+      {},
+      { exclude: [], heavy: [] },
+    ),
+    undefined,
+  );
 });
 
 test('a background run waits up to half an hour; a foreground one at least ten seconds', () => {
@@ -200,4 +209,29 @@ test('an invalid host config is named and ignored', () => {
     exclude: [],
     heavy: [],
   });
+});
+
+// KRN-12: a verbatim Codex PreToolUse payload (paths redacted), captured from `codex exec` 0.170.
+test('the Codex form refuses the captured Codex payload and names the gated command', () => {
+  const capture = readFileSync(
+    fileURLToPath(
+      new URL('../fixtures/codex-hooks/pre-tool-use.json', import.meta.url),
+    ),
+    'utf8',
+  );
+  const env = { ...process.env };
+  delete env.KRN_TEST_SLOT_HELD;
+  delete env.KRN_HEAVY_GATE_EXCLUDE;
+  const result = spawnSync(process.execPath, [entry, '--codex'], {
+    input: capture,
+    encoding: 'utf8',
+    env: { ...env, XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), 'cfg-')) },
+  });
+  assert.equal(result.status, 2);
+  assert.ok(
+    result.stderr.includes(
+      `cd sub && '${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm test --prefix ..'`,
+    ),
+    result.stderr,
+  );
 });

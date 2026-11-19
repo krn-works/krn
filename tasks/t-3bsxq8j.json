@@ -1,7 +1,11 @@
 {
   "id": "t-3bsxq8j",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Operator granted Codex hook trust 2026-11-19; the released heavy-command --codex entry is installed and trusted (trusted_hash = sha256 of the sorted-key JSON {event_name, hooks:[{async:false,...handler}], matcher}, recipe from codex-rs hooks/src/engine/discovery.rs, checked against the existing commit-format entry). Live codex exec: npm test refused, the named heavy-gate command ran with KRN_TEST_SLOT_HELD=1. Capture: test/fixtures/codex-hooks/pre-tool-use.json fed to the real entry in test/hook/heavy-command.test.ts."
+  },
   "created": "2026-11-19",
   "priority": 2,
   "title": "Scheduled batch services wait for the host heavy-job gate",

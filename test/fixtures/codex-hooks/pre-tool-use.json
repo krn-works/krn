@@ -1,0 +1,12 @@
+{
+  "session_id": "01a1f4ec-8603-7501-8e0e-7169543ec60d",
+  "turn_id": "01a1f4ec-8741-7e12-b5fe-ab41fba20988",
+  "transcript_path": "/fixture/codex/sessions/2026/11/19/rollout-2026-11-19T18-48-23-01a1f4ec-8603-7501-8e0e-7169543ec60d.jsonl",
+  "cwd": "/fixture/project",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-6.2-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "Bash",
+  "tool_input": { "command": "cd sub && npm test --prefix .." },
+  "tool_use_id": "exec-127121e1-bd4e-42af-833d-4a924bbfe339"
+}

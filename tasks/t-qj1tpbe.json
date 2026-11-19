@@ -1,7 +1,11 @@
 {
   "id": "t-qj1tpbe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "#1523: Claude Code rewrite and Codex refusal hooks installed host-wide from the release, ~/.local/bin/heavy-gate linked, host patterns for replay/judge scripts in ~/.config/krn/heavy-gate.json. Proof: two scratch projects' npm test through the rewritten command at once: one held the slot, the other waited and got it after 25.5s. Load stayed ~28 (above 20) from work outside the gate (systemd scans t-xwp1ft2, agent-browser Chrome, unmatched scripts), so the load criterion is not met yet. Not wired: mise-en-plesk systemd scan (t-xwp1ft2), Codex before trust (t-3bsxq8j, done), commands no pattern matches. wilq-seo excluded."
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Other projects' heavy commands run through the host heavy-job gate",
