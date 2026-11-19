@@ -475,6 +475,28 @@ export function editRecords(
     .sort((a, b) => tierEffect(packetRecord(b)) - tierEffect(packetRecord(a)));
 }
 
+/**
+ * The records of `scoped` that pass the retrieval gate for `text` (the task's words and the edited file), best
+ * match first: the gate task start applies (`CONFIDENCE_THRESHOLD` on the match score, the graded-failure
+ * exemption of `brainPacket`), so a scope match alone never serves a record. No cap here; `withinBudget` caps.
+ */
+export function confidentRecords(
+  scoped: readonly Standard[],
+  text: string,
+  asOf: string,
+): Standard[] {
+  const byId = new Map(scoped.map((standard) => [standard.id, standard]));
+  return brainPacket({
+    task: QUERY_TASK,
+    query: text,
+    records: scoped.map(packetRecord),
+    asOf,
+    budget: Number.MAX_SAFE_INTEGER,
+    effect: tierEffect,
+    minMatch: CONFIDENCE_THRESHOLD,
+  }).records.flatMap((id) => byId.get(id) ?? []);
+}
+
 /** The records of `ranked` whose rendered lines fit `budget` tokens together, in order. */
 export function withinBudget(
   ranked: readonly Standard[],

@@ -18,12 +18,12 @@ import { SERVE_POLICY } from '../brain/packet.ts';
 import type { Standard } from '../brain/standards.ts';
 import { taskKey } from '../brain/task-query.ts';
 import {
+  confidentRecords,
   EDIT_BUDGET,
   editLine,
   editRecords,
   fileStack,
   heldOut,
-  queryStandards,
   withinBudget,
 } from '../brain/worker-packet.ts';
 import { emitContext, hookInput, hookStdin } from '../harness/claude.ts';
@@ -87,10 +87,9 @@ export function commandFiles(
 }
 
 /**
- * The records scoped to `file`, the ones the task's words match first. The scope list alone ranks by tier,
- * so a file with dozens of scoped records buried the one the work needed (3 of 12 reachable labels in the
- * first five); the task's title and Outcome rank them the way a query does. Without task text the order is
- * the scope list's.
+ * The records scoped to `file` that pass the retrieval gate task start applies: the task's title and
+ * Outcome plus the file's path must match a record with confidence at least the threshold, best match first.
+ * A scope match alone, or a task with no words, serves nothing.
  */
 export function editRecordsFor(
   project: string,
@@ -98,19 +97,11 @@ export function editRecordsFor(
   asOf: string,
   taskText = '',
 ): Standard[] {
-  const scoped = editRecords(project, file, asOf);
-  if (taskText.trim() === '' || scoped.length < 2) return scoped;
-  const order = queryStandards(project, {
-    text: taskText,
-    files: [file],
+  return confidentRecords(
+    editRecords(project, file, asOf),
+    `${taskText} ${file}`,
     asOf,
-    budget: Number.MAX_SAFE_INTEGER,
-  }).map((hit) => hit.id);
-  const rank = (standard: Standard) => {
-    const at = order.indexOf(standard.id);
-    return at < 0 ? order.length : at;
-  };
-  return [...scoped].sort((a, b) => rank(a) - rank(b));
+  );
 }
 
 /** The retrieval text of the task a session works on: its title, Outcome and Files, or empty. */
