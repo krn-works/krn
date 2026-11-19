@@ -1,7 +1,11 @@
 {
   "id": "t-5zg9mch",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Cause: krn not callable in the arm C sandbox (host krn is a symlink into an unmounted checkout), so the adopted hooks refused every Bash and Stop. Fixed with a krn shim and ro mounts; rerun: t-11kv38i pass, t-1182p41 attempted (3 tests run), both off no-attempt."
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Arm C ends no-attempt on units arms A and B attempt",

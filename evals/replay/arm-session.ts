@@ -81,6 +81,8 @@ export interface ArmOptions {
   sessionMs?: number;
   model?: string | undefined;
   budgetUsd?: number;
+  /** Host paths the session sees read-only on top of its checkout (arm C: the krn its hooks call). */
+  readable?: readonly string[];
   /** Runs the session; the default is the sandboxed driver. Tests pass a recorded one. */
   session?: (
     wt: string,
@@ -182,7 +184,7 @@ export async function sandboxedSession(
   wt: string,
   prompt: string,
   env: NodeJS.ProcessEnv,
-  o: Pick<ArmOptions, 'sessionMs' | 'model' | 'budgetUsd'> & {
+  o: Pick<ArmOptions, 'sessionMs' | 'model' | 'budgetUsd' | 'readable'> & {
     resume?: string;
   },
 ): Promise<DrivenSession> {
@@ -232,7 +234,10 @@ export async function sandboxedSession(
           ownCache(env),
           ...(codex?.writable ?? []),
         ],
-        ...(isAbsolute(bin) ? { readable: [dirname(bin)] } : {}),
+        readable: [
+          ...(isAbsolute(bin) ? [dirname(bin)] : []),
+          ...(o.readable ?? []),
+        ],
         egress: egress.socket,
         env: sessionEnv,
       }),

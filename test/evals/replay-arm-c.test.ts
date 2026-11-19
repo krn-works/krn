@@ -11,7 +11,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import * as armC from '../../evals/replay/arm-c.ts';
 import { driveSession } from '../../evals/replay/session.ts';
+import { sandboxArgv } from '../../evals/units/sandbox.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const git = (cwd: string, ...a: string[]) =>
@@ -163,4 +165,34 @@ test('the driver reports a missing claude as not started', async () => {
   });
   assert.equal(s.notStarted, true);
   assert.match(s.result.detail, /not found/u);
+});
+
+// The verbatim guard `krn adopt` writes into .claude/settings.json for every Bash call (arm C's session log, 2026-11-19).
+const bashGuard =
+  "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN stash guard cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook stash";
+
+test('arm C session sandbox: the adopted hook guard finds a working krn', (t) => {
+  // Without bubblewrap the sandbox half cannot run; the same guard is exercised on every host that can run the arm.
+  if (spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status !== 0) return;
+  const scratch = mkdtempSync(join(tmpdir(), 'arm-c-krn-'));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  // Read through the namespace so a base without the export fails this assertion, not the module load.
+  const owner = (armC as Record<string, unknown>).krnOnPath;
+  assert.equal(typeof owner, 'function', 'arm C puts krn on the session PATH');
+  const k = (owner as typeof armC.krnOnPath)(
+    { PATH: process.env.PATH, HOME: process.env.HOME },
+    scratch,
+  );
+  const r = spawnSync(
+    'bwrap',
+    sandboxArgv(`echo '{}' | { ${bashGuard}; }`, {
+      cwd: scratch,
+      writable: [scratch],
+      readable: k.readable,
+      env: k.env,
+    }),
+    { encoding: 'utf8' },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /krn is not on PATH/u);
 });
