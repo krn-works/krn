@@ -79,6 +79,36 @@ function taskScope(root: string, id: string): string[] | undefined {
   }
 }
 
+/**
+ * Foreign paths the lead admitted for this lane: `lane-target: <path>` lines in the task record's body
+ * (the brief), or the comma list in KRN_LANE_TARGET. A target covers the path and everything under it.
+ */
+export function laneTargets(
+  env: NodeJS.ProcessEnv,
+  root: string,
+  branch = '',
+): string[] {
+  const found = (env.KRN_LANE_TARGET ?? '').split(',');
+  const id = env.KRN_TASK ?? taskId(branch) ?? taskId(basename(root));
+  if (id !== undefined) {
+    try {
+      const task = JSON.parse(
+        readFileSync(resolve(root, 'tasks', `${id}.json`), 'utf8'),
+      ) as { body?: string[] };
+      for (const match of (task.body ?? [])
+        .join('\n')
+        .matchAll(/^\s*lane-target:\s*(\S+)/gimu))
+        found.push(match[1] as string);
+    } catch {
+      // no task record: no admitted target
+    }
+  }
+  return found
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((e) => resolve(e));
+}
+
 /** The worker identity of this session, or undefined for the lead. */
 // A task id stands alone in a branch or path: `verdict-evidence` holds `t-evidenc`, which is no id.
 const taskIdToken = /(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/u;
@@ -203,6 +233,7 @@ function commandTargets(command: string): string[] {
     const [name, ...rest] = words;
     const operands = (list: string[]) =>
       list.filter((word) => !word.startsWith('-'));
+    if (name === 'git' && rest[0] === '-C' && rest[1]) found.push(rest[1]);
     if (name === 'rm' || name === 'mv') found.push(...operands(rest));
     else if (name === 'cp') found.push(...operands(rest).slice(-1));
     else if (name === 'git' && rest[0] === 'add')
@@ -255,6 +286,7 @@ export function strayRedirect(
   cwd: string,
   root: string,
   env: NodeJS.ProcessEnv,
+  extra: readonly string[] = [],
 ): string | undefined {
   const inside = (base: string, target: string) => {
     const rel = relative(base, target);
@@ -264,6 +296,7 @@ export function strayRedirect(
   const at = root.indexOf(marker);
   const allowed = [
     root,
+    ...extra,
     ...(at < 0 ? [] : [join(root.slice(0, at), '.krn', 'runs')]),
     ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
   ];
@@ -277,6 +310,39 @@ export function strayRedirect(
 export interface Verdict {
   refusal?: string;
   note?: string;
+}
+
+/**
+ * A write target outside the lane's own worktree, in any repository: Edit, Write and Bash get the same verdict.
+ * Allowed: the worktree, <main>/.krn/runs, the harness scratchpad, /dev/*, and the lane-target paths.
+ */
+export function foreignTarget(
+  root: string,
+  targets: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  admitted: readonly string[],
+): string | undefined {
+  const marker = `${sep}.krn${sep}worktrees${sep}`;
+  const at = root.indexOf(marker);
+  if (at < 0) return undefined;
+  const inside = (base: string, target: string) => {
+    const rel = relative(base, target);
+    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
+  };
+  const allowed = [
+    root,
+    join(root.slice(0, at), '.krn', 'runs'),
+    ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
+    ...admitted,
+  ];
+  return targets
+    .map((target) => (isAbsolute(target) ? target : resolve(cwd, target)))
+    .find(
+      (target) =>
+        !target.startsWith('/dev/') &&
+        !allowed.some((base) => inside(base, target)),
+    );
 }
 
 /** The refusal text, or undefined when the call is allowed. */
@@ -325,12 +391,24 @@ export function judge(
       isAbsolute(target) ? target : resolve(cwd, target),
     ),
   );
+  const admitted = laneTargets(env, root, branch);
+  const foreign = foreignTarget(root, targets, cwd, env, admitted);
+  if (foreign !== undefined && escaped === undefined)
+    return {
+      refusal: `Refused: ${foreign} is outside this lane's worktree (${root}). Nothing in this call ran. Write under your worktree; a foreign repository needs a \`lane-target: <path>\` line in the brief (src/hook/scope.ts).`,
+    };
   if (escaped !== undefined)
     return {
       refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (src/hook/scope.ts).`,
     };
   if (fields.tool_name === 'Bash' && typeof input.command === 'string') {
-    const stray = strayRedirect(input.command, resolve(cwd), root, env);
+    const stray = strayRedirect(
+      input.command,
+      resolve(cwd),
+      root,
+      env,
+      admitted,
+    );
     if (stray !== undefined)
       return {
         refusal: `Refused: ${stray} is outside this lane's worktree (${root}). Nothing in this call ran. Scratch rule: write logs and drafts under ${join(root, '.krn', 'tmp')}, never /tmp or another outside path (src/hook/scope.ts).`,

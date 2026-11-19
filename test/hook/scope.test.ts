@@ -203,12 +203,10 @@ test('a lane session may not write the main checkout outside its worktree and .k
     cwd: lane,
     tool_input: { file_path: `${main}/src/x.ts` },
   });
-  for (const ok of [
-    `${lane}/src/a.ts`,
-    `${main}/.krn/runs/lane-x/notes.md`,
-    '/tmp/x',
-  ])
+  for (const ok of [`${lane}/src/a.ts`, `${main}/.krn/runs/lane-x/notes.md`])
     assert.equal(decide(w(ok), env), undefined, ok);
+  // /tmp is outside the worktree for an Edit as for a Bash redirect.
+  assert.match(decide(w('/tmp/x'), env) ?? '', /outside this lane/u);
   assert.match(
     decide(w(`${main}/src/a.ts`), {
       CLAUDE_PROJECT_DIR: lane,
@@ -367,5 +365,48 @@ test('a lead session may redirect anywhere', () => {
   assert.equal(
     decide(bash('krn pr ship > /tmp/x'), { CLAUDE_PROJECT_DIR: root }),
     undefined,
+  );
+});
+
+test('Edit, Write and Bash outside the lane worktree get one refusal; lane-target admits one foreign path', () => {
+  const wt = '/r/main/.krn/worktrees/lane';
+  const env = {
+    CLAUDE_PROJECT_DIR: wt,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_TASK: 't-abcdefg',
+    KRN_SCOPE: 'src/',
+  };
+  const call = (tool_name: string, tool_input: object) => ({
+    tool_name,
+    cwd: wt,
+    tool_input,
+  });
+  const foreign = '/r/other/.node-version';
+  for (const payload of [
+    call('Edit', { file_path: foreign }),
+    call('Write', { file_path: foreign }),
+    call('Bash', { command: `echo 1 > ${foreign}` }),
+    call('Bash', { command: `sed -i s/a/b/ ${foreign}` }),
+    call('Bash', { command: 'git -C /r/other commit -m x' }),
+  ])
+    assert.match(
+      decide(payload, env) ?? '',
+      /Refused: .*outside this lane's worktree/u,
+      JSON.stringify(payload),
+    );
+  assert.equal(
+    decide(call('Edit', { file_path: `${wt}/src/a.ts` }), env),
+    undefined,
+  );
+  const admitted = { ...env, KRN_LANE_TARGET: '/r/other' };
+  for (const payload of [
+    call('Edit', { file_path: foreign }),
+    call('Write', { file_path: foreign }),
+    call('Bash', { command: `echo 1 > ${foreign}` }),
+  ])
+    assert.equal(decide(payload, admitted), undefined);
+  assert.match(
+    decide(call('Edit', { file_path: '/r/third/x' }), admitted) ?? '',
+    /Refused/u,
   );
 });
