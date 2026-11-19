@@ -1260,5 +1260,45 @@
     "valid_from": "2026-11-16",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "s-ci-rule-states-principle",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A record text states a principle that holds after its incident is forgotten; the incident goes in provenance.evidence. CI runs `node --test test/rules/rule-states-principle.test.ts`.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [
+        ".agents/records.json",
+        "standards/records.json",
+        "src/brain/**"
+      ],
+      "terms": [
+        "record",
+        "principle",
+        "incident",
+        "evidence",
+        "propose",
+        "rule"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node --test test/rules/rule-states-principle.test.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["test/rules/rule-states-principle.test.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-19",
+    "valid_from": "2026-11-19",
+    "valid_to": null,
+    "supersedes": []
   }
 ]

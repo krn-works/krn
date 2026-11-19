@@ -13,4 +13,4 @@ The repository's rules live as records in its standards store, not as prose. Ask
 - Follow each record printed: its text is a requirement, its `why` is the reason, and a record with an enforcement command names the check that runs at Stop.
 - Query again when the task moves to other files or a new kind of change; the answer is scoped to the files and words you give.
 - `krn standards --help` lists the other verbs (`check`, `review`, `propose`); `krn standards review` prints `file:line` for each violation in your diff before you stop.
-- A rule that is missing, wrong or in the way is not edited around: propose it with `krn standards propose`, and say so in your report.
+- A rule that is missing, wrong or in the way is not edited around: propose it with `krn standards propose`, and say so in your report. State the principle; the incident is evidence.
