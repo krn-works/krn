@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": ""
+    "note": "selectRequiredCheck prefers the plain Check; test/ci/target-checks.test.ts regression fails on base and passes after; npm run fast PASS"
   },
   "created": "2026-11-19",
   "priority": 0,
