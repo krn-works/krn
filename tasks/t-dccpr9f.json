@@ -1,0 +1,14 @@
+{
+  "id": "t-dccpr9f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "A task Proof or Files line that names a missing path is refused at create",
+  "after": [],
+  "body": [
+    "Outcome: a task whose Proof or Files line names a repository path that does not exist is refused when it is created or edited, so the pre-push Proof run never finds a missing file after a full local check.\nProof: `node --test test/task/quality.test.ts` passes with a case where a Proof naming a missing test file is refused at create.\nEvidence: t-8v6620r named scripts/lib/fast-plan.ts and test/scripts/fast-plan.test.ts, which never existed; pre-push refused the push with exit 81 only after fast had passed, and the record had to be reopened to fix its body.\nFiles: src/task/ (create/edit validation), test/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}
