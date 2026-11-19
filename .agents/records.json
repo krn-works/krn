@@ -795,5 +795,53 @@
     "valid_from": "2026-10-07",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "r-stop-skip-needs-session-proof",
+    "type": "pitfall",
+    "text": "When you explain why a lane's Stop or standards check did not run, first prove that a session ran: the lane line shows cost and turns, and the worktree's .krn/runs/hook/timing.jsonl holds a Stop entry near the run time. No cost or turns means no session ran; no Stop entry means Stop never ran. Name that cause, never a Stop condition such as recordedShip.",
+    "why": "Operator correction: the lead attributed a skipped Stop to recordedShip in src/hook/stop.ts without checking that any session ran (transcript 20ca9bff, cut 317).",
+    "audience": "lead",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": [".krn/runs/hook/timing.jsonl", "src/hook/stop.ts"],
+      "terms": [
+        "stop",
+        "skipped",
+        "skip",
+        "standards",
+        "lane",
+        "session",
+        "ran",
+        "recordedShip",
+        "ship",
+        "headless",
+        "diagnose",
+        "why",
+        "timing",
+        "cost",
+        "turns"
+      ]
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "operator correction, transcript 20ca9bff-68ad-4461-98c5-affe112caea3 line 326",
+      "evidence": [
+        "transcript 20ca9bff-68ad-4461-98c5-affe112caea3 line 326 (operator: check for a conflict and find what is wrong)",
+        "evals/replay/agent-replay-cases.ts#stop-attribution-unchecked"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-19",
+    "valid_from": "2026-11-19",
+    "valid_to": null,
+    "supersedes": [],
+    "subject": "lead-diagnosis-of-stop-outcome",
+    "evidence_kind": "operator-verbatim"
   }
 ]
