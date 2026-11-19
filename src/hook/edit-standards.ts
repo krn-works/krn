@@ -8,7 +8,14 @@
 // leaves the edit untouched.
 import { execFileSync } from 'node:child_process';
 import { statSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 import {
   appendExposure,
   readExposures,
@@ -216,7 +223,7 @@ export function main(): void {
     let blocks: string[] = [];
     try {
       const main = mainCheckout(input.project);
-      const task = process.env.KRN_TASK ?? taskId(input.project);
+      const task = process.env.KRN_TASK ?? taskId(basename(input.project));
       const claimed =
         task === undefined ? '' : sessionTaskText(input.project, main, task);
       const taskText = claimed.trim() === '' ? editSignal(payload) : claimed;

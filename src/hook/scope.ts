@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { TASKS_DIR } from '../task/paths.ts';
@@ -113,7 +113,7 @@ export function worker(
   if (!workerCall(env, payload)) return undefined;
   const lane = env.KRN_SESSION_CLASS === 'lane';
   if (env.KRN_SCOPE !== undefined) return { scope: parseScope(env.KRN_SCOPE) };
-  const id = env.KRN_TASK ?? taskId(branch) ?? taskId(root);
+  const id = env.KRN_TASK ?? taskId(branch) ?? taskId(basename(root));
   const scope = id === undefined ? undefined : taskScope(root, id);
   if (scope) return { scope };
   if (!lane) return { scope: [] };

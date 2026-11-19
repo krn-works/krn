@@ -1,7 +1,11 @@
 {
   "id": "t-0xwpffr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Root cause: a task id anywhere in the checkout path (tmpdir inside a lane worktree) was read as the session identity by scope.worker, edit-standards and the compaction identifier index. Proved by test/hook/scope.test.ts and test/claude/identifier-index.test.ts regressions, and the stop and context-restart tests passing with TMPDIR inside a lane worktree and KRN_TASK/KRN_LANE/KRN_SESSION_CLASS set."
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Hook tests build their own task identity, so a lane's base run stays green",
