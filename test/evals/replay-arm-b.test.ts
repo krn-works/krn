@@ -105,6 +105,36 @@ test('the injection count of an unadopted checkout matches what adoption writes 
   }
 });
 
+test('arm C injection and the arm B parity target count at most 3 records behind the confidence gate', () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-arm-b-cap-'));
+  try {
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      record(`r-${i}`, `Format the parser with biome rule ${i}.`, 'reflex'),
+    );
+    const brief = 'format the parser';
+    const asOf = '2026-11-13';
+    const lines = (n: number) =>
+      tokens(
+        rows
+          .slice(0, n)
+          .map((r) => `- [${r.id}] ${r.text}`)
+          .join('\n'),
+      );
+    const injected =
+      injectionTokens(rows, root, 't-aaaaaaa', brief, asOf) - adoptionTokens();
+    // Ten records match; the packet carries three of them, so B's target is three records' tokens.
+    assert.equal(injected, lines(3));
+    assert.equal(renderStatic(rows, injected).records.length, 3);
+    // One shared word is below the threshold: nothing is injected beyond the adopted text.
+    assert.equal(
+      injectionTokens(rows, root, 't-aaaaaaa', 'parser', asOf),
+      adoptionTokens(),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 /** One unit over a local clone; the hidden test passes once fixed.txt exists. */
 function fixture(root: string) {
   const clone = join(root, 'sources', 'o__r');

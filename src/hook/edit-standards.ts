@@ -14,6 +14,7 @@ import {
   readExposures,
   servedExposure,
 } from '../brain/exposures.ts';
+import { SERVE_POLICY } from '../brain/packet.ts';
 import type { Standard } from '../brain/standards.ts';
 import { taskKey } from '../brain/task-query.ts';
 import {
@@ -174,7 +175,7 @@ export function editContext(
     /* The log is evidence, never a reason to lose the block. */
   }
   if (served.length === 0) return undefined;
-  return `Standards for editing ${file} (${served.length}):\n${served.map(editLine).join('\n')}`;
+  return `Standards for editing ${file} (${served.length}; ${SERVE_POLICY}):\n${served.map(editLine).join('\n')}`;
 }
 
 /** The main checkout of `project` (the worktree's common directory's parent). */

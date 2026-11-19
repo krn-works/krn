@@ -13,9 +13,12 @@ import { appendExposure, exposureOf } from './exposures.ts';
 import {
   type BrainRecord,
   brainPacket,
+  CONFIDENCE_THRESHOLD,
   type Packet,
   packetRecord,
   parseRecords,
+  SERVE_CAP,
+  SERVE_POLICY,
   tokens,
 } from './packet.ts';
 import { parseUnified } from './record.ts';
@@ -179,6 +182,8 @@ export function packetOver(
     asOf,
     budget,
     effect: tierEffect,
+    // The frozen FR-40 carrier (holdout false) keeps its measured selection.
+    ...(holdout ? { limit: SERVE_CAP, minMatch: CONFIDENCE_THRESHOLD } : {}),
   });
 }
 
@@ -213,10 +218,14 @@ export function recordBriefExposure(
   }
 }
 
-/** The brief the worker receives: the packet as a conventions block, then the lead's brief. */
-export function packetBrief(packet: Packet | null, brief: string): string {
+/** The brief the worker receives: the packet as a conventions block (naming the cap and threshold when `capped`), then the lead's brief; the frozen carrier is never capped. */
+export function packetBrief(
+  packet: Packet | null,
+  brief: string,
+  capped = false,
+): string {
   if (packet === null || packet.records.length === 0) return brief;
-  return `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}):\n${packet.text}\n\n${brief}`;
+  return `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}${capped ? `; ${SERVE_POLICY}` : ''}):\n${packet.text}\n\n${brief}`;
 }
 
 /**
@@ -257,11 +266,11 @@ export function gatesBlock(repo: string, asOf: string): string | undefined {
     return undefined;
   }
   if (ids.length === 0) return undefined;
-  const head = `Before Stop, run '${REVIEW_COMMAND}': it prints file:line for each violation in your diff.\nGates run at Stop (check them with '${GATES_COMMAND}'): `;
+  const head = `Before Stop, run '${REVIEW_COMMAND}': it prints file:line for each violation in your diff.\nGates run at Stop (check them with '${GATES_COMMAND}'; names ${SERVE_POLICY}): `;
   const kept: string[] = [];
   for (const id of ids) {
     const next = `${head}${[...kept, id].join(', ')}`;
-    if (tokens(next) > GATES_BUDGET) break;
+    if (kept.length >= SERVE_CAP || tokens(next) > GATES_BUDGET) break;
     kept.push(id);
   }
   return kept.length === 0 ? undefined : `${head}${kept.join(', ')}`;
@@ -474,6 +483,7 @@ export function withinBudget(
   const kept: Standard[] = [];
   for (const standard of ranked) {
     const next = [...kept, standard];
+    if (kept.length >= SERVE_CAP) break;
     if (tokens(next.map(editLine).join('\n')) <= budget) kept.push(standard);
   }
   return kept;

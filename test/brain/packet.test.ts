@@ -114,3 +114,46 @@ test('an unknown task id is a usage error', () => {
     (error: Error & { exitCode?: number }) => error.exitCode === 64,
   );
 });
+
+test('the match threshold drops a one-term match, also of a research-candidate trial record, but keeps a record proposed from a graded failure', () => {
+  const text = 'parser output is formatted';
+  const served = (over: Partial<BrainRecord>) =>
+    brainPacket({
+      task: 't',
+      query: 'parser',
+      records: [record({ id: 'r-one', text, ...over })],
+      asOf: '2026-11-01',
+      budget: 400,
+      minMatch: 2,
+    }).records;
+  assert.deepEqual(served({}), []);
+  assert.deepEqual(
+    served({ source: 'krn standards propose --from-candidate' }),
+    [],
+  );
+  assert.deepEqual(served({ gradedFailure: true }), ['r-one']);
+});
+
+test('a hidden-test evidence record parsed from the store carries the graded-failure mark, a record without it does not', () => {
+  const base = {
+    id: 'trial-hidden-test-abc',
+    type: 'pitfall',
+    text: 'parser output is formatted',
+    audience: 'worker',
+    enforcement: { kind: 'advisory' },
+    provenance: { origin: 'test', evidence: ['x'], proposals: [] },
+    status: 'trial',
+    recorded_at: '2026-10-01',
+    valid_from: '2026-10-01',
+    valid_to: null,
+    supersedes: [],
+    subject: 'parser',
+    review_by: '2026-11-01',
+  };
+  const [graded, candidate] = parseRecords([
+    { ...base, evidence_kind: 'hidden-test' },
+    { ...base, id: 'trial-candidate-abc', subject: 'other' },
+  ]);
+  assert.equal(graded?.gradedFailure, true);
+  assert.equal(candidate?.gradedFailure, undefined);
+});

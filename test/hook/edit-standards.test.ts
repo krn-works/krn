@@ -100,8 +100,15 @@ test('the first PHP edit of a session brings the PHP records, the second adds on
     const output = JSON.parse(first.stdout);
     assert.equal(output.hookSpecificOutput.hookEventName, 'PreToolUse');
     const context: string = output.hookSpecificOutput.additionalContext;
-    assert.match(context, /^Standards for editing src\/a\.php \(\d+\):/u);
+    assert.match(
+      context,
+      /^Standards for editing src\/a\.php \((\d+); at most 3 records, retrieval confidence >= 2\):/u,
+    );
     assert.match(context, /\[s-php-/u);
+    assert.ok(
+      (context.match(/\n- \[/gu)?.length ?? 0) <= 3,
+      'the edit block serves at most the cap',
+    );
     const exposures = readFileSync(
       join(root, '.krn/brain/exposures.jsonl'),
       'utf8',
@@ -136,7 +143,10 @@ test('a lane that edits PHP through a Bash one-liner gets the PHP records and lo
     assert.equal(first.status, 0, first.stderr);
     const context: string = JSON.parse(first.stdout).hookSpecificOutput
       .additionalContext;
-    assert.match(context, /^Standards for editing src\/a\.php \(\d+\):/u);
+    assert.match(
+      context,
+      /^Standards for editing src\/a\.php \((\d+); at most 3 records, retrieval confidence >= 2\):/u,
+    );
     const logged = readFileSync(
       join(root, '.krn/brain/exposures.jsonl'),
       'utf8',

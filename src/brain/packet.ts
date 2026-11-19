@@ -20,6 +20,8 @@ export type BrainRecord = {
   readonly tier?: 'floor' | 'reflex' | 'finish';
   /** True when a command or krn check enforces the record; the check teaches it, so a lane packet omits it. */
   readonly enforced?: true;
+  /** True for a record the Remember path proposed from a graded hidden-test failure in this repository (`evidence_kind` `hidden-test`); that failure is its confidence, so the match threshold does not drop it. A research candidate or a harvest record never carries it. */
+  readonly gradedFailure?: true;
   /** Status `retired`: never enters a packet. */
   readonly retired?: true;
   /** The record's retrieval terms (`applies.terms`): words a task may use that the text does not, matched like the text itself. */
@@ -71,12 +73,29 @@ export function packetRecord(r: UnifiedRecord): BrainRecord {
     ...(r.enforcement.kind === 'advisory' ? {} : { enforced: true as const }),
     ...(r.universal === true ? { universal: true as const } : {}),
     ...(r.applies.terms.length === 0 ? {} : { terms: r.applies.terms }),
+    ...(r.evidence_kind === 'hidden-test'
+      ? { gradedFailure: true as const }
+      : {}),
     ...(r.status === 'retired' ? { retired: true as const } : {}),
   };
 }
 
 /** Token budget FR-40 measured for both arms (frozen material); equality is checked by test/brain/packet.test.ts. */
 export const BUDGET = 400;
+
+/** Records one retrieval moment serves at most (ADR 0021 point 10: curated sets of 2 to 3 help, comprehensive sets hurt; SkillsBench arXiv 2602.12670). */
+export const SERVE_CAP = 3;
+
+/**
+ * Least match score a record needs to be served. A matching term weighs ln(N/df) + 1, never less than 1,
+ * so 2 means at least two distinct task terms hit the record: one shared word is the false-positive mode
+ * of free retrieval, which lowers the solve rate (-4 pp vs +8 pp for oracle retrieval, SWE-ContextBench
+ * arXiv 2602.08316; ADR 0021 point 10). A record under it is withheld, never padded in.
+ */
+export const CONFIDENCE_THRESHOLD = 2;
+
+/** The one line every serving moment prints so the reader sees the cap and the gate that bounded the answer. */
+export const SERVE_POLICY = `at most ${SERVE_CAP} records, retrieval confidence >= ${CONFIDENCE_THRESHOLD}`;
 
 /** Budget unit shared by both arms: four characters per token, rounded up. */
 export function tokens(text: string): number {
@@ -129,6 +148,10 @@ export function brainPacket(input: {
   readonly effect?: (record: BrainRecord) => number;
   /** Extra words a record answers to besides its text (its scope terms); absent: the text alone. */
   readonly matchText?: (record: BrainRecord) => string;
+  /** Serve at most this many records (absent: the budget alone bounds the packet, the FR-40 arm). */
+  readonly limit?: number;
+  /** Serve only records whose match score, before `effect`, reaches this (absent: any match). */
+  readonly minMatch?: number;
 }): Packet {
   const pool = input.records.filter((record) => known(record, input.asOf));
   const bags = new Map(
@@ -143,21 +166,31 @@ export function brainPacket(input: {
   for (const bag of bags.values())
     for (const term of bag) frequency.set(term, (frequency.get(term) ?? 0) + 1);
   const query = terms(input.query);
-  const score = (record: BrainRecord): number => {
+  const match = (record: BrainRecord): number => {
     let total = 0;
     for (const term of bags.get(record.id) ?? [])
       if (query.has(term))
         total += Math.log(pool.length / (frequency.get(term) ?? 1)) + 1;
-    return total * (input.effect?.(record) ?? 1);
+    return total;
   };
   const ranked = pool
-    .map((record) => ({ record, score: score(record) }))
-    .filter((entry) => entry.score > 0)
+    .map((record) => ({
+      record,
+      match: match(record),
+      score: match(record) * (input.effect?.(record) ?? 1),
+    }))
+    .filter(
+      (entry) =>
+        entry.score > 0 &&
+        (entry.record.gradedFailure === true ||
+          entry.match >= (input.minMatch ?? 0)),
+    )
     .sort(
       (a, b) => b.score - a.score || a.record.id.localeCompare(b.record.id),
     );
   const chosen: BrainRecord[] = [];
   for (const { record } of ranked) {
+    if (chosen.length >= (input.limit ?? Number.POSITIVE_INFINITY)) break;
     const next = [...chosen, record].map(line).join('\n');
     if (tokens(next) <= input.budget) chosen.push(record);
   }

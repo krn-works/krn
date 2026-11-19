@@ -138,7 +138,7 @@ test('SessionStart injects the matching standards of an adopted repository and l
       }),
     );
     const served = context(start({}).stdout);
-    assert.match(served, /Standards for this task \(1\)/u);
+    assert.match(served, /Standards for this task \(1; at most 3 records/u);
     assert.match(served, /\[s-widget\]/u);
     assert.doesNotMatch(served, /s-other/u);
     const [line] = readFileSync(
