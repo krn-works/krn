@@ -84,10 +84,13 @@ test('clustered SE and Holm decision match hand-computed values', () => {
   // equal cost everywhere: log ratio 0
   close(ca?.logCostRatio as number, 0);
   const lines = reportLines(r, frozen);
-  assert.equal(lines.filter((l) => l.startsWith('verdict:')).length, 2);
+  // Primary claims: cost C-A and C-B, then regression (not measured: no row records it).
+  assert.equal(lines.filter((l) => l.startsWith('verdict:')).length, 3);
+  assert.match(lines[0] as string, /^verdict: cost C-A ratio 1\.00 /);
+  assert.match(lines[2] as string, /^verdict: regression not measured/);
   assert.match(
-    lines[0] as string,
-    /^verdict: C-A \+83\.3 pp, clustered SE 9\.6 pp \(4 units\), Holm p .*, shown/,
+    lines.find((l) => l.startsWith('secondary: pass rate C-A')) as string,
+    /^secondary: pass rate C-A \+83\.3 pp, clustered SE 9\.6 pp \(4 units\), Holm p .*, shown/,
   );
 });
 
@@ -108,7 +111,12 @@ test('a contrast whose adjusted p stays above alpha is not shown', () => {
   const ca = r.contrasts[0];
   close(ca?.estimatePp as number, 25);
   assert.equal(ca?.shown, false);
-  assert.match(reportLines(r, frozen)[0] as string, /not shown/);
+  assert.match(
+    reportLines(r, frozen).find((l) =>
+      l.startsWith('secondary: pass rate C-A'),
+    ) as string,
+    /not shown/,
+  );
   // C is worse than B everywhere it differs: never shown, whatever the p.
   assert.equal(r.contrasts[1]?.shown, false);
 });
@@ -173,7 +181,7 @@ test('--report on an empty rows file exits 65 and on rows prints one verdict per
   assert.equal(out.status, 0, out.stderr);
   assert.equal(
     out.stdout.split('\n').filter((l) => l.startsWith('verdict:')).length,
-    2,
+    3,
   );
   assert.match(out.stdout, /cost: USD per resolved task/);
 });
@@ -224,4 +232,106 @@ test('parsePrereg reads the pinned model families and the frozen harness sha', (
   );
   assert.deepEqual(p.models, ['sonnet', 'opus']);
   assert.equal(p.harness, '0123abcd');
+});
+
+/** Verbatim rows as the matrix runner writes them (one JSON object per line), with the regression flag the grader sets. */
+const verbatim = [
+  '{"unit":"t-1","arm":"A","rep":1,"pass":true,"cost":0.8,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
+  '{"unit":"t-1","arm":"B","rep":1,"pass":true,"cost":0.7,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-1","arm":"C","rep":1,"pass":true,"cost":0.4,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-2","arm":"A","rep":1,"pass":true,"cost":0.9,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":true}',
+  '{"unit":"t-2","arm":"B","rep":1,"pass":false,"cost":0.9,"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
+  '{"unit":"t-2","arm":"C","rep":1,"pass":true,"cost":0.5,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-3","arm":"A","rep":1,"pass":false,"cost":0.6,"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
+  '{"unit":"t-3","arm":"B","rep":1,"pass":true,"cost":0.6,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
+  '{"unit":"t-3","arm":"C","rep":1,"pass":true,"cost":0.3,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+].map((l) => JSON.parse(l) as Row);
+
+const threeUnits: Prereg = { ...frozen, units: ['t-1', 't-2', 't-3'], reps: 1 };
+
+test('one verdict line per primary claim: cost C-A and C-B under Holm, regression C-A, then the secondary pass rates', () => {
+  const lines = reportLines(analyze(verbatim, threeUnits), threeUnits);
+  const verdicts = lines.filter((l) => l.startsWith('verdict:'));
+  assert.equal(verdicts.length, 3);
+  assert.match(verdicts[0] as string, /^verdict: cost C-A ratio 0\.5\d /);
+  assert.match(verdicts[1] as string, /^verdict: cost C-B ratio 0\.5\d /);
+  // A passes 2 of 3 rows, one of them regressed (33.3%); C passes 3 of 3, none regressed.
+  assert.match(
+    verdicts[2] as string,
+    /^verdict: regression C-A -33\.3 pp \(A 33\.3%, B 0\.0%, C 0\.0%\)/,
+  );
+  assert.equal(
+    lines.filter((l) => l.startsWith('secondary: pass rate')).length,
+    2,
+  );
+  const r = analyze(verbatim, threeUnits);
+  // Holm over the two cost contrasts never lowers a p value.
+  for (const c of r.contrasts) assert.ok(c.costAdjustedP <= 1);
+});
+
+test('--report --metric c-cost-per-resolved-ratio prints one number, USD per resolved C over A', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'abc-metric-'));
+  const rowsFile = join(dir, 'rows.jsonl');
+  writeFileSync(
+    rowsFile,
+    `${verbatim.map((r) => JSON.stringify(r)).join('\n')}\n`,
+  );
+  const prereg3 = join(dir, 'prereg.md');
+  writeFileSync(
+    prereg3,
+    readFileSync(prereg, 'utf8')
+      .split('\n')
+      .filter((l) => !/^- t-/.test(l))
+      .concat(['- t-1', '- t-2', '- t-3'])
+      .join('\n'),
+  );
+  const out = spawnSync(
+    process.execPath,
+    [
+      'evals/replay/run.ts',
+      '--prereg',
+      prereg3,
+      '--report',
+      '--metric',
+      'c-cost-per-resolved-ratio',
+      '--rows',
+      rowsFile,
+    ],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(out.status, 0, out.stderr);
+  // C spent 1.2 over 3 passes (0.4); A spent 2.3 over 2 passes (1.15).
+  assert.equal(out.stdout.trim(), (0.4 / 1.15).toFixed(3));
+});
+
+test('a strict report over a partial matrix names only incomplete', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'abc-strict-'));
+  const realUnits = parsePrereg(readFileSync(prereg, 'utf8')).units;
+  const rowsFile = join(dir, 'rows.jsonl');
+  writeFileSync(
+    rowsFile,
+    `${verbatim.map((r) => JSON.stringify({ ...r, unit: realUnits[Number(r.unit.slice(2)) - 1], harness: 'abc123' })).join('\n')}\n`,
+  );
+  const text = readFileSync(prereg, 'utf8').replace(
+    /^reps:.*$/m,
+    'reps: 1\nharness-sha: abc123',
+  );
+  const pinned = join(dir, 'prereg.md');
+  writeFileSync(pinned, text);
+  const out = spawnSync(
+    process.execPath,
+    [
+      'evals/replay/run.ts',
+      '--prereg',
+      pinned,
+      '--report',
+      '--strict',
+      '--rows',
+      rowsFile,
+    ],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(out.status, 65);
+  assert.match(out.stderr, /verdict: matrix incomplete \(\d+ problems\)/);
+  assert.doesNotMatch(out.stderr, /mixed|duplicate|harness|model/);
 });

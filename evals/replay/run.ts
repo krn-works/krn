@@ -1,4 +1,6 @@
 // Usage: node evals/replay/run.ts --arms A,B,C --units <n> [--reps <n>] [--dry]
+// --prereg <file> runs the whole A/B/C matrix over the prereg unit list on one harness sha (matrix.ts) and resumes where a
+// stop left it; [--units <n>] [--reps <n>] [--rows <file>] narrow it, 69 when the harness is not the preregistered one.
 // --prereg evals/replay/abc.prereg.md --report [--rows <file>] [--strict] prints one verdict line per contrast (Holm-adjusted) and the cost co-primary; 65 with no graded row.
 // --screen runs live arm-A sessions (evals/replay/live.ts) then reports; --screen --report only reports recorded rows,
 // then a contamination line: the rows whose session reached the upstream fix, read from the transcripts under --scratch.
@@ -22,13 +24,21 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mainCheckoutRoot } from '../../src/task/claims.ts';
 import { loadUnits } from '../units/unit.ts';
-import { analyze, matrixProblems, parsePrereg, reportLines } from './abc.ts';
+import {
+  analyze,
+  matrixKind,
+  matrixProblems,
+  metricValue,
+  parsePrereg,
+  reportLines,
+} from './abc.ts';
 import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type Arm, parseArms } from './arms.ts';
 import { contaminationLines, scanRows } from './contamination.ts';
 import { preflightOnce, sandboxedCommitGrade } from './grade-preflight.ts';
 import { DiskBudgetError, type LiveUnit, screenLive } from './live.ts';
+import { HarnessMismatchError, runMatrix } from './matrix.ts';
 import { commitDateOrder, RepoMemory } from './memory.ts';
 import { readRecordings, replayRecording, replayVerdict } from './recording.ts';
 import { formatRow, harnessSha, type Row } from './rows.ts';
@@ -79,16 +89,74 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const prereg = flag('prereg');
   if (prereg !== undefined) {
-    // --prereg <file> --report [--rows <file>]: one verdict per contrast over recorded rows; 65 when none is graded.
     const frozen = parsePrereg(readFileSync(prereg, 'utf8'));
-    const rows = readRows(flag('rows') ?? join(here, 'abc-rows.jsonl'));
+    const rowsFile = flag('rows') ?? join(here, 'abc-rows.jsonl');
+    const metric = flag('metric');
+    if (!args.includes('--report') && metric === undefined) {
+      // --prereg <file>: run every missing cell of the frozen matrix (arms A, B, C) on this harness sha; rerun to resume.
+      const harness = harnessSha(here);
+      if (frozen.harness !== undefined && frozen.harness !== harness) {
+        console.error(
+          `harness ${harness} is not the preregistered ${frozen.harness}`,
+        );
+        process.exit(69);
+      }
+      const byId = new Map(
+        loadUnits(flag('units-dir') ?? join(here, '..', 'units')).map((u) => [
+          u.unit.id,
+          u,
+        ]),
+      );
+      const ids = frozen.units.slice(0, Number(flag('units') ?? Infinity));
+      const missing = ids.filter((id) => !byId.has(id));
+      if (missing.length > 0) {
+        console.error(
+          `prereg units without a unit file: ${missing.join(', ')}`,
+        );
+        process.exit(64);
+      }
+      const model = flag('model');
+      try {
+        const written = await runMatrix(
+          ids.map((id) => byId.get(id) as LiveUnit),
+          {
+            rowsFile,
+            reps: Number(flag('reps') ?? frozen.reps),
+            sources: flag('sources') ?? defaultSources(),
+            scratch: flag('scratch') ?? join(tmpdir(), 'krn-replay-live'),
+            harness,
+            ...(model === undefined ? {} : { model }),
+            ...(flag('session-minutes') === undefined
+              ? {}
+              : { sessionMs: Number(flag('session-minutes')) * 60_000 }),
+            onRow: (row, extra) => {
+              console.log(formatRow(row));
+              if (extra) console.log(extra);
+            },
+          },
+        );
+        const graded = written.filter((r) => r.pass !== null);
+        console.log(
+          `verdict: ${written.length} rows written, ${graded.length} graded, ${graded.filter((r) => r.pass).length} pass`,
+        );
+        process.exit(graded.length === written.length ? 0 : 1);
+      } catch (e) {
+        if (e instanceof DiskBudgetError || e instanceof HarnessMismatchError) {
+          console.error(e.message);
+          process.exit(e.exitCode);
+        }
+        throw e;
+      }
+    }
+    // --report [--metric <name>] [--strict] [--rows <file>]: one verdict per primary claim; 65 when none is graded.
+    const rows = readRows(rowsFile);
     if (args.includes('--strict')) {
       // Before any significance test: the rows must be the whole preregistered matrix from one harness and model.
       const problems = matrixProblems(rows, frozen);
       if (problems.length > 0) {
         for (const p of problems.slice(0, 20)) console.error(`matrix: ${p}`);
         console.error(
-          `verdict: matrix incomplete or mixed (${problems.length} problems)`,
+          `verdict: matrix ${matrixKind(problems)} (${problems.length} problems)`,
         );
         process.exit(65);
       }
@@ -97,6 +165,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (result.graded === 0) {
       console.error('no graded rows for the frozen units');
       process.exit(65);
+    }
+    if (metric !== undefined) {
+      const value = metricValue(metric, result);
+      if (value === undefined) {
+        console.error(`no value for metric ${metric}`);
+        process.exit(65);
+      }
+      console.log(value.toFixed(3));
+      process.exit(0);
     }
     for (const l of reportLines(result, frozen)) console.log(l);
     process.exit(0);
@@ -200,9 +277,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(64);
   }
   if (!dry) {
-    // Live rows run arms B and C through the session driver; arm A lives only under --screen.
+    // Arm A's rows come from --prereg (matrix.ts) or --screen; this path runs arms B and C.
     if (arms.some((a) => a.id === 'A')) {
-      console.error('live rows run arms B and C; arm A runs under --screen');
+      console.error('--arms rows run arms B and C; arm A runs under --prereg');
       process.exit(69);
     }
     const byId = new Map(loadUnits(unitsDir).map((u) => [u.unit.id, u]));
