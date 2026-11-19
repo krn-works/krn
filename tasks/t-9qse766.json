@@ -1,0 +1,14 @@
+{
+  "id": "t-9qse766",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Fast check stays fast when a widely imported module changes",
+  "after": [],
+  "body": [
+    "Outcome: `npm run fast` stays fast when a widely imported module changes.\nEvidence: lane t-jsf5jbm 2026-11-19: a change to src/brain/worker-packet.ts planned 96 tests (38 spawn-entry + 43 import consumers) and ran 1450 s at host load ~25; the fast check gated the lane for ~25 min.\nProof: the same change plans and runs in under 3 min, with CI still running the full suite."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

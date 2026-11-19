@@ -1,0 +1,14 @@
+{
+  "id": "t-checttc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 2,
+  "title": "Powered A/B of the Remember record on the stop-attribution case",
+  "after": [],
+  "body": [
+    "Outcome: a preregistered A/B with ~15 reps per arm prints per-case repeat counts and a Fisher exact p for stop-attribution-unchecked (pass = run completes with exit 0 for both arms).\nEvidence: #1489 pilot: stop-attribution-unchecked 5/5 before vs 3/5 after (Fisher one-sided p=0.22), guard cases 0/5. Grader frozen in #1489.\nDo: preregister ~15 reps per arm, sonnet, harness c8d0aff vs current main, same 4 cases and grader; check quota first (cswap).\nProof: per-case counts with Fisher p for the primary.\nFiles: evals/replay/agent-replay.ts, evals/replay/agent-replay-cases.ts"
+  ],
+  "kind": "research",
+  "area": "replay"
+}
