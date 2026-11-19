@@ -17,4 +17,5 @@
 | [0023](0023-onboarding-installs-gates-that-run.md) | accepted | `krn adopt` installs gates that run, fills CI gaps without duplicating, and files categorised gate tasks; ratchets wait for a real adopter. |
 | [0024](0024-one-tracked-plan-and-three-rule-sources.md) | accepted | One tracked plan every session starts from; rule sources fold to AGENTS.md, the plan and skills in two measured steps. |
 | [0025](0025-agent-instruction-surface.md) | proposed; extends 0019 and 0024 | One text per rule (records and briefs cite it), one merge route that checks the PR body, skills from one source with a lane skill of their own, sessions that read their own tree. |
+| [0025](0025-ship-state-model.md) | proposed | Ship and its sibling readers branch on one pure GitHub PR state classifier with a verbatim fixture per state, and one gh client owns retries. |
 | [0026](0026-standards-simplification.md) | proposed | A rule is stated once, at its check or in AGENTS.md; KRN's own JSON rule stores go; the shipped pack stays one catalog. |

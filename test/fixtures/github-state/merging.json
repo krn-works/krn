@@ -1,0 +1,335 @@
+{
+  "state": "merging",
+  "about": "PR #1449 green and its merge requested (or GitHub answered \"Merge already in progress\", #1271): still OPEN until GitHub reports MERGED.",
+  "expected": {
+    "head": "211ffa184a97429853b53a6de11d13553b19bf17",
+    "context": "Check",
+    "mergeRequested": true
+  },
+  "from": {
+    "view": {
+      "capture": "pr-1131-merged-view",
+      "varied": ["state", "mergeCommit"]
+    },
+    "checkRuns": {
+      "capture": "check-runs-1449-rerun-attempts",
+      "varied": []
+    }
+  },
+  "snapshot": {
+    "view": {
+      "headRefOid": "211ffa184a97429853b53a6de11d13553b19bf17",
+      "mergeCommit": null,
+      "mergeable": "UNKNOWN",
+      "state": "OPEN"
+    },
+    "checkRuns": [
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135080025160",
+        "id": 135080025160,
+        "name": "Check",
+        "startedAt": "2026-11-18T19:42:14Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079446369",
+        "id": 135079446369,
+        "name": "Test (2/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079423570",
+        "id": 135079423570,
+        "name": "Typecheck",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079415090",
+        "id": 135079415090,
+        "name": "Test (1/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079406918",
+        "id": 135079406918,
+        "name": "Lint",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079348453",
+        "id": 135079348453,
+        "name": "Test (11/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079347523",
+        "id": 135079347523,
+        "name": "Test (13/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079347406",
+        "id": 135079347406,
+        "name": "Test (9/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079347239",
+        "id": 135079347239,
+        "name": "Test (12/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079346296",
+        "id": 135079346296,
+        "name": "Test (8/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079346235",
+        "id": 135079346235,
+        "name": "Test (3/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079346182",
+        "id": 135079346182,
+        "name": "Test (6/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079346121",
+        "id": 135079346121,
+        "name": "Test (10/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079345964",
+        "id": 135079345964,
+        "name": "Test (7/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079345654",
+        "id": 135079345654,
+        "name": "Test (5/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079345220",
+        "id": 135079345220,
+        "name": "Test (4/13)",
+        "startedAt": "2026-11-18T19:41:06Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135079344556",
+        "id": 135079344556,
+        "name": "Changes",
+        "startedAt": "2026-11-18T19:30:45Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135076132762",
+        "id": 135076132762,
+        "name": "Check",
+        "startedAt": "2026-11-18T19:34:51Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013861",
+        "id": 135074013861,
+        "name": "Test (1/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013790",
+        "id": 135074013790,
+        "name": "Test (10/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013463",
+        "id": 135074013463,
+        "name": "Test (9/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013404",
+        "id": 135074013404,
+        "name": "Test (13/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013299",
+        "id": 135074013299,
+        "name": "Test (7/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013288",
+        "id": 135074013288,
+        "name": "Test (11/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013271",
+        "id": 135074013271,
+        "name": "Test (4/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013265",
+        "id": 135074013265,
+        "name": "Test (2/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013238",
+        "id": 135074013238,
+        "name": "Test (5/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013232",
+        "id": 135074013232,
+        "name": "Test (3/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013203",
+        "id": 135074013203,
+        "name": "Test (12/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013188",
+        "id": 135074013188,
+        "name": "Test (8/13)",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074013127",
+        "id": 135074013127,
+        "name": "Test (6/13)",
+        "startedAt": "2026-11-18T19:30:55Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074012588",
+        "id": 135074012588,
+        "name": "Typecheck",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135074012539",
+        "id": 135074012539,
+        "name": "Lint",
+        "startedAt": "2026-11-18T19:30:54Z",
+        "status": "COMPLETED"
+      },
+      {
+        "appId": 15368,
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/krn-works/krn/actions/runs/44381299774/job/135073932907",
+        "id": 135073932907,
+        "name": "Changes",
+        "startedAt": "2026-11-18T19:30:45Z",
+        "status": "COMPLETED"
+      }
+    ]
+  }
+}

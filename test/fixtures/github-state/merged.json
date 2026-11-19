@@ -1,0 +1,25 @@
+{
+  "state": "merged",
+  "about": "PR #1131 as gh printed it after its merge, at the head ship pushed.",
+  "expected": {
+    "head": "211ffa184a97429853b53a6de11d13553b19bf17",
+    "context": "Check",
+    "mergeRequested": true
+  },
+  "from": {
+    "view": {
+      "capture": "pr-1131-merged-view",
+      "varied": []
+    }
+  },
+  "snapshot": {
+    "view": {
+      "headRefOid": "211ffa184a97429853b53a6de11d13553b19bf17",
+      "mergeCommit": {
+        "oid": "add3abc8a898d2289824da10a37b523ebbbfbe6a"
+      },
+      "mergeable": "UNKNOWN",
+      "state": "MERGED"
+    }
+  }
+}

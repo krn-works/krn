@@ -1,0 +1,23 @@
+{
+  "state": "head-moved",
+  "about": "The open PR is at another head than the one ship pushed: somebody pushed to the branch.",
+  "expected": {
+    "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "context": "Check",
+    "mergeRequested": false
+  },
+  "from": {
+    "view": {
+      "capture": "pr-1131-merged-view",
+      "varied": ["state", "mergeCommit"]
+    }
+  },
+  "snapshot": {
+    "view": {
+      "headRefOid": "211ffa184a97429853b53a6de11d13553b19bf17",
+      "mergeCommit": null,
+      "mergeable": "UNKNOWN",
+      "state": "OPEN"
+    }
+  }
+}
