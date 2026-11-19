@@ -11,7 +11,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { effectTotals, readExposures } from '../../src/brain/exposures.ts';
-import { parseRecords, tokens } from '../../src/brain/packet.ts';
+import {
+  CONFIDENCE_THRESHOLD,
+  parseRecords,
+  SERVE_CAP,
+  SERVE_POLICY,
+  tokens,
+} from '../../src/brain/packet.ts';
 import { appliesTo } from '../../src/brain/standards.ts';
 import {
   readPack,
@@ -26,6 +32,8 @@ import {
   LANE_BUDGET,
   lanePacket,
   packetBrief,
+  QUERY_LIMIT,
+  queryStandards,
   workerRecords,
 } from '../../src/brain/worker-packet.ts';
 import { laneBrief, laneBriefText } from '../../src/cli/lane-brief.ts';
@@ -45,10 +53,10 @@ test('the lane brief starts with the packet and keeps the lead brief intact', ()
     packet.records.every((id) => id.startsWith('r-')),
     packet.records.join(),
   );
-  const text = packetBrief(packet, brief);
+  const text = packetBrief(packet, brief, true);
   assert.ok(
     text.startsWith(
-      `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}):\n`,
+      `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}; ${SERVE_POLICY}):\n`,
     ),
   );
   assert.ok(text.includes(packet.text));
@@ -257,7 +265,7 @@ test('the lane packet never exceeds its budget', (t) => {
   const root = conventionsRepo(t, rows);
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
   assert.ok((packet?.tokens ?? 0) <= LANE_BUDGET);
-  assert.ok((packet?.records.length ?? 0) > 10);
+  assert.ok((packet?.records.length ?? 0) === SERVE_CAP);
 });
 
 test('a record in the task holdout is not served and the same task withholds it again', (t) => {
@@ -429,4 +437,43 @@ test('a task-keyed standards query records an exposure row with the records its 
   assert.ok((rows[0]?.served.length ?? 0) > 0);
   assert.ok((rows[0]?.withheld.length ?? 0) > 0);
   assert.ok(rows[0]?.withheld.every((id) => heldOut(task, id)));
+});
+
+test('a packet over 10 matching records serves exactly 3 and prints the cap and the threshold', (t) => {
+  const rows = Array.from({ length: 10 }, (_, i) =>
+    row(`r-${i}`, `Format the parser with biome rule ${i}.`, null),
+  );
+  const root = conventionsRepo(t, rows);
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
+  assert.equal(packet?.records.length, SERVE_CAP);
+  assert.equal(SERVE_CAP, 3);
+  const text = packetBrief(packet, 'brief', true);
+  assert.ok(text.includes(SERVE_POLICY), text);
+  assert.ok(text.includes(`>= ${CONFIDENCE_THRESHOLD}`), text);
+});
+
+test('an automatic packet with only low-confidence matches serves none while an explicit one-word query still ranks records', (t) => {
+  const rows = Array.from({ length: 10 }, (_, i) =>
+    row(`r-${i}`, `Format the parser with biome rule ${i}.`, null),
+  );
+  const root = conventionsRepo(t, rows);
+  // One shared word ("parser") is a match, but under the confidence threshold.
+  const packet = lanePacket(root, 'parser', '2026-11-13', 'u');
+  assert.deepEqual(packet?.records, []);
+  assert.equal(packetBrief(packet, 'brief'), 'brief');
+  // An explicit query is the agent asking: one word still returns ranked records, capped by the budget.
+  const asked = queryStandards(root, {
+    text: 'parser',
+    files: [],
+    asOf: '2026-11-13',
+  });
+  assert.ok(asked.length > 0);
+  assert.ok(asked.length <= QUERY_LIMIT);
+});
+
+test('the gates block names at most the cap and prints the policy', () => {
+  const block = gatesBlock(repo, '2026-11-15');
+  assert.ok(block?.includes(SERVE_POLICY), block);
+  const ids = (block ?? '').slice((block ?? '').indexOf('): ') + 3).split(', ');
+  assert.ok(ids.length <= SERVE_CAP, block);
 });

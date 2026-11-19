@@ -1,7 +1,11 @@
 {
   "id": "t-vv7e8pj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "packet test: 10 matching records serve 3, one-word automatic packet serves none, cap and threshold printed at brief, session, edit and gates moments, explicit query unchanged; fast PASS"
+  },
   "created": "2026-11-18",
   "priority": 1,
   "title": "Retrieval serves at most 3 records per moment behind a precision gate",

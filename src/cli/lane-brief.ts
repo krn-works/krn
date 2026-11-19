@@ -115,7 +115,7 @@ export function laneBrief(
         lanePacket(repo, query, asOf, task, budget, false)?.records ?? []
       ).filter((id) => heldOut(task, id))
     : [];
-  const text = packetBrief(packet, brief);
+  const text = packetBrief(packet, brief, holdout);
   const precedent = precedentSection(repo, brief);
   const recipe =
     findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';

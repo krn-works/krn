@@ -21,6 +21,7 @@ import {
   transcriptTurns,
 } from '../../evals/replay/session-result.ts';
 import { readExposures } from '../../src/brain/exposures.ts';
+import { SERVE_POLICY } from '../../src/brain/packet.ts';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 import {
@@ -693,7 +694,7 @@ test('the lane verdict records the sha of the packet its session prompt carried'
     const prompt = readFileSync(join(seen, 'prompt'), 'utf8');
     assert.ok(
       prompt.startsWith(
-        `Repository conventions (brain packet ${sha.slice(0, 12)}):\n- [r-trailer] `,
+        `Repository conventions (brain packet ${sha.slice(0, 12)}; ${SERVE_POLICY}):\n- [r-trailer] `,
       ),
       prompt,
     );

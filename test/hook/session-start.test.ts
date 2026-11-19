@@ -150,7 +150,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
     assert.equal(context.hookEventName, 'SessionStart');
     assert.match(
       context.additionalContext,
-      /^Standards for this task \(\d+\):/u,
+      /^Standards for this task \((\d+); at most 3 records, retrieval confidence >= 2\):/u,
     );
     assert.match(context.additionalContext, /- \[[sr]-[a-z0-9-]+\]/u);
     rmSync(join(root, 'tasks'), { recursive: true, force: true });

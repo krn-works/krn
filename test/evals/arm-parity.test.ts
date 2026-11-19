@@ -148,7 +148,10 @@ test('arm C claims its task before the session, so SessionStart serves a packet 
         };
       },
     });
-    assert.match(served ?? '', /^Standards for this task \(\d+\):/u);
+    assert.match(
+      served ?? '',
+      /^Standards for this task \((\d+); at most 3 records, retrieval confidence >= 2\):/u,
+    );
     assert.ok((row.injection ?? 0) > 0);
     assert.equal(
       row.verdict,

@@ -3,6 +3,7 @@
 // paths) within SESSION_BUDGET tokens, logged to the exposure log under that task so `krn standards
 // effect` counts the session as served. A session with no claimed task gets no block.
 import { appendExposure, exposureOf } from '../brain/exposures.ts';
+import { SERVE_POLICY } from '../brain/packet.ts';
 import {
   claimedTask,
   taskQueryText,
@@ -49,5 +50,5 @@ export function sessionStandards(
   } catch {
     /* The log is evidence, never a reason to lose the block. */
   }
-  return `Standards for this task (${packet.records.length}):\n${packet.text}`;
+  return `Standards for this task (${packet.records.length}; ${SERVE_POLICY}):\n${packet.text}`;
 }
