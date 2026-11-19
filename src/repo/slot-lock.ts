@@ -1,24 +1,35 @@
-// Shared slot lock: concurrent fast checks take turns on the heavy test phase instead of all saturating the host.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+// Shared slot lock: heavy jobs of every checkout take turns by weight instead of all saturating the host.
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 export type SlotOptions = {
   /** Directory holding the slot directories; shared by every checkout of the host. */
   dir: string;
-  /** How many holders may run at once. */
+  /** Capacity in weight units: the summed weight of live holders never exceeds it, except a lone holder. */
   slots?: number;
-  /** Poll interval while every slot is taken. */
+  /** Units this holder takes; 1 by default, so `slots` counts holders. */
+  weight?: number | undefined;
+  /** Poll interval while the capacity is taken. */
   pollMs?: number;
   /** How long to wait for a slot before giving up with a SlotTimeoutError; unset waits forever. */
-  deadlineMs?: number;
-  /** Called once, with the pid of a holder, when every slot is taken and the caller starts to wait. */
-  onWait?: (holderPid: number | undefined) => void;
+  deadlineMs?: number | undefined;
+  /** Asked only while another holder runs: a reason to wait (host load, memory), or undefined to admit. */
+  pressure?: (() => string | undefined) | undefined;
+  /** Called once, with the pid of a holder, when the caller starts to wait. */
+  onWait?: (holderPid: number | undefined, reason: string) => void;
 };
 
 /** Exit code a command uses when the slot wait ran past its deadline (the repository timeout code). */
 export const SLOT_TIMEOUT_EXIT = 75;
 
-/** The wait for a slot ended at its deadline while every slot still had a live holder. */
+/** The wait for a slot ended at its deadline while live holders still took the capacity. */
 export class SlotTimeoutError extends Error {
   readonly exitCode = SLOT_TIMEOUT_EXIT;
   readonly waitedMs: number;
@@ -54,18 +65,25 @@ export function processStart(pid: number): string | undefined {
   }
 }
 
-type Holder = { pid: number; start: string | undefined };
+type Holder = { pid: number; start: string | undefined; weight: number };
 
-function holder(slot: string): Holder | undefined {
+/** The holder recorded in a pid file (`pid [start [weight]]`), or undefined when none is recorded yet. */
+function holder(path: string): Holder | undefined {
+  let text: string;
   try {
-    const [first, start] = readFileSync(join(slot, 'pid'), 'utf8')
-      .trim()
-      .split(/\s+/);
-    const pid = Number(first);
-    return Number.isInteger(pid) && pid > 0 ? { pid, start } : undefined;
+    text = readFileSync(path, 'utf8');
   } catch {
     return undefined;
   }
+  const [first, start, units] = text.trim().split(/\s+/);
+  const pid = Number(first);
+  const weight = Number(units);
+  if (!Number.isInteger(pid) || pid <= 0) return undefined;
+  return {
+    pid,
+    start: start && start !== '-' ? start : undefined,
+    weight: Number.isInteger(weight) && weight > 0 ? weight : 1,
+  };
 }
 
 /** A holder is live only while its pid exists and, when a start time was recorded, is still the same process. */
@@ -75,43 +93,99 @@ function holding(entry: Holder): boolean {
   return entry.start === undefined || now === undefined || now === entry.start;
 }
 
-/** One pass over the slots: takes a free one (reclaiming a dead holder's) and returns its release, or undefined when all are held. */
-function tryTake(options: SlotOptions): (() => void) | undefined {
-  const slots = Math.max(1, options.slots ?? 1);
-  mkdirSync(options.dir, { recursive: true });
-  for (let index = 0; index < slots; index += 1) {
-    const slot = join(options.dir, `slot-${index}`);
+function record(weight: number): string {
+  return `${process.pid} ${processStart(process.pid) ?? '-'} ${weight}`;
+}
+
+/** Longest a mutex may stand without a live recorded owner before it counts as abandoned. */
+const MUTEX_STALE_MS = 5_000;
+
+/** Takes the admission mutex (one short critical section per pass), or returns undefined when another pass holds it. */
+function lockMutex(dir: string): (() => void) | undefined {
+  const mutex = join(dir, '.mutex');
+  try {
+    mkdirSync(mutex);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    const owner = holder(join(mutex, 'pid'));
+    let age = 0;
     try {
-      mkdirSync(slot);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      const entry = holder(slot);
-      // A fresh slot has no pid yet; only a recorded dead or replaced holder is reclaimed.
-      if (entry === undefined || holding(entry)) continue;
-      rmSync(slot, { recursive: true, force: true });
-      index -= 1;
-      continue;
+      age = Date.now() - statSync(mutex).mtimeMs;
+    } catch {
+      // Released between our mkdir and stat: the next pass takes it.
+      return undefined;
     }
-    writeFileSync(
-      join(slot, 'pid'),
-      `${process.pid} ${processStart(process.pid) ?? ''}`.trim(),
-    );
-    return () => rmSync(slot, { recursive: true, force: true });
+    const abandoned = owner ? !holding(owner) : age > MUTEX_STALE_MS;
+    if (abandoned) rmSync(mutex, { recursive: true, force: true });
+    return undefined;
   }
-  return undefined;
+  writeFileSync(join(mutex, 'pid'), record(1));
+  return () => rmSync(mutex, { recursive: true, force: true });
+}
+
+type Pass =
+  | { kind: 'taken'; release: () => void }
+  | { kind: 'wait'; holderPid: number | undefined; reason: string };
+
+/** One admission pass under the mutex: reclaims dead holders, then takes a slot when the weight fits and the host has room. */
+function tryTake(options: SlotOptions): Pass {
+  const capacity = Math.max(1, options.slots ?? 1);
+  const weight = Math.min(capacity, Math.max(1, options.weight ?? 1));
+  mkdirSync(options.dir, { recursive: true });
+  const unlock = lockMutex(options.dir);
+  if (!unlock)
+    return { kind: 'wait', holderPid: undefined, reason: 'admission busy' };
+  try {
+    const taken = new Set<number>();
+    let used = 0;
+    let first: number | undefined;
+    for (const name of readdirSync(options.dir)) {
+      const match = /^slot-(\d+)$/.exec(name);
+      if (!match) continue;
+      const slot = join(options.dir, name);
+      const entry = holder(join(slot, 'pid'));
+      // A slot without a recorded pid is still being written; only a dead or replaced holder is reclaimed.
+      if (entry !== undefined && !holding(entry)) {
+        rmSync(slot, { recursive: true, force: true });
+        continue;
+      }
+      taken.add(Number(match[1]));
+      used += entry?.weight ?? 1;
+      first ??= entry?.pid;
+    }
+    if (used > 0 && used + weight > capacity)
+      return {
+        kind: 'wait',
+        holderPid: first,
+        reason: `capacity ${used}+${weight} > ${capacity}`,
+      };
+    const pressure = used > 0 ? options.pressure?.() : undefined;
+    if (pressure) return { kind: 'wait', holderPid: first, reason: pressure };
+    let index = 0;
+    while (taken.has(index)) index += 1;
+    const slot = join(options.dir, `slot-${index}`);
+    mkdirSync(slot);
+    writeFileSync(join(slot, 'pid'), record(weight));
+    return {
+      kind: 'taken',
+      release: () => rmSync(slot, { recursive: true, force: true }),
+    };
+  } finally {
+    unlock();
+  }
 }
 
 /** After a failed pass: reports the first wait once and throws at the deadline. */
 function stillWaiting(
   options: SlotOptions,
+  pass: { holderPid: number | undefined; reason: string },
   started: number,
   waiting: boolean,
 ): void {
-  const first = holder(join(options.dir, 'slot-0'))?.pid;
-  if (!waiting) options.onWait?.(first);
+  if (!waiting) options.onWait?.(pass.holderPid, pass.reason);
   const waited = Date.now() - started;
   if (options.deadlineMs !== undefined && waited >= options.deadlineMs)
-    throw new SlotTimeoutError(waited, first);
+    throw new SlotTimeoutError(waited, pass.holderPid);
 }
 
 async function acquire(options: SlotOptions): Promise<() => void> {
@@ -119,9 +193,9 @@ async function acquire(options: SlotOptions): Promise<() => void> {
   const started = Date.now();
   let waiting = false;
   for (;;) {
-    const release = tryTake(options);
-    if (release) return release;
-    stillWaiting(options, started, waiting);
+    const pass = tryTake(options);
+    if (pass.kind === 'taken') return pass.release;
+    stillWaiting(options, pass, started, waiting);
     waiting = true;
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
@@ -133,17 +207,17 @@ export function withSlotSync<T>(options: SlotOptions, work: () => T): T {
   const started = Date.now();
   const cell = new Int32Array(new SharedArrayBuffer(4));
   let waiting = false;
-  let release = tryTake(options);
-  while (release === undefined) {
-    stillWaiting(options, started, waiting);
+  let pass = tryTake(options);
+  while (pass.kind === 'wait') {
+    stillWaiting(options, pass, started, waiting);
     waiting = true;
     Atomics.wait(cell, 0, 0, pollMs);
-    release = tryTake(options);
+    pass = tryTake(options);
   }
   try {
     return work();
   } finally {
-    release();
+    pass.release();
   }
 }
 
@@ -158,4 +232,18 @@ export async function withSlot<T>(
   } finally {
     release();
   }
+}
+
+/** Live holders of a slot directory, for status reports and capacity checks. */
+export function slotHolders(dir: string): Holder[] {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => /^slot-\d+$/.test(name))
+    .map((name) => holder(join(dir, name, 'pid')))
+    .filter((entry): entry is Holder => entry !== undefined && holding(entry));
 }
