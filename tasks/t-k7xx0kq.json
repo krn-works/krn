@@ -1,0 +1,14 @@
+{
+  "id": "t-k7xx0kq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "krn pr ship refuses a body without Why, Verified and a Ticket/Refs line",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-19. #1521 merged with a body holding only the attribution line: `krn pr body --refs t-wmdgs04` exited 64 (--refs is boolean) and ship read the body file as opaque text (src/ci/ship.ts:175-186, :489-492). Of the last 40 merged PRs, 18 lack `## Why` or `## Verified` (list in .krn/tmp/merged-prs.json analysis: 1504 1506 1507 1508 1512 1514 1516 1517 1519 plus old-template ones); 1508 has no Ticket/Refs line. No CI step lints the PR body (.github/workflows/ci.yml only reads Weakens-tests).\nFiles: src/ci/ship.ts, test/ci/ship.test.ts\nOutcome: `krn pr ship` refuses before any push, with exit 65 naming the missing parts, a body file lacking `## Why`, `## Verified` or a `Ticket:`/`Refs:` line; the PR-body check also runs in CI on PR_BODY so a body edited outside ship is caught.\nProof: `node --test test/ci/ship.test.ts: pass` with a near-empty body refused (exit 65, no push) and a `krn pr body` output accepted."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
