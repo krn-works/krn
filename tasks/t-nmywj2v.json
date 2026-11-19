@@ -1,0 +1,14 @@
+{
+  "id": "t-nmywj2v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Generalize KRN standards into portable principles and make Remember propose principles",
+  "after": [],
+  "body": [
+    "Outcome: KRN's records, standards, skills and task/brief templates state general principles that hold in any project, so KRN is one portable best-practice way to build anything; the Remember path turns an operator correction into a principle with the incident only as its evidence.\nEvidence: operator 2026-11-19: standards must never be shaped by one incident, neither in a repo nor in KRN. Example: r-stop-skip-needs-session-proof (#1484) names one diagnosis; the principle is \"verify the fact a cause depends on before stating it\". Notes: .krn/runs/lead/handoff-first.md.\nDo: audit .agents/records.json, standards/, .agents/skills and task/brief templates for incident- or KRN-repo-specific wording; rewrite each as its general principle or merge it into an existing one, grounded in recognised external practice where one exists; change the Remember path (krn standards propose / candidate ingest) so a proposal is a principle and the incident is evidence.\nProof: an audit list of rewritten/merged records with before/after wording, and a test that a proposal phrased as one incident is rejected or rewritten into a principle."
+  ],
+  "kind": "feature",
+  "area": "brain"
+}
