@@ -202,6 +202,17 @@ test('proofCommands keeps the runnable backtick spans of the Proof field', () =>
   assert.deepEqual(proofCommands(task), []);
 });
 
+test('proofCommands runs only the cmd: verdict spans when the Proof has one, never a command named in prose', () => {
+  // Evidence: the t-k7xx0kq ship stopped with exit 64: its Proof says a `krn pr body` output is accepted.
+  const record = {
+    ...task,
+    body: [
+      'Proof: `node --test test/ci/ship.test.ts: pass` with a near-empty body refused (exit 65, no push) and a `krn pr body` output accepted.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), ['node --test test/ci/ship.test.ts']);
+});
+
 test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
   // Evidence: lane t-dz2axwx, ship exit 81: `krn adopt <clone of perfect-memory>` ran under sh.
   const record = {

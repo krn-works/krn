@@ -76,18 +76,24 @@ export function proofShell(span: string): string {
 // `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd); a bare `...` stands for arguments the same way.
 const placeholder = /<[A-Za-z][^<>]*>|(?:^|\s)\.\.\.(?:\s|$)/u;
 
-/** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and name no `<placeholder>`. */
+/**
+ * The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and
+ * name no `<placeholder>`. When any span has the `cmd: verdict` form the task-quality rule asks for,
+ * only those spans run: a Proof that also mentions a command in prose (`a \`krn pr body\` output is
+ * accepted`) must not run the mention.
+ */
 export function proofCommands(task: TaskRecord): string[] {
   const proof = bodyField(task, 'Proof') ?? '';
-  return [...proof.matchAll(/`([^`\n]+)`/gu)]
+  const runnable = [...proof.matchAll(/`([^`\n]+)`/gu)]
     .map((match) => (match[1] ?? '').trim())
     .filter(
       (command) =>
         runnableProof.test(command) &&
         !placeholder.test(command) &&
         (!command.startsWith('git ') || readOnlyGit.test(command)),
-    )
-    .map(proofShell);
+    );
+  const verdicts = runnable.filter((span) => proofShell(span) !== span);
+  return (verdicts.length > 0 ? verdicts : runnable).map(proofShell);
 }
 
 /** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
