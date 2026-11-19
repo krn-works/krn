@@ -1,0 +1,14 @@
+{
+  "id": "t-0aq2vcx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "The reusable project CI runs every job on the runner its caller names",
+  "after": [],
+  "body": [
+    "Operator 2026-11-19: no paid Actions minutes; private krn-works repos run CI on a self-hosted runner on krn-dev (labels self-hosted, linux, x64, krn-ci-isolated). The reusable .github/workflows/project-ci.yml takes `runner` only for lint/build/test; the `plan` and final `check` jobs are fixed on ubuntu-24.04, so a private caller still needs billed hosted minutes and its required `Check` never starts once the included minutes are spent.\nPrinciple: a reusable workflow runs every job on the runner its caller names.\nFiles: .github/workflows/project-ci.yml (+ its rule/contract test under test/ if one pins its shape)\nOutcome: every job in project-ci.yml uses the `runner` input; the input accepts either a single label (default `ubuntu-24.04`, unchanged for existing callers) or a JSON array of labels (`[\"self-hosted\",\"linux\",\"x64\",\"krn-ci-isolated\"]`), e.g. `runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}`; the input description says so.\nProof: a test that parses project-ci.yml shows no job with a fixed runs-on, and actionlint/yaml checks in the repo pass."
+  ],
+  "kind": "feature",
+  "area": "ci"
+}
