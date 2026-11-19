@@ -42,8 +42,6 @@ export type AuditInput = {
   pathHits: Record<string, string[]>;
   tempConfigs: string[];
   foreignInstalls: string[];
-  /** Pinned tools whose install holds no executable of their short name. */
-  unprovided: { tool: string; config: string }[];
   errors: string[];
 };
 export type Finding = {
@@ -134,16 +132,26 @@ export function audit(input: AuditInput): Finding[] {
   // (a link to /usr made mise shim all of /usr/bin, git included).
   for (const f of input.foreignInstalls)
     findings.push({ kind: 'foreign', line: `foreign ${f}` });
-  for (const u of input.unprovided) {
-    const name = shortName(u.tool);
-    const fix = /^(github|aqua|http):/u.test(u.tool)
-      ? `pin it as { version = "<version>", bin = "${name}" }`
-      : `pin a backend that installs \`${name}\``;
-    findings.push({
-      kind: 'provides',
-      line: `provides ${u.config} ${u.tool} installs no \`${name}\` command, so ${name} resolves outside mise; ${fix}`,
-    });
-  }
+  // A pin whose install holds no command of its name leaves that command to a copy outside mise.
+  for (const [tool, versions] of Object.entries(input.installed))
+    for (const v of versions) {
+      const name = shortName(tool);
+      if (
+        v.active !== true ||
+        v.install_path === undefined ||
+        v.source === undefined ||
+        input.pathHits[name] === undefined ||
+        providesCommand(v.install_path, name)
+      )
+        continue;
+      const fix = /^(github|aqua|http):/u.test(tool)
+        ? `pin it as { version = "${v.version}", bin = "${name}" }`
+        : `pin a backend that installs \`${name}\``;
+      findings.push({
+        kind: 'provides',
+        line: `provides ${v.source.path} ${tool} installs no \`${name}\` command, so ${name} resolves outside mise; ${fix}`,
+      });
+    }
   for (const e of input.errors)
     findings.push({ kind: 'error', line: `error ${e}` });
   return findings;
@@ -332,20 +340,6 @@ function collect(roots: string[]): AuditInput {
           // dangling alias link: mise repairs it on the next install
         }
       }
-  const unprovided: { tool: string; config: string }[] = [];
-  for (const [tool, versions] of Object.entries(installed))
-    for (const v of versions) {
-      const name = shortName(tool);
-      if (
-        v.active !== true ||
-        v.install_path === undefined ||
-        v.source === undefined ||
-        pathHits[name] === undefined ||
-        providesCommand(v.install_path, name)
-      )
-        continue;
-      unprovided.push({ tool, config: v.source.path });
-    }
   return {
     installed,
     outdated,
@@ -354,7 +348,6 @@ function collect(roots: string[]): AuditInput {
     pathHits,
     tempConfigs,
     foreignInstalls,
-    unprovided,
     errors,
   };
 }

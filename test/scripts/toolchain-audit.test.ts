@@ -6,7 +6,6 @@ import { test } from 'node:test';
 import {
   type AuditInput,
   audit,
-  providesCommand,
   shortName,
   verdict,
 } from '../../scripts/toolchain-audit.ts';
@@ -22,7 +21,6 @@ const clean: AuditInput = {
   pathHits: {},
   tempConfigs: [],
   foreignInstalls: [],
-  unprovided: [],
   errors: [],
 };
 
@@ -60,7 +58,6 @@ test('each kind of divergence is one finding and the verdict counts them', () =>
     pathHits: { pnpm: ['/usr/bin/pnpm'] },
     tempConfigs: ['/tmp/x/mise.toml'],
     foreignInstalls: ['github-composer-composer/2.10.3 -> /usr'],
-    unprovided: [],
     errors: ['q: mise.toml is not trusted'],
   });
   assert.deepEqual(
@@ -89,15 +86,30 @@ test('the backend prefix and owner drop, a scoped npm name stays whole', () => {
   assert.equal(shortName('node'), 'node');
 });
 
-test('a pin whose install holds only composer.phar yields a provides finding naming config and fix', () => {
+function composerPin(file: string): AuditInput {
   const dir = mkdtempSync(join(tmpdir(), 'provides-'));
-  writeFileSync(join(dir, 'composer.phar'), '');
-  chmodSync(join(dir, 'composer.phar'), 0o755);
-  assert.equal(providesCommand(dir, 'composer'), false);
-  const findings = audit({
+  writeFileSync(join(dir, file), '');
+  chmodSync(join(dir, file), 0o755);
+  return {
     ...clean,
-    unprovided: [{ tool: 'github:composer/composer', config: 'p/mise.toml' }],
-  });
+    installed: {
+      'github:composer/composer': [
+        {
+          version: '2.11.2',
+          active: true,
+          source: { path: 'p/mise.toml' },
+          install_path: dir,
+        },
+      ],
+    },
+    pathHits: { composer: ['/elsewhere/composer'] },
+  };
+}
+
+test('a pin whose install holds only composer.phar yields a provides finding naming config and fix', () => {
+  const findings = audit(composerPin('composer.phar')).filter(
+    (f) => f.kind === 'provides',
+  );
   assert.equal(findings.length, 1);
   assert.equal(findings[0]?.kind, 'provides');
   assert.match(findings[0]?.line ?? '', /p\/mise\.toml/u);
@@ -105,9 +117,8 @@ test('a pin whose install holds only composer.phar yields a provides finding nam
 });
 
 test('a pin whose install holds a composer executable yields no provides finding', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'provides-'));
-  writeFileSync(join(dir, 'composer'), '');
-  chmodSync(join(dir, 'composer'), 0o755);
-  assert.equal(providesCommand(dir, 'composer'), true);
-  assert.deepEqual(audit(clean), []);
+  assert.deepEqual(
+    audit(composerPin('composer')).filter((f) => f.kind === 'provides'),
+    [],
+  );
 });
