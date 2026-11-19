@@ -18,7 +18,7 @@ What is missing, in order:
 2. Stack-scoped content: records tagged by stack, harvested from skills; no per-language prose skills.
 3. One universal `standards` skill, the same in KRN and every adopted repo; KRN adopts itself.
 4. Remember loop closed automatically: outcomes propose records, lead or Fable accepts, effect measured.
-5. The proof: A plain, B static instruction file, C KRN brain with Remember (earlier units' graded failures propose evidence-gated records), at most 3 records per moment behind a precision gate, executable-only Stop, on outside rows with hidden tests. Only C > A and C > B on pass rate counts; cost per resolved task and regression rate sit beside it (ADR 0021 point 10).
+5. The proof: A plain, B static instruction file, C KRN brain with Remember (earlier units' graded failures propose evidence-gated records), at most 3 records per moment behind a precision gate, executable-only Stop, on outside rows with hidden tests. Primary: cost per resolved task, regression rate, per-record effect; pass rate is secondary (ADR 0021 point 11).
 
 Correction (ADR 0021): the D23 "PB 62.5% vs P 10.7%" result is an oracle upper bound, because its requirements were derived from the hidden tests. The brief-only clause arm is measured in S4.
 
@@ -55,7 +55,7 @@ Slice line: `- [S<n>] title — Outcome — Proof — Predicted — After`.
 - [S5 t-c6hrj5m] Exposure rows carry a per-record effect — Outcome: `krn.exposure/v1` with `at`, `tokens`, `attempt` and per-record `violated`; withheld = would-serve ∩ held-out; `rework` dropped; `retire --write` frozen behind the Fisher rule — Proof: `node --test test/brain/exposures.test.ts test/brain/retire.test.ts: pass` — Predicted: metric records-with-30-scoped-diffs >= 10
 - [S6 t-26p4xm7] One replay harness runs arms A, B and C [slop] — Outcome: `evals/replay/` replaces outside-acceptance, outside-testgrade and the d23 harness; arms are configuration; results rows are (unit, arm, rep, pass, cost, harness sha) — Proof: `node evals/replay/run.ts --arms A,B,C --units 3 --dry: 9 rows` — Predicted: outside hidden >= 1 in >= 9 rows — After: S4
 - [S7 t-1p7dmw9] Screening shows whether correctness can be proven — Outcome: at least 70 post-June-2026 units with issue-only bodies; arm A screened on a separate run; go only if A passes at most 85% — Proof: `node evals/replay/run.ts --screen --report: prints A pass rate and go/no-go` — Predicted: metric abc-screen-a-pass-rate <= 0.85 — After: S6
-- [S8 t-1ntztra] A/B/C reports correctness and cost per resolved task — Outcome: preregistered confirmatory run, 3 reps, Holm over C−A and C−B, cost co-primary; "not shown" is a published result — Proof: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report: verdict line per contrast` — Predicted: metric abc-c-minus-a-pp >= 15 — After: S7, S10, S11
+- [S8 t-1ntztra] A/B/C reports cost, regressions and per-record effect — Outcome: preregistered confirmatory run, 3 reps, Holm over C−A and C−B, pass rate secondary; "not shown" is a published result — Proof: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report: verdict line per contrast` — Predicted: metric abc-c-cost-per-resolved-ratio < 1 — After: S7, S10, S11
 
 ### Sector 3 — Retrieval (ADR 0020; items 1–3)
 

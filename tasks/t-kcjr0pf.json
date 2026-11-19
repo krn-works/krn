@@ -1,7 +1,11 @@
 {
   "id": "t-kcjr0pf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Operator chose (b) 2026-11-19: cost per resolved task, regression rate and per-record effect primary, pass rate secondary; recorded as ADR 0021 point 11 and plan item 5/S8."
+  },
   "created": "2026-11-18",
   "priority": 0,
   "title": "Decide the S8 primary claim given the 73-unit pool cannot detect a 5 pp correctness effect",

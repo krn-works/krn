@@ -3,6 +3,9 @@
     "abc-c-minus-a-pp": {
       "command": "node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report --metric c-minus-a-pp"
     },
+    "abc-c-cost-per-resolved-ratio": {
+      "command": "node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report --metric c-cost-per-resolved-ratio"
+    },
     "abc-screen-a-pass-rate": {
       "command": "node evals/replay/run.ts --screen --report --metric screen-a-pass-rate"
     },
