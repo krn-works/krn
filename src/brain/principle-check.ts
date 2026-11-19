@@ -66,24 +66,28 @@ export function incidentMessage(signals: readonly string[]): string {
   return `the text reads as one incident (${signals.join(', ')}); state the general principle that holds after the incident is forgotten and move the incident into the evidence`;
 }
 
-/** Every record whose text fails, as `id: signals`; the record-file rule test and its allowlist read this. */
+/** Every record whose text or why fails, as `id: signals`; the record-file rule test and its allowlist read this. */
 export function incidentRecords(
   records: readonly {
     readonly id: string;
     readonly text: string;
+    readonly why?: string;
     readonly enforcement?: { readonly kind?: string };
     readonly provenance?: { readonly evidence?: readonly string[] };
   }[],
 ): { readonly id: string; readonly signals: readonly string[] }[] {
   const flagged: { id: string; signals: readonly string[] }[] = [];
   for (const record of records) {
-    const verdict = judgePrinciple({
-      text: record.text,
-      evidence: record.provenance?.evidence ?? [],
-      enforced: record.enforcement?.kind === 'command',
+    // The reason is read beside the rule, so it must not retell the incident either.
+    const signals = [record.text, record.why ?? ''].flatMap((text) => {
+      const verdict = judgePrinciple({
+        text,
+        evidence: record.provenance?.evidence ?? [],
+        enforced: record.enforcement?.kind === 'command',
+      });
+      return verdict.principle ? [] : verdict.signals;
     });
-    if (!verdict.principle)
-      flagged.push({ id: record.id, signals: verdict.signals });
+    if (signals.length > 0) flagged.push({ id: record.id, signals });
   }
   return flagged;
 }

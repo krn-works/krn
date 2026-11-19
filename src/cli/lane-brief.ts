@@ -13,8 +13,8 @@ import {
 import { armOn, findContract } from '../repo/contract.ts';
 
 /**
- * What a worker is told about the tracker. D23 arm K refused five units because the record or the
- * history said the work was done, while the unit's tests were red: the repository, not the record, is the truth.
+ * What a worker is told about the tracker: the repository, not the task record or the history, is
+ * the truth, so a record or an earlier commit that says the work is done never outranks a red test.
  */
 const SHARED_RULES = `Worker rules:
 - Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.

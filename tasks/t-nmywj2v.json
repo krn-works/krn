@@ -1,7 +1,11 @@
 {
   "id": "t-nmywj2v",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Records, skills and brief rules state principles; the last incident record is rewritten and the incident allowlist is empty. Audit: .krn/runs/lead/audit-t-nmywj2v.md; pack-record follow-up is t-5s9wcsn."
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Generalize KRN standards into portable principles and make Remember propose principles",

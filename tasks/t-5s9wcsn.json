@@ -1,0 +1,18 @@
+{
+  "id": "t-5s9wcsn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Pack records hold in any project they apply to",
+  "after": [],
+  "body": [
+    "Outcome: every pack record in standards/records.json holds in any project that matches its applies scope, so a pack never serves one project's conventions to another.\nProof: about 25 pack records were shaped by a single project (ids s-acf-*, s-css-*, s-deploy-*, s-skill-*, s-wp-never-mutate-production); see .krn/runs/lead/audit-t-nmywj2v.md.\nDo: for each, either rewrite the text as a general principle or narrow applies (stacks, needs, paths) to the projects it really fits. Keep edit recall in test/evals/retrieval-denominator.test.ts at or above its floor."
+  ],
+  "kind": "debt",
+  "area": "standards",
+  "from": {
+    "kind": "task",
+    "ref": "t-nmywj2v"
+  }
+}
