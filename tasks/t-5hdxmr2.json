@@ -1,7 +1,11 @@
 {
   "id": "t-5hdxmr2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node --test test/scripts/toolchain-audit.test.ts passes with a foreign-install case; the host audit printed 8 foreign wp-cli installs linked into a project, since replaced by a real install"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "The toolchain audit flags a mise install that links outside mise",

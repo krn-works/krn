@@ -17,6 +17,7 @@ const clean: AuditInput = {
   latest: { node: '26.13.1' },
   pathHits: {},
   tempConfigs: [],
+  foreignInstalls: [],
   errors: [],
 };
 
@@ -53,6 +54,7 @@ test('each kind of divergence is one finding and the verdict counts them', () =>
     latest: { pnpm: '12.21.0' },
     pathHits: { pnpm: ['/usr/bin/pnpm'] },
     tempConfigs: ['/tmp/x/mise.toml'],
+    foreignInstalls: ['github-composer-composer/2.10.3 -> /usr'],
     errors: ['q: mise.toml is not trusted'],
   });
   assert.deepEqual(
@@ -64,12 +66,13 @@ test('each kind of divergence is one finding and the verdict counts them', () =>
       'backend playwright installed as npm:playwright, playwright',
       'path pnpm also outside mise: /usr/bin/pnpm',
       'tracking 1 temporary configs keep versions from mise prune (e.g. /tmp/x/mise.toml)',
+      'foreign github-composer-composer/2.10.3 -> /usr',
       'error q: mise.toml is not trusted',
     ],
   );
   assert.equal(
     verdict(findings),
-    'toolchain FAIL (2 outdated, 1 multi, 1 backend, 1 path, 1 tracking, 1 error)',
+    'toolchain FAIL (2 outdated, 1 multi, 1 backend, 1 path, 1 tracking, 1 foreign, 1 error)',
   );
 });
 
