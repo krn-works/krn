@@ -1,0 +1,14 @@
+{
+  "id": "t-k3fwq93",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "KRN pins node 26.13.1 and pnpm 12.21.0, the newest stable",
+  "after": [],
+  "body": [
+    "Operator 2026-11-19: one mise version per tool, the newest stable, pinned the same in every project (workstation skill). KRN pins node 24.22.1 (mise.toml, .node-version, package.json engines) and packageManager pnpm@12.10.1; the newest stable are node 26.13.1 and pnpm 12.21.0. Move every pin (mise.toml, .node-version, engines, packageManager, CI setup in .github/actions/setup-ci and workflows, adopt templates in src/adopt/init.ts if they pin node) to the newest stable.\nOutcome: node scripts/toolchain-audit.ts --root <krn parent> prints no outdated line for the krn checkout, and the full Product aggregate Check is green on node 26.13.1.\nProof: npm run fast PASS and the required Check green on the exact HEAD."
+  ],
+  "kind": "chore",
+  "area": "tooling"
+}
