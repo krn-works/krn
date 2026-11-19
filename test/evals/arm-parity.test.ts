@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -252,16 +253,9 @@ test("arm C serves the record unit 1's graded failure proposed to unit 2 of the 
     assert.equal(proposals[0]?.evidence_kind, 'hidden-test');
     const id = trialId(proposals[0] as never);
     const session = (arm: string) => async (wt: string) => {
-      const file = join(wt, '.krn', 'conventions.json');
-      let records = '';
-      try {
-        records = readFileSync(file, 'utf8');
-      } catch {}
-      let claude = '';
-      try {
-        claude = readFileSync(join(wt, 'CLAUDE.md'), 'utf8');
-      } catch {}
-      seen[arm] = records + claude;
+      const read = (name: string): string =>
+        existsSync(join(wt, name)) ? readFileSync(join(wt, name), 'utf8') : '';
+      seen[arm] = read('.krn/conventions.json') + read('CLAUDE.md');
       if (arm === 'C')
         seen.served = sessionContext(wt, 'memory-session', {}) ?? '';
       writeFileSync(join(wt, 'changed.txt'), 'x\n');
