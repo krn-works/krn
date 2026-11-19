@@ -1,7 +1,11 @@
 {
   "id": "t-rx92cvg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "final-diagnosis grader with fixtures; fresh A/B 5/5 -> 3/5 (Fisher p=0.22 one-sided, pilot), guards 0/5"
+  },
   "created": "2026-11-17",
   "priority": 1,
   "title": "Replay real KRN failures cut before the wrong decision and measure repeats per harness revision",

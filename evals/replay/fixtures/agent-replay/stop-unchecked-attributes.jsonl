@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "git log --oneline -3"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "Stop did not run because the ship-recorded early return in src/hook/stop.ts fired after krn pr ship."}]}}
