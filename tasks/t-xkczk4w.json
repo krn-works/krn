@@ -1,0 +1,14 @@
+{
+  "id": "t-xkczk4w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Replay rows carry the served, withheld and violated records of each arm C session",
+  "after": [],
+  "body": [
+    "Source: S8 readiness audit 2026-11-19 (lead session); ADR 0021 points 10-11.\nEvidence: evals/replay/rows.ts:1-60 has no exposure fields; exposure writes live only in src/hook/stop.ts, src/hook/edit-standards.ts and src/cli/lane-run/verdict.ts; evals/replay/arm-session.ts writes none.\nOutcome: every arm C row (and arm B's static set) lists served, withheld and violated record ids from the session's exposure log, so per-record effect (ADR 0021 point 11 claim 3) is computed from replay rows; the report prints per-record served/violated counts and pass-rate delta.\nProof: a replay test with a fixture session exposure log yields a row whose served/withheld/violated match it, and --report prints the per-record table."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

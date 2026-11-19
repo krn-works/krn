@@ -1,0 +1,14 @@
+{
+  "id": "t-hwqrh3p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Replay grades regressions: the repo's existing suite runs at the base and after each rep",
+  "after": [],
+  "body": [
+    "Source: S8 readiness audit 2026-11-19 (lead session); ADR 0021 points 10-11.\nEvidence: evals/units/screening.ts:502-527 runs install and the hidden unit.test only; evals/replay/grade-preflight.ts checks the hidden test on base and reference; no pre-existing suite run, evals/replay computes no regression.\nOutcome: each replay row records base-suite and after-suite results for the unit repo's own tests (tests that passed at the base commit), and the row carries regressed: true when a rep passes the hidden tests yet breaks one of them; the report prints regression rate per arm and C−A.\nProof: a replay test on a fixture repo where a rep passes the hidden test and breaks a base-passing test yields regressed: true; one that keeps them green yields false."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

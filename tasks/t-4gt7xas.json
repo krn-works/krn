@@ -1,0 +1,14 @@
+{
+  "id": "t-4gt7xas",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "Arm parity is measured: C's injected tokens include mid-session hook injections and stay at or below B's per row",
+  "after": [],
+  "body": [
+    "Source: S8 readiness audit 2026-11-19 (lead session); ADR 0021 points 10-11.\nEvidence: evals/replay/arm-b.ts:43-46 counts C tokens without the hooks' mid-session injections; renderStatic can exceed the threshold by one record (arm-b.ts:80); 'C at no more injected tokens than B' (ADR 0021 point 7) is not checked per row.\nOutcome: each C row records all injected tokens (session start, before edit, before Stop) from the exposure log, each B row its static tokens, and the report refuses (names the rows) when C > B; B's static set includes the Remember records C could serve.\nProof: a replay test where C's hook injections exceed B's static set fails the parity check naming the row."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}
