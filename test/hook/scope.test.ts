@@ -388,6 +388,9 @@ test('Edit, Write and Bash outside the lane worktree get one refusal; lane-targe
     call('Bash', { command: `echo 1 > ${foreign}` }),
     call('Bash', { command: `sed -i s/a/b/ ${foreign}` }),
     call('Bash', { command: 'git -C /r/other commit -m x' }),
+    // /dev/.. starts with /dev/ but names the other repository.
+    call('Write', { file_path: `/dev/..${foreign}` }),
+    call('Bash', { command: `echo 1 > /dev/..${foreign}` }),
   ])
     assert.match(
       decide(payload, env) ?? '',
@@ -396,6 +399,10 @@ test('Edit, Write and Bash outside the lane worktree get one refusal; lane-targe
     );
   assert.equal(
     decide(call('Edit', { file_path: `${wt}/src/a.ts` }), env),
+    undefined,
+  );
+  assert.equal(
+    decide(call('Bash', { command: 'echo 1 > /dev/null' }), env),
     undefined,
   );
   const admitted = { ...env, KRN_LANE_TARGET: '/r/other' };

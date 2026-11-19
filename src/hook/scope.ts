@@ -300,11 +300,14 @@ export function strayRedirect(
     ...(at < 0 ? [] : [join(root.slice(0, at), '.krn', 'runs')]),
     ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
   ];
-  return bashTargets(command, cwd, true).find(
-    (target) =>
-      !target.startsWith('/dev/') &&
-      !allowed.some((base) => inside(base, target)),
-  );
+  // Resolved first: `/dev/../home/x` starts with /dev/ but names /home/x.
+  return bashTargets(command, cwd, true)
+    .map((target) => resolve(cwd, target))
+    .find(
+      (target) =>
+        !target.startsWith('/dev/') &&
+        !allowed.some((base) => inside(base, target)),
+    );
 }
 
 export interface Verdict {
@@ -336,13 +339,16 @@ export function foreignTarget(
     ...(env.CLAUDE_CODE_TMPDIR ? [resolve(env.CLAUDE_CODE_TMPDIR)] : []),
     ...admitted,
   ];
-  return targets
-    .map((target) => (isAbsolute(target) ? target : resolve(cwd, target)))
-    .find(
-      (target) =>
-        !target.startsWith('/dev/') &&
-        !allowed.some((base) => inside(base, target)),
-    );
+  return (
+    targets
+      // resolve() normalizes an absolute path too: `/dev/../home/x` starts with /dev/ but names /home/x.
+      .map((target) => resolve(cwd, target))
+      .find(
+        (target) =>
+          !target.startsWith('/dev/') &&
+          !allowed.some((base) => inside(base, target)),
+      )
+  );
 }
 
 /** The refusal text, or undefined when the call is allowed. */
