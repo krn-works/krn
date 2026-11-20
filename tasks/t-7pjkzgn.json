@@ -1,0 +1,18 @@
+{
+  "id": "t-7pjkzgn",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "d8 cases and the verb-by-storage matrix pass: dep add/rm on pending and published-with-pending-edit go through locateTask/writeTaskRecord"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "fix(task): dep add and rm on a pending task or a pending edit go through the pending ref",
+  "after": [],
+  "body": [
+    "Evidence: cross-model audit 2026-11-20 d8; reproduction .krn/tmp/gemini/d8.test.ts exits 1 on main bb545b1.\nOutcome: krn task dep add|rm on a pending task neither throws exit 65 nor writes tasks/<id>.json in main (src/task/store.ts changeDependency).\nProof: the reproduction becomes a regression test that fails by assertion on the base source and passes with the change."
+  ],
+  "kind": "defect",
+  "area": "task"
+}

@@ -100,7 +100,7 @@ test('close and edit of a pending-only record rewrite it on the ref', () => {
   withFixture((repo) => {
     addPendingTask(repo, 't-pnd0003', mk('t-pnd0003', 'Pending'));
     editTask(repo, 't-pnd0003', { title: 'Renamed' });
-    closeTask(repo, 't-pnd0003', { kind: 'done' });
+    closeTask(repo, 't-pnd0003', { kind: 'done', ref: null, note: 'shipped' });
     assert.equal(existsSync(join(repo, 'tasks', 't-pnd0003.json')), false);
     const read = readTask(repo, 't-pnd0003');
     assert.equal(read?.title, 'Renamed');
