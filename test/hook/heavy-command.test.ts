@@ -408,6 +408,9 @@ test('a heavy step guarded by a failed condition does not take the independent s
     'false && npm test -- --watch; npm test -- --watch',
     'false && npm test; npm test',
     'false || true && npm test && npm test\nnpm test',
+    'false && npm test || npm test --watch',
+    'false && npm test -- --watch first || npm test -- --watch fallback',
+    'true || npm test && npm test',
   ]) {
     const original = run(command);
     const rewritten = run(gated(command, 1000, 'gate'));

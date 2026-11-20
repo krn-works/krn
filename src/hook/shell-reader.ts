@@ -376,7 +376,9 @@ function heredocMessage(inner: readonly Step[]): string | undefined {
   const [only, ...rest] = inner;
   if (only?.kind !== 'command' || rest.length > 0) return undefined;
   const { words, redirects } = only.command;
-  const [doc, ...more] = redirects;
+  // Redirects of standard error leave what cat prints on standard output alone.
+  const stdout = redirects.filter((redirect) => redirect.fd !== '2');
+  const [doc, ...more] = stdout;
   if (words.length !== 1 || words[0]?.text !== 'cat' || more.length > 0)
     return undefined;
   // Only a heredoc on standard input is what cat prints.

@@ -259,6 +259,7 @@ function tryTake(options: SlotOptions): Pass {
     mkdirSync(slot);
     const mine = record(weight);
     writeFileSync(join(slot, 'pid'), mine);
+    const inode = statSync(join(slot, 'pid')).ino;
     let released = false;
     return {
       kind: 'taken',
@@ -271,8 +272,11 @@ function tryTake(options: SlotOptions): Pass {
         try {
           current = readFileSync(join(slot, 'pid'), 'utf8');
         } catch (error) {
-          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
-          throw error;
+          const code = (error as NodeJS.ErrnoException).code;
+          if (code === 'ENOENT') return;
+          // A record its owner made unreadable is still ours while it is the file we wrote.
+          if (code !== 'EACCES') throw error;
+          if (statSync(join(slot, 'pid')).ino === inode) current = mine;
         }
         if (current === mine) rmSync(slot, { recursive: true, force: true });
       },
