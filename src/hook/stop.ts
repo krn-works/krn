@@ -378,7 +378,7 @@ export function testEdits(root: string, from: string): TestEdits {
     const path = renamed ? second : first;
     // A test renamed to a name no runner collects is a deletion in disguise.
     if (renamed && first && path && isTestFile(first) && !isTestFile(path)) {
-      edits.deleted.push(first);
+      if (!deletionExplained(root, from, first)) edits.deleted.push(first);
       continue;
     }
     if (!kind || !path || !isTestFile(path)) continue;

@@ -3112,6 +3112,14 @@ test('testEdits reports a test renamed to a name no runner collects as deleted',
     sh(repo, 'mv', 'test/a.disabled.ts', 'test/b.test.ts');
     sh(repo, 'commit', '-qm', 'rename to another test');
     assert.deepEqual(testEdits(repo, from).deleted, []);
+    sh(repo, 'mv', 'test/b.test.ts', 'test/c.disabled.ts');
+    sh(
+      repo,
+      'commit',
+      '-qm',
+      'retire test\n\nWeakens-tests: the case moved to a manual script',
+    );
+    assert.deepEqual(testEdits(repo, from).deleted, []);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
