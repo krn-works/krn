@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 import { analyze, type Prereg, reportLines } from '../../evals/replay/abc.ts';
 import type { ArmId } from '../../evals/replay/arms.ts';
 import type { Row } from '../../evals/replay/rows.ts';
-import type { TokenCounts } from '../../evals/replay/token-cost.ts';
 import {
   LIST_PRICES,
   NO_CACHE_DISCOUNT,
