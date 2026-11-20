@@ -21,7 +21,7 @@ import { z } from 'zod';
 
 /** Where manifests live, relative to the main checkout; the directory also holds lead files, which readers skip. */
 export const laneManifestDir = '.krn/runs/lane-manifests';
-/** Where manifests lived before they moved; `krn prune` still ages its retired ones out. */
+/** Where manifests lived before they moved: readers still see them, a transition rewrites one in place, and `krn prune` ages retired ones out. */
 const legacyManifestDir = '.krn/runs/lanes';
 /** A retired manifest older than this is deleted by `krn prune`. */
 export const RETIRED_KEEP_MS = 7 * 24 * 3_600_000;
@@ -140,21 +140,41 @@ function readBytes(path: string): Buffer | undefined {
   }
 }
 
-/** The manifest of `id`, or undefined when there is none or it does not parse. */
+/** Where the manifest of `id` lives: the current directory, else the legacy one, else (none yet) the current one. */
+function locate(main: string, id: string): string {
+  const current = manifestPath(main, id);
+  if (existsSync(current)) return current;
+  const legacy = manifestPath(main, id, legacyManifestDir);
+  return existsSync(legacy) ? legacy : current;
+}
+
+/** The manifest of `id`, or undefined when there is none or it does not parse; no `dir` reads both directories. */
 export function readManifest(
   main: string,
   id: string,
-  dir = laneManifestDir,
+  dir?: string,
 ): LaneManifest | undefined {
-  const bytes = readBytes(manifestPath(main, id, dir));
+  const bytes = readBytes(
+    dir === undefined ? locate(main, id) : manifestPath(main, id, dir),
+  );
   return bytes === undefined ? undefined : parse(bytes.toString('utf8'));
 }
 
-/** Every manifest that parses; directories, lead files and torn JSON in the same directory are skipped. */
-export function listManifests(
-  main: string,
-  dir = laneManifestDir,
-): LaneManifest[] {
+/**
+ * Every manifest that parses; directories, lead files and torn JSON in the same directory are skipped.
+ * No `dir` lists both directories, the current one winning for a lane id present in both.
+ */
+export function listManifests(main: string, dir?: string): LaneManifest[] {
+  if (dir === undefined) {
+    const current = listManifests(main, laneManifestDir);
+    const ids = new Set(current.map((m) => m.laneId));
+    return [
+      ...current,
+      ...listManifests(main, legacyManifestDir).filter(
+        (m) => !ids.has(m.laneId),
+      ),
+    ];
+  }
   let names: string[];
   try {
     names = readdirSync(join(main, dir));
@@ -248,7 +268,7 @@ export function transition(
   id: string,
   to: LanePhase,
 ): LaneManifest {
-  const path = manifestPath(main, id);
+  const path = locate(main, id);
   const seen = readBytes(path);
   const current = seen === undefined ? undefined : parse(seen.toString('utf8'));
   if (seen === undefined || current === undefined)
