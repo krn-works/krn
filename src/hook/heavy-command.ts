@@ -121,6 +121,14 @@ const compoundWord =
   /^\s*(?:if|then|elif|else|fi|for|select|while|until|do|done|case|esac|function)(?:\s|$)/u;
 
 /**
+ * A newline after a pipe, `&&` or `||` continues the command: the shell reads the next line as its operand.
+ * `text` is what follows the last cut; `op` is the operator that cut it.
+ */
+const continuesLine = (text: string, op: string | undefined) =>
+  /(?:^|[^|])\|\s*$/u.test(text) ||
+  (text.trim() === '' && (op === '&&' || op === '||'));
+
+/**
  * The top-level steps of a command list, each with the operator after it (`&&`, `||`, `;`, `&` or a
  * newline); a pipeline stays one step. Undefined when the text holds syntax the split does not follow:
  * a subshell, group, command substitution, heredoc or compound command.
@@ -160,6 +168,11 @@ function steps(command: string): Step[] | undefined {
       return undefined;
     else if (command.startsWith('&&', i) || command.startsWith('||', i))
       cut(command.slice(i, i + 2));
+    else if (
+      c === '\n' &&
+      continuesLine(command.slice(start, i), found.at(-1)?.op)
+    )
+      i += 1;
     else if (c === ';' || c === '\n') cut(c);
     else if (
       c === '&' &&
