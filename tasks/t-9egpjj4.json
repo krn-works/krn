@@ -1,0 +1,21 @@
+{
+  "id": "t-9egpjj4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Stop lets a krn-lane subagent with zero commits pass on any merged verdict",
+  "after": [],
+  "body": [
+    "A subagent ending `verdict: merged <base-sha>` passes Stop unchecked: shippedMerge only checks that the sha is on the base, not that it carries the lane's commits (src/hook/stop.ts:1394-1400, 2042-2043).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d4-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/hook/stop.ts, test/hook/stop.test.ts\nProof: node --test .krn/runs/gemini-audit/d4-stop-shipped-bypass.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d4"
+  }
+}

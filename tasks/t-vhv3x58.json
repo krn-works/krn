@@ -1,0 +1,21 @@
+{
+  "id": "t-vhv3x58",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Unpushed-delete guard fails open when the task record exists only in the lane commit",
+  "after": [],
+  "body": [
+    "`git worktree remove --force <lane>` on a lane whose unpushed Ticket commit holds the only copy of its task record is allowed: readFileSync of <main>/tasks/<id>.json throws ENOENT and the catch allows (src/hook/unpushed-delete.ts:135-147).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d5-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/hook/unpushed-delete.ts, test/hook/unpushed-delete.test.ts\nProof: node --test .krn/runs/gemini-audit/d5-unpushed-delete-lane-task.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d5"
+  }
+}

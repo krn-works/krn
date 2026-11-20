@@ -1,0 +1,21 @@
+{
+  "id": "t-9qv03rg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Ship ignores a green required check when the ruleset lists a check with a null integration id",
+  "after": [],
+  "body": [
+    "GitHub returns integration_id null; required-check.ts:109 accepts only number|undefined, parsing throws, the required context falls back to `Check`, and ship exits 69 though `ci / Check` is green (src/repo/required-check.ts:109, 146-152).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d2-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/repo/required-check.ts, test/repo/required-check.test.ts\nProof: node --test .krn/runs/gemini-audit/d2-ship-ruleset-null.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "ci",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d2"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "t-p89p3xj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Lane start loses a pending task record when its claim fails",
+  "after": [],
+  "body": [
+    "takePendingTask moves the record off refs/krn/pending-tasks into main tasks/ before claimTask; a refused claim (open after dependency) rolls back only worktree and branch, so the pending entry is lost and main is dirty (src/cli/lane.ts start rollback, src/task/pending.ts takePendingTask).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d6-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/cli/lane.ts, src/task/pending.ts, test/task/pending-records.test.ts\nProof: node --test .krn/runs/gemini-audit/d6-lane-start-loses-pending.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "task",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d6"
+  }
+}

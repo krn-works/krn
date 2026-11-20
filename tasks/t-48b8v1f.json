@@ -1,0 +1,21 @@
+{
+  "id": "t-48b8v1f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Lane write guard misses a cd inside a subshell and lets a lane write into the main checkout",
+  "after": [],
+  "body": [
+    "`(cd <main> && echo x > src/a.ts)` passes: bashTargets anchors cd at segment start, so after `(` the write resolves inside the worktree (src/hook/scope.ts:227-237, 475-504).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d3-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/hook/scope.ts, test/hook/scope.test.ts\nProof: node --test .krn/runs/gemini-audit/d3-scope-subshell-cd.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "hook",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d3"
+  }
+}

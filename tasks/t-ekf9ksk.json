@@ -1,0 +1,21 @@
+{
+  "id": "t-ekf9ksk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Reopening a closed published task in the main checkout is silently dropped",
+  "after": [],
+  "body": [
+    "The reopen writes bytes equal to an earlier open blob; stillPending treats any blob seen in origin base history as published and drops it, so the task stays closed though edit exits 0 (src/task/pending.ts:101-138, src/task/store.ts:527).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d7-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/task/pending.ts, src/task/store.ts, test/task/pending-records.test.ts\nProof: node --test .krn/runs/gemini-audit/d7-task-reopen-vanishes.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "task",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d7"
+  }
+}
