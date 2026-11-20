@@ -22,7 +22,7 @@ import {
 } from '../../task/claims.ts';
 import { taskFile } from '../../task/paths.ts';
 import { mergeTaskRecords } from '../../task/record-merge.ts';
-import { getTask } from '../../task/store.ts';
+import { getTask, hasTask } from '../../task/store.ts';
 import { git } from '../git-with.ts';
 import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
@@ -153,7 +153,13 @@ export async function prepareLane(
       env: environment,
       editsWorkflows:
         task !== undefined &&
-        getTask(main, task).body.join('\n').includes('.github/workflows'),
+        getTask(
+          // A rerun of a task whose record lives only in the lane worktree reads it there.
+          hasTask(main, task) ? main : join(main, '.krn', 'worktrees', lane),
+          task,
+        )
+          .body.join('\n')
+          .includes('.github/workflows'),
     });
     if (gaps.length > 0)
       return {
