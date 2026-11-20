@@ -1,0 +1,18 @@
+{
+  "id": "t-6pwsqg7",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task graph readers (scan, dependentsOf, loadTaskIndex, show) read pending over tree over archive through storage.ts; d7 phantom cycle and d8 pending dependents are tracked red-then-green in storage-matrix"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Task graph readers see pending records through the storage owner",
+  "after": [],
+  "body": [
+    "Evidence: audit 2026-11-20 D7: scanTaskDirectory appends pending entries without replacing tasks/ entries, so reversing B->A to A->B via changeDependency on the pending ref reports a phantom cycle (src/task/store.ts ~211-235, 264-276); D8: dependentsOf reads only tasks/ and the archive and omits pending dependents (src/task/store.ts ~313-328, src/task/cli.ts:789); reproductions .krn/tmp/gemini/d7.test.ts and d8.test.ts exit 1 on 15d4ee6.\nOutcome: every task graph reader (scanTaskDirectory, dependentsOf, loadTaskIndex) reads each record once through locateTask's precedence (pending, tree, archive), so a pending version replaces the tree version.\nProof: the d7 and d8 cases as tracked tests in test/task/storage-matrix.test.ts pass.\nFiles: src/task/store.ts, src/task/storage.ts, test/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

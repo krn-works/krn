@@ -11,8 +11,8 @@ import {
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
-import { ARCHIVE_DIR, readArchive } from './archive.ts';
-import { isPendingId, pendingTaskFiles } from './pending.ts';
+import { ARCHIVE_DIR } from './archive.ts';
+import { isPendingId } from './pending.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -31,7 +31,13 @@ import {
   type TaskStatus,
   TaskUsageError,
 } from './record.ts';
-import { createTaskRecord, locateTask, writeTaskRecord } from './storage.ts';
+import {
+  archivedLines,
+  createTaskRecord,
+  locateTask,
+  pendingRecordTexts,
+  writeTaskRecord,
+} from './storage.ts';
 
 // Exit code of `krn task close` when an acceptance command fails.
 const ACCEPTANCE_FAILED_EXIT = 66;
@@ -219,11 +225,14 @@ function scanTaskDirectory(root: string): {
     records.set(parsed.record.id, parsed.record);
   }
 
-  for (const [id, contents] of pendingTaskFiles(root)) {
+  for (const [id, contents] of pendingRecordTexts(root)) {
     const path = `pending tasks/${id}.json`;
     const parsed = parseTaskDocument(contents);
     for (const finding of parsed.findings) findings.push(`${path}: ${finding}`);
     if (parsed.record === undefined || parsed.id !== id) continue;
+    // The pending version replaces the tree version: its edges are the only ones in the graph.
+    for (let at = references.length - 1; at >= 0; at--)
+      if (references[at]?.id === id) references.splice(at, 1);
     ids.add(parsed.record.id);
     references.push({
       path,
@@ -234,7 +243,7 @@ function scanTaskDirectory(root: string): {
     records.set(parsed.record.id, parsed.record);
   }
 
-  for (const line of readArchive(root)) {
+  for (const line of archivedLines(root)) {
     findings.push(...line.findings);
     if (line.id !== undefined && isTaskId(line.id)) {
       if (ids.has(line.id))
@@ -312,17 +321,23 @@ export function readTask(root: string, id: TaskId): TaskRecord | undefined {
  */
 export function dependentsOf(root: string, id: TaskId): TaskId[] {
   const found = new Set<TaskId>();
+  const pending = pendingRecordTexts(root);
   const consider = (text: string): void => {
     if (!text.includes(id)) return;
     const parsed = parseTaskDocument(text);
     if (parsed.record?.after.includes(id)) found.add(parsed.record.id);
   };
   const directory = join(root, 'tasks');
-  if (!existsSync(directory)) return [];
-  for (const entry of readdirSync(directory, { withFileTypes: true }))
-    if (entry.isFile() && entry.name.endsWith('.json'))
-      consider(readFileSync(join(directory, entry.name), 'utf8'));
-  for (const line of readArchive(root))
+  if (existsSync(directory))
+    for (const entry of readdirSync(directory, { withFileTypes: true }))
+      if (
+        entry.isFile() &&
+        entry.name.endsWith('.json') &&
+        !pending.has(entry.name.slice(0, -'.json'.length))
+      )
+        consider(readFileSync(join(directory, entry.name), 'utf8'));
+  for (const text of pending.values()) consider(text.toString());
+  for (const line of archivedLines(root))
     if (line.record?.after.includes(id)) found.add(line.record.id);
   return [...found].sort();
 }
