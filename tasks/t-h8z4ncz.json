@@ -1,0 +1,18 @@
+{
+  "id": "t-h8z4ncz",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/lane/lifecycle.test.ts walks create, edit, dep add, start, scope, stop, commit, ship, drop on real git with a captured-gh receiver and snapshots every store per verb; node --test passes; fast PASS"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "One real-git lane lifecycle suite walks every lane and task verb against every store",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 migration step 1b; t-setr7a5 Outcome 'the lifecycle suite runs in CI'; untracked reproductions .krn/tmp/gemini/d3.test.ts, d4.test.ts, d7.test.ts, d8.test.ts.\nOutcome: test/lane/lifecycle.test.ts walks one real-git lane (bare origin + clone, real krn verbs in process, no stubbed transport, no prior-lane state) through task create, edit, dep add, lane start, a scope-hook write decision, a Stop-hook decision, ship against a fake GitHub receiver built from verbatim captures, and drop, asserting every store after each verb; cases already fixed on main (dep on pending, refused start) are green; the d3/d4/d7 behaviours not yet fixed are listed in the file header with the ADR step that will add them.\nProof: node --test test/lane/lifecycle.test.ts: exit 0 in CI's test shard; the file is listed in the shard weights.\nFiles: test/lane/lifecycle.test.ts, test/helpers/, test/fixtures/gh/"
+  ],
+  "kind": "debt",
+  "area": "lane"
+}
