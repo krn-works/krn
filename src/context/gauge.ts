@@ -169,27 +169,27 @@ function field(toolInput: unknown, name: string): unknown {
     : undefined;
 }
 
-// The thresholds are fractions of the window, so one global window setting
-// moves all three: advisories at 1/2 and 5/8, the ceiling at 3/4. The 400k
-// window gives 200k/250k/300k. The quarter above the ceiling serves only the
-// handoff before compaction; a step that overshoots the second advisory by
-// more than 50k meets the ceiling's refusal. 200k is a bounded step past the
-// measured band on the operator's order, not a measured safe point: the
-// evidence (.krn/runs/lead/context-budget/evidence.md) shows cost rising with
-// context and no quality data past 200k. The window moves again only on its
-// band's own evidence.
+// The ceiling is 3/4 of the window, capped at ceilingCap; the advisories sit at
+// 2/3 and 5/6 of the ceiling. The 400k window gives 200k/250k/300k; the 1M
+// window the operator set on 2026-11-20 gives about 267k/333k/400k. The cap
+// keeps one relay below 400k, so fewer, longer sessions replace the frequent
+// handoffs of the 300k ceiling without running toward compaction. Evidence on
+// cost per band: .krn/runs/lead/context-budget/evidence.md.
+export const ceilingCap = 400000;
+
 export function advisoriesOf(window: number): {
   first: number;
   second: number;
 } {
+  const ceiling = ceilingOf(window);
   return {
-    first: Math.floor(window / 2),
-    second: Math.floor((window * 5) / 8),
+    first: Math.floor((ceiling * 2) / 3),
+    second: Math.floor((ceiling * 5) / 6),
   };
 }
 
 export function ceilingOf(window: number): number {
-  return Math.floor((window * 3) / 4);
+  return Math.min(Math.floor((window * 3) / 4), ceilingCap);
 }
 
 export function handoffBash(command: string, host = false): boolean {
