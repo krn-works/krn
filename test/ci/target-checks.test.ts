@@ -158,6 +158,29 @@ test('a failed Check of an older Actions run is superseded while a newer run of 
       : { ...f, status: 'COMPLETED', conclusion: 'SUCCESS' },
   );
   assert.equal(newest && supersededByRerun(newest, finished), false);
+  // An unfinished row of another App, or of a job no run of this workflow has, never supersedes it.
+  const unrelated = (over: CheckFact): CheckFact[] => [
+    ...finished,
+    {
+      id: 999999999999,
+      name: 'Test (1/14)',
+      appId: REQUIRED_CHECK_APP_ID,
+      status: 'IN_PROGRESS',
+      conclusion: '',
+      detailsUrl:
+        'https://github.com/krn-works/krn/actions/runs/44790000000/job/1',
+      ...over,
+    },
+  ];
+  assert.equal(newest && supersededByRerun(newest, unrelated({})), true);
+  assert.equal(
+    newest && supersededByRerun(newest, unrelated({ appId: 99 })),
+    false,
+  );
+  assert.equal(
+    newest && supersededByRerun(newest, unrelated({ name: 'Selftest' })),
+    false,
+  );
   // An unfinished row of an older run never supersedes the aggregate of a newer one.
   const olderRunning = facts.map((f) =>
     f.detailsUrl?.includes('/runs/44780963518/') === true

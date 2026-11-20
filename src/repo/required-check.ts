@@ -60,8 +60,9 @@ const actionsRun = (run: CheckFact) =>
   /\/actions\/runs\/(\d+)\//u.exec(run.detailsUrl ?? '')?.[1];
 
 /**
- * Whether a later attempt supersedes this completed run: a row created after it, not completed, belongs to the same Actions
- * run (a rerun) or to a newer Actions run of the head (a push, an edit or a rerun that cancelled this one).
+ * Whether a later attempt of the same workflow supersedes this completed run: an unfinished row of the required App,
+ * created after it and named like a job of its own Actions run, belongs to the same run (a rerun) or to a newer run
+ * of the head (a push, an edit or a rerun that cancelled this one). Rows of another App or another workflow never do.
  * `gh run rerun --failed` copies the jobs it keeps and adds the aggregate's row only when its needs finish, and a new run
  * adds its aggregate row last, so until then the stale attempt is the newest aggregate row and the later attempt shows
  * only as a newer unfinished job.
@@ -73,14 +74,19 @@ export function supersededByRerun(
   const owner = actionsRun(check);
   if (owner === undefined || typeof check.id !== 'number') return false;
   const after = check.id;
+  const jobs = new Set(
+    runs.filter((run) => actionsRun(run) === owner).map((run) => run.name),
+  );
   return runs.some((run) => {
     const other = actionsRun(run);
     return (
       typeof run.id === 'number' &&
       run.id > after &&
+      run.status !== 'COMPLETED' &&
+      run.appId === REQUIRED_CHECK_APP_ID &&
       other !== undefined &&
       Number(other) >= Number(owner) &&
-      run.status !== 'COMPLETED'
+      jobs.has(run.name)
     );
   });
 }

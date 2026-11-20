@@ -914,6 +914,38 @@ ${synced}`;
       .parse(JSON.parse(text))
       .some((run) => run.status.toLowerCase() !== 'completed');
   };
+  // A newer, unfinished run of the workflow that produced `runId`: it may be listed before it has one job row.
+  const newerRun = async (at: string, runId: string) => {
+    const text = await gh([
+      'run',
+      'list',
+      '--repo',
+      repo,
+      '--commit',
+      at,
+      '--json',
+      'status,databaseId,workflowName',
+    ]);
+    const listed = z
+      .array(
+        z.object({
+          status: z.string(),
+          databaseId: z.number().optional(),
+          workflowName: z.string().optional(),
+        }),
+      )
+      .parse(JSON.parse(text));
+    const workflow = listed.find(
+      (run) => String(run.databaseId) === runId,
+    )?.workflowName;
+    return listed.some(
+      (run) =>
+        workflow !== undefined &&
+        run.workflowName === workflow &&
+        (run.databaseId ?? 0) > Number(runId) &&
+        run.status.toLowerCase() !== 'completed',
+    );
+  };
   const checks = async (at: string): Promise<CheckFact[]> =>
     JSON.parse(
       await gh([
@@ -930,6 +962,7 @@ ${synced}`;
       checks,
       context: requiredName,
       queued,
+      newerRun,
       head,
       mergeCurrent,
       pr,
@@ -985,6 +1018,8 @@ async function waitForMerge(options: {
   context?: string;
   /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
   queued: (head: string) => Promise<boolean>;
+  /** Whether a newer unfinished run of the workflow of Actions run `runId` is listed for the head. */
+  newerRun: (head: string, runId: string) => Promise<boolean>;
   head: string;
   /** Called once per head after a green Check: merges it, or returns the new head after updating the branch to the base. */
   mergeCurrent: (head: string) => Promise<string | undefined>;
@@ -1049,13 +1084,15 @@ async function waitForMerge(options: {
     // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
     let settled =
       check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
-    // A newer run may be listed before it has a single job row: a failed or cancelled attempt is final only when
-    // GitHub lists no unfinished run of the head.
+    // A newer run of the same workflow may be listed before it has a single job row: a failed or cancelled
+    // attempt is final only when GitHub lists none.
+    const failedRun = /\/runs\/(\d+)/u.exec(check?.detailsUrl ?? '')?.[1];
     if (
       settled &&
       conclusion !== undefined &&
       !isGreen(conclusion) &&
-      (await options.queued(head))
+      failedRun !== undefined &&
+      (await options.newerRun(head, failedRun))
     )
       settled = false;
     if (
