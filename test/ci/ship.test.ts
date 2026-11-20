@@ -467,11 +467,8 @@ test('ship reuses the open PR of the branch instead of creating another', async 
 });
 
 test('ship leaves the PR alone when its title and body already match, since an edit starts a new CI run', async () => {
-  // A verbatim `gh pr view 7 --json title,body` capture: GitHub keeps the text, here with CRLF and a trailing newline added.
-  const current = `${JSON.stringify({
-    body: `${weakensBody.replace(/\n/gu, '\r\n')}\r\n`,
-    title,
-  })}\n`;
+  // A verbatim `gh pr view 7 --json title,body` capture of a PR that shows exactly the published text.
+  const current = `${JSON.stringify({ body: weakensBody, title })}\n`;
   const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
   await shipCommand([...args, '--force'], r);
   assert.ok(r.calls.some((c) => c.startsWith('gh pr view 7')));
@@ -481,6 +478,23 @@ test('ship leaves the PR alone when its title and body already match, since an e
 
 test('ship edits the PR when only the body differs', async () => {
   const current = JSON.stringify({ body: 'old body\n', title });
+  const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
+  await shipCommand([...args, '--force'], r);
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
+});
+
+test('ship edits the PR when its body differs only by the final newline', async () => {
+  const current = JSON.stringify({ body: weakensBody.trimEnd(), title });
+  const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
+  await shipCommand([...args, '--force'], r);
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
+});
+
+test('ship edits the PR when its body differs only by CRLF line endings', async () => {
+  const current = JSON.stringify({
+    body: weakensBody.replace(/\n/gu, '\r\n'),
+    title,
+  });
   const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
   await shipCommand([...args, '--force'], r);
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));

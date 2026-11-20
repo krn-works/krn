@@ -706,7 +706,7 @@ ${synced}`;
       ])
     ).trim();
   // An edit of the title or body is an `edited` event that starts a new CI run, so a PR
-  // that already shows this title and body is left alone; an unreadable answer edits.
+  // that already shows exactly this title and body (no normalisation: a skipped needed edit costs a red ship, an extra one a CI run) is left alone; an unreadable answer edits.
   const publishedAlready = async (number: number): Promise<boolean> => {
     try {
       const shown = JSON.parse(
@@ -720,13 +720,10 @@ ${synced}`;
           'title,body',
         ]),
       ) as { title?: unknown; body?: unknown };
-      // Only line endings and the final newlines are ignored: any other character, a blank included, can change a body rule's verdict.
-      const text = (value: string) =>
-        value.replace(/\r\n/gu, '\n').replace(/\n+$/u, '');
       return (
         shown.title === title &&
         typeof shown.body === 'string' &&
-        text(shown.body) === text(readBody(publishedBody))
+        shown.body === readBody(publishedBody)
       );
     } catch {
       return false;
