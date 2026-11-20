@@ -1,0 +1,18 @@
+{
+  "id": "t-4c601kf",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lanes.md runs ship with --detach and reads the verdict from <worktree>/.krn/tmp/ship.log; test/rules/lane-ship-detach.test.ts red on base, green on branch"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "The lane brief ships with --detach so a ship outlives a lane session stopped by a usage limit",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-20: lane t-ztatbjv started `krn pr ship` as a background shell, the account hit its weekly limit, the agent stopped and the ship died with it; PR #1563 stayed open with a green Check and no merge (`krn lane status`: pr-open, no live ship).\nEvidence: t-8rnfkdx added `krn pr ship --detach` (src/ci/ship.ts usage) for exactly this, but .agents/skills/delivery-lead/lanes.md lines 3 and 8 still tell lanes to run ship as a plain background shell.\nOutcome: the lane brief tells lanes to run `krn pr ship --detach`, wait on its pid, and read the `verdict:` line from `<worktree>/.krn/tmp/ship.log`; a rule test fails when lanes.md names `krn pr ship` without `--detach`.\nProof: node --test on the rule test: red on the base lanes.md, green on the branch."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
