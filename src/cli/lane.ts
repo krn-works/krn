@@ -293,7 +293,7 @@ export function pruneMergedLanes(
         },
       });
       if (!removal.removed) continue;
-      recordRetired(main, path, 'pruned: its ship merged');
+      retireLane(main, path, 'pruned: its ship merged');
     } else gitRun(main, ['branch', '-D', branch]);
     removed.push(branch);
     process.stderr.write(
@@ -505,23 +505,8 @@ export async function dropLane(rest: string[]): Promise<string> {
     git(main, ['worktree', 'remove', '--force', path]);
   }
   if (hasBranch) git(main, ['branch', '-D', slug]);
-  if (hasWorktree) recordRetired(main, path, 'dropped by krn lane drop');
+  if (hasWorktree) retireLane(main, path, 'dropped by krn lane drop');
   return `dropped lane ${slug}${released.length === 0 ? '' : ` (released ${released.join(', ')})`}`;
-}
-
-/**
- * Records a removed lane as retired. The removal already happened, so a manifest that cannot be written
- * (a held swap marker, a full disk) must not leave the verb half done: it warns, and the next lane start
- * at that path retires the manifest (retireGoneLane).
- */
-function recordRetired(main: string, path: string, reason: string): void {
-  try {
-    retireLane(main, path, reason);
-  } catch (error) {
-    process.stderr.write(
-      `lane: removed ${path} but could not record it as retired (${error instanceof Error ? error.message : String(error)}); the next lane start there retires it\n`,
-    );
-  }
 }
 
 type CeilingReading = { share: number; ceiling: number; over: boolean } | null;

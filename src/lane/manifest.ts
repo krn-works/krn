@@ -300,13 +300,21 @@ export function retireLane(
   } catch {
     /* No worktrees directory yet: no lane ever started there. */
   }
-  const stale = liveManifestOfWorktree(main, real);
-  if (stale !== undefined)
-    transition(main, stale.laneId, {
-      kind: 'retired',
-      at: new Date().toISOString(),
-      reason,
-    });
+  // The removal already happened, so a manifest that cannot be written (a held swap marker, a full
+  // disk) must not abort the verb half done: it warns, and the next lane start at that path retires it.
+  try {
+    const stale = liveManifestOfWorktree(main, real);
+    if (stale !== undefined)
+      transition(main, stale.laneId, {
+        kind: 'retired',
+        at: new Date().toISOString(),
+        reason,
+      });
+  } catch (error) {
+    process.stderr.write(
+      `lane: removed ${worktree} but could not record it as retired (${error instanceof Error ? error.message : String(error)}); the next lane start there retires it\n`,
+    );
+  }
 }
 
 /** A lane dropped before its removal wrote `retired`: retires it so a new lane may start at the same path. */
