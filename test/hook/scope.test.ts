@@ -502,6 +502,8 @@ test('a write through a symlink inside the worktree is judged where the link poi
     symlinkSync(join(other, 'sub'), join(wt, 'deep'));
     mkdirSync(join(base, 'main', '.krn', 'runs'), { recursive: true });
     symlinkSync(other, join(base, 'main', '.krn', 'runs', 'out'));
+    // A dangling link: open(O_CREAT) follows it and creates its target.
+    symlinkSync(join(other, 'new.ts'), join(wt, 'dangle'));
     const env = {
       CLAUDE_PROJECT_DIR: wt,
       KRN_SESSION_CLASS: 'lane',
@@ -526,6 +528,8 @@ test('a write through a symlink inside the worktree is judged where the link poi
       // Only the raw text of a descriptor device passes; `/dev/fd/5/..` follows fd 5 first.
       call('Bash', { command: 'echo x > /dev/fd/5/../1' }),
       call('Write', { file_path: '/dev/fd/5/../1' }),
+      call('Write', { file_path: join(wt, 'dangle') }),
+      call('Bash', { command: 'echo x > dangle' }),
       // `~user` expands where the hook cannot follow.
       call('Bash', { command: 'echo x > ~root/a.ts' }),
     ])

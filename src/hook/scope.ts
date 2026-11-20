@@ -1,6 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { lstatSync, readFileSync, readlinkSync } from 'node:fs';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { TASKS_DIR } from '../task/paths.ts';
@@ -282,26 +290,47 @@ function commandTargets(command: string): string[] {
   return found;
 }
 
+/** Most symlinks one path may pass through, as Linux allows (MAXSYMLINKS); past it the kernel fails ELOOP. */
+const MAX_LINKS = 40;
+
 /**
- * Where a write to `target` lands, as the kernel walks it: the longest existing prefix is resolved by
- * realpath(3) with its `..` taken after each symlink (`link/../x` is beside the link's target, not beside
- * the link), and only the missing tail is joined lexically, since it holds no link yet. Every guard here
- * compares landing paths only: a prefix test on the spelling let `/dev/../<other repo>`, `/dev/fd/../root`
- * and a link inside the worktree write outside it.
+ * Where a write to `target` lands, walked component by component as the kernel does: each existing
+ * symlink is replaced by its target (a dangling one too, since open(O_CREAT) follows it), `..` steps
+ * out of the resolved directory, never the spelled one (`link/../x` is beside the link's target), and a
+ * missing component is kept as spelled, since it holds no link yet. Every guard here compares landing
+ * paths only: a prefix test on the spelling let `/dev/../<other repo>`, `/dev/fd/../root` and a link
+ * inside the worktree write outside it. A link loop lands nowhere the hook can check.
  */
 export function landing(target: string, cwd: string): string {
-  const parts = (isAbsolute(target) ? target : `${cwd}${sep}${target}`)
-    .split(sep)
-    .filter((part) => part !== '' && part !== '.');
-  for (let at = parts.length; at >= 0; at--) {
-    try {
-      const real = realpathSync.native(sep + parts.slice(0, at).join(sep));
-      return resolve(real, ...parts.slice(at));
-    } catch {
-      // Not there yet: try the parent and join this part lexically.
+  const split = (path: string) =>
+    path.split(sep).filter((part) => part !== '' && part !== '.');
+  const pending = split(isAbsolute(target) ? target : `${cwd}${sep}${target}`);
+  let at: string = sep;
+  let links = 0;
+  while (pending.length > 0) {
+    const part = pending.shift() as string;
+    if (part === '..') {
+      at = dirname(at);
+      continue;
     }
+    const next = join(at, part);
+    const stat = lstatSync(next, { throwIfNoEntry: false });
+    if (!stat?.isSymbolicLink()) {
+      at = next;
+      continue;
+    }
+    if (++links > MAX_LINKS) return join(UNRESOLVED, target);
+    let link: string;
+    try {
+      link = readlinkSync(next);
+    } catch {
+      at = next;
+      continue;
+    }
+    if (isAbsolute(link)) at = sep;
+    pending.unshift(...split(link));
   }
-  return resolve(sep, ...parts);
+  return at;
 }
 
 /** True when `target` is `base` or below it; both are landing paths. */
