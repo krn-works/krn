@@ -52,7 +52,7 @@ function run(command: string, cwd: string, args: string[] = [], extra = {}) {
   });
 }
 
-test('test runs, builds, installs and browser tests are heavy; servers, watchers and plain commands are not', () => {
+test('test runs, builds, installs and browser tests are heavy in watch mode too; servers and plain commands are not', () => {
   for (const command of [
     'npm test',
     'pnpm install',
@@ -69,15 +69,17 @@ test('test runs, builds, installs and browser tests are heavy; servers, watchers
     'composer install',
     'time npx tsc --noEmit',
     'npm install -w packages/app',
+    // Watch mode is no exemption: the gate's lease bounds how long it holds a slot.
+    'npx vitest --watch',
+    'npx playwright test --ui',
+    'npm run test:watch',
+    'npm run test:watch.js',
+    'npx jest --watchAll',
   ])
     assert.equal(isHeavy(command), true, command);
   for (const command of [
     'npm run dev',
-    'npx vitest --watch',
-    'npx playwright test --ui',
     'npm run start',
-    'npm run test:watch',
-    'npx jest --watchAll',
     "cat > notes.md <<'EOF'\nnpm install\nEOF",
     "git commit -m 'run npm test first'",
     'git status',
@@ -193,7 +195,7 @@ test('a compound gates only its heavy steps, so a server started after an instal
       'npm run build & npm test',
       `${wrap('npm run build', 500)} & ${wrap('npm test', 500)}`,
     ],
-    // Syntax the split does not follow is gated whole, as before, unless it starts a server.
+    // Syntax the split does not follow is gated whole, a server inside it too: the lease bounds its slot.
     [
       'for d in a b; do npm test; done',
       wrap('for d in a b; do npm test; done'),
@@ -202,7 +204,7 @@ test('a compound gates only its heavy steps, so a server started after an instal
       'cd "$(git rev-parse --show-toplevel)" && npm test',
       `cd "$(git rev-parse --show-toplevel)" && ${wrap('npm test')}`,
     ],
-    ['(npm i && npm run dev)', '(npm i && npm run dev)'],
+    ['(npm i && npm run dev)', wrap('(npm i && npm run dev)')],
     // A gated step runs in a child shell: state an earlier step sets in this shell must reach it.
     ['T=unit; npm test -- $T', wrap('T=unit; npm test -- $T')],
     [
@@ -210,7 +212,7 @@ test('a compound gates only its heavy steps, so a server started after an instal
       wrap('set -o pipefail; npm test | tail -5'),
     ],
     ['source .env && npm run build', wrap('source .env && npm run build')],
-    ['X=1; npm i && npm run dev', 'X=1; npm i && npm run dev'],
+    ['X=1; npm i && npm run dev', wrap('X=1; npm i && npm run dev')],
     [
       'FOO=1 npm test && npm run dev',
       `${wrap('FOO=1 npm test')} && npm run dev`,
@@ -219,10 +221,9 @@ test('a compound gates only its heavy steps, so a server started after an instal
     assert.equal(gated(command, 1000, gate), expected, command);
   const shop = repo('shop');
   const none = { exclude: [], heavy: [] };
-  assert.equal(
-    judge(payload('(npm i && npm run dev)', shop), {}, none),
-    undefined,
-  );
+  assert.deepEqual(judge(payload('(npm i && npm run dev)', shop), {}, none), {
+    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c '(npm i && npm run dev)'`,
+  });
   assert.deepEqual(judge(payload('npm i && npm run dev', shop), {}, none), {
     rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i' && npm run dev`,
   });
@@ -357,7 +358,7 @@ test('a quoted Go test filter does not make the command a server', () => {
   assert.ok(result?.rewrite);
 });
 
-test('a test file named watch.test.js is a one-shot run, not watch mode', () => {
+test('a test run is gated whether it names a watch file or runs in watch mode', () => {
   const result = judge(
     {
       tool_name: 'Bash',
@@ -377,10 +378,10 @@ test('a test file named watch.test.js is a one-shot run, not watch mode', () => 
     {},
     { exclude: [], heavy: [] },
   );
-  assert.equal(watching?.rewrite, undefined);
+  assert.ok(watching?.rewrite);
 });
 
-test('a quoted test filter is no server word and a dotted watch script is long-lived', () => {
+test('a quoted test filter and a dotted watch script are gated like any test run', () => {
   const verdict = (command: string) =>
     judge(
       { tool_name: 'Bash', tool_input: { command }, cwd: '/tmp' },
@@ -389,5 +390,6 @@ test('a quoted test filter is no server word and a dotted watch script is long-l
     );
   assert.ok(verdict("npm test -- -t 'start'")?.rewrite);
   assert.ok(verdict("go test -run 'start' ./...")?.rewrite);
-  assert.equal(verdict('npm run test:watch.dev')?.rewrite, undefined);
+  assert.ok(verdict('npm run test:watch.dev')?.rewrite);
+  assert.ok(verdict('npm run test:watch.js')?.rewrite);
 });

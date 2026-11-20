@@ -95,6 +95,16 @@ function runChild(command: string[], env: NodeJS.ProcessEnv): Promise<number> {
   });
 }
 
+/**
+ * How long one gated command holds its host slot (KRN_GATE_LEASE_S, default 1200 s, twice the Bash
+ * foreground cap): a watcher or server sent through the gate gives its slot back instead of holding it
+ * for its whole life, and a one-shot job longer than the lease runs on without one.
+ */
+function leaseMs(env: NodeJS.ProcessEnv = process.env): number {
+  const seconds = Number(env.KRN_GATE_LEASE_S);
+  return (Number.isFinite(seconds) && seconds > 0 ? seconds : 1200) * 1000;
+}
+
 export async function run(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -118,6 +128,11 @@ export async function run(
           hostPressure(sampleHost(), gateLimits(env), admission),
         slots: units,
         weight: parsed.weight ?? defaultJobWeight(units),
+        leaseMs: leaseMs(env),
+        onLease: () =>
+          process.stderr.write(
+            `heavy-gate: released the host slot after its ${leaseMs(env) / 1000}s lease (KRN_GATE_LEASE_S); the command runs on\n`,
+          ),
       },
       () => {
         const waited = (Date.now() - started) / 1000;
