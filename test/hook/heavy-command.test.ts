@@ -356,3 +356,26 @@ test('a quoted Go test filter does not make the command a server', () => {
   );
   assert.ok(result?.rewrite);
 });
+
+test('a test file named watch.test.js is a one-shot run, not watch mode', () => {
+  const result = judge(
+    {
+      tool_name: 'Bash',
+      tool_input: { command: "npm test -- 'watch.test.js'" },
+      cwd: '/tmp',
+    },
+    {},
+    { exclude: [], heavy: [] },
+  );
+  assert.ok(result?.rewrite);
+  const watching = judge(
+    {
+      tool_name: 'Bash',
+      tool_input: { command: 'npm test -- --watch' },
+      cwd: '/tmp',
+    },
+    {},
+    { exclude: [], heavy: [] },
+  );
+  assert.equal(watching?.rewrite, undefined);
+});

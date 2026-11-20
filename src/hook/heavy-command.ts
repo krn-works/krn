@@ -41,9 +41,9 @@ const heavyForms: RegExp[] = [
   /^mise run (?:test|check|build|e2e)[\w:.-]*(?:\s|$)/u,
   /^docker (?:build|compose build)(?:\s|$)/u,
 ];
-// Any word holding `watch` (--watch, --watchAll, test:watch) or naming a server keeps running: never gated.
+// Any word holding `watch` (--watch, --watchAll, test:watch) but not a file name (`watch.test.js`) or naming a server keeps running: never gated.
 const longLived =
-  /(?:^|\s)(?:[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
+  /(?:^|\s)(?:(?![\w:.-]*\.[a-z]{1,5}(?:\s|$))[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
 // A `go test|vet|build` argument (a `-run start` filter) names a test, never a server: the Go toolchain runs to completion.
 const goToolchain = /^go (?:test|vet|build)(?:\s|$)/u;
 const keepsRunning = (text: string) =>
