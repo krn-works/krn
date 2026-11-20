@@ -16,6 +16,7 @@ import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { createManifest, newLaneId, retireGoneLane } from '../lane/manifest.ts';
 import {
   type Lane,
   readLane,
@@ -47,6 +48,7 @@ import { gitLockError } from '../repo/shell-text.ts';
 import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
 import { slotHolders } from '../repo/slot-lock.ts';
 import {
+  assertClaimFree,
   claimTask,
   inspectClaim,
   mainCheckoutRoot,
@@ -580,6 +582,18 @@ export async function checkLaneCeiling(
     );
 }
 
+/** `lane-target:` lines of the task body and the KRN_LANE_TARGET list, read once at start (ADR 0029). */
+function laneTargets(origin: string, task: string | undefined): string[] {
+  const found = (process.env.KRN_LANE_TARGET ?? '').split(',');
+  const body = task === undefined ? [] : (readTask(origin, task)?.body ?? []);
+  for (const match of body.join('\n').matchAll(/^\s*lane-target:\s*(\S+)/gimu))
+    found.push(match[1] as string);
+  return found
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => resolve(entry));
+}
+
 /** Moves a pending record into the checkout; `restore` puts the pending ref and the checkout back as they were. */
 function takePending(
   origin: string,
@@ -643,10 +657,8 @@ export async function startLane(
 
   const base = contractBase(origin);
   fetchBase(main, base);
-  // The branch name is free (checked above): a ship record under it is an earlier lane's.
-  forgetShip(main, slug);
-  // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
-  pruneMergedLanes(main, base);
+  // Validate, then mutate (ADR 0029): every refusal below leaves the ship records, claims, pending ref,
+  // worktrees and branches as they were. The budget already skips merged clean lanes prune would remove.
   checkLaneBudget(main, base, slug);
   const free = freeGb(main);
   // Disk fills silently until the budget refuses: each start says what is left and how to reclaim it.
@@ -664,8 +676,17 @@ export async function startLane(
     throw new CliUsageError(
       `krn.json is not on origin/${base}: commit the files krn adopt wrote and merge them to ${base} before starting lanes`,
     );
+  if (task !== undefined) assertClaimFree(main, task, actor);
   // A temporary refusal comes after every configuration error, so a retry is never wasted on one.
   checkLaneCapacity(slug, deps.capacity);
+  // The branch name is free (checked above): a ship record under it is an earlier lane's.
+  const restoreShip = forgetShip(main, slug);
+  let copied = false;
+  // Shipped lanes leave their worktree and branch behind: free them now that the start is admitted.
+  pruneMergedLanes(main, base);
+  // A record of an earlier lane at this path outlived its worktree: it no longer names a live lane.
+  retireGoneLane(main, path);
+  const targets = laneTargets(origin, task);
   // A record pending on the publish ref moves into the checkout, then into the lane like any untracked one.
   const taken = task === undefined ? undefined : takePending(origin, task);
   try {
@@ -682,33 +703,56 @@ export async function startLane(
       gitOk(main, ['branch', '-D', slug]);
       throw error;
     }
-    if (task !== undefined) {
-      try {
-        const copied =
-          carried !== undefined && carryTaskRecord(carried, path, task);
+    let claimed = false;
+    try {
+      if (task !== undefined) {
+        copied = carried !== undefined && carryTaskRecord(carried, path, task);
         // A further lane of the same actor shares the claim it already holds: the claim stays held once.
         const held = inspectClaim(main, task);
-        const shared = held.state === 'live' && held.claim?.actor === actor;
-        if (!shared)
+        if (held.state !== 'live' || held.claim?.actor !== actor) {
           await claimTask(main, task, {
             actor,
             worktree: path,
             reason: reason ?? `lane ${slug}`,
           });
-        if (copied && carried !== undefined) {
-          if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
-          else rmSync(carried.file);
+          claimed = true;
         }
-      } catch (error) {
-        git(main, ['worktree', 'remove', '--force', path]);
-        git(main, ['branch', '-D', slug]);
-        throw error;
       }
+      // A task-records publish holds no agent session, so it is no lane and records none.
+      if (!slug.startsWith(taskRecordsPrefix))
+        createManifest(
+          main,
+          {
+            laneId: newLaneId(slug),
+            slug,
+            branch: slug,
+            worktree: realpathSync(path),
+            base,
+            ...(task === undefined ? {} : { task }),
+            targets,
+            actor,
+            createdAt: new Date().toISOString(),
+            agents: [],
+          },
+          { kind: 'started' },
+        );
+    } catch (error) {
+      // The record left the checkout only once the lane holds it: until here the checkout keeps its copy.
+      if (claimed && task !== undefined) await releaseClaim(main, task);
+      git(main, ['worktree', 'remove', '--force', path]);
+      git(main, ['branch', '-D', slug]);
+      throw error;
+    }
+    // The lane holds the record now: the checkout copy goes only after every step that could still fail.
+    if (copied && carried !== undefined && task !== undefined) {
+      if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
+      else rmSync(carried.file);
     }
     return { path: realpathSync(path), slug };
   } catch (error) {
     // A refused start leaves the record where it waited: back on the pending ref, the checkout clean.
     taken?.restore();
+    restoreShip();
     throw error;
   }
 }

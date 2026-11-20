@@ -1,0 +1,18 @@
+{
+  "id": "t-85w2shk",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/lane/manifest.ts writes .krn/runs/lanes/<laneId>.json through one transition switch; lane start validates budget, claim and capacity before forgetShip and prune and writes started; prune deletes retired manifests after 7 days; test/lane/start-refusal.test.ts and test/lane/manifest.test.ts"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Lane manifest writer: one owner of .krn/runs/lanes and a lane start that validates before it mutates",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 decision 1 and migration step 1a (docs/adr/0029-lane-manifest-and-task-writer.md, merged e1942c3); audit 2026-11-20 D7: a refused krn lane start reusing a merged slug runs forgetShip before the budget, capacity and claim checks and deletes .krn/runs/ship/<slug>.json (src/cli/lane.ts:647).\nOutcome: src/lane/manifest.ts is the only writer of .krn/runs/lanes/<laneId>.json (zod schema, phase discriminated union, the ADR transition table as one exhaustive switch, writes under the claims.ts abstract-socket mutex, temp file + rename); scripts/boundaries.ts STORES names it; krn lane start writes started (and validates budget, capacity and claim before forgetShip or any other side effect); krn prune keeps live manifests and deletes retired ones after 7 days.\nProof: unit tests of every allowed and one refused transition per phase; a real-git test where a refused lane start leaves .krn/runs/ship/, .krn/task-claims/, refs/krn/pending-tasks, worktrees and branches byte-identical; npm run fast PASS.\nFiles: src/lane/manifest.ts, src/cli/lane.ts, src/cli/prune.ts, scripts/boundaries.ts, test/lane/"
+  ],
+  "kind": "debt",
+  "area": "lane"
+}

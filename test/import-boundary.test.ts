@@ -181,7 +181,7 @@ test('product never imports workshop, except the listed edges, which may only sh
   }
 });
 
-test('tasks/ and the record files are named in code only by their owner', () => {
+test('tasks/, the record files and lane manifests are named in code only by their owner', () => {
   const root = fixture({
     'src/task/own.ts': "export const own = 'tasks/t-1.json';",
     'src/brain/own.ts': "export const own = '.agents/records.json';",
@@ -189,11 +189,13 @@ test('tasks/ and the record files are named in code only by their owner', () => 
       "export const a = 'tasks/t-1.json';\nexport const b = `standards/records.json`;",
     'src/hook/prose.ts':
       "// 'tasks/x.json' in a comment\nexport const p = 'the `tasks/<id>.json` file';",
+    'src/lane/manifest.ts': "export const dir = '.krn/runs/lanes';",
+    'src/cli/lane.ts': "export const m = '.krn/runs/lanes/x-abcdef.json';",
   });
   const found = checkStores(root);
   assert.deepEqual(
     found.map((v) => `${v.file}:${v.line}`),
-    ['src/hook/bad.ts:1', 'src/hook/bad.ts:2'],
+    ['src/cli/lane.ts:1', 'src/hook/bad.ts:1', 'src/hook/bad.ts:2'],
   );
   assert.deepEqual(checkStores(repo), []);
 });
