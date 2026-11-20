@@ -169,9 +169,11 @@ function field(toolInput: unknown, name: string): unknown {
     : undefined;
 }
 
-// The ceiling is 3/4 of the window, capped at ceilingCap; the advisories sit at
-// 2/3 and 5/6 of the ceiling. The 400k window gives 200k/250k/300k; the 1M
-// window the operator set on 2026-11-20 gives about 267k/333k/400k. The cap
+// The ceiling is 3/4 of the window, capped at ceilingCap. Below the cap the
+// advisories sit at 1/2 and 5/8 of the window (a 400k window gives
+// 200k/250k/300k). At the cap they sit at 7/8 and 15/16 of it, so a session
+// works up to the cap instead of handing off early: the 1M window the
+// operator set on 2026-11-20 gives 350k/375k/400k. The cap
 // keeps one relay below 400k, so fewer, longer sessions replace the frequent
 // handoffs of the 300k ceiling without running toward compaction. Evidence on
 // cost per band: .krn/runs/lead/context-budget/evidence.md.
@@ -181,10 +183,14 @@ export function advisoriesOf(window: number): {
   first: number;
   second: number;
 } {
-  const ceiling = ceilingOf(window);
+  if (Math.floor((window * 3) / 4) > ceilingCap)
+    return {
+      first: Math.floor((ceilingCap * 7) / 8),
+      second: Math.floor((ceilingCap * 15) / 16),
+    };
   return {
-    first: Math.floor((ceiling * 2) / 3),
-    second: Math.floor((ceiling * 5) / 6),
+    first: Math.floor(window / 2),
+    second: Math.floor((window * 5) / 8),
   };
 }
 
