@@ -28,7 +28,6 @@ import {
   inspect,
   judgeStop,
   linkPackageModules,
-  pipefailed,
   recordedShip,
   redTestsAtBase,
   relatedTests,
@@ -429,10 +428,22 @@ test('failuresIn keeps a failing Vitest run whose logging pipeline exited zero',
     assert.deepEqual(failuresIn(`${summary}\n`, 0), []);
 });
 
-test('a test command piped into a logger keeps its failing exit under the Stop hook shell', () => {
-  const masked = spawnSync('sh', ['-c', pipefailed('false | cat')]);
+test('a test command piped into a logger keeps its failing exit under the Stop hook shell', async () => {
+  // Loaded by name so the base source, which lacks the shell wrapper, fails by assertion.
+  const stop: Record<string, unknown> = await import('../../src/hook/stop.ts');
+  const pipefailed = stop.pipefailed;
+  assert.equal(
+    typeof pipefailed,
+    'function',
+    'the Stop hook names its test shell',
+  );
+  if (typeof pipefailed !== 'function') return;
+  const masked = spawnSync('sh', ['-c', String(pipefailed('false | cat'))]);
   assert.notEqual(masked.status, 0);
-  assert.equal(spawnSync('sh', ['-c', pipefailed('true | cat')]).status, 0);
+  assert.equal(
+    spawnSync('sh', ['-c', String(pipefailed('true | cat'))]).status,
+    0,
+  );
 });
 
 test('selectTests: name match for other stacks, go packages, guards, full fallback, deleted files', () => {
