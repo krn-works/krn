@@ -1571,6 +1571,29 @@ test('a rerun attempt that fails again still exits 74 on its own run', async () 
   });
 });
 
+test('a cancelled Check attempt is awaited while GitHub lists a newer run of the head, and that run merges', async () => {
+  // PR #1551 (real check-runs, see provenance): the newest aggregate row is the cancelled attempt of run 44781928074,
+  // while a newer run was queued and had no job row yet, so only the run list shows it.
+  // Only the rows of the newer run 44782200146 are dropped: its jobs did not exist at that moment.
+  const stale = JSON.stringify(
+    (
+      JSON.parse(
+        capture(
+          'fixtures/gh',
+          'check-runs-1551-newer-run',
+        ).streams.stdout?.toString('utf8') ?? '',
+      ) as { detailsUrl: string }[]
+    ).filter((row) => !row.detailsUrl.includes('/runs/44782200146/')),
+  );
+  const r = receiver({
+    pulls: [...Array(5).fill(auto), merged],
+    checkRuns: [...Array(4).fill(stale), rerunCapture()],
+    runs: [['queued'], ['queued'], ['queued'], ['queued'], ['completed']],
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
 test('a pending Check exits 75 at the bound and a Check that never starts exits 69 at the start bound', async () => {
   const pending = receiver({
     pulls: [

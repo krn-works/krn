@@ -1047,8 +1047,17 @@ async function waitForMerge(options: {
     const check = selectRequiredCheck(facts, options.context);
     const conclusion = check?.conclusion || undefined;
     // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
-    const settled =
+    let settled =
       check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
+    // A newer run may be listed before it has a single job row: a failed or cancelled attempt is final only when
+    // GitHub lists no unfinished run of the head.
+    if (
+      settled &&
+      conclusion !== undefined &&
+      !isGreen(conclusion) &&
+      (await options.queued(head))
+    )
+      settled = false;
     if (
       check !== undefined &&
       settled &&
