@@ -7,7 +7,8 @@ Date: 2026-11-19
 Proposed.
 
 - Extends ADR 0024 (three rule sources) and ADR 0019 (pack hygiene, decision 6). It does not reopen them: it measures where they stand and names what they missed.
-- The number may move if a standards ADR merges first.
+- Overlaps [ADR 0026](0026-standards-simplification.md), which reaches the same root cause (copied rule text) from the record stores. Here a record that restates a rule stays and cites it; ADR 0026 deletes KRN's own stores. If the operator accepts ADR 0026, step 2 below is obsolete.
+- Step 3 is partly delivered by #1530: `krn pr ship` and CI refuse a body without `## Why`, `## Verified` and a `Ticket:` or `Refs:` line. `## What changed`, `## Task` and the `command: verdict` shape are not checked yet.
 
 ## Context
 
@@ -43,7 +44,7 @@ What works: hooks come from one table (`src/dispatch/table.ts`). Edit-time stand
 Fixed in this PR:
 
 - `.agents/skills/architecture/SKILL.md:42` and `docs/program/repository-workflow.md:29` name a `typescript` skill. #1152 (6e42f17b) replaced it with `standards`. The reference test does not check skill names.
-- `docs/program/repository-workflow.md:60` says the project skills carry KRN additions "until this repository installs the universal set". Since #1101 they are installer output and byte-identical; `test/adopt/drift.test.ts:236` asserts it.
+- `docs/program/repository-workflow.md:60` says the project skills carry KRN additions "until this repository installs the universal set". Since #1101 `delivery-lead`, `delivery-handoff`, `delivery-retro` and `standards` are installer output and byte-identical; `test/adopt/drift.test.ts:236` asserts it. `architecture` is not: the installer does not write it, and the project copy is the KRN variant described under Open.
 - `.agents/records.json:162` (`r-tracker-owner`, tier reflex, audience all) says "a worker never edits, closes or deletes a tracker file". KRN-11 (`spec/rules.json:77`), `lanes.md:5` and `closureRule` (`src/cli/lane-brief.ts:62`) order the lane to close its own task. Both texts reach the lane in the same brief. The record's provenance cites "AGENTS.md KRN-11", which was amended later; the copy was not.
 - `src/task/cli.ts:69` (`krn task --help`) says workers "do not mutate tracker state", which also contradicts KRN-11.
 

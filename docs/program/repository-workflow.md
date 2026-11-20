@@ -57,7 +57,7 @@ Keep the minimal set of true, current docs. Delete outdated docs; Git history is
 
 ## Delivery skills in this repository
 
-The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository installs them unchanged (`test/adopt/drift.test.ts`), so the following additions live only here.
+The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository installs `delivery-lead`, `delivery-handoff`, `delivery-retro` and `standards` unchanged (`test/adopt/drift.test.ts`), so the following additions live only here; `.agents/skills/architecture` is still a hand-kept KRN variant that the installer does not write.
 
 - **Handoff:** the capsule is written only with `krn state set` and `krn state accept` and checked with `krn state check --root .`; `krn state handoff` generates `handoff.md` beside it. `node scripts/claude/handoff-requests.ts <handoff path>` checks that it names every open operator task, and `node scripts/claude/operator-inbox.ts open` lists prompts without a disposition. The next session starts with `node scripts/claude/successor-launch.ts --name "<slice purpose>" --model claude-opus-5-5 --effort medium --prompt "<prompt>"` and retires its predecessor with `--retire`.
 - **Retro:** `krn state retro --task <id>` prints the skeleton; rules go through `spec/rules.json`.
