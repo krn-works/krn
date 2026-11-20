@@ -12,6 +12,13 @@ import {
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { TASKS_DIR } from '../task/paths.ts';
+import {
+  gitCall,
+  programName,
+  readShell,
+  resolveCommand,
+  type Word,
+} from './shell-reader.ts';
 
 // PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker
 // unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
@@ -160,60 +167,15 @@ export function worker(
   return { scope: [], unscoped: true };
 }
 
-/** Drops heredoc bodies: their lines are data for the command, never commands themselves. */
-function stripHeredocs(command: string): string {
-  const lines = command.split('\n');
-  const kept: string[] = [];
-  let terminator: string | undefined;
-  for (const line of lines) {
-    if (terminator !== undefined) {
-      if (line.replace(/^\t+/u, '') === terminator) terminator = undefined;
-      continue;
-    }
-    kept.push(line);
-    const open = /<<-?\s*(["']?)([\w.-]+)\1/u.exec(line);
-    if (open) terminator = open[2];
-  }
-  return kept.join('\n');
-}
+// Redirections that open their target for writing; `>&` with a descriptor (`>&2`, `>&-`) duplicates one.
+const WRITE_OPS = new Set(['>', '>>', '>|', '&>', '&>>', '<>', '>&']);
 
 /**
- * Neutralises shell operators inside quotes: `'<task-id>'` or `"a > b"` is text, not a redirect.
- * Quoted paths keep their characters, so a quoted redirect target still resolves.
- */
-function maskQuotes(command: string): string {
-  return command.replace(/'[^']*'|"[^"]*"/gu, (quoted) =>
-    quoted
-      .slice(1, -1)
-      .replace(/[<>|;&]/gu, '_')
-      .replace(/\s/gu, '_'),
-  );
-}
-
-// Write targets a Bash command shows cheaply: redirections, tee and sed -i operands.
-function segmentTargets(segment: string, redirectsOnly = false): string[] {
-  const found: string[] = [];
-  // `>`, `>>`, `&>`, `&>>`, `>|`, `>&`, `<>` with an optional fd; `>&2` and `>&-` duplicate a descriptor.
-  for (const match of segment.matchAll(
-    /(?:^|[^>&\d<])(?:&|\d*)(?:>>?\|?|>&|<>)\s*([^\s|;&<>()]+)/gu,
-  ))
-    if (!/^\d+-?$|^-$/u.test(match[1] as string))
-      found.push(match[1] as string);
-  for (const match of segment.matchAll(/\btee\s+(?:-\w+\s+)*([^\s|;&<>]+)/gu))
-    found.push(match[1] as string);
-  if (redirectsOnly) return found.filter((target) => target !== '/dev/null');
-  for (const match of segment.matchAll(
-    /\bsed\s+(?:-\w+\s+)*-i\S*\s+(?:-e\s+)?\S+\s+(\S+)/gu,
-  ))
-    found.push(match[1] as string);
-  found.push(...commandTargets(segment));
-  return found.filter((target) => target !== '/dev/null');
-}
-
-/**
- * Where each write target lands: a `cd DIR` segment moves the directory for the segments after it,
- * so `cd <worktree> && echo x > out` writes the worktree. `cd` and every target follow symlinks
- * (`landing`); a descriptor device keeps its text and a target the shell still expands stays opaque.
+ * Where each write target lands: a `cd DIR` command moves the directory for the commands after it,
+ * so `cd <worktree> && echo x > out` writes the worktree; a subshell or substitution runs in a copy
+ * of the directory, so its `cd` ends at the `)`, and a pipeline member or `&` job never moves it.
+ * `cd` and every target follow symlinks (`landing`); a descriptor device keeps its text and a word
+ * the shell still expands stays opaque. Words come from the shared reader (shell-reader.ts).
  */
 export function bashTargets(
   command: string,
@@ -221,43 +183,73 @@ export function bashTargets(
   redirectsOnly = false,
   home = process.env.HOME ?? '',
 ): string[] {
-  const text = maskQuotes(stripHeredocs(command.replace(/\\\n/gu, ' ')));
   const found: string[] = [];
   let dir = cwd;
-  for (const segment of text.split(/&&|\|\||[;\n]|(?<![>&])&(?![>&])/u)) {
-    const cd = /^\s*(?:cd|pushd)\s+(?:--\s+)?([^\s|]+)\s*$/u.exec(segment);
-    if (cd) {
-      const to = expandHome(cd[1] as string, home);
-      // `cd -` and `cd $D` go where the hook cannot see: later relative targets stay opaque.
-      dir =
-        to === '-' || opaque(to) || opaque(dir)
-          ? join(UNRESOLVED, to)
-          : landing(to, dir);
+  const outer: string[] = [];
+  const text = (word: Word) =>
+    word.expands ? expandHome(word.text, home) : word.text;
+  const opaque = (word: Word) => word.expands && /[$`]|^~/u.test(text(word));
+  // The directory a `cd` or `-C` word moves `base` to.
+  const move = (word: Word, base: string) =>
+    text(word) === '-' || opaque(word) || unresolved(base)
+      ? join(UNRESOLVED, text(word))
+      : landing(text(word), base);
+  const place = (word: Word, base: string) => {
+    const target = text(word);
+    if (target === '/dev/null' && !opaque(word)) return;
+    if (!opaque(word) && isDevice(target)) found.push(target);
+    else if (opaque(word) || (unresolved(base) && !isAbsolute(target)))
+      found.push(join(UNRESOLVED, target));
+    else found.push(landing(target, base));
+  };
+  for (const step of readShell(command)) {
+    if (step.kind === 'open') {
+      outer.push(dir);
       continue;
     }
-    for (const raw of segmentTargets(segment, redirectsOnly)) {
-      const target = expandHome(raw, home);
-      if (isDevice(target)) found.push(target);
-      else if (opaque(target) || (opaque(dir) && !isAbsolute(target)))
-        found.push(join(UNRESOLVED, target));
-      else found.push(landing(target, dir));
+    if (step.kind === 'close') {
+      dir = outer.pop() ?? dir;
+      continue;
     }
+    const { words, redirects, forked } = step.command;
+    for (const redirect of redirects)
+      if (
+        WRITE_OPS.has(redirect.op) &&
+        !(redirect.op === '>&' && /^(?:\d+-?|-)$/u.test(redirect.target.text))
+      )
+        place(redirect.target, dir);
+    const resolved = resolveCommand(words);
+    if (resolved === undefined) continue;
+    const base = resolved.chdirs.reduce<string>(
+      (at, word) => move(word, at),
+      dir,
+    );
+    const [head, ...rest] = resolved.argv;
+    const name = programName(head);
+    if (name === 'cd' || name === 'pushd') {
+      if (forked || resolved.chdirs.length > 0) continue;
+      const to = operands(rest)[0];
+      if (to) dir = move(to, dir);
+      else if (name === 'cd' && home) dir = landing(home, dir);
+      continue;
+    }
+    for (const word of commandTargets(resolved.argv, redirectsOnly, (dirs) =>
+      dirs.reduce<string>((at, word) => move(word, at), base),
+    ))
+      place(word.word, word.base ?? base);
   }
   return found;
 }
 
 /** Stands for a directory the hook cannot resolve; no allowed base lies under it. */
 const UNRESOLVED = '/$unresolved';
+const unresolved = (dir: string) =>
+  dir === UNRESOLVED || dir.startsWith(`${UNRESOLVED}${sep}`);
 
 /** `~`, `~/x`, `$HOME/x` and `${HOME}/x` name the home directory; any other expansion stays opaque. */
 function expandHome(target: string, home: string): string {
   if (!home) return target;
   return target.replace(/^(?:~(?=\/|$)|\$HOME\b|\$\{HOME\})/u, home);
-}
-
-/** A target whose text the shell still expands (`$T`, `` `cmd` ``, `~user`) names no path the hook can check. */
-function opaque(target: string): boolean {
-  return /[$`]|^~/u.test(target);
 }
 
 /**
@@ -269,23 +261,125 @@ function isDevice(target: string): boolean {
   return /^\/dev\/(?:null|stdout|stderr|stdin|tty|zero|fd\/\d+)$/u.test(target);
 }
 
-/** Operands of rm, mv, cp and git add/checkout --/commit; anything else is unknown and allowed. */
-function commandTargets(command: string): string[] {
-  const found: string[] = [];
-  for (const segment of command.split(/[|]/u)) {
-    const words = segment.trim().split(/\s+/u).filter(Boolean);
-    const [name, ...rest] = words;
-    const operands = (list: string[]) =>
-      list.filter((word) => !word.startsWith('-'));
-    if (name === 'git' && rest[0] === '-C' && rest[1]) found.push(rest[1]);
-    if (name === 'rm' || name === 'mv') found.push(...operands(rest));
-    else if (name === 'cp') found.push(...operands(rest).slice(-1));
-    else if (name === 'git' && rest[0] === 'add')
-      found.push(...operands(rest.slice(1)));
-    else if (name === 'git' && rest[0] === 'checkout') {
-      const at = rest.indexOf('--');
-      if (at >= 0) found.push(...rest.slice(at + 1));
-    } else if (name === 'git' && rest[0] === 'commit') found.push('.');
+/** The operands of an argument list: words that are not options, and every word after `--`. */
+function operands(args: readonly Word[]): Word[] {
+  const at = args.findIndex((word) => word.text === '--');
+  const before = at < 0 ? args : args.slice(0, at);
+  return [
+    ...before.filter((word) => !word.text.startsWith('-') || word.text === '-'),
+    ...(at < 0 ? [] : args.slice(at + 1)),
+  ];
+}
+
+/** The files `sed -i` edits in place: operands after the script, or all of them when -e or -f gave it. */
+function sedFiles(args: readonly Word[]): Word[] {
+  let inPlace = false;
+  let script = false;
+  const rest: Word[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i] as Word;
+    const text = word.text;
+    if (text === '--') {
+      rest.push(...args.slice(i + 1));
+      break;
+    }
+    if (text.startsWith('--')) {
+      if (/^--in-place(?:=|$)/u.test(text)) inPlace = true;
+      if (/^--(?:expression|file)(?:=|$)/u.test(text)) {
+        script = true;
+        if (!text.includes('=')) i++;
+      } else if (/^--line-length$/u.test(text)) i++;
+      continue;
+    }
+    if (!text.startsWith('-') || text === '-') {
+      rest.push(word);
+      continue;
+    }
+    for (let j = 1; j < text.length; j++) {
+      const letter = text[j];
+      if (letter === 'i') {
+        inPlace = true;
+        break;
+      }
+      if (letter === 'e' || letter === 'f' || letter === 'l') {
+        if (letter !== 'l') script = true;
+        if (j + 1 === text.length) i++;
+        break;
+      }
+    }
+  }
+  if (!inPlace) return [];
+  return script ? rest : rest.slice(1);
+}
+
+/**
+ * Write targets a command's words show when its program heads it: tee and sed -i operands; rm, mv and cp operands, git -C directories and git add/checkout --/commit paths when the
+ * program heads it. Anything else is unknown and allowed. `at` resolves a git -C chain to its base.
+ */
+function commandTargets(
+  argv: readonly Word[],
+  redirectsOnly: boolean,
+  at: (dirs: readonly Word[]) => string,
+): { word: Word; base?: string }[] {
+  const found: { word: Word; base?: string }[] = [];
+  const after = (program: string) =>
+    programName(argv[0]) === program ? argv.slice(1) : undefined;
+  const tee = after('tee');
+  if (tee) for (const word of operands(tee)) found.push({ word });
+  if (redirectsOnly) return found;
+  const sed = after('sed');
+  if (sed) for (const word of sedFiles(sed)) found.push({ word });
+  const [head, ...rest] = argv;
+  const name = programName(head);
+  if (name === 'rm' || name === 'mv')
+    for (const word of operands(rest)) found.push({ word });
+  else if (name === 'cp') {
+    // `cp -t DIR SRC...` writes DIR/<name of each SRC>; otherwise the last operand is the target.
+    const dash = rest.findIndex((word) => word.text === '--');
+    const flag = (dash < 0 ? rest : rest.slice(0, dash)).findIndex((word) =>
+      /^(?:-t|--target-directory(?:=|$))/u.test(word.text),
+    );
+    const text = rest[flag]?.text ?? '';
+    const attached =
+      text.includes('=') || (text.startsWith('-t') && text.length > 2);
+    const into =
+      flag < 0
+        ? undefined
+        : attached
+          ? {
+              ...(rest[flag] as Word),
+              text: text.replace(/^(?:-t|--target-directory=)/u, ''),
+            }
+          : rest[flag + 1];
+    if (flag < 0) {
+      const last = operands(rest).at(-1);
+      if (last) found.push({ word: last });
+    } else if (into) {
+      const sources = operands(
+        rest.filter(
+          (_, index) => index !== flag && (attached || index !== flag + 1),
+        ),
+      );
+      for (const source of sources)
+        found.push({
+          word: { ...into, text: `${into.text}/${basename(source.text)}` },
+        });
+    }
+  }
+  const git = gitCall(argv);
+  if (git) {
+    for (const [index, dir] of git.dirs.entries())
+      found.push({ word: dir, base: at(git.dirs.slice(0, index)) });
+    const base = at(git.dirs);
+    const args = git.args;
+    if (git.verb === 'add')
+      for (const word of operands(args)) found.push({ word, base });
+    else if (git.verb === 'checkout') {
+      const dash = args.findIndex((word) => word.text === '--');
+      if (dash >= 0)
+        for (const word of args.slice(dash + 1)) found.push({ word, base });
+    } else if (git.verb === 'commit')
+      found.push({ word: { text: '.', expands: false, quoted: false }, base });
   }
   return found;
 }
@@ -314,7 +408,14 @@ export function landing(target: string, cwd: string): string {
       continue;
     }
     const next = join(at, part);
-    const stat = lstatSync(next, { throwIfNoEntry: false });
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(next, { throwIfNoEntry: false });
+    } catch {
+      // A component the kernel cannot walk (a file used as a directory, no permission): the write
+      // lands nowhere the hook can check, so every guard that needs a landing refuses it.
+      return join(UNRESOLVED, target);
+    }
     if (!stat?.isSymbolicLink()) {
       at = next;
       continue;
@@ -351,7 +452,7 @@ function outside(
   return targets.find(
     (target) =>
       !isDevice(target) &&
-      (opaque(target) || !bases.some((base) => inside(base, target))),
+      (unresolved(target) || !bases.some((base) => inside(base, target))),
   );
 }
 
