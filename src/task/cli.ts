@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { commandErrorExitCode } from '../cli-kit/command-error.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
-import { ARCHIVE_AFTER_DAYS, archiveClosedTasks } from './archive.ts';
+import { ARCHIVE_AFTER_DAYS } from './archive.ts';
 import {
   branchMisses,
   formatBranchMiss,
@@ -42,7 +42,7 @@ import {
   type TaskStatus,
   TaskUsageError,
 } from './record.ts';
-import { createsPending } from './storage.ts';
+import { archiveClosedTasks, createsPending } from './storage.ts';
 import {
   changeDependency,
   checkTaskDirectory,

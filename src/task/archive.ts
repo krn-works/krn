@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   parseTaskDocument,
@@ -6,7 +6,6 @@ import {
   type TaskId,
   type TaskRecord,
 } from './record.ts';
-import { atomicWrite } from './staged-write.ts';
 
 /** Directory under `tasks/` that holds closed tasks, one `<YYYY-MM>.jsonl` per created month. */
 export const ARCHIVE_DIR = 'archive';
@@ -111,55 +110,53 @@ export function findArchived(root: string, id: TaskId): TaskRecord | undefined {
   return undefined;
 }
 
-export interface ArchiveResult {
-  archived: TaskId[];
-  files: string[];
+/** Whether a closed task created at least `olderThanDays` before `today` is due to move into the archive. */
+export function dueForArchive(
+  record: TaskRecord,
+  today: Date,
+  olderThanDays = ARCHIVE_AFTER_DAYS,
+): boolean {
+  return (
+    record.status === 'closed' &&
+    Date.parse(`${record.created}T00:00:00Z`) <=
+      today.getTime() - olderThanDays * DAY_MS
+  );
 }
 
 /**
- * Moves closed tasks created at least `olderThanDays` before `today` from
- * `tasks/<id>.json` into `tasks/archive/<YYYY-MM>.jsonl`. Placement and order
- * depend only on the records, so a second run writes identical bytes.
+ * The archive files that hold `added` besides what the archive already holds, as repo-relative
+ * path to full text. Placement and order depend only on the records, so a second run yields
+ * identical bytes. Writing them is the task storage owner's job.
  */
-export function archiveClosedTasks(
+export function archiveTexts(
   root: string,
-  records: Iterable<TaskRecord>,
-  today: Date,
-  olderThanDays = ARCHIVE_AFTER_DAYS,
-): ArchiveResult {
-  const cutoff = today.getTime() - olderThanDays * DAY_MS;
-  const moving = [...records].filter(
-    (record) =>
-      record.status === 'closed' &&
-      existsSync(join(root, 'tasks', `${record.id}.json`)) &&
-      Date.parse(`${record.created}T00:00:00Z`) <= cutoff,
-  );
+  added: readonly TaskRecord[],
+): Map<string, string> {
   const byFile = new Map<string, TaskRecord[]>();
-  for (const record of moving) {
+  for (const record of added) {
     const file = archiveFile(record.created);
     byFile.set(file, [...(byFile.get(file) ?? []), record]);
   }
-  const files: string[] = [];
-  for (const [file, added] of [...byFile].sort(([a], [b]) =>
+  const existingLines = readArchive(root);
+  const texts = new Map<string, string>();
+  for (const [file, moving] of [...byFile].sort(([a], [b]) =>
     a < b ? -1 : 1,
   )) {
     const existing = new Map<string, TaskRecord>();
-    for (const line of readArchive(root))
+    for (const line of existingLines)
       if (
         line.record !== undefined &&
         archiveFile(line.record.created) === file
       )
         existing.set(line.record.id, line.record);
-    for (const record of added) existing.set(record.id, record);
-    const text = [...existing.values()]
-      .sort((a, b) => (a.id < b.id ? -1 : 1))
-      .map((record) => `${lineOf(record)}\n`)
-      .join('');
-    atomicWrite(root, join(root, file), text, true);
-    files.push(file);
+    for (const record of moving) existing.set(record.id, record);
+    texts.set(
+      file,
+      [...existing.values()]
+        .sort((a, b) => (a.id < b.id ? -1 : 1))
+        .map((record) => `${lineOf(record)}\n`)
+        .join(''),
+    );
   }
-  // Files are deleted only after every archive file is on disk.
-  for (const record of moving)
-    unlinkSync(join(root, 'tasks', `${record.id}.json`));
-  return { archived: moving.map((record) => record.id).sort(), files };
+  return texts;
 }

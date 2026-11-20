@@ -217,3 +217,27 @@ test('the pending ref writers are named only by the task storage owner and its h
   );
   assert.deepEqual(checkWriters(repo), []);
 });
+
+test('no module but the task storage owner writes or deletes tasks/ records', () => {
+  const root = fixture({
+    'src/task/storage.ts':
+      "unlinkSync(join(root, 'tasks', `${id}.json`));\nwriteFileSync(join(root, 'tasks', 'x.json'), '');",
+    'src/task/staged-write.ts': "renameSync(temporary, 'tasks/x.json');",
+    'src/task/archive.ts':
+      "import { unlinkSync } from 'node:fs';\nunlinkSync(join(root, 'tasks', `${record.id}.json`));\natomicWrite(root, join(root, archiveFile(c)), text, true);",
+    'src/task/other.ts':
+      "rmSync(join(root, 'tasks/archive', n));\nwriteFileSync(\n  join(root, ARCHIVE_DIR, n),\n  t,\n);",
+    'src/task/claims.ts':
+      "unlinkSync(claimPath(mainRoot, id));\nconst p = join(root, 'tasks', 'x.json'); readFileSync(p);",
+  });
+  assert.deepEqual(
+    checkWriters(root).map((v) => `${v.file}:${v.line}`),
+    [
+      'src/task/archive.ts:2',
+      'src/task/archive.ts:3',
+      'src/task/other.ts:1',
+      'src/task/other.ts:2',
+    ],
+  );
+  assert.deepEqual(checkWriters(repo), []);
+});
