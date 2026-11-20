@@ -41,9 +41,9 @@ const heavyForms: RegExp[] = [
   /^mise run (?:test|check|build|e2e)[\w:.-]*(?:\s|$)/u,
   /^docker (?:build|compose build)(?:\s|$)/u,
 ];
-// Any word holding `watch` (--watch, --watchAll, test:watch) but not a file name (`watch.test.js`) or naming a server keeps running: never gated.
+// Any word holding `watch` (--watch, --watchAll, test:watch) but not a source file name (`watch.test.js`) or naming a server keeps running: never gated.
 const longLived =
-  /(?:^|\s)(?:(?![\w:.-]*\.[a-z]{1,5}(?:\s|$))[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
+  /(?:^|\s)(?:(?![\w:.-]*\.(?:[cm]?[jt]sx?|json|py|go|rs|rb|php)(?:\s|$))[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
 // A `go test|vet|build` argument (a `-run start` filter) names a test, never a server: the Go toolchain runs to completion.
 const goToolchain = /^go (?:test|vet|build)(?:\s|$)/u;
 const keepsRunning = (text: string) =>
@@ -113,9 +113,16 @@ function programs(command: string): string[] {
   );
 }
 
+/** The programs of `command` with each quoted word marked (`'start`): a quoted word is data (a test filter), never a server word. */
+function barePrograms(command: string): string[] {
+  return commandsOf(command).map(({ words }) =>
+    program(words.map((word) => (word.quoted ? `'${word.text}` : word.text))),
+  );
+}
+
 /** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */
 function startsServer(command: string): boolean {
-  return programs(command).some((text) => keepsRunning(text));
+  return barePrograms(command).some((text) => keepsRunning(text));
 }
 
 type Step = { text: string; op: string };
@@ -193,8 +200,10 @@ export function isHeavy(
     ...heavyForms,
     ...extra.map((source) => new RegExp(source, 'u')),
   ];
+  const bare = barePrograms(command);
   return programs(command).some(
-    (text) => forms.some((form) => form.test(text)) && !keepsRunning(text),
+    (text, i) =>
+      forms.some((form) => form.test(text)) && !keepsRunning(bare[i] ?? text),
   );
 }
 

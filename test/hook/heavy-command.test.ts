@@ -379,3 +379,15 @@ test('a test file named watch.test.js is a one-shot run, not watch mode', () => 
   );
   assert.equal(watching?.rewrite, undefined);
 });
+
+test('a quoted test filter is no server word and a dotted watch script is long-lived', () => {
+  const verdict = (command: string) =>
+    judge(
+      { tool_name: 'Bash', tool_input: { command }, cwd: '/tmp' },
+      {},
+      { exclude: [], heavy: [] },
+    );
+  assert.ok(verdict("npm test -- -t 'start'")?.rewrite);
+  assert.ok(verdict("go test -run 'start' ./...")?.rewrite);
+  assert.equal(verdict('npm run test:watch.dev')?.rewrite, undefined);
+});
