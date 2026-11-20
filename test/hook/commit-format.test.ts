@@ -68,3 +68,21 @@ test('a call whose subject is not on the command line, or is well formed, passes
     assert.equal(decide(bash(command)), undefined, command);
   assert.equal(decide({ tool_name: 'Edit', tool_input: {} }), undefined);
 });
+
+test('an env wrapper does not hide a malformed subject or title', () => {
+  assert.equal(
+    decide(bash('env -u GH_TOKEN gh pr create --title "bad title"')) !==
+      undefined,
+    true,
+  );
+  assert.equal(
+    decide(bash('env GIT_AUTHOR_NAME=bot git commit -m "wip"')) !== undefined,
+    true,
+  );
+  assert.equal(
+    decide(
+      bash('env -i PATH=/usr/bin git commit -m "fix(hook): env keeps working"'),
+    ),
+    undefined,
+  );
+});

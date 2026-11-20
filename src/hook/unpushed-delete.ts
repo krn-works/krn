@@ -135,7 +135,10 @@ export function decide(payload: unknown): string | undefined {
       const root = dirname(
         git(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
       );
-      const task = readFileSync(join(root, 'tasks', `${id}.json`), 'utf8');
+      // A lane that carried a pending task holds the only copy: the tip's own tree then names the task.
+      const task =
+        read(() => readFileSync(join(root, 'tasks', `${id}.json`), 'utf8')) ||
+        git(cwd, ['show', `${tip}:tasks/${id}.json`]);
       if ((JSON.parse(task) as { status?: unknown }).status !== 'open')
         continue;
       if (task.includes(tip.slice(0, 7))) continue;

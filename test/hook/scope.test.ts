@@ -557,3 +557,25 @@ test('a write through a symlink inside the worktree is judged where the link poi
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('a subshell cd writes where it points and ends at the closing parenthesis', (t) => {
+  const main = realpathSync(mkdtempSync(join(tmpdir(), 'krn-scope-subshell-')));
+  t.after(() => rmSync(main, { recursive: true, force: true }));
+  const wt = join(main, '.krn', 'worktrees', 'my-lane');
+  mkdirSync(join(wt, 'src'), { recursive: true });
+  mkdirSync(join(main, 'src'), { recursive: true });
+  const env = {
+    CLAUDE_PROJECT_DIR: wt,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_TASK: 't-abc1234',
+    KRN_SCOPE: 'src/',
+  };
+  const call = (command: string) =>
+    decide(
+      { cwd: wt, tool_name: 'Bash', tool_input: { command } },
+      env,
+      'my-lane',
+    );
+  assert.notEqual(call(`(cd ${main} && echo pwned > src/a.ts)`), undefined);
+  assert.equal(call(`(cd ${main} && true); echo ok > src/a.ts`), undefined);
+});
