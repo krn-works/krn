@@ -146,6 +146,11 @@ function steps(command: string): Step[] | undefined {
       i += 1;
       continue;
     }
+    // A line splice is no token: it keeps the pending continuation.
+    if (c === '\\' && command[i + 1] === '\n') {
+      i += 2;
+      continue;
+    }
     // A comment keeps the pending continuation: its text, a trailing `|` included, is not an operator.
     const comment =
       c === '#' && (i === 0 || /[\s;&|]/u.test(command[i - 1] ?? ''));

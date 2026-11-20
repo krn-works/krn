@@ -390,7 +390,14 @@ function closing(s: string, at: number, open: string, close: string): number {
 /** The text of a `$(cat <<EOF ... EOF)` substitution: the heredoc body without trailing newlines. */
 function heredocMessage(inner: readonly Step[]): string | undefined {
   const [only, ...rest] = inner;
-  if (only?.kind !== 'command' || rest.length > 0) return undefined;
+  if (only?.kind !== 'command') return undefined;
+  // What follows may only be the substitutions the unquoted heredoc body runs while cat prints it.
+  let depth = 0;
+  for (const step of rest) {
+    if (step.kind === 'open') depth++;
+    else if (step.kind === 'close') depth--;
+    else if (depth === 0) return undefined;
+  }
   const { words, redirects } = only.command;
   // Redirects of standard error leave what cat prints on standard output alone.
   const stdout = redirects.filter((redirect) => redirect.fd !== '2');
@@ -564,7 +571,11 @@ function options(
       const eq = text.indexOf('=');
       const name = text.slice(2, eq < 0 ? undefined : eq);
       const matches = Object.keys(long).filter((key) => key.startsWith(name));
-      const key = name in long ? name : matches.length === 1 ? matches[0] : '';
+      const key = Object.hasOwn(long, name)
+        ? name
+        : matches.length === 1
+          ? matches[0]
+          : '';
       const kind = key ? long[key] : undefined;
       if (kind === undefined || kind === 'none') return undefined;
       if (kind === 'flag' && eq >= 0) return undefined;
@@ -641,7 +652,7 @@ export function resolveCommand(words: readonly Word[]): Resolved | undefined {
             ? options(argv, EXEC_SHORT)
             : { at: 0, chdirs: [] };
     if (read === undefined) return undefined;
-    const runner = RUNNERS[name];
+    const runner = Object.hasOwn(RUNNERS, name) ? RUNNERS[name] : undefined;
     if (runner && !argv[0]?.quoted) {
       const run = options(argv, runner.short, runner.long);
       if (run === undefined || run.at + runner.operands >= argv.length)
