@@ -94,7 +94,7 @@ export const STORES: ReadonlyArray<{
   {
     name: 'lane manifests',
     owner: 'src/lane/manifest.ts',
-    literal: /['"`]\.krn\/runs\/lane-manifests(?:\/|['"`])/u,
+    literal: /['"`]\.krn\/runs\/lanes(?:\/|['"`])/u,
   },
 ];
 

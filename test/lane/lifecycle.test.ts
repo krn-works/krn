@@ -108,7 +108,7 @@ function snapshot(repo: string): Stores {
   files('tasks', join(repo, 'tasks'));
   files('claims', join(repo, '.krn', 'task-claims'));
   files('ship', join(repo, '.krn', 'runs', 'ship'));
-  files('manifests', join(repo, '.krn', 'runs', 'lane-manifests'));
+  files('manifests', join(repo, '.krn', 'runs', 'lanes'));
   const pending = spawnSync(
     'git',
     ['-C', repo, 'ls-tree', '-r', 'refs/krn/pending-tasks'],

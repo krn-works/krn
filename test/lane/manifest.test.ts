@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -209,13 +208,8 @@ test('prune deletes retired manifests older than seven days and keeps live and r
     at: new Date(now - 3_600_000).toISOString(),
     reason: 'dropped',
   });
-  const legacy = join(main, '.krn/runs/lanes');
-  mkdirSync(legacy);
-  const file = `${old.laneId}.json`;
-  copyFileSync(join(main, laneManifestDir, file), join(legacy, file));
   const plan = planPrune(main, { base: 'main', now, days: 0 });
   applyPrune(main, plan, () => []);
-  assert.equal(existsSync(join(legacy, file)), false);
   assert.deepEqual(
     listManifests(main)
       .map((m) => m.slug)

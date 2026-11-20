@@ -190,9 +190,8 @@ test('tasks/, the record files and lane manifests are named in code only by thei
       "export const a = 'tasks/t-1.json';\nexport const b = `standards/records.json`;",
     'src/hook/prose.ts':
       "// 'tasks/x.json' in a comment\nexport const p = 'the `tasks/<id>.json` file';",
-    'src/lane/manifest.ts': "export const dir = '.krn/runs/lane-manifests';",
-    'src/cli/lane.ts':
-      "export const m = '.krn/runs/lane-manifests/x-abcdef.json';",
+    'src/lane/manifest.ts': "export const dir = '.krn/runs/lanes';",
+    'src/cli/lane.ts': "export const m = '.krn/runs/lanes/x-abcdef.json';",
   });
   const found = checkStores(root);
   assert.deepEqual(

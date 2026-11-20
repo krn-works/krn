@@ -1,4 +1,4 @@
-// The one writer of lane manifests (ADR 0029 decision 1): `.krn/runs/lane-manifests/<laneId>.json` in the main checkout.
+// The one writer of lane manifests (ADR 0029 decision 1): `.krn/runs/lanes/<laneId>.json` in the main checkout.
 // Every write validates its transition against the table below before it touches the file, and no caller
 // writes the file itself (STORES in scripts/boundaries.ts).
 import { createHash, randomBytes } from 'node:crypto';
@@ -20,9 +20,7 @@ import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 
 /** Where manifests live, relative to the main checkout; the directory also holds lead files, which readers skip. */
-export const laneManifestDir = '.krn/runs/lane-manifests';
-/** Where manifests lived before they moved: readers still see them, a transition rewrites one in place, and `krn prune` ages retired ones out. */
-const legacyManifestDir = '.krn/runs/lanes';
+export const laneManifestDir = '.krn/runs/lanes';
 /** A retired manifest older than this is deleted by `krn prune`. */
 export const RETIRED_KEEP_MS = 7 * 24 * 3_600_000;
 
@@ -119,8 +117,8 @@ export function allowedTransition(
   }
 }
 
-function manifestPath(main: string, id: string, dir = laneManifestDir): string {
-  return join(main, dir, `${id}.json`);
+function manifestPath(main: string, id: string): string {
+  return join(main, laneManifestDir, `${id}.json`);
 }
 
 function parse(text: string): LaneManifest | undefined {
@@ -140,50 +138,26 @@ function readBytes(path: string): Buffer | undefined {
   }
 }
 
-/** Where the manifest of `id` lives: the current directory, else the legacy one, else (none yet) the current one. */
-function locate(main: string, id: string): string {
-  const current = manifestPath(main, id);
-  if (existsSync(current)) return current;
-  const legacy = manifestPath(main, id, legacyManifestDir);
-  return existsSync(legacy) ? legacy : current;
-}
-
-/** The manifest of `id`, or undefined when there is none or it does not parse; no `dir` reads both directories. */
+/** The manifest of `id`, or undefined when there is none or it does not parse. */
 export function readManifest(
   main: string,
   id: string,
-  dir?: string,
 ): LaneManifest | undefined {
-  const bytes = readBytes(
-    dir === undefined ? locate(main, id) : manifestPath(main, id, dir),
-  );
+  const bytes = readBytes(manifestPath(main, id));
   return bytes === undefined ? undefined : parse(bytes.toString('utf8'));
 }
 
-/**
- * Every manifest that parses; directories, lead files and torn JSON in the same directory are skipped.
- * No `dir` lists both directories, the current one winning for a lane id present in both.
- */
-export function listManifests(main: string, dir?: string): LaneManifest[] {
-  if (dir === undefined) {
-    const current = listManifests(main, laneManifestDir);
-    const ids = new Set(current.map((m) => m.laneId));
-    return [
-      ...current,
-      ...listManifests(main, legacyManifestDir).filter(
-        (m) => !ids.has(m.laneId),
-      ),
-    ];
-  }
+/** Every manifest that parses; directories, lead files and torn JSON in the same directory are skipped. */
+export function listManifests(main: string): LaneManifest[] {
   let names: string[];
   try {
-    names = readdirSync(join(main, dir));
+    names = readdirSync(join(main, laneManifestDir));
   } catch {
     return [];
   }
   return names
     .filter((name) => name.endsWith('.json'))
-    .map((name) => readManifest(main, name.slice(0, -'.json'.length), dir))
+    .map((name) => readManifest(main, name.slice(0, -'.json'.length)))
     .filter((m): m is LaneManifest => m?.laneId !== undefined);
 }
 
@@ -268,7 +242,7 @@ export function transition(
   id: string,
   to: LanePhase,
 ): LaneManifest {
-  const path = locate(main, id);
+  const path = manifestPath(main, id);
   const seen = readBytes(path);
   const current = seen === undefined ? undefined : parse(seen.toString('utf8'));
   if (seen === undefined || current === undefined)
@@ -348,13 +322,11 @@ export function retireGoneLane(main: string, worktree: string): void {
 
 /** Retired manifests whose retirement is older than RETIRED_KEEP_MS: what `krn prune` deletes; live ones never. */
 export function expiredManifests(main: string, now = Date.now()): string[] {
-  return [laneManifestDir, legacyManifestDir].flatMap((dir) =>
-    listManifests(main, dir)
-      .filter(
-        (m) =>
-          m.phase.kind === 'retired' &&
-          now - Date.parse(m.phase.at) > RETIRED_KEEP_MS,
-      )
-      .map((m) => manifestPath(main, m.laneId, dir)),
-  );
+  return listManifests(main)
+    .filter(
+      (m) =>
+        m.phase.kind === 'retired' &&
+        now - Date.parse(m.phase.at) > RETIRED_KEEP_MS,
+    )
+    .map((m) => manifestPath(main, m.laneId));
 }

@@ -37,11 +37,7 @@ function snapshot(repo: string): Record<string, string> {
       else files[relative(repo, path)] = readFileSync(path, 'base64');
     }
   };
-  for (const dir of [
-    '.krn/runs/ship',
-    '.krn/task-claims',
-    '.krn/runs/lane-manifests',
-  ])
+  for (const dir of ['.krn/runs/ship', '.krn/task-claims', '.krn/runs/lanes'])
     read(join(repo, dir));
   return {
     ...files,
@@ -92,7 +88,7 @@ test('a start that fails at its manifest write keeps the only copy of an unpubli
   writeFileSync(record, bytes);
   mkdirSync(join(repo, '.krn', 'runs'), { recursive: true });
   writeFileSync(
-    join(repo, '.krn', 'runs', 'lane-manifests'),
+    join(repo, '.krn', 'runs', 'lanes'),
     'a file where the manifest directory goes',
   );
   await assert.rejects(

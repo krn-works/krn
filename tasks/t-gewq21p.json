@@ -1,0 +1,16 @@
+{
+  "id": "t-gewq21p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "lane manifest directory holds manifests only: move the lead files out",
+  "after": [
+    "t-37482pn"
+  ],
+  "body": [
+    "Evidence: .krn/runs/lanes/ holds lane manifests (src/lane/manifest.ts) and lead files of another owner (briefs/, gold.md, *.md prompts, publish logs). #1565 moved manifests to .krn/runs/lane-manifests/ and needed a legacy read path; its review (rounds 4-5, .krn/runs/review/) reproduced id shadowing, a pruned copy reappearing live, and a boundary gap, so the move was dropped from #1565.\nOutcome: the manifest directory holds manifests only: the lead files move out of .krn/runs/lanes/ (their writers and readers point at the new place), manifests stay where they are, so no reader ever reads two directories; the STORES entry stays.\nProof: a boundary test fails if a non-manifest file is written into .krn/runs/lanes/; grep finds no writer of .krn/runs/lanes/ outside src/lane/manifest.ts.\nFiles: scripts/boundaries.ts, the lead-file writers, .agents/skills/delivery-lead/"
+  ],
+  "kind": "debt",
+  "area": "lane"
+}
