@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { parseTickets } from '../repo/protocol-lines.ts';
 import {
   isTaskId,
   type TaskId,
@@ -54,7 +55,7 @@ function ticketTrailers(
       'log',
       '--no-color',
       '--reverse',
-      '--format=%h%x1f%(trailers:key=Ticket,valueonly,unfold,separator=%x1f)%x1e',
+      '--format=%h%x1f%B%x1e',
       range,
       '--',
     ],
@@ -67,12 +68,12 @@ function ticketTrailers(
     .map((record) => record.trim())
     .filter((record) => record !== '')
     .map((record) => {
-      const [commit = '', ...values] = record.split('\x1f');
+      const [commit = '', message = ''] = record.split('\x1f');
       return {
         commit,
-        tickets: values
-          .flatMap((value) => value.split(/[\s,]+/u))
-          .filter((ticket) => ticket !== ''),
+        tickets: parseTickets(message)
+          .filter((line) => line.key === 'Ticket')
+          .flatMap((line) => line.ids),
       };
     });
 }
