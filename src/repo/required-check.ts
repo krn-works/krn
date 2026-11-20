@@ -60,12 +60,11 @@ const actionsRun = (run: CheckFact) =>
   /\/actions\/runs\/(\d+)\//u.exec(run.detailsUrl ?? '')?.[1];
 
 /**
- * Whether a later attempt of the same workflow supersedes this completed run: an unfinished row of the required App,
- * created after it and named like a job of its own Actions run, belongs to the same run (a rerun) or to a newer run
- * of the head (a push, an edit or a rerun that cancelled this one). Rows of another App or another workflow never do.
- * `gh run rerun --failed` copies the jobs it keeps and adds the aggregate's row only when its needs finish, and a new run
- * adds its aggregate row last, so until then the stale attempt is the newest aggregate row and the later attempt shows
- * only as a newer unfinished job.
+ * Whether a later attempt of the same Actions run supersedes this completed row: an unfinished row of the required App,
+ * created after it, in the same run (`gh run rerun --failed` keeps the jobs that passed and adds the aggregate's row only
+ * when its needs finish, so until then the stale attempt is the newest aggregate row and the rerun shows only as a newer
+ * unfinished job). A row of another run never does, whatever its job name: a newer run of the head is judged by its
+ * workflow identity in `ship` (`newerRun`), and job names are not unique across workflows.
  */
 export function supersededByRerun(
   check: CheckFact,
@@ -74,21 +73,14 @@ export function supersededByRerun(
   const owner = actionsRun(check);
   if (owner === undefined || typeof check.id !== 'number') return false;
   const after = check.id;
-  const jobs = new Set(
-    runs.filter((run) => actionsRun(run) === owner).map((run) => run.name),
-  );
-  return runs.some((run) => {
-    const other = actionsRun(run);
-    return (
+  return runs.some(
+    (run) =>
       typeof run.id === 'number' &&
       run.id > after &&
       run.status !== 'COMPLETED' &&
       run.appId === REQUIRED_CHECK_APP_ID &&
-      other !== undefined &&
-      Number(other) >= Number(owner) &&
-      jobs.has(run.name)
-    );
-  });
+      actionsRun(run) === owner,
+  );
 }
 
 const branchSchema = z.object({

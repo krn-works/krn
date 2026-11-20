@@ -286,7 +286,7 @@ async function shipRun(
     ).trim();
 
   // The gate judges the context the repository requires, and waits while that exact context is absent.
-  let refused: string | undefined;
+  let gateContexts: string[] = [];
   const requiredName = await (async () => {
     try {
       const branchBody = await gh(['api', `repos/${repo}/branches/${target}`]);
@@ -295,8 +295,7 @@ async function shipRun(
         `repos/${repo}/rules/branches/${target}`,
       ]);
       const required = requiredContexts(branchBody, rulesBody);
-      if (required.length > 1)
-        refused = `the repository requires ${required.length} GitHub Actions aggregates (${required.join(', ')}); the gate judges one context, so ship will not request a merge`;
+      gateContexts = required;
       return requiredContext(branchBody, rulesBody);
     } catch {
       return REQUIRED_CHECK_NAME;
@@ -660,9 +659,6 @@ ${synced}`;
           `${prBody().trimEnd()}\n\n${sections.map((lines) => lines.join('\n')).join('\n\n')}\n`,
         );
 
-  if (refused !== undefined)
-    throw Object.assign(new Error(refused), { exitCode: 74 });
-
   const pushed = runner(
     'git',
     // No -u: an upstream is a .git/config write, which a running lane's sandbox placeholder
@@ -914,7 +910,7 @@ ${synced}`;
       .parse(JSON.parse(text))
       .some((run) => run.status.toLowerCase() !== 'completed');
   };
-  // A newer, unfinished run of the workflow that produced `runId`: it may be listed before it has one job row.
+  // A newer, unfinished run of the workflow (by ID) that produced `runId`, on the same head: it may be listed before it has one job row.
   const newerRun = async (at: string, runId: string) => {
     const text = await gh([
       'run',
@@ -924,24 +920,29 @@ ${synced}`;
       '--commit',
       at,
       '--json',
-      'status,databaseId,workflowName',
+      'status,databaseId,workflowDatabaseId,headSha',
     ]);
     const listed = z
       .array(
         z.object({
           status: z.string(),
           databaseId: z.number().optional(),
-          workflowName: z.string().optional(),
+          workflowDatabaseId: z.number().optional(),
+          headSha: z.string().optional(),
         }),
       )
       .parse(JSON.parse(text));
+    // Workflow display names and job names are not unique: only the workflow's own ID says two runs are the same workflow.
+    const onHead = (run: { headSha?: string | undefined }) =>
+      run.headSha === undefined || run.headSha === at;
     const workflow = listed.find(
-      (run) => String(run.databaseId) === runId,
-    )?.workflowName;
+      (run) => String(run.databaseId) === runId && onHead(run),
+    )?.workflowDatabaseId;
     return listed.some(
       (run) =>
         workflow !== undefined &&
-        run.workflowName === workflow &&
+        run.workflowDatabaseId === workflow &&
+        onHead(run) &&
         (run.databaseId ?? 0) > Number(runId) &&
         run.status.toLowerCase() !== 'completed',
     );
@@ -960,7 +961,7 @@ ${synced}`;
     outcome = await waitForMerge({
       view,
       checks,
-      context: requiredName,
+      contexts: gateContexts.length > 0 ? gateContexts : [requiredName],
       queued,
       newerRun,
       head,
@@ -1014,8 +1015,8 @@ async function waitForMerge(options: {
   view: () => Promise<PrView>;
   /** The check runs of the head with their App ids: the required check is selected by name and App. */
   checks: (head: string) => Promise<CheckFact[]>;
-  /** The context the repository requires; the plain `Check` when unset. */
-  context?: string;
+  /** Every aggregate context the repository requires from GitHub Actions: a merge is requested when all are green. */
+  contexts: string[];
   /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
   queued: (head: string) => Promise<boolean>;
   /** Whether a newer unfinished run of the workflow of Actions run `runId` is listed for the head. */
@@ -1079,28 +1080,33 @@ async function waitForMerge(options: {
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
     const facts = await options.checks(head);
-    const check = selectRequiredCheck(facts, options.context);
-    const conclusion = check?.conclusion || undefined;
-    // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
-    let settled =
-      check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
-    // A newer run of the same workflow may be listed before it has a single job row: a failed or cancelled
-    // attempt is final only when GitHub lists none.
-    const failedRun = /\/runs\/(\d+)/u.exec(check?.detailsUrl ?? '')?.[1];
-    if (
-      settled &&
-      conclusion !== undefined &&
-      !isGreen(conclusion) &&
-      failedRun !== undefined &&
-      (await options.newerRun(head, failedRun))
-    )
-      settled = false;
-    if (
-      check !== undefined &&
-      settled &&
-      conclusion !== undefined &&
-      !isGreen(conclusion)
-    ) {
+    // Each required context is judged on its own newest row; a completed attempt that a queued or running rerun
+    // supersedes is pending, not red or green, and so is a failed or cancelled one while GitHub lists a newer run of
+    // its workflow (by ID), which may not have a single job row yet.
+    const judged = await Promise.all(
+      options.contexts.map(async (context) => {
+        const check = selectRequiredCheck(facts, context);
+        const conclusion = check?.conclusion || undefined;
+        let settled =
+          check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
+        const failedRun = /\/runs\/(\d+)/u.exec(check?.detailsUrl ?? '')?.[1];
+        if (
+          settled &&
+          conclusion !== undefined &&
+          !isGreen(conclusion) &&
+          failedRun !== undefined &&
+          (await options.newerRun(head, failedRun))
+        )
+          settled = false;
+        return { check, conclusion, settled };
+      }),
+    );
+    const failed = judged.find(
+      ({ settled, conclusion }) =>
+        settled && conclusion !== undefined && !isGreen(conclusion),
+    );
+    if (failed?.check !== undefined && failed.conclusion !== undefined) {
+      const { check, conclusion } = failed;
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
         74,
@@ -1112,7 +1118,12 @@ async function waitForMerge(options: {
         `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }
-    if (!requested && settled && isGreen(conclusion)) {
+    const settled = judged.every(
+      (entry) => entry.settled && entry.conclusion !== undefined,
+    );
+    const green = settled && judged.every((entry) => isGreen(entry.conclusion));
+    const missing = judged.some((entry) => entry.check === undefined);
+    if (!requested && green) {
       const updated = await options.mergeCurrent(head);
       if (updated === undefined) requested = true;
       else {
@@ -1126,7 +1137,7 @@ async function waitForMerge(options: {
       }
     }
     const elapsed = options.now() - start;
-    if (settled && conclusion !== undefined) {
+    if (settled) {
       mergeBy ??= options.now() + mergeTimeoutMs;
       if (options.now() >= mergeBy)
         return stop(
@@ -1135,7 +1146,7 @@ async function waitForMerge(options: {
           `verdict: open: merge requested but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
         );
     } else if (
-      check === undefined &&
+      missing &&
       elapsed >= startTimeoutMs &&
       !(await options.queued(head))
     )

@@ -273,6 +273,15 @@
       }
     },
     {
+      "name": "run-list-1551-reruns",
+      "command": "gh run list --repo krn-works/krn --commit 7a908ffa0dc0db23ea70d797096430ebe992eb2e --json workflowDatabaseId,databaseId,status,headSha  # gh 2.105.0, 2026-11-20; the four runs of one workflow on PR #1551's head",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-list-1551-reruns.stdout.json",
+        "sha256": "8f4c7030f0bc76c90e75a368626605857291f7a21d298cd516b5a940731668d5"
+      }
+    },
+    {
       "name": "check-runs-1530-check-running",
       "command": "gh api 'repos/krn-works/krn/commits/c360c062a013cb57f34b07dd8db666ab24578bce/check-runs?filter=all&per_page=100' --jq CHECK_FACT_FILTER  # gh 2.89.0, 2026-11-19; PR #1530 head while its aggregate Check was in progress",
       "exitCode": 0,

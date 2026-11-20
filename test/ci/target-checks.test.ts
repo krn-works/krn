@@ -137,9 +137,10 @@ test('a failed Check attempt is superseded while a newer row of its Actions run 
   assert.equal(supersededByRerun({ ...failed, id: null }, [failed]), false);
 });
 
-test('a failed Check of an older Actions run is superseded while a newer run of the head is unfinished', () => {
+test('only an unfinished row of the Actions run of the failed Check supersedes it, not a row of another run', () => {
   // PR #1551's check-runs (real output, CHECK_FACT_FILTER): run 44780963518 was cancelled by 44781928074, which was
-  // cancelled by 44782200146, still running. The newest aggregate row is the failed one of 44781928074.
+  // cancelled by 44782200146, still running. The newest aggregate row is the failed one of 44781928074; a newer run of
+  // its workflow is judged by workflow ID from the run list (ship `newerRun`), never by the job names of other runs.
   const facts = JSON.parse(
     capture(
       'fixtures/gh',
@@ -150,17 +151,10 @@ test('a failed Check of an older Actions run is superseded while a newer run of 
   const newest = selectRequiredCheck(facts);
   assert.equal(newest?.id, 136447715991);
   assert.equal(newest?.conclusion, 'FAILURE');
-  assert.equal(newest && supersededByRerun(newest, facts), true);
-  // Once the newer run finished, its failed row speaks for the head again.
-  const finished = facts.map((f) =>
-    f.status === 'COMPLETED'
-      ? f
-      : { ...f, status: 'COMPLETED', conclusion: 'SUCCESS' },
-  );
-  assert.equal(newest && supersededByRerun(newest, finished), false);
-  // An unfinished row of another App, or of a job no run of this workflow has, never supersedes it.
-  const unrelated = (over: CheckFact): CheckFact[] => [
-    ...finished,
+  assert.equal(newest && supersededByRerun(newest, facts), false);
+  // A later unfinished job of the same run is a rerun of it.
+  const sameRun = (over: CheckFact): CheckFact[] => [
+    ...facts,
     {
       id: 999999999999,
       name: 'Test (1/14)',
@@ -168,28 +162,31 @@ test('a failed Check of an older Actions run is superseded while a newer run of 
       status: 'IN_PROGRESS',
       conclusion: '',
       detailsUrl:
-        'https://github.com/krn-works/krn/actions/runs/44790000000/job/1',
+        'https://github.com/krn-works/krn/actions/runs/44781928074/job/1',
       ...over,
     },
   ];
-  assert.equal(newest && supersededByRerun(newest, unrelated({})), true);
+  assert.equal(newest && supersededByRerun(newest, sameRun({})), true);
+  // Another App, a finished row, or a row of another run with the same job name never does.
   assert.equal(
-    newest && supersededByRerun(newest, unrelated({ appId: 99 })),
+    newest && supersededByRerun(newest, sameRun({ appId: 99 })),
     false,
   );
   assert.equal(
-    newest && supersededByRerun(newest, unrelated({ name: 'Selftest' })),
+    newest && supersededByRerun(newest, sameRun({ status: 'COMPLETED' })),
     false,
   );
-  // An unfinished row of an older run never supersedes the aggregate of a newer one.
-  const olderRunning = facts.map((f) =>
-    f.detailsUrl?.includes('/runs/44780963518/') === true
-      ? { ...f, status: 'IN_PROGRESS', conclusion: '' }
-      : f.detailsUrl?.includes('/runs/44782200146/') === true
-        ? { ...f, status: 'COMPLETED', conclusion: 'SUCCESS' }
-        : f,
+  assert.equal(
+    newest &&
+      supersededByRerun(
+        newest,
+        sameRun({
+          detailsUrl:
+            'https://github.com/krn-works/krn/actions/runs/44790000000/job/1',
+        }),
+      ),
+    false,
   );
-  assert.equal(newest && supersededByRerun(newest, olderRunning), false);
 });
 
 const repo = JSON.stringify({

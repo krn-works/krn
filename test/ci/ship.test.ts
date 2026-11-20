@@ -1596,9 +1596,13 @@ test('a cancelled Check attempt is awaited while GitHub lists a newer run of its
   );
   const listing = (newer: string) =>
     JSON.stringify([
-      { databaseId: 44781928074, status: 'completed', workflowName: 'CI' },
-      { databaseId: 44785668602, status: newer, workflowName: 'CI' },
-      { databaseId: 44785000000, status: 'queued', workflowName: 'Selftest' },
+      {
+        databaseId: 44781928074,
+        status: 'completed',
+        workflowDatabaseId: 378810503,
+      },
+      { databaseId: 44785668602, status: newer, workflowDatabaseId: 378810503 },
+      { databaseId: 44785000000, status: 'queued', workflowDatabaseId: 1 },
     ]);
   const r = receiver({
     pulls: [...Array(5).fill(auto), merged],
@@ -1625,9 +1629,13 @@ test('a failed Check still exits 74 while only an unrelated workflow is unfinish
     checkRuns: [failed],
     runLists: [
       JSON.stringify([
-        { databaseId: 44781928074, status: 'completed', workflowName: 'CI' },
-        { databaseId: 44780000000, status: 'queued', workflowName: 'Selftest' },
-        { databaseId: 44785000000, status: 'queued', workflowName: 'Selftest' },
+        {
+          databaseId: 44781928074,
+          status: 'completed',
+          workflowDatabaseId: 378810503,
+        },
+        { databaseId: 44780000000, status: 'queued', workflowDatabaseId: 1 },
+        { databaseId: 44785000000, status: 'queued', workflowDatabaseId: 1 },
       ]),
     ],
   });
