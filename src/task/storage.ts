@@ -7,7 +7,12 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { findArchived } from './archive.ts';
+import {
+  ARCHIVE_AFTER_DAYS,
+  archiveTexts,
+  dueForArchive,
+  findArchived,
+} from './archive.ts';
 import {
   addPendingTask,
   commitPendingRecords,
@@ -162,4 +167,44 @@ export function carryTaskRecord(
 /** Removes the checkout's untracked copy of a record the lane now holds. */
 export function dropCarriedCopy(carried: CarriedRecord): void {
   rmSync(carried.file);
+}
+
+export interface ArchiveResult {
+  archived: TaskId[];
+  files: string[];
+}
+
+/**
+ * Moves closed tasks created at least `olderThanDays` before `today` into
+ * `tasks/archive/<YYYY-MM>.jsonl`, wherever `locateTask` finds them: a record in `tasks/` and a
+ * pending one both end up in the archive, and neither location keeps a copy. The archive files
+ * are on disk before any source is removed, so an interrupted run loses nothing.
+ */
+export function archiveClosedTasks(
+  root: string,
+  records: Iterable<TaskRecord>,
+  today: Date,
+  olderThanDays = ARCHIVE_AFTER_DAYS,
+): ArchiveResult {
+  const moving: TaskRecord[] = [];
+  const pending: TaskId[] = [];
+  for (const { id } of [...records].filter((record) =>
+    dueForArchive(record, today, olderThanDays),
+  )) {
+    const found = locateTask(root, id);
+    if (found.where === 'archived' || found.record === undefined) continue;
+    if (!dueForArchive(found.record, today, olderThanDays)) continue;
+    moving.push(found.record);
+    if (found.where === 'pending') pending.push(id);
+  }
+  const texts = archiveTexts(root, moving);
+  for (const [file, text] of texts)
+    atomicWrite(root, join(root, file), text, true);
+  for (const record of moving)
+    rmSync(join(root, 'tasks', `${record.id}.json`), { force: true });
+  removePendingTasks(root, pending);
+  return {
+    archived: moving.map((record) => record.id).sort(),
+    files: [...texts.keys()],
+  };
 }

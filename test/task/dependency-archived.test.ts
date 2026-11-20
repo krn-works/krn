@@ -10,8 +10,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { archiveClosedTasks } from '../../src/task/archive.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
+import { archiveClosedTasks } from '../../src/task/storage.ts';
 import {
   changeDependency,
   checkTaskDirectory,

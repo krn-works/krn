@@ -68,7 +68,7 @@ Out of scope, each its own task: the Stop loop breaker never trips because the r
 | `parked` | `started` | lane run, lane start reuse |
 | any but `retired` | `retired` | drop, prune, settle (t-91n0383 slices 5, 6) |
 
-- **Transactional** means: one writer module; each write takes the same abstract-socket mutex `claims.ts` uses for claim mutations (ADR 0015: no lock files), reads the manifest, **validates** the transition and every precondition (budget, capacity, claim, live pid) before any side effect, then **mutates** with a recorded rollback for each side effect (worktree, branch, claim, pending record), writes a temporary file and renames it. A refused verb leaves every store byte-identical. No caller writes the file.
+- **Transactional** means: one writer module; each write reads the manifest, **validates** the transition and every precondition (budget, capacity, claim, live pid) before any side effect, then **mutates** with a recorded rollback for each side effect (worktree, branch, claim, pending record); the manifest is created with an exclusive hard-link create and swapped under a marker named by the digest of the bytes read, so a stale reader exits 75 (PR #1555; the abstract-socket mutex of `claims.ts` was removed in fcd3030). A refused verb leaves every store byte-identical. No caller writes the file.
 
 ### 2. How a process finds its lane
 

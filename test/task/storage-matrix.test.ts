@@ -15,6 +15,7 @@ import test from 'node:test';
 import { addPendingTask, pendingTaskFiles } from '../../src/task/pending.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 import {
+  archiveClosedTasks,
   createsPending,
   createTaskRecord,
   locateTask,
@@ -228,5 +229,92 @@ test('publishPendingRecords commits pending records in a worktree and settlePubl
     );
     settlePublished(repo, commit.ids);
     assert.equal(pendingTaskFiles(repo).size, 0);
+  });
+});
+
+const TODAY = new Date('2026-11-20');
+
+const closedMk = (id: string, title: string) =>
+  serializeTask({
+    ...(JSON.parse(mk(id, title)) as TaskRecord),
+    status: 'closed',
+    resolution: { kind: 'done', ref: null, note: 'shipped' },
+  });
+
+function archived(repo: string): string {
+  return readFileSync(join(repo, 'tasks', 'archive', '2026-11.jsonl'), 'utf8');
+}
+
+test('archive moves a closed published record out of tasks/ and locateTask agrees', () => {
+  withFixture((repo) => {
+    closeTask(repo, 't-pub0002', { kind: 'done', ref: null, note: 'shipped' });
+    const moved = archiveClosedTasks(
+      repo,
+      [locateTask(repo, 't-pub0002').record as TaskRecord],
+      TODAY,
+    );
+    assert.deepEqual(moved.archived, ['t-pub0002']);
+    assert.equal(existsSync(join(repo, 'tasks', 't-pub0002.json')), false);
+    assert.equal(pendingTaskFiles(repo).has('t-pub0002'), false);
+    assert.match(archived(repo), /t-pub0002/);
+    assert.equal(locateTask(repo, 't-pub0002').where, 'archived');
+  });
+});
+
+test('archive moves a closed pending-only record and drops it from the pending ref', () => {
+  withFixture((repo) => {
+    addPendingTask(repo, 't-pnd0003', closedMk('t-pnd0003', 'Pending'));
+    const moved = archiveClosedTasks(
+      repo,
+      [locateTask(repo, 't-pnd0003').record as TaskRecord],
+      TODAY,
+    );
+    assert.deepEqual(moved.archived, ['t-pnd0003']);
+    assert.equal(pendingTaskFiles(repo).has('t-pnd0003'), false);
+    assert.equal(existsSync(join(repo, 'tasks', 't-pnd0003.json')), false);
+    assert.equal(locateTask(repo, 't-pnd0003').where, 'archived');
+  });
+});
+
+test('archive of a published record with a pending close archives the pending copy and clears both', () => {
+  withFixture((repo) => {
+    editTask(repo, 't-pub0002', { title: 'Edited' });
+    closeTask(repo, 't-pub0002', { kind: 'done', ref: null, note: 'shipped' });
+    assert.equal(locateTask(repo, 't-pub0002').where, 'pending');
+    archiveClosedTasks(
+      repo,
+      [locateTask(repo, 't-pub0002').record as TaskRecord],
+      TODAY,
+    );
+    assert.equal(existsSync(join(repo, 'tasks', 't-pub0002.json')), false);
+    assert.equal(pendingTaskFiles(repo).has('t-pub0002'), false);
+    assert.match(archived(repo), /Edited/);
+    assert.equal(locateTask(repo, 't-pub0002').where, 'archived');
+  });
+});
+
+test('archive of a worktree-only record moves it from the lane tasks/ and leaves open records', () => {
+  withFixture((repo) => {
+    const lane = join(repo, '..', 'lane');
+    git(repo, 'worktree', 'add', '-q', '-b', 'lane', lane);
+    createTaskRecord(lane, JSON.parse(closedMk('t-lan0010', 'Lane')));
+    const moved = archiveClosedTasks(
+      lane,
+      [
+        locateTask(lane, 't-lan0010').record as TaskRecord,
+        locateTask(lane, 't-dep0001').record as TaskRecord,
+      ],
+      TODAY,
+    );
+    assert.deepEqual(moved.archived, ['t-lan0010']);
+    assert.equal(existsSync(join(lane, 'tasks', 't-lan0010.json')), false);
+    assert.equal(existsSync(join(lane, 'tasks', 't-dep0001.json')), true);
+    assert.equal(locateTask(lane, 't-lan0010').where, 'archived');
+    const again = archiveClosedTasks(
+      lane,
+      [locateTask(lane, 't-lan0010').record as TaskRecord],
+      TODAY,
+    );
+    assert.deepEqual(again.archived, []);
   });
 });

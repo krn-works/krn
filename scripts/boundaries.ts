@@ -334,6 +334,11 @@ const WRITERS = {
     'u',
   ),
   owners: ['src/task/storage.ts', 'src/task/pending.ts'],
+  // Helpers storage.ts calls: they write bytes to a path they are given, never a task record by name.
+  helpers: ['src/task/staged-write.ts'],
+  // A file write or delete whose statement names `tasks`, the archive directory or the archive file.
+  records:
+    /\b(?:writeFileSync|appendFileSync|unlinkSync|rmSync|renameSync|copyFileSync|atomicWrite)\s*\([^;]*?(?:['"`]tasks['"`/]|\bARCHIVE_DIR\b|\barchiveFile\s*\()/u,
 };
 
 /** Calls or imports of the pending ref writers outside the task storage owner. */
@@ -349,6 +354,14 @@ export function checkWriters(root: string): StoreViolation[] {
         file: rel,
         line: code.slice(0, match.index).split('\n').length,
         store: 'the pending task ref writers',
+        owner: WRITERS.owners[0] as string,
+      });
+    if (WRITERS.helpers.includes(rel)) continue;
+    for (const match of code.matchAll(new RegExp(WRITERS.records, 'gu')))
+      found.push({
+        file: rel,
+        line: code.slice(0, match.index).split('\n').length,
+        store: 'writes or deletes of tasks/ records',
         owner: WRITERS.owners[0] as string,
       });
   }

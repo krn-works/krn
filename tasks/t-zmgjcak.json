@@ -1,7 +1,11 @@
 {
   "id": "t-zmgjcak",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "archive moves through storage.ts for pending, worktree-only and published records; checkWriters forbids other writers of tasks/ records; matrix and boundary tests pass, fast PASS"
+  },
   "created": "2026-11-20",
   "priority": 0,
   "title": "One task storage owner: locateTask and writeTaskRecord behind every krn task verb",
