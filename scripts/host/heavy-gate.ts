@@ -9,7 +9,9 @@ import {
   hostPressure,
   hostUnits,
   SLOT_HELD_ENV,
+  SLOT_LEASE_END_ENV,
   sampleHost,
+  slotHeld,
 } from '../../src/repo/host-gate.ts';
 import {
   SLOT_TIMEOUT_EXIT,
@@ -110,9 +112,9 @@ export async function run(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<number> {
   const parsed = parseRun(args);
-  const childEnv = { ...env, [SLOT_HELD_ENV]: '1' };
-  // A job already inside a slot (fast, a wrapped test run) runs its nested heavy commands in that slot.
-  if (env[SLOT_HELD_ENV]) return runChild(parsed.command, childEnv);
+  // A job already inside a live slot (fast, a wrapped test run) runs its nested heavy commands in that
+  // slot; once the enclosing lease has ended the slot is gone, so a nested gate takes its own.
+  if (slotHeld(env)) return runChild(parsed.command, { ...env });
   const units = hostUnits(env);
   const started = Date.now();
   try {
@@ -140,7 +142,11 @@ export async function run(
           process.stderr.write(
             `heavy-gate: got a slot after ${waited.toFixed(1)}s\n`,
           );
-        return runChild(parsed.command, childEnv);
+        return runChild(parsed.command, {
+          ...env,
+          [SLOT_HELD_ENV]: '1',
+          [SLOT_LEASE_END_ENV]: String(Date.now() + leaseMs(env)),
+        });
       },
     );
   } catch (error) {

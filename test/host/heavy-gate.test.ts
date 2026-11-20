@@ -10,12 +10,17 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { defaultJobWeight, parseRun } from '../../scripts/host/heavy-gate.ts';
+import {
+  defaultJobWeight,
+  parseRun,
+  run as runInProcess,
+} from '../../scripts/host/heavy-gate.ts';
 import {
   gateLimits,
   hostGateDir,
   hostPressure,
   projectedLoad,
+  SLOT_HELD_ENV,
 } from '../../src/repo/host-gate.ts';
 import {
   type Admission,
@@ -442,4 +447,44 @@ test('a lease past the 32-bit timer limit keeps the slot instead of firing at on
   assert.equal(slotHolders(dir).length, 1, 'the slot is still held');
   end?.();
   await job;
+});
+
+test('a nested gate started after its parent lease expired takes its own slot', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gate-lease-'));
+  try {
+    const gate = new URL('../../scripts/host/heavy-gate.ts', import.meta.url)
+      .href;
+    const leaf = `import { status } from ${JSON.stringify(gate)};
+      process.exitCode = JSON.parse(status(['--json'])).used === 1 ? 0 : 42;`;
+    const child = `import { run } from ${JSON.stringify(gate)};
+      for (; Date.now() <= Number(process.env.KRN_TEST_SLOT_LEASE_END); );
+      process.exitCode = await run(
+        ['--deadline-ms', '1000', '--', process.execPath, '--input-type=module', '-e', ${JSON.stringify(leaf)}],
+        { ...process.env, KRN_GATE_LEASE_S: '30' },
+      );`;
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      KRN_HEAVY_GATE_DIR: dir,
+      KRN_HEAVY_GATE_UNITS: '1',
+      KRN_HEAVY_GATE_LOAD_PER_CORE: '100000',
+      KRN_HEAVY_GATE_MIN_MB: '0',
+      KRN_GATE_LEASE_S: '0.02',
+    };
+    delete env[SLOT_HELD_ENV];
+    const code = await runInProcess(
+      [
+        '--deadline-ms',
+        '1000',
+        '--',
+        process.execPath,
+        '--input-type=module',
+        '-e',
+        child,
+      ],
+      env,
+    );
+    assert.equal(code, 0, 'the nested command held a slot of its own');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
