@@ -277,15 +277,8 @@ export function transition(
   return next;
 }
 
-/**
- * Retires the live manifest of the worktree at `worktree`, which is gone (drop, prune and ship --drop call it
- * after removing the worktree; a new lane starting at the same path calls it too). A lane with no live manifest is skipped silently.
- */
-export function retireLane(
-  main: string,
-  worktree: string,
-  reason: string,
-): void {
+/** Retires the live manifest of the gone worktree at `worktree`; throws when the manifest cannot be written. */
+function retireStale(main: string, worktree: string, reason: string): void {
   if (existsSync(worktree)) return;
   // Manifests hold the real path; the main checkout may be reached through a symlink.
   let real = worktree;
@@ -294,16 +287,27 @@ export function retireLane(
   } catch {
     /* No worktrees directory yet: no lane ever started there. */
   }
-  // The removal already happened, so a manifest that cannot be written (a held swap marker, a full
-  // disk) must not abort the verb half done: it warns, and the next lane start at that path retires it.
+  const stale = liveManifestOfWorktree(main, real);
+  if (stale !== undefined)
+    transition(main, stale.laneId, {
+      kind: 'retired',
+      at: new Date().toISOString(),
+      reason,
+    });
+}
+
+/**
+ * Records that the worktree at `worktree` was removed (drop, prune and ship --drop call it after removing it).
+ * The removal already happened, so a manifest that cannot be written (a held swap marker, a full disk) must
+ * not abort the verb half done: it warns, and the next lane start at that path retires it.
+ */
+export function retireLane(
+  main: string,
+  worktree: string,
+  reason: string,
+): void {
   try {
-    const stale = liveManifestOfWorktree(main, real);
-    if (stale !== undefined)
-      transition(main, stale.laneId, {
-        kind: 'retired',
-        at: new Date().toISOString(),
-        reason,
-      });
+    retireStale(main, worktree, reason);
   } catch (error) {
     process.stderr.write(
       `lane: removed ${worktree} but could not record it as retired (${error instanceof Error ? error.message : String(error)}); the next lane start there retires it\n`,
@@ -311,9 +315,12 @@ export function retireLane(
   }
 }
 
-/** A lane dropped before its removal wrote `retired`: retires it so a new lane may start at the same path. */
+/**
+ * A lane dropped before its removal wrote `retired`: retires it so a new lane may start at the same path.
+ * Lane start calls it before it touches git, so a manifest that cannot be written refuses the start (throws).
+ */
 export function retireGoneLane(main: string, worktree: string): void {
-  retireLane(
+  retireStale(
     main,
     worktree,
     'its worktree is gone; a new lane starts at the same path',
