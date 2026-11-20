@@ -28,6 +28,7 @@ import {
   inspect,
   judgeStop,
   linkPackageModules,
+  pipefailed,
   recordedShip,
   redTestsAtBase,
   relatedTests,
@@ -403,6 +404,35 @@ test('failuresIn keeps a failing unittest run whose logging pipeline exited zero
   assert.deepEqual(failuresIn(output, 0), [
     'test_example.Example.test_regression',
   ]);
+});
+
+test('failuresIn keeps a failing Vitest run whose logging pipeline exited zero', () => {
+  const capture = readFileSync(
+    join(import.meta.dirname, 'fixtures', 'stop-refusal-pilot-worktree.txt'),
+    'utf8',
+  );
+  assert.deepEqual(failuresIn(capture.slice(capture.indexOf('\n') + 1), 0), [
+    'tests/cli/url-language.test.ts',
+    'tests/cli/url-plan.test.ts',
+  ]);
+  for (const summary of [
+    'Tests:       1 failed, 3 passed, 4 total',
+    '  2 failing',
+    'ℹ fail 1',
+  ])
+    assert.notDeepEqual(failuresIn(`${summary}\n`, 0), []);
+  for (const summary of [
+    'Tests  0 failed | 4 passed',
+    '  0 failing',
+    'ℹ fail 0',
+  ])
+    assert.deepEqual(failuresIn(`${summary}\n`, 0), []);
+});
+
+test('a test command piped into a logger keeps its failing exit under the Stop hook shell', () => {
+  const masked = spawnSync('sh', ['-c', pipefailed('false | cat')]);
+  assert.notEqual(masked.status, 0);
+  assert.equal(spawnSync('sh', ['-c', pipefailed('true | cat')]).status, 0);
 });
 
 test('selectTests: name match for other stacks, go packages, guards, full fallback, deleted files', () => {

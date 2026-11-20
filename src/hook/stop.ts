@@ -609,9 +609,17 @@ const FAILURE_LINES: readonly RegExp[] = [
   /^\s*FAIL\s+(\S+)/mu,
 ];
 
-// Summary lines runners print only when tests failed: unittest, pytest, go, cargo.
+// Summary lines runners print only when tests failed: unittest, pytest, go, cargo, vitest, jest, mocha, node:test.
 const RUNNER_FAILED =
-  /^FAILED \((?:failures|errors)=\d|^=+ .*\b\d+ (?:failed|error)|^FAIL\t|^test result: FAILED\./mu;
+  /^FAILED \((?:failures|errors)=\d|^=+ .*\b\d+ (?:failed|error)|^FAIL\t|^test result: FAILED\.|^\s*(?:Test Files|Tests|Test Suites):?\s+[1-9]\d* failed|^\s*[1-9]\d* failing$|^ℹ fail [1-9]/mu;
+
+/**
+ * The shell text the Stop hook runs a test command as: under pipefail where the shell has it, so a
+ * logging pipeline (`npm test | tee log`) exits with the runner's failure whatever runner it wraps.
+ */
+export function pipefailed(command: string): string {
+  return `(set -o pipefail) 2>/dev/null && set -o pipefail; ${command} 2>&1`;
+}
 
 const MISSING_KEY = '<run>::missing dependency';
 const MISSING_DEPENDENCY =
@@ -629,7 +637,12 @@ export function failuresIn(output: string, status: number | string): string[] {
       }
     }
   // A run that exits 0 passed unless a runner's own failure summary says otherwise (a logging pipeline masks the exit).
-  if (status === 0) return RUNNER_FAILED.test(output) ? [...found].sort() : [];
+  if (status === 0) {
+    if (!RUNNER_FAILED.test(output)) return [];
+    // A failure summary naming no test still fails the run.
+    if (found.size === 0) found.add('<run>::failure summary');
+    return [...found].sort();
+  }
   if (found.size === 0) found.add(`<run>::exit ${status}`);
   if (MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
   return [...found].sort();
@@ -647,7 +660,7 @@ function spawnCommand(
   command: string,
 ): ReturnType<CommandRunner> {
   if (!existsSync(root)) return [missingRootKey(root)];
-  const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
+  const run = spawnSync('sh', ['-c', pipefailed(command)], {
     cwd: root,
     encoding: 'utf8',
     env: { ...receiverEnv(root), NODE_TEST_CONTEXT: undefined },
