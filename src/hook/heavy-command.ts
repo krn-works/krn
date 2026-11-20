@@ -248,9 +248,15 @@ export function exemption(
   config: HostConfig = emptyConfig,
 ): string | undefined {
   if (env[SLOT_HELD_ENV]) return 'already inside a gate slot';
+  // Already gated only when every heavy command runs inside a gate call: a `$(heavy-gate status)`
+  // beside an ungated `npm test` exempts nothing.
+  const all = commands(command);
+  const viaGate = (words: string[]) =>
+    basename(program(words).split(' ')[0] ?? '') === 'heavy-gate';
   if (
-    commands(command).some(
-      (words) => basename(program(words).split(' ')[0] ?? '') === 'heavy-gate',
+    all.some(viaGate) &&
+    !all.some(
+      (words) => !viaGate(words) && isHeavy(words.join(' '), config.heavy),
     )
   )
     return 'already gated';
