@@ -14,30 +14,41 @@ import { join, resolve } from 'node:path';
 export const shipPidPath = join('.krn', 'tmp', 'ship.pid');
 export const shipLogPath = join('.krn', 'tmp', 'ship.log');
 
-/** True when `pid` names a running process (a process we may not signal is still running). */
-function alive(pid: number): boolean {
+/** The start time of `pid` in clock ticks since boot (Linux), or undefined when /proc does not tell. */
+function startTicks(pid: number): string | undefined {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * True when the process the pid file names still runs. The file is the record of a ship, so the command line
+ * is never read (a ship run inside `krn lane run` has none that says "ship"); a recycled pid is told apart by
+ * the start time the record carries.
+ */
+function alive(pid: number, started: string | undefined): boolean {
   try {
     process.kill(pid, 0);
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'EPERM';
   }
-  try {
-    // A recycled pid belongs to another program: on Linux the live process must still be a ship.
-    return /\bship\b/u.test(
-      readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' '),
-    );
-  } catch {
-    return true;
-  }
+  const now = startTicks(pid);
+  return started === undefined || now === undefined || now === started;
 }
 
 /** The pid of the live `krn pr ship` of a worktree, or undefined when none runs there. */
 export function liveShipPid(worktree: string): number | undefined {
   try {
-    const pid = Number(
-      readFileSync(join(worktree, shipPidPath), 'utf8').trim(),
-    );
-    return Number.isInteger(pid) && pid > 0 && alive(pid) ? pid : undefined;
+    const [first, started] = readFileSync(join(worktree, shipPidPath), 'utf8')
+      .trim()
+      .split(/\s+/u);
+    const pid = Number(first);
+    return Number.isInteger(pid) && pid > 0 && alive(pid, started)
+      ? pid
+      : undefined;
   } catch {
     return undefined;
   }
@@ -48,7 +59,11 @@ export function markShipLive(worktree: string, pid = process.pid): void {
   try {
     if (!existsSync(join(worktree, '.git'))) return;
     mkdirSync(join(worktree, '.krn', 'tmp'), { recursive: true });
-    writeFileSync(join(worktree, shipPidPath), `${pid}\n`);
+    const started = startTicks(pid);
+    writeFileSync(
+      join(worktree, shipPidPath),
+      `${pid}${started === undefined ? '' : ` ${started}`}\n`,
+    );
   } catch {
     /* Evidence only: a ship never fails over its pid file. */
   }
@@ -58,7 +73,7 @@ export function markShipLive(worktree: string, pid = process.pid): void {
 export function clearShipLive(worktree: string, pid = process.pid): void {
   try {
     const file = join(worktree, shipPidPath);
-    if (Number(readFileSync(file, 'utf8').trim()) === pid)
+    if (Number(readFileSync(file, 'utf8').trim().split(/\s+/u)[0]) === pid)
       rmSync(file, { force: true });
   } catch {
     /* Nothing recorded. */

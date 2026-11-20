@@ -144,7 +144,9 @@ test('a ship started with --detach outlives the process that started it and show
   const env = gh(bin, '[ -n "$FAKE_GH_BLOCK" ] && exec sleep 300; echo "[]"');
   const started = detach(repo, worktree, { ...env, FAKE_GH_BLOCK: '1' });
   assert.equal(started.status, 0, started.stderr);
-  const pid = Number(readFileSync(pidFile(worktree), 'utf8'));
+  const pid = Number(
+    readFileSync(pidFile(worktree), 'utf8').trim().split(' ')[0],
+  );
   assert.match(started.stdout, new RegExp(`pid ${pid}`, 'u'));
   let group = 0;
   try {

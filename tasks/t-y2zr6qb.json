@@ -1,7 +1,11 @@
 {
   "id": "t-y2zr6qb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship retries HTTP 429/502/503/504 on reads, prints verdict before cleanup and turns cleanup errors into warnings, title task beats KRN_TASK, usage states 69/70, pid record replaces cmdline check; tests in test/ci/ship*.test.ts pass"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Ship survives a transient API error, prints its verdict before cleanup and states every exit",

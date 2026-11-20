@@ -56,3 +56,34 @@ test('krn pr ship --detach with a relative --worktree starts a child that finds 
   }
   assert.doesNotMatch(text, /ENOENT/);
 });
+
+test('a ship recorded in the pid file is live although its command line never says ship', async () => {
+  const { spawn } = await import('node:child_process');
+  const { mkdirSync } = await import('node:fs');
+  const { liveShipPid, markShipLive } = await import(
+    '../../src/ci/ship-live.ts'
+  );
+  const worktree = mkdtempSync(join(tmpdir(), 'ship-live-rec-'));
+  mkdirSync(join(worktree, '.git'));
+  // A process whose command line has no "ship", as a ship run inside `krn lane run` has none.
+  const child = spawn('sleep', ['30'], { stdio: 'ignore' });
+  try {
+    assert.ok(child.pid !== undefined);
+    markShipLive(worktree, child.pid);
+    assert.equal(liveShipPid(worktree), child.pid);
+  } finally {
+    child.kill('SIGKILL');
+  }
+});
+
+test('a pid file whose pid was recycled by another process is not live', async () => {
+  const { mkdirSync } = await import('node:fs');
+  const { liveShipPid, shipPidPath } = await import(
+    '../../src/ci/ship-live.ts'
+  );
+  const worktree = mkdtempSync(join(tmpdir(), 'ship-live-old-'));
+  mkdirSync(join(worktree, '.krn', 'tmp'), { recursive: true });
+  // This process runs, but it started long after the recorded start time.
+  writeFileSync(join(worktree, shipPidPath), `${process.pid} 1\n`);
+  assert.equal(liveShipPid(worktree), undefined);
+});
