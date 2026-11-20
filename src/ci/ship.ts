@@ -302,9 +302,6 @@ async function shipRun(
       return REQUIRED_CHECK_NAME;
     }
   })();
-  if (refused !== undefined)
-    throw Object.assign(new Error(refused), { exitCode: 74 });
-
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
     git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
@@ -662,6 +659,9 @@ ${synced}`;
           cwd,
           `${prBody().trimEnd()}\n\n${sections.map((lines) => lines.join('\n')).join('\n\n')}\n`,
         );
+
+  if (refused !== undefined)
+    throw Object.assign(new Error(refused), { exitCode: 74 });
 
   const pushed = runner(
     'git',
