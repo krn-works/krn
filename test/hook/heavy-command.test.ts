@@ -102,7 +102,7 @@ test('the Claude Code form rewrites a heavy command into the gate with the Bash 
   assert.equal(input.timeout, 600000);
   assert.equal(
     input.command,
-    `cd sub && '${gateEntry}' run --deadline-ms 300000 -- bash -c 'npm test'`,
+    `'${gateEntry}' run --deadline-ms 300000 -- bash -c 'cd sub && npm test'`,
   );
 });
 
@@ -112,10 +112,7 @@ test('the gated command runs the original through bash with its quoting intact',
     'bash',
     [
       '-c',
-      gated(command, 1000, 'env', ['^echo ']).replace(
-        ' run --deadline-ms 1000 --',
-        '',
-      ),
+      gated(command, 1000, 'env').replace(' run --deadline-ms 1000 --', ''),
     ],
     { encoding: 'utf8' },
   );
@@ -173,63 +170,64 @@ test('an excluded name in a comment, a message or an argument does not exempt th
     assert.equal(exemption(command, shop, {}), undefined, command);
 });
 
-test('a compound gates only its heavy steps, so a server started after an install or build holds no slot', () => {
+test('a command with a heavy step is gated whole: one lease wraps the original text unchanged', () => {
   const gate = '/g/heavy-gate';
   const wrap = (inner: string, ms = 1000) =>
     `'${gate}' run --deadline-ms ${ms} -- bash -c '${inner}'`;
-  for (const [command, expected] of [
-    ['npm install && npm run dev', `${wrap('npm install')} && npm run dev`],
-    ['pnpm build && pnpm start', `${wrap('pnpm build')} && pnpm start`],
-    ['npm i && node server.js', `${wrap('npm i')} && node server.js`],
-    [
-      'npm ci; npm run build && npx serve dist',
-      `${wrap('npm ci; npm run build')} && npx serve dist`,
-    ],
-    ['cd app && npm ci && npm test', `cd app && ${wrap('npm ci && npm test')}`],
-    ['npm test 2>&1 | tail -5', wrap('npm test 2>&1 | tail -5')],
-    [
-      'npm ci && echo ok && npm test',
-      `${wrap('npm ci', 500)} && echo ok && ${wrap('npm test', 500)}`,
-    ],
-    [
-      'npm run build & npm test',
-      `${wrap('npm run build', 500)} & ${wrap('npm test', 500)}`,
-    ],
-    // Syntax the split does not follow is gated whole, a server inside it too: the lease bounds its slot.
-    [
-      'for d in a b; do npm test; done',
-      wrap('for d in a b; do npm test; done'),
-    ],
-    [
-      'cd "$(git rev-parse --show-toplevel)" && npm test',
-      `cd "$(git rev-parse --show-toplevel)" && ${wrap('npm test')}`,
-    ],
-    ['(npm i && npm run dev)', wrap('(npm i && npm run dev)')],
-    // A gated step runs in a child shell: state an earlier step sets in this shell must reach it.
-    ['T=unit; npm test -- $T', wrap('T=unit; npm test -- $T')],
-    [
-      'set -o pipefail; npm test | tail -5',
-      wrap('set -o pipefail; npm test | tail -5'),
-    ],
-    ['source .env && npm run build', wrap('source .env && npm run build')],
-    ['X=1; npm i && npm run dev', wrap('X=1; npm i && npm run dev')],
-    [
-      'FOO=1 npm test && npm run dev',
-      `${wrap('FOO=1 npm test')} && npm run dev`,
-    ],
-  ] as const)
-    assert.equal(gated(command, 1000, gate), expected, command);
+  for (const command of [
+    'npm install && npm run dev',
+    'cd app && npm ci && npm test',
+    'npm test 2>&1 | tail -5',
+    'for d in a b; do npm test; done',
+    '(npm i && npm run dev)',
+    'T=unit; npm test -- $T',
+    'npm test -- --watch |\ncat',
+  ])
+    assert.equal(gated(command, 1000, gate), wrap(command), command);
   const shop = repo('shop');
   const none = { exclude: [], heavy: [] };
-  assert.deepEqual(judge(payload('(npm i && npm run dev)', shop), {}, none), {
-    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c '(npm i && npm run dev)'`,
-  });
   assert.deepEqual(judge(payload('npm i && npm run dev', shop), {}, none), {
-    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i' && npm run dev`,
+    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i && npm run dev'`,
   });
 });
 
-test('through the real gate, only the heavy step of a compound runs inside a slot', () => {
+// The gate is replaced by a stand-in that drops its own arguments and runs the command: the wrapped
+// command must behave as the original does in the same shell.
+test('shell state, pipes, heredocs and comments reach the heavy step as they do without the gate', () => {
+  const setup =
+    'npm() { printf "<%s>\\n" "$@"; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
+  for (const command of [
+    'printf -v filter %s example.test.js; npm test -- --watch "$filter"',
+    'printf -v T %s unit; npm test -- "$T"',
+    'false && npm test; npm test',
+    'npm test -- --watch |\ncat',
+    'npm test # output |\necho after',
+    'cat <<EOF | cat\nbody\nEOF\nnpm test',
+    'set -o pipefail; npm test | tail -5',
+  ]) {
+    const exec = (line: string) =>
+      spawnSync('bash', ['-c', setup + line], {
+        encoding: 'utf8',
+        timeout: 3000,
+      });
+    const original = exec(command);
+    const verdict = judge(
+      { tool_name: 'Bash', cwd: '/tmp', tool_input: { command } },
+      {},
+      { exclude: [], heavy: [] },
+    );
+    const rewritten = exec(
+      verdict?.rewrite.replace(gateEntry, 'gate') ?? command,
+    );
+    assert.deepEqual(
+      [rewritten.status, rewritten.stdout, rewritten.stderr],
+      [original.status, original.stdout, original.stderr],
+      command,
+    );
+  }
+});
+
+test('through the real gate, the whole command runs inside one slot', () => {
   const dir = mkdtempSync(join(tmpdir(), 'heavy-compound-'));
   const shim = join(dir, 'heavy-gate');
   const gateScript = fileURLToPath(
@@ -240,12 +238,10 @@ test('through the real gate, only the heavy step of a compound runs inside a slo
     `#!/bin/sh\nexec '${process.execPath}' '${gateScript}' "$@"\n`,
     { mode: 0o755 },
   );
-  // The stand-in heavy step is `echo` (a host pattern); the light step after it is `printf`.
   const command = gated(
     `echo in=$KRN_TEST_SLOT_HELD && printf 'out=%s\\n' "$KRN_TEST_SLOT_HELD"`,
     5000,
     shim,
-    ['^echo '],
   );
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -254,7 +250,7 @@ test('through the real gate, only the heavy step of a compound runs inside a slo
   delete env.KRN_TEST_SLOT_HELD;
   const result = spawnSync('bash', ['-c', command], { encoding: 'utf8', env });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, 'in=1\nout=\n');
+  assert.equal(result.stdout, 'in=1\nout=1\n');
 });
 
 test('KRN_HEAVY_GATE_EXCLUDE replaces the excluded repositories', () => {
@@ -344,7 +340,7 @@ test('the Codex form refuses the captured Codex payload and names the gated comm
   assert.equal(result.status, 2);
   assert.ok(
     result.stderr.includes(
-      `cd sub && '${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm test --prefix ..'`,
+      `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'cd sub && npm test --prefix ..'`,
     ),
     result.stderr,
   );
@@ -397,74 +393,4 @@ test('a quoted test filter and a dotted watch script are gated like any test run
   assert.ok(verdict("go test -run 'start' ./...")?.rewrite);
   assert.ok(verdict('npm run test:watch.dev')?.rewrite);
   assert.ok(verdict('npm run test:watch.js')?.rewrite);
-});
-
-test('a heavy step guarded by a failed condition does not take the independent step after a semicolon into its run', () => {
-  const prelude =
-    'npm() { printf \'%s\\n\' ran; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
-  const run = (line: string) =>
-    spawnSync('bash', ['-c', prelude + line], { encoding: 'utf8' });
-  for (const command of [
-    'false && npm test -- --watch; npm test -- --watch',
-    'false && npm test; npm test',
-    'false || true && npm test && npm test\nnpm test',
-    'false && npm test || npm test --watch',
-    'false && npm test -- --watch first || npm test -- --watch fallback',
-    'true || npm test && npm test',
-  ]) {
-    const original = run(command);
-    const rewritten = run(gated(command, 1000, 'gate'));
-    assert.equal(rewritten.stdout, original.stdout, command);
-    assert.equal(rewritten.status, original.status, command);
-  }
-});
-
-test('a newline after a pipe or a logical operator keeps the continued command in its step', () => {
-  const setup =
-    'npm() { printf \'%s\\n\' watcher-output; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
-  for (const command of [
-    'npm test -- --watch |\ncat',
-    'npm test -- --watch |\n\ncat',
-    'true &&\nnpm test',
-    'false ||\nnpm test',
-  ]) {
-    const run = (line: string) =>
-      spawnSync('bash', ['-c', setup + line], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 3000,
-      });
-    const original = run(command);
-    const rewritten = run(gated(command, 1000, 'gate'));
-    assert.deepEqual(
-      [rewritten.status, rewritten.stdout, rewritten.stderr],
-      [original.status, original.stdout, original.stderr],
-      command,
-    );
-  }
-});
-
-test('a pipe in a comment, and a newline after |&, keep the next line where the shell runs it', () => {
-  const setup =
-    'npm() { printf \'%s\\n\' watcher-output >&2; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
-  for (const command of [
-    'npm test # output |\ncd ..\npwd',
-    'npm test -- --watch |&\ncat',
-    'npm test -- --watch | # then\ncat',
-    'npm test -- --watch | \\\n\ncat',
-  ]) {
-    const run = (line: string) =>
-      spawnSync('bash', ['-c', setup + line], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 3000,
-      });
-    const original = run(command);
-    const rewritten = run(gated(command, 1000, 'gate'));
-    assert.deepEqual(
-      [rewritten.status, rewritten.stdout, rewritten.stderr],
-      [original.status, original.stdout, original.stderr],
-      command,
-    );
-  }
 });
