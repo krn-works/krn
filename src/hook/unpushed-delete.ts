@@ -3,12 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { findArchived } from '../task/archive.ts';
-import {
-  commandsOf,
-  gitCall,
-  programName,
-  resolveCommand,
-} from './shell-reader.ts';
+import { commandsOf, gitCall, resolveCommand } from './shell-reader.ts';
 
 // PreToolUse hook for Bash: refuses `git branch -D` and `git worktree remove` when the
 // branch tip is on no remote, names an open task in a `Ticket:` or `Refs:` trailer, and
@@ -18,16 +13,19 @@ import {
 // already landed on a remote by squash merge (same patch-id). Anything it cannot
 // classify is allowed.
 
-type Target = { kind: 'branch' | 'worktree'; name: string };
+// `repository` holds the git options that select the repository (`-C`, `--git-dir`, `--work-tree`).
+type Target = {
+  kind: 'branch' | 'worktree';
+  name: string;
+  repository?: string[];
+};
 
 export function targets(command: string): Target[] {
   const found: Target[] = [];
   for (const { words } of commandsOf(command)) {
-    const argv = resolveCommand(words)?.argv ?? [];
-    // A git run by another wrapper (`sudo git`, `xargs git`) deletes the same branch.
-    const at = argv.findIndex((word) => programName(word) === 'git');
-    const call = at < 0 ? undefined : gitCall(argv.slice(at));
+    const call = gitCall(resolveCommand(words)?.argv ?? []);
     if (call === undefined) continue;
+    const repository = call.repository.length > 0 ? call.repository : undefined;
     const args = call.args.map((word) => word.text);
     if (call.verb === 'branch') {
       const force =
@@ -36,18 +34,27 @@ export function targets(command: string): Target[] {
           (args.includes('-f') || args.includes('--force')));
       if (!force) continue;
       for (const name of args.filter((arg) => !arg.startsWith('-')))
-        found.push({ kind: 'branch', name });
+        found.push({ kind: 'branch', name, ...(repository && { repository }) });
     }
     if (call.verb === 'worktree' && args[0] === 'remove') {
       for (const name of args.slice(1).filter((arg) => !arg.startsWith('-')))
-        found.push({ kind: 'worktree', name });
+        found.push({
+          kind: 'worktree',
+          name,
+          ...(repository && { repository }),
+        });
     }
   }
   return found;
 }
 
-function git(cwd: string, args: string[], input?: string): string {
-  return execFileSync('git', ['-C', cwd, ...args], {
+// Where git runs: a directory, or a directory with the options the command selected its repository by.
+type At = string | { cwd: string; options: readonly string[] };
+
+function git(at: At, args: string[], input?: string): string {
+  const [cwd, options] =
+    typeof at === 'string' ? [at, []] : [at.cwd, at.options];
+  return execFileSync('git', ['-C', cwd, ...options, ...args], {
     encoding: 'utf8',
     input,
     stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'ignore'],
@@ -56,7 +63,7 @@ function git(cwd: string, args: string[], input?: string): string {
   }).trim();
 }
 
-const patchIds = (cwd: string, patch: string) =>
+const patchIds = (cwd: At, patch: string) =>
   git(cwd, ['patch-id', '--stable'], patch)
     .split('\n')
     .map((line) => line.split(' ')[0])
@@ -64,7 +71,7 @@ const patchIds = (cwd: string, patch: string) =>
 
 // A squash merge leaves the branch tip on no remote although its work landed:
 // the unpushed range's combined diff has the patch-id of one remote commit.
-function squashMerged(cwd: string, tip: string): boolean {
+function squashMerged(cwd: At, tip: string): boolean {
   const first = git(cwd, [
     'rev-list',
     '--reverse',
@@ -117,24 +124,26 @@ export function decide(payload: unknown): string | undefined {
   const cwd = typeof value?.cwd === 'string' ? value.cwd : process.cwd();
   if (typeof command !== 'string') return undefined;
   for (const target of targets(command)) {
+    const at: At = target.repository
+      ? { cwd, options: target.repository }
+      : cwd;
     try {
       const tip =
         target.kind === 'branch'
-          ? git(cwd, ['rev-parse', '--verify', `${target.name}^{commit}`])
+          ? git(at, ['rev-parse', '--verify', `${target.name}^{commit}`])
           : git(
               isAbsolute(target.name) ? target.name : resolve(cwd, target.name),
               ['rev-parse', 'HEAD'],
             );
       if (
-        git(cwd, ['rev-list', '--max-count=1', tip, '--not', '--remotes']) ===
-        ''
+        git(at, ['rev-list', '--max-count=1', tip, '--not', '--remotes']) === ''
       )
         continue;
-      const trailers = git(cwd, ['log', '-1', '--format=%B', tip]);
+      const trailers = git(at, ['log', '-1', '--format=%B', tip]);
       const id = /^(?:Ticket|Refs):\s*(t-[a-z0-9]+)\s*$/mu.exec(trailers)?.[1];
       if (!id) continue;
       const root = dirname(
-        git(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
+        git(at, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
       );
       let task = read(() =>
         readFileSync(join(root, 'tasks', `${id}.json`), 'utf8'),
@@ -143,13 +152,13 @@ export function decide(payload: unknown): string | undefined {
         // Closed and archived on main: that state wins over a stale open copy on the tip.
         if (read(() => findArchived(root, id)?.status ?? '') !== '') continue;
         // A lane that carried a pending task holds the only copy: the tip's own tree names it.
-        task = git(cwd, ['show', `${tip}:tasks/${id}.json`]);
+        task = git(at, ['show', `${tip}:tasks/${id}.json`]);
       }
       if ((JSON.parse(task) as { status?: unknown }).status !== 'open')
         continue;
       if (task.includes(tip.slice(0, 7))) continue;
       if (read(() => claimTask(root, id)).includes(tip.slice(0, 7))) continue;
-      if (read(() => String(squashMerged(cwd, tip))) === 'true') continue;
+      if (read(() => String(squashMerged(at, tip))) === 'true') continue;
       return `Refused: ${target.kind} ${target.name} holds unpushed commit ${tip.slice(0, 12)} of open task ${id}, and tasks/${id}.json does not record it. Push the branch, or record the SHA first: \`krn task edit ${id} --append-body "Unpushed work: ${tip}"\`.`;
     } catch {
       // An unreadable ref, task file or record cannot prove unrecorded work: allow this target.

@@ -89,8 +89,11 @@ class Reader {
     let piped = false;
     let depth = 0;
     const finish = (forked = false) => {
-      while (words[0] && !words[0].quoted && RESERVED.has(words[0].text))
-        words.shift();
+      while (words[0] && !words[0].quoted && RESERVED.has(words[0].text)) {
+        // `time -p` takes its one option with it.
+        if (words.shift()?.text === 'time' && words[0]?.text === '-p')
+          words.shift();
+      }
       if (words.length > 0 || redirects.length > 0)
         this.steps.push({
           kind: 'command',
@@ -284,6 +287,21 @@ class Reader {
       const c = s[this.i] as string;
       if (c === '\\' && this.i + 1 < s.length) {
         const e = s[this.i + 1] as string;
+        // \xHH, \uHHHH, \UHHHHHHHH and \NNN (octal) name a character by its code.
+        const code =
+          /^x([0-9a-fA-F]{1,2})|^u([0-9a-fA-F]{1,4})|^U([0-9a-fA-F]{1,8})|^([0-7]{1,3})/u.exec(
+            s.slice(this.i + 1),
+          );
+        if (code) {
+          const hex = code[1] ?? code[2] ?? code[3];
+          const point =
+            hex === undefined
+              ? Number.parseInt(code[4] as string, 8)
+              : Number.parseInt(hex, 16);
+          text += String.fromCodePoint(Math.min(point, 0x10ffff));
+          this.i += 1 + code[0].length;
+          continue;
+        }
         text += escapes[e] ?? e;
         this.i += 2;
       } else {
@@ -370,6 +388,8 @@ function heredocMessage(inner: readonly Step[]): string | undefined {
   const [doc, ...more] = redirects;
   if (words.length !== 1 || words[0]?.text !== 'cat' || more.length > 0)
     return undefined;
+  // Only a heredoc on standard input is what cat prints.
+  if (doc !== undefined && doc.fd !== '' && doc.fd !== '0') return undefined;
   if (doc?.body === undefined) return undefined;
   return doc.body.replace(/\n+$/u, '');
 }
@@ -543,20 +563,33 @@ const GIT_VALUE = new Set([
   '--super-prefix',
 ]);
 
-/** A git call: its `-C` directories in order, subcommand and arguments; undefined when no subcommand runs. */
-export function gitCall(
-  argv: readonly Word[],
-): { dirs: Word[]; verb: string; args: readonly Word[] } | undefined {
+/**
+ * A git call: its `-C` directories in order, the repository-selecting options (`-C`, `--git-dir`,
+ * `--work-tree`, each as `[flag, value]` words), subcommand and arguments; undefined when no subcommand runs.
+ */
+export function gitCall(argv: readonly Word[]):
+  | {
+      dirs: Word[];
+      repository: string[];
+      verb: string;
+      args: readonly Word[];
+    }
+  | undefined {
   if (programName(argv[0]) !== 'git') return undefined;
   const dirs: Word[] = [];
+  const repository: string[] = [];
   let i = 1;
   while (i < argv.length && (argv[i]?.text ?? '').startsWith('-')) {
     const text = argv[i]?.text ?? '';
     if (['-h', '--help', '-v', '--version'].includes(text)) return undefined;
-    if (text === '-C' && argv[i + 1]) dirs.push(argv[i + 1] as Word);
+    const value = argv[i + 1];
+    if (text === '-C' && value) dirs.push(value);
+    if (['-C', '--git-dir', '--work-tree'].includes(text) && value)
+      repository.push(text, value.text);
+    else if (/^--(?:git-dir|work-tree)=/u.test(text)) repository.push(text);
     i += GIT_VALUE.has(text) ? 2 : 1;
   }
   const verb = argv[i];
   if (verb === undefined) return undefined;
-  return { dirs, verb: verb.text, args: argv.slice(i + 1) };
+  return { dirs, repository, verb: verb.text, args: argv.slice(i + 1) };
 }
