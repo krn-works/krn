@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Judge or design module structure in any language, including sets of .ts modules: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use for structure reviews, refactors and seam decisions, with the measured depth check first; skip for a one-off bug fix or an edit that keeps the interface, but not for a fix of a module that already took several fixes for different cases.
+description: Judge or design module structure in any language, including sets of .ts modules: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use for structure reviews, refactors and seam decisions, with the measured depth check first; skip for a one-off bug fix and edits that keep the interface, not for another fix of a module fixed repeatedly.
 ---
 
 # Architecture
@@ -22,7 +22,7 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 
 ## Repeated fixes
 
-A module fixed for three or more different cases in two weeks has a wrong model. Before the next fix there, read the earlier ones (`git log --since=14.days --format=%s -- <file>`), name the class they share, and give that state or format one owner with each case as a fixture; else ship the narrow fix with a redesign task. Here `node scripts/fix-churn.ts --report` lists them (KRN-15).
+A module that keeps taking fixes for different cases has a wrong model. Read the earlier fixes, name the class they share, and give that state or format one owner with each case as a fixture, or ship the narrow fix with a redesign task. CI asks this from 6 fix tasks in 14 days (`node scripts/fix-churn.ts --report`, KRN-15).
 
 ## Process
 

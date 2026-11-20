@@ -38,11 +38,6 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Above about 100k context, do not start a run longer than about 30 minutes as a session subagent: run it as a detached process writing results to a file under `.krn/runs/`, so a handoff neither waits on it nor kills it.
 - A user-level `skillOverrides` entry disables any project skill with the same name; when a repository skill does not load, check `~/.claude/settings.json` overrides first.
 
-## Fix chains and hot modules
-
-- A feature ships after one end-to-end run on its real receiver (KRN-12); that run's failures are fixed in one PR, not one PR each.
-- Before briefing a fix, run `node scripts/fix-churn.ts --report`. A fix of a hot file or fix-chained task is briefed as a defect class (KRN-15) with the earlier fix subjects; a hot file without an open redesign task gets one (`krn task create --kind debt`) and the `architecture` skill.
-
 ## Parallel lanes
 
 - Run at most 6 live lane worktrees (`KRN_LANE_MAX_LIVE`); `krn lane start` exits 75 while the host is overloaded. A lane is a subagent of the lead session that owns one outcome: its own claimed task, its own worktree under `.krn/worktrees/`, and its own PR. One writer per outcome still holds; a lane never writes another lane's outcome, branch, PR, or capsule.
