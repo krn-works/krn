@@ -41,13 +41,13 @@ const complete = (): Row[] =>
       [1, 2].map((rep) => {
         const usd =
           (unitCost[unit] as number) * armFactor[arm] * (1 + rep / 10);
-        // total_cost_usd is deliberately not the priced tokens: the report must not read it.
+        // total_cost_usd is deliberately not the priced tokens (C reports 40x, A 7x): the report must not read it.
         return {
           unit,
           arm,
           rep,
           pass: !(arm === 'A' && rep === 1),
-          cost: usd * 7,
+          cost: usd * (arm === 'C' ? 40 : 7),
           tokens: inputOnly(usd),
           harness: 'a1',
           model: 'sonnet',
@@ -252,4 +252,45 @@ test('an arm with no reported total_cost_usd prints n/a, not 0.00, in the descri
     result.stdout,
     /reported total_cost_usd per resolved task A \d+\.\d+, B n\/a, C \d+\.\d+/,
   );
+});
+
+test('equal spend from different token mixes is no cost difference, and a decimal 2.00 price is the same vector', () => {
+  // A reads 24 cached tokens, C one input token and four cached: both cost exactly 2.4 micro-USD at list prices.
+  const rows = complete().map((r) => {
+    const mix = (input: number, cacheRead: number) => ({
+      ...inputOnly(0),
+      input,
+      cacheRead,
+    });
+    return r.arm === 'C'
+      ? { ...r, tokens: mix(1, 4) }
+      : r.arm === 'A'
+        ? { ...r, tokens: mix(0, 24) }
+        : r;
+  });
+  const lines = reportLines(analyze(rows, frozen), frozen);
+  const ca = lines.find((l) => l.startsWith('verdict: cost C-A')) as string;
+  assert.match(ca, /ratio 1\.00 .*not shown/);
+  const dir = mkdtempSync(join(tmpdir(), 'replay-cost-ci-'));
+  writeFileSync(
+    join(dir, 'prereg.md'),
+    prereg.replace(
+      'input 2, output 10, cache-read 0.1',
+      'input 2.00, output 10, cache-read 0.10',
+    ),
+  );
+  writeFileSync(join(dir, 'rows.jsonl'), '');
+  const r = spawnSync(
+    process.execPath,
+    [
+      join(repo, 'evals/replay/run.ts'),
+      '--prereg',
+      join(dir, 'prereg.md'),
+      '--report',
+      '--rows',
+      join(dir, 'rows.jsonl'),
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.doesNotMatch(r.stderr, /differs from token-cost/);
 });

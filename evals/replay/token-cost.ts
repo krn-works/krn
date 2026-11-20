@@ -80,14 +80,18 @@ export function tokensOf(modelUsage: unknown): TokenCounts | undefined {
   return sum;
 }
 
-/** USD of `tokens` at `prices`. */
+/**
+ * USD of `tokens` at `prices`. Prices are taken in thousandths of a USD per million tokens and summed as integers, so
+ * equal spend from different token mixes is the same number, not one that differs by float rounding.
+ */
 export function tokenCost(tokens: TokenCounts, prices: PriceVector): number {
+  const milli = (p: number) => Math.round(p * 1000);
   return (
-    (tokens.input * prices.input +
-      tokens.output * prices.output +
-      tokens.cacheRead * prices.cacheRead +
-      tokens.cacheWrite5m * prices.cacheWrite5m +
-      tokens.cacheWrite1h * prices.cacheWrite1h) /
-    1e6
+    (tokens.input * milli(prices.input) +
+      tokens.output * milli(prices.output) +
+      tokens.cacheRead * milli(prices.cacheRead) +
+      tokens.cacheWrite5m * milli(prices.cacheWrite5m) +
+      tokens.cacheWrite1h * milli(prices.cacheWrite1h)) /
+    1e9
   );
 }

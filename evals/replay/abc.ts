@@ -46,10 +46,19 @@ const PRICE_KEYS: [string, keyof PriceVector][] = [
 const renderPrices = (p: PriceVector): string =>
   PRICE_KEYS.map(([k, f]) => `${k} ${p[f]}`).join(', ');
 
-/** Reads a `name:` price vector line and refuses one that differs from the vector token-cost.ts holds. */
+/** Reads a `name:` price vector line and refuses one whose numbers differ from the vector token-cost.ts holds. */
 function priceVector(text: string, name: string, known: PriceVector) {
   const line = field(text, name);
-  if (line !== renderPrices(known))
+  const given = new Map(
+    line.split(',').map((part) => {
+      const [key = '', value = ''] = part.trim().split(/\s+/);
+      return [key, value === '' ? Number.NaN : Number(value)] as const;
+    }),
+  );
+  const same =
+    given.size === PRICE_KEYS.length &&
+    PRICE_KEYS.every(([k, f]) => given.get(k) === known[f]);
+  if (!same)
     throw new Error(
       `prereg ${name} "${line}" differs from token-cost.ts "${renderPrices(known)}"`,
     );
