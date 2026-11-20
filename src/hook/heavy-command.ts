@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { hookStdin } from '../harness/claude.ts';
 import { SLOT_HELD_ENV } from '../repo/host-gate.ts';
 import { shellWord } from '../repo/shell-text.ts';
-import { commands, commandsOf } from './shell-reader.ts';
+import { commands, commandsOf, readShell, type Word } from './shell-reader.ts';
 
 /** Repositories (by directory name) whose commands are never gated. */
 export const DEFAULT_EXCLUDE = ['wilq-seo'];
@@ -218,16 +218,34 @@ const dirFlag = /^(?:-C|--prefix|--dir|--cwd)(?:=(.+))?$/u;
  * The directories `command` runs in besides its cwd: `cd` and `pushd` operands and the values of
  * `-C`, `--prefix`, `--dir` and `--cwd`. A word in a comment, a message or a file argument is none.
  */
-function runDirs(command: string): string[] {
+function runDirs(command: string, extra: readonly string[]): string[] {
   const found: string[] = [];
-  for (const words of commands(command)) {
+  let depth = 0;
+  const all: { words: readonly Word[]; forked: boolean }[] = [];
+  for (const step of readShell(command)) {
+    if (step.kind === 'open') depth += 1;
+    else if (step.kind === 'close') depth -= 1;
+    else if (step.command.words.length > 0)
+      all.push({
+        words: step.command.words,
+        forked: step.command.forked || depth > 0,
+      });
+  }
+  // A `cd` in a subshell, substitution or pipeline stage does not move the commands of the parent shell:
+  // it counts only while no heavy command runs in the parent.
+  const parentHeavy = all.some(
+    ({ words, forked }) =>
+      !forked && isHeavy(words.map((word) => word.text).join(' '), extra),
+  );
+  for (const { words: tokens, forked } of all) {
+    const words = tokens.map((word) => word.text);
     const comment = words.findIndex((word) => word.startsWith('#'));
     const live = comment < 0 ? words : words.slice(0, comment);
     const first = live.findIndex(
       (word) => !/^[A-Za-z_][A-Za-z0-9_]*=/u.test(word),
     );
     const name = live[first];
-    if (name === 'cd' || name === 'pushd') {
+    if ((name === 'cd' || name === 'pushd') && !(forked && parentHeavy)) {
       const operand = live.slice(first + 1).find((w) => !w.startsWith('-'));
       if (operand) found.push(operand);
     }
@@ -269,7 +287,7 @@ export function exemption(
   const dir = real(cwd);
   const segments = [
     dir,
-    ...runDirs(command).map((to) => real(resolve(dir, to))),
+    ...runDirs(command, config.heavy).map((to) => real(resolve(dir, to))),
   ]
     .flatMap(homes)
     .flatMap((path) => path.split(sep));
@@ -316,17 +334,12 @@ export function gated(
     if (!isHeavy(step.text, extra)) return;
     const last = runs.at(-1);
     // A background `&` ends a run: the gate would not wait for the job it puts in the background.
-    // A run behind `&&` or `||` runs only on that condition: a `;` or newline inside it would put the
-    // independent step after it under the same condition.
+    // A run behind `||`, or behind `&&` with `||`, `;` or a newline inside, would let the gate decide what the
+    // condition before it decides (`false && a || b` still runs b), so it takes no more steps.
     const prior = last === undefined ? undefined : list[last.from - 1]?.op;
-    const guarded = prior === '&&' || prior === '||';
     const joint = list[at - 1]?.op;
-    if (
-      last?.to === at - 1 &&
-      joint !== '&' &&
-      !(guarded && (joint === ';' || joint === '\n'))
-    )
-      last.to = at;
+    const guarded = prior === '||' || (prior === '&&' && joint !== '&&');
+    if (last?.to === at - 1 && joint !== '&' && !guarded) last.to = at;
     else runs.push({ from: at, to: at });
   });
   const lastRun = runs.at(-1)?.from ?? 0;

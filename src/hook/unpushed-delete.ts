@@ -125,7 +125,13 @@ export function decide(payload: unknown): string | undefined {
   if (typeof command !== 'string') return undefined;
   for (const target of targets(command)) {
     const at: At = target.repository
-      ? { cwd, options: target.repository }
+      ? {
+          cwd,
+          // The hook runs before the shell expands `$PWD`; it is the directory Git will see.
+          options: target.repository.map((option) =>
+            option.replace(/\$(?:PWD\b|\{PWD\})/gu, cwd),
+          ),
+        }
       : cwd;
     try {
       const tip =
