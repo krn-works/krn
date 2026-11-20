@@ -2082,3 +2082,46 @@ test('the usage text states exits 69 and 70', async () => {
   assert.match(shipUsage, /\b70 /u);
   assert.match(shipUsage, /\b69 /u);
 });
+
+/** A pre-merge review that answers `kind` for every head and records the heads it judged. */
+function reviewed(kind: 'pass' | 'block' | 'silent') {
+  const judged: string[] = [];
+  const startReview = () => ({
+    line: 'review: tier 2, the reviewer reads origin/main...HEAD beside the Check',
+    verdict: async (at: string) => {
+      judged.push(at);
+      return kind === 'silent'
+        ? { kind, line: 'review: the reviewer exited 1' }
+        : { kind, line: `review: ${kind}`, findings: [] };
+    },
+    dispose: () => {},
+  });
+  return { judged, startReview };
+}
+
+test('a tier 2 ship merges only after the review passed for the merged head', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const review = reviewed('pass');
+  const out = await shipCommand(args, {
+    ...r,
+    startReview: review.startReview,
+  });
+  assert.match(out, /^review: pass$/mu);
+  assert.deepEqual(review.judged, [head]);
+  assert.ok(r.calls.some((c) => c.includes('gh pr merge 7')));
+});
+
+for (const [kind, code] of [
+  ['block', 84],
+  ['silent', 85],
+] as const)
+  test(`a ${kind} review stops the ship with exit ${code} before any merge call`, async () => {
+    const r = receiver({ pulls: [auto, merged] });
+    const review = reviewed(kind);
+    await assert.rejects(
+      shipCommand(args, { ...r, startReview: review.startReview }),
+      (error: Failure) =>
+        error.exitCode === code && /verdict: review /u.test(error.message),
+    );
+    assert.ok(!r.calls.some((c) => c.includes('gh pr merge')));
+  });

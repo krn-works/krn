@@ -29,6 +29,8 @@ export interface RepoContract {
   readonly conventions?: string;
   /** Spend cap in USD for one lane session (`krn lane run`); 3 when absent. */
   readonly laneBudgetUsd?: number;
+  /** Reviewer command `krn pr ship` runs on a risky diff before the merge (env KRN_REVIEW_BASE, KRN_REVIEW_HEAD, KRN_REVIEW_OUT); none when absent. */
+  readonly review?: string;
   /** `acknowledged` when the operator accepts auto-merge in a repository that deploys on a push to the base branch. */
   readonly deploy?: 'acknowledged';
   readonly tracker: Tracker;
@@ -77,6 +79,7 @@ const FIELDS = [
   'tracker',
   'laneBudgetUsd',
   'deploy',
+  'review',
   'vacuous',
   'arms',
   'formats',
@@ -664,6 +667,20 @@ export function contractConventions(root: string): string {
 }
 
 /** Whether krn.json acknowledges auto-merge into a deploying base branch; it needs no test command. */
+/** The reviewer command of krn.json on origin/<base>: the base, not the branch under review, decides it. */
+export function baseContractReview(
+  root: string,
+  base: string,
+): string | undefined {
+  const text = git(root, ['show', `origin/${base}:${CONTRACT_FILE}`]);
+  if (text === undefined) return undefined;
+  try {
+    return parseContractFile(text).review;
+  } catch {
+    return undefined;
+  }
+}
+
 export function contractDeployAcknowledged(root: string): boolean {
   return declaredContract(root)?.deploy === 'acknowledged';
 }
@@ -729,6 +746,7 @@ export function findContract(root: string): ResolvedContract | undefined {
       ? { laneBudgetUsd: declared.laneBudgetUsd }
       : {}),
     ...(declared?.deploy ? { deploy: declared.deploy } : {}),
+    ...(declared?.review ? { review: declared.review } : {}),
     ...(declared?.arms ? { arms: declared.arms } : {}),
     tracker: contractTracker(root),
     ...(vacuous ? { vacuous: true } : {}),

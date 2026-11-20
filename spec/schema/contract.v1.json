@@ -51,6 +51,10 @@
     "deploy": {
       "enum": ["acknowledged"]
     },
+    "review": {
+      "type": "string",
+      "minLength": 1
+    },
     "vacuous": {
       "type": "boolean"
     },
