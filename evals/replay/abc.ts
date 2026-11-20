@@ -271,11 +271,10 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
   });
   const reported = (arm: ArmId): number | null => {
     const passes = graded.filter((r) => r.arm === arm && r.pass).length;
-    return passes === 0
+    const known = spent.filter((r) => r.arm === arm && r.cost != null);
+    return passes === 0 || known.length === 0
       ? null
-      : spent
-          .filter((r) => r.arm === arm)
-          .reduce((s, r) => s + (r.cost ?? 0), 0) / passes;
+      : known.reduce((s, r) => s + (r.cost ?? 0), 0) / passes;
   };
   return {
     graded: graded.length,

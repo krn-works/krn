@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { analyze, type Prereg, reportLines } from '../../evals/replay/abc.ts';
 import type { ArmId } from '../../evals/replay/arms.ts';
 import type { Row } from '../../evals/replay/rows.ts';
+import type { TokenCounts } from '../../evals/replay/token-cost.ts';
 import {
   LIST_PRICES,
   NO_CACHE_DISCOUNT,
@@ -186,7 +187,10 @@ test('a cost verdict that differs between the vectors is marked cache-dependent'
   const lines = result.stdout.split('\n');
   const at = (head: string) =>
     lines.filter((l) => l.startsWith(head) && / C-A /.test(l));
-  assert.match(at('verdict: cost')[0] as string, / shown .*cache-dependent$/);
+  assert.match(
+    at('verdict: cost')[0] as string,
+    /, shown \(alpha 0\.05\) cache-dependent$/,
+  );
   assert.match(
     at('sensitivity: cost')[0] as string,
     /ratio 10\.00 .*not shown .*cache-dependent$/,
@@ -217,4 +221,28 @@ test('the prereg vectors must equal token-cost.ts', () => {
   );
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /cost-prices .* differs from token-cost\.ts/);
+});
+
+test('a row whose token counter is negative or not a number has no cost and fails strict', () => {
+  for (const bad of [-5, Number.NaN]) {
+    const rows = complete().map((r) =>
+      r.unit === 't-bb' && r.arm === 'C' && r.rep === 2
+        ? { ...r, tokens: { ...(r.tokens as TokenCounts), cacheRead: bad } }
+        : r,
+    );
+    const result = report(rows, true);
+    assert.equal(result.status, 65);
+    assert.match(result.stderr, /no tokens for t-bb C rep 2/);
+  }
+});
+
+test('an arm with no reported total_cost_usd prints n/a, not 0.00, in the descriptive column', () => {
+  const rows = complete().map((r) =>
+    r.arm === 'B' ? { ...r, cost: null } : r,
+  );
+  const result = report(rows, false);
+  assert.match(
+    result.stdout,
+    /reported total_cost_usd per resolved task A \d+\.\d+, B n\/a, C \d+\.\d+/,
+  );
 });

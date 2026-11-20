@@ -16,10 +16,15 @@ export interface Interval {
 export const rowCost = (
   r: Row,
   prices: PriceVector = LIST_PRICES,
-): number | undefined =>
-  r.tokens === null || r.tokens === undefined
-    ? undefined
-    : tokenCost(r.tokens, prices);
+): number | undefined => {
+  const t = r.tokens;
+  if (t === null || t === undefined) return undefined;
+  // A counter that is not a finite non-negative number is a malformed record, never a price.
+  for (const n of Object.values(t))
+    if (!(typeof n === 'number' && Number.isFinite(n) && n >= 0))
+      return undefined;
+  return tokenCost(t, prices);
+};
 
 export const BOOTSTRAP_RESAMPLES = 2000;
 const SEED = 0x2545f491;
