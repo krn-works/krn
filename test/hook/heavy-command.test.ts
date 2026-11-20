@@ -343,3 +343,16 @@ test('the Codex form refuses the captured Codex payload and names the gated comm
     result.stderr,
   );
 });
+
+test('a quoted Go test filter does not make the command a server', () => {
+  const result = judge(
+    {
+      tool_name: 'Bash',
+      tool_input: { command: "go test -run 'start' ./..." },
+      cwd: '/tmp',
+    },
+    {},
+    { exclude: [], heavy: [] },
+  );
+  assert.ok(result?.rewrite);
+});

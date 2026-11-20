@@ -95,3 +95,20 @@ test('env -S supplies the command, so later git words are data', () => {
 test('env --help does not run the command named after it', () => {
   assert.equal(decide(bash('env --help git commit -m wip')), undefined);
 });
+
+test('a Git path with an expanded directory still has its literal subject checked', () => {
+  assert.match(
+    decide({
+      tool_name: 'Bash',
+      tool_input: { command: '"$GIT_BIN_DIR/git" commit -m "update files"' },
+    }) ?? '',
+    /Refused: commit subject/u,
+  );
+  assert.match(
+    decide({
+      tool_name: 'Bash',
+      tool_input: { command: 'git -C "$PWD" commit -m \'bad subject\'' },
+    }) ?? '',
+    /Refused: commit subject/u,
+  );
+});
