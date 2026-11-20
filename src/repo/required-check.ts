@@ -135,7 +135,8 @@ export function requiredContexts(
   for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
     for (const check of rule.parameters?.required_status_checks ?? [])
       if (
-        check.integration_id === REQUIRED_CHECK_APP_ID &&
+        (check.integration_id == null ||
+          check.integration_id === REQUIRED_CHECK_APP_ID) &&
         isRequiredCheckName(check.context)
       )
         contexts.add(check.context);
