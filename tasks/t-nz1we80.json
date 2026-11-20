@@ -1,0 +1,14 @@
+{
+  "id": "t-nz1we80",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Receiver fixture matrix runs every adopter-facing krn command in CI",
+  "after": [],
+  "body": [
+    "Source: Fable history review .krn/runs/arch-review/history.md, class 1 (receiver or host coupling: 13 fixes / 1857 lines, the top class). t-1p7dmw9 took 8 fixes in 4h26m once it first met a real receiver in a paid run.\nEvidence: krn commands are tested against this repository's own checkout; adopting repositories differ in layout, package manager, base branch, shallow or linked worktrees and missing tools.\nFiles: test/fixtures/receivers/ (new), test/receivers/*.test.ts, .github/workflows/ci.yml\nOutcome: a matrix of at least 4 fixture repositories (pnpm monorepo, npm single package, non-main base, shallow linked worktree) runs every krn command an adopting repository uses (adopt, lane start, pr body, pr ship against a gh stand-in, task) in CI; each fixture prints a pass/fail line.\nProof: the matrix test fails on a reverted copy of one of the class-1 fixes listed in the report, and passes on main."
+  ],
+  "kind": "feature",
+  "area": "ci"
+}

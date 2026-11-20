@@ -1,0 +1,14 @@
+{
+  "id": "t-atxw6sb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Contention tests per shared resource and a red main opens a defect task",
+  "after": [],
+  "body": [
+    "Source: Fable history review (class 5 races: 7 fixes / 1220 lines) and pipeline audit item 9 (.krn/runs/arch-review/pipeline.md): 7 red main pushes in 3.7 days, none rerun or acted on. On 2026-11-19 the session-cut eval failed on CI after an orphan worker held index.lock.\nFiles: test/contention/*.test.ts (new), scripts/ (main watcher), src/ci/ship.ts\nOutcome: each shared resource (claims, ship records, worktrees, task records, host slot) has a 4-process contention test; a red main push opens a defect task within one CI run, naming the failing test and the merge that caused it.\nProof: the contention tests run in CI; a seeded red main in a fixture opens exactly one task."
+  ],
+  "kind": "feature",
+  "area": "ci"
+}
