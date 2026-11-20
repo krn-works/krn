@@ -19,11 +19,14 @@ export const rowCost = (
 ): number | undefined => {
   const t = r.tokens;
   if (t === null || t === undefined) return undefined;
-  // A counter that is not a finite non-negative number is a malformed record, never a price.
-  for (const n of Object.values(t))
+  // A record that lacks a counter, or holds one that is not a finite non-negative number, is malformed, never a price.
+  for (const k of Object.keys(prices) as (keyof PriceVector)[]) {
+    const n: unknown = t[k];
     if (!(typeof n === 'number' && Number.isFinite(n) && n >= 0))
       return undefined;
-  return tokenCost(t, prices);
+  }
+  const usd = tokenCost(t, prices);
+  return Number.isFinite(usd) ? usd : undefined;
 };
 
 export const BOOTSTRAP_RESAMPLES = 2000;

@@ -223,13 +223,21 @@ test('the prereg vectors must equal token-cost.ts', () => {
   assert.match(r.stderr, /cost-prices .* differs from token-cost\.ts/);
 });
 
-test('a row whose token counter is negative or not a number has no cost and fails strict', () => {
-  for (const bad of [-5, Number.NaN]) {
-    const rows = complete().map((r) =>
+test('a row whose token counter is negative, missing, not a number or overflows has no cost and fails strict', () => {
+  const broken = (tokens: unknown) =>
+    complete().map((r) =>
       r.unit === 't-bb' && r.arm === 'C' && r.rep === 2
-        ? { ...r, tokens: { ...(r.tokens as TokenCounts), cacheRead: bad } }
+        ? ({ ...r, tokens } as Row)
         : r,
     );
+  const base = inputOnly(1);
+  const { cacheWrite1h: _dropped, ...partial } = base;
+  for (const rows of [
+    broken({ ...base, cacheRead: -5 }),
+    broken({ ...base, cacheRead: Number.NaN }),
+    broken(partial),
+    broken({ ...base, input: 1e308, output: 1e308 }),
+  ]) {
     const result = report(rows, true);
     assert.equal(result.status, 65);
     assert.match(result.stderr, /no tokens for t-bb C rep 2/);
