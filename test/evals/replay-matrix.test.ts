@@ -60,7 +60,7 @@ function fixture(root: string) {
   const prereg = join(root, 'prereg.md');
   writeFileSync(
     prereg,
-    `reps: 1\nmodel: sonnet\ncontrasts: C-A, C-B\nalpha: 0.05\nmde-pp: 16\n\n- ${id}\n`,
+    `reps: 1\nmodel: sonnet\ncontrasts: C-A, C-B\nalpha: 0.05\nmde-pp: 16\ncost-prices: input 2, output 10, cache-read 0.1, cache-write-5m 2.5, cache-write-1h 4\ncost-sensitivity: input 2, output 10, cache-read 2, cache-write-5m 2, cache-write-1h 2\n\n- ${id}\n`,
   );
   const claude = join(root, 'claude');
   writeFileSync(

@@ -1,0 +1,18 @@
+{
+  "id": "t-ztatbjv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A/B/C report prices row tokens at prereg cost-prices, repeats every cost line at cost-sensitivity with a cache-dependent flag, strict names a row with cost but no tokens; tests in test/evals/replay-cost-ci.test.ts"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "The A/B/C report prices cost from row tokens at the prereg vector and repeats it at the sensitivity vector",
+  "after": [],
+  "body": [
+    "Source: t-1dfwa0h (ADR 0021 point 12; evals/replay/abc.prereg.md `cost-prices`, `cost-sensitivity`); t-5rw2pxf (#1560) reads every row cost through `rowCost` in evals/replay/cost-stats.ts, still total_cost_usd.\nOutcome: `rowCost` prices `row.tokens` at the prereg `cost-prices` vector (evals/replay/token-cost.ts LIST_PRICES); the report repeats every cost line at `cost-sensitivity` and marks a cost verdict that differs between the vectors as cache-dependent; `--report --strict` names a row without tokens; total_cost_usd is printed as a descriptive column only. The vectors are read from the prereg and checked equal to token-cost.ts.\nProof: a report test on fixture rows with tokens prints both vectors' CIs and a cache-dependent flag for a constructed case; a row with cost but no tokens fails strict naming it."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}
