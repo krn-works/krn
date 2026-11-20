@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -438,4 +445,115 @@ test('Edit, Write and Bash outside the lane worktree get one refusal; lane-targe
     decide(call('Edit', { file_path: '/r/third/x' }), admitted) ?? '',
     /Refused/u,
   );
+});
+
+test('a path spelled through /dev/.. is judged where it lands: another repository is refused, descriptor devices pass', () => {
+  const wt = '/r/main/.krn/worktrees/lane';
+  const env = {
+    CLAUDE_PROJECT_DIR: wt,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_TASK: 't-abcdefg',
+    KRN_SCOPE: 'src/',
+    CLAUDE_CODE_TMPDIR: '/h/claude',
+  };
+  const call = (tool_name: string, tool_input: object) => ({
+    tool_name,
+    cwd: wt,
+    tool_input,
+  });
+  for (const payload of [
+    call('Write', { file_path: '/dev/../r/other/a.ts' }),
+    call('Edit', { file_path: '/dev/./../r/other/a.ts' }),
+    call('Write', { file_path: '/h/claude/../../r/other/a.ts' }),
+    call('Bash', { command: 'echo x > /dev/../r/other/a.ts' }),
+    call('Bash', { command: 'npm test 2>&1 | tee /dev/../r/other/t.log' }),
+    call('Bash', { command: 'git -C /dev/../r/other commit -m x' }),
+    call('Bash', { command: 'echo x > /dev/shm/x' }),
+  ])
+    assert.match(
+      decide(payload, env) ?? '',
+      /^Refused: .*outside this lane's worktree/u,
+      JSON.stringify(payload),
+    );
+  for (const command of [
+    'npm test > /dev/null 2>&1',
+    'echo x > /dev/stderr',
+    'echo x >/dev/fd/2',
+    'echo x > /dev/tty',
+  ])
+    assert.equal(decide(call('Bash', { command }), env), undefined, command);
+  assert.match(
+    decide(bash('krn pr ship > /dev/../tmp/x'), worker('src/')) ?? '',
+    /Scratch rule/u,
+  );
+});
+
+test('a write through a symlink inside the worktree is judged where the link points', () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'scope-link-')));
+  try {
+    const wt = join(base, 'main', '.krn', 'worktrees', 'lane');
+    const other = join(base, 'other');
+    mkdirSync(join(wt, 'src'), { recursive: true });
+    mkdirSync(other);
+    symlinkSync(other, join(wt, 'out'));
+    symlinkSync(join(base, 'main'), join(base, 'alias'));
+    // `..` after a link is taken beside the link's target, as the kernel walks it.
+    mkdirSync(join(other, 'sub'));
+    symlinkSync(join(other, 'sub'), join(wt, 'deep'));
+    mkdirSync(join(base, 'main', '.krn', 'runs'), { recursive: true });
+    symlinkSync(other, join(base, 'main', '.krn', 'runs', 'out'));
+    // A dangling link: open(O_CREAT) follows it and creates its target.
+    symlinkSync(join(other, 'new.ts'), join(wt, 'dangle'));
+    const env = {
+      CLAUDE_PROJECT_DIR: wt,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_TASK: 't-abcdefg',
+      KRN_SCOPE: 'src/',
+    };
+    const call = (tool_name: string, tool_input: object) => ({
+      tool_name,
+      cwd: wt,
+      tool_input,
+    });
+    for (const payload of [
+      call('Write', { file_path: join(wt, 'out', 'a.ts') }),
+      call('Bash', { command: 'echo x > out/a.ts' }),
+      call('Write', { file_path: `${wt}/deep/../a.ts` }),
+      call('Bash', { command: 'echo x > deep/../a.ts' }),
+      call('Bash', { command: 'cd out && echo x > a.ts' }),
+      call('Bash', { command: 'cd deep/.. && echo x > a.ts' }),
+      call('Write', {
+        file_path: join(base, 'main', '.krn', 'runs', 'out', 'a.ts'),
+      }),
+      // Only the raw text of a descriptor device passes; `/dev/fd/5/..` follows fd 5 first.
+      call('Bash', { command: 'echo x > /dev/fd/5/../1' }),
+      call('Write', { file_path: '/dev/fd/5/../1' }),
+      call('Write', { file_path: join(wt, 'dangle') }),
+      call('Bash', { command: 'echo x > dangle' }),
+      // `~user` expands where the hook cannot follow.
+      call('Bash', { command: 'echo x > ~root/a.ts' }),
+    ])
+      assert.match(
+        decide(payload, env) ?? '',
+        /^Refused: .*outside this lane's worktree/u,
+        JSON.stringify(payload),
+      );
+    // The worktree reached through a linked parent directory is still the worktree.
+    const aliased = join(base, 'alias', '.krn', 'worktrees', 'lane');
+    for (const [file_path, project] of [
+      [join(wt, 'src', 'a.ts'), wt],
+      [join(aliased, 'src', 'a.ts'), wt],
+      [join(wt, 'src', 'a.ts'), aliased],
+    ])
+      assert.equal(
+        decide(call('Write', { file_path }), {
+          ...env,
+          CLAUDE_PROJECT_DIR: project,
+        }),
+        undefined,
+        `${file_path} from ${project}`,
+      );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });

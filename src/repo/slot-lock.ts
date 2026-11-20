@@ -1,8 +1,10 @@
 // Shared slot lock: heavy jobs of every checkout take turns by weight instead of all saturating the host.
+import { randomUUID } from 'node:crypto';
 import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -67,14 +69,21 @@ export function processStart(pid: number): string | undefined {
 
 type Holder = { pid: number; start: string | undefined; weight: number };
 
+/** The text of a pid file, or '' when none is written yet. */
+function recordText(path: string): string {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
 /** The holder recorded in a pid file (`pid [start [weight]]`), or undefined when none is recorded yet. */
 function holder(path: string): Holder | undefined {
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch {
-    return undefined;
-  }
+  return parseHolder(recordText(path));
+}
+
+function parseHolder(text: string): Holder | undefined {
   const [first, start, units] = text.trim().split(/\s+/);
   const pid = Number(first);
   const weight = Number(units);
@@ -106,8 +115,56 @@ function record(weight: number): string {
   return `${process.pid} ${processStart(process.pid) ?? '-'} ${weight}`;
 }
 
-/** Longest a mutex may stand without a live recorded owner before it counts as abandoned. */
-const MUTEX_STALE_MS = 5_000;
+/**
+ * Longest a mutex or slot directory may stand without a pid record before it counts as abandoned: its
+ * taker writes the record right after mkdir, so a directory still bare after this died in between.
+ */
+const RECORD_STALE_MS = 5_000;
+
+/** One mutex directory as judged: what identifies it (inode, mtime, record) and whether its owner is gone. */
+function judgeMutex(
+  path: string,
+): { id: string; abandoned: boolean } | undefined {
+  try {
+    const { ino, mtimeMs } = statSync(path);
+    const text = recordText(join(path, 'pid'));
+    const owner = parseHolder(text);
+    return {
+      id: `${ino}:${mtimeMs}:${text}`,
+      abandoned: owner
+        ? !holding(owner)
+        : Date.now() - mtimeMs > RECORD_STALE_MS,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Removes an abandoned mutex. Check-then-delete on the shared name could remove a mutex another waiter
+ * had already reclaimed and a live pass had taken since, letting two passes admit at once; so the
+ * mutex moves to a private name first, and only the directory judged abandoned is removed. Another
+ * one is put back; if a new mutex took the name in that instant, two passes overlap once.
+ */
+function reclaimMutex(dir: string, mutex: string): void {
+  const judged = judgeMutex(mutex);
+  if (!judged?.abandoned) return;
+  const moved = join(dir, `.mutex-reclaim-${process.pid}-${randomUUID()}`);
+  try {
+    renameSync(mutex, moved);
+  } catch {
+    // Another waiter moved it first.
+    return;
+  }
+  if (judgeMutex(moved)?.id !== judged.id)
+    try {
+      renameSync(moved, mutex);
+      return;
+    } catch {
+      // A new mutex holds the name: the moved one's owner releases by record, so removing it is safe.
+    }
+  rmSync(moved, { recursive: true, force: true });
+}
 
 /** Takes the admission mutex (one short critical section per pass), or returns undefined when another pass holds it. */
 function lockMutex(dir: string): (() => void) | undefined {
@@ -116,20 +173,21 @@ function lockMutex(dir: string): (() => void) | undefined {
     mkdirSync(mutex);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    const owner = holder(join(mutex, 'pid'));
-    let age = 0;
-    try {
-      age = Date.now() - statSync(mutex).mtimeMs;
-    } catch {
-      // Released between our mkdir and stat: the next pass takes it.
-      return undefined;
-    }
-    const abandoned = owner ? !holding(owner) : age > MUTEX_STALE_MS;
-    if (abandoned) rmSync(mutex, { recursive: true, force: true });
+    reclaimMutex(dir, mutex);
     return undefined;
   }
-  writeFileSync(join(mutex, 'pid'), record(1));
-  return () => rmSync(mutex, { recursive: true, force: true });
+  const mine = record(1);
+  try {
+    writeFileSync(join(mutex, 'pid'), mine);
+  } catch {
+    // Moved away before the record was written: this pass does not hold it.
+    return undefined;
+  }
+  // Released by record: a mutex that is no longer this pass's own is never removed.
+  return () => {
+    if (recordText(join(mutex, 'pid')) === mine)
+      rmSync(mutex, { recursive: true, force: true });
+  };
 }
 
 /** A live holder's weight and how long ago it took its slot. */
@@ -161,8 +219,13 @@ function tryTake(options: SlotOptions): Pass {
       if (!match) continue;
       const slot = join(options.dir, name);
       const entry = holder(join(slot, 'pid'));
-      // A slot without a recorded pid is still being written; only a dead or replaced holder is reclaimed.
-      if (entry !== undefined && !holding(entry)) {
+      // A dead or replaced holder is reclaimed, and so is a slot left without a record past RECORD_STALE_MS
+      // (its taker died between mkdir and the record); a fresher bare slot is still being written.
+      const abandoned =
+        entry === undefined
+          ? slotAge(slot, now) > RECORD_STALE_MS
+          : !holding(entry);
+      if (abandoned) {
         rmSync(slot, { recursive: true, force: true });
         continue;
       }
