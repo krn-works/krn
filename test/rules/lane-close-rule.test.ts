@@ -55,3 +55,15 @@ test('laneBriefText appends the closure line only on request', () => {
   assert.match(on, /bin\/krn task close t-abc1234 --as done/u);
   assert.doesNotMatch(off, /task close/u);
 });
+
+// A lane's background shell dies with the lane session (a usage limit stops it mid-ship), which left a PR
+// green and unmerged; `krn pr ship --detach` outlives the session and logs under the worktree.
+test('the lane brief runs every ship detached and reads its verdict from the worktree ship log', () => {
+  const lanes = read('.agents/skills/delivery-lead/lanes.md');
+  const runs = [...lanes.matchAll(/`krn pr ship[^`]*`/gu)].map((m) => m[0]);
+  assert.ok(runs.length > 0, 'lanes.md names the ship command');
+  for (const run of runs) assert.match(run, /--detach/u, run);
+  assert.match(lanes, /\.krn\/tmp\/ship\.log/u);
+  // The installer writes lanes.md into adopted repositories from its own copy.
+  assert.equal(read('src/adopt/skills/delivery-lead/lanes.md'), lanes);
+});
