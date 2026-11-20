@@ -1,0 +1,14 @@
+{
+  "id": "t-5sptxvr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "fix(lane): lane drop ignores a staged task deletion when it looks for the only copy of a record",
+  "after": [],
+  "body": [
+    "Evidence: cross-model audit 2026-11-20 d7; reproduction .krn/tmp/gemini/d7.test.ts exits 1 on main bb545b1.\nOutcome: dropLane with a staged 'D  tasks/<id>.json' absent from main does not refuse with exit 64 (src/cli/lane.ts soleTaskRecords).\nProof: the reproduction becomes a regression test that fails by assertion on the base source and passes with the change."
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
