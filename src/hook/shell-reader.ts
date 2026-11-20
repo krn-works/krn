@@ -598,6 +598,8 @@ export function gitCall(argv: readonly Word[]):
   | {
       dirs: Word[];
       repository: string[];
+      /** A repository-selecting option the shell still expands: its value is not known to the reader. */
+      unresolved: boolean;
       verb: string;
       args: readonly Word[];
     }
@@ -605,18 +607,29 @@ export function gitCall(argv: readonly Word[]):
   if (programName(argv[0]) !== 'git') return undefined;
   const dirs: Word[] = [];
   const repository: string[] = [];
+  let unresolved = false;
   let i = 1;
   while (i < argv.length && (argv[i]?.text ?? '').startsWith('-')) {
     const text = argv[i]?.text ?? '';
     if (['-h', '--help', '-v', '--version'].includes(text)) return undefined;
     const value = argv[i + 1];
     if (text === '-C' && value) dirs.push(value);
-    if (['-C', '--git-dir', '--work-tree'].includes(text) && value)
+    if (['-C', '--git-dir', '--work-tree'].includes(text) && value) {
       repository.push(text, value.text);
-    else if (/^--(?:git-dir|work-tree)=/u.test(text)) repository.push(text);
+      unresolved ||= value.expands;
+    } else if (/^--(?:git-dir|work-tree)=/u.test(text)) {
+      repository.push(text);
+      unresolved ||= argv[i]?.expands === true;
+    }
     i += GIT_VALUE.has(text) ? 2 : 1;
   }
   const verb = argv[i];
   if (verb === undefined) return undefined;
-  return { dirs, repository, verb: verb.text, args: argv.slice(i + 1) };
+  return {
+    dirs,
+    repository,
+    unresolved,
+    verb: verb.text,
+    args: argv.slice(i + 1),
+  };
 }

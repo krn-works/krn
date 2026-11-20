@@ -18,6 +18,8 @@ type Target = {
   kind: 'branch' | 'worktree';
   name: string;
   repository?: string[];
+  /** The command selects its repository with a word the shell expands: only the current checkout is known. */
+  unresolved?: boolean;
 };
 
 export function targets(command: string): Target[] {
@@ -25,7 +27,11 @@ export function targets(command: string): Target[] {
   for (const { words } of commandsOf(command)) {
     const call = gitCall(resolveCommand(words)?.argv ?? []);
     if (call === undefined) continue;
-    const repository = call.repository.length > 0 ? call.repository : undefined;
+    const repository =
+      call.repository.length > 0 && !call.unresolved
+        ? call.repository
+        : undefined;
+    const unresolved = call.unresolved ? { unresolved: true } : {};
     const args = call.args.map((word) => word.text);
     if (call.verb === 'branch') {
       const force =
@@ -34,7 +40,12 @@ export function targets(command: string): Target[] {
           (args.includes('-f') || args.includes('--force')));
       if (!force) continue;
       for (const name of args.filter((arg) => !arg.startsWith('-')))
-        found.push({ kind: 'branch', name, ...(repository && { repository }) });
+        found.push({
+          kind: 'branch',
+          name,
+          ...(repository && { repository }),
+          ...unresolved,
+        });
     }
     if (call.verb === 'worktree' && args[0] === 'remove') {
       for (const name of args.slice(1).filter((arg) => !arg.startsWith('-')))
@@ -42,6 +53,7 @@ export function targets(command: string): Target[] {
           kind: 'worktree',
           name,
           ...(repository && { repository }),
+          ...unresolved,
         });
     }
   }
@@ -127,20 +139,27 @@ export function decide(payload: unknown): string | undefined {
     const at: At = target.repository
       ? {
           cwd,
-          // The hook runs before the shell expands `$PWD`; it is the directory Git will see.
-          options: target.repository.map((option) =>
-            option.replace(/\$(?:PWD\b|\{PWD\})/gu, cwd),
-          ),
+          options: target.repository,
         }
       : cwd;
     try {
-      const tip =
-        target.kind === 'branch'
-          ? git(at, ['rev-parse', '--verify', `${target.name}^{commit}`])
-          : git(
-              isAbsolute(target.name) ? target.name : resolve(cwd, target.name),
-              ['rev-parse', 'HEAD'],
-            );
+      let tip: string;
+      try {
+        tip =
+          target.kind === 'branch'
+            ? git(at, ['rev-parse', '--verify', `${target.name}^{commit}`])
+            : git(
+                isAbsolute(target.name)
+                  ? target.name
+                  : resolve(cwd, target.name),
+                ['rev-parse', 'HEAD'],
+              );
+      } catch (error) {
+        // Fail closed: an expanded repository word is unknown here, and the current checkout cannot prove the ref.
+        if (target.unresolved)
+          return `Refused: ${target.kind} ${target.name} is deleted in a repository the hook cannot resolve (the path is expanded by the shell). Run the command with a literal path, or from that repository.`;
+        throw error;
+      }
       if (
         git(at, ['rev-list', '--max-count=1', tip, '--not', '--remotes']) === ''
       )

@@ -418,3 +418,28 @@ test('a heavy step guarded by a failed condition does not take the independent s
     assert.equal(rewritten.status, original.status, command);
   }
 });
+
+test('a newline after a pipe or a logical operator keeps the continued command in its step', () => {
+  const setup =
+    'npm() { printf \'%s\\n\' watcher-output; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
+  for (const command of [
+    'npm test -- --watch |\ncat',
+    'npm test -- --watch |\n\ncat',
+    'true &&\nnpm test',
+    'false ||\nnpm test',
+  ]) {
+    const run = (line: string) =>
+      spawnSync('bash', ['-c', setup + line], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 3000,
+      });
+    const original = run(command);
+    const rewritten = run(gated(command, 1000, 'gate'));
+    assert.deepEqual(
+      [rewritten.status, rewritten.stdout, rewritten.stderr],
+      [original.status, original.stdout, original.stderr],
+      command,
+    );
+  }
+});

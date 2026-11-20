@@ -273,7 +273,12 @@ function tryTake(options: SlotOptions): Pass {
           current = readFileSync(join(slot, 'pid'), 'utf8');
         } catch (error) {
           const code = (error as NodeJS.ErrnoException).code;
-          if (code === 'ENOENT') return;
+          // The record vanished mid-job: the slot is still the one this job made, and an empty directory
+          // would count against capacity for as long as it stays.
+          if (code === 'ENOENT') {
+            rmSync(slot, { recursive: true, force: true });
+            return;
+          }
           // A record its owner made unreadable is still ours while it is the file we wrote.
           if (code !== 'EACCES') throw error;
           if (statSync(join(slot, 'pid')).ino === inode) current = mine;
