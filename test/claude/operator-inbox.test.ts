@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { serializeTask } from '../../src/task/record.ts';
 
 const path = (name: string) =>
   fileURLToPath(new URL(`../../scripts/claude/${name}`, import.meta.url));
@@ -53,7 +54,20 @@ const headless = {
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'operator-inbox-'));
   mkdirSync(join(root, 'tasks'));
-  writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
+  // dispose --task reads the record through the task store, so it must parse.
+  writeFileSync(
+    join(root, 'tasks/t-abc1234.json'),
+    serializeTask({
+      id: 't-abc1234',
+      status: 'open',
+      resolution: null,
+      created: '2026-11-20',
+      priority: 1,
+      title: 'Fixture task',
+      after: [],
+      body: ['Outcome: exit 0', 'Proof: node --test a'],
+    }),
+  );
   writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
   const submit = (
     prompt: string,

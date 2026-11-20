@@ -1,0 +1,6 @@
+{
+  "text": "A wait that can return before its condition holds (a check-in, a timeout) is followed by a check of the condition itself; its exit code alone never means done.",
+  "kind": "prose",
+  "evidence": [".krn/runs/lead/host-eval/report.md"],
+  "recorded_at": "2026-11-20"
+}

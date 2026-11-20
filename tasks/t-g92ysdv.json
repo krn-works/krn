@@ -1,0 +1,18 @@
+{
+  "id": "t-g92ysdv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "operator-inbox dispose --task and search read the task store (pending, tasks/, archive); regression test/claude/operator-inbox-dispose.test.ts red on base, green on branch"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Operator inbox dispose accepts a pending task id",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-20 closing t-ak5f21v: `node scripts/claude/operator-inbox.ts dispose <hash> --task t-ak5f21v` failed with \"FAIL t-ak5f21v: no tasks/t-ak5f21v.json\" while `krn task show` and `krn task close` handled the same pending record (refs/krn/pending-tasks). The prompts were disposed with --answered instead.\nEvidence: src/successor/operator-inbox.ts:112-116 checks only `tasks/<id>.json`; src/task/pending.ts:212 `isPendingId` and src/task/store.ts:222 already read pending records.\nFix: accept a task id that has a tasks/ record or a pending record (one task reader, not a second guess of the store), with a regression test at the lowest layer (KRN-14).\nAlso file with this PR: `krn standards propose --kind prose --text \"A wait that can return before its condition holds (a check-in, a timeout) is followed by a check of the condition itself; its exit code alone never means done.\" --evidence .krn/runs/lead/host-eval/report.md` (lesson: `hc wait --output` returned 0 at its 180 s check-in while the T3 arm still ran).\nOutcome: `operator-inbox.ts dispose <hash> --task <pending id>` exits 0 and prints `disposed <hash>` (base: exit 1, \"no tasks/<id>.json\").\nProof: the new test fails on the base and passes on the branch."
+  ],
+  "kind": "defect",
+  "area": "successor"
+}
