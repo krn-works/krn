@@ -117,10 +117,38 @@ function publishedBlobs(root: string, base: string, name: string): Set<string> {
   return blobs;
 }
 
+/** The base commit the ref's tip was judged against: its entries were live there. */
+function stampedBase(root: string): string | undefined {
+  const run = git(root, ['log', '-1', '--format=%B', PENDING_REF]);
+  if (run.status !== 0) return undefined;
+  return /^base: ([0-9a-f]{40})$/mu.exec(run.stdout.toString())?.[1];
+}
+
+/** Whether the base changed `tasks/<name>` after the commit the pending ref was written against. */
+function changedSince(
+  root: string,
+  base: string,
+  stamp: string | undefined,
+  name: string,
+): boolean {
+  if (stamp === undefined) return true;
+  const run = git(root, [
+    'log',
+    '--format=%H',
+    '-1',
+    `${stamp}..${base}`,
+    '--',
+    `tasks/${name}`,
+  ]);
+  // An unreachable stamp cannot say the entry is newer, so the older judgement stands.
+  return run.status !== 0 || run.stdout.toString().trim() !== '';
+}
+
 function stillPending(
   root: string,
   base: string | undefined,
   entry: Entry,
+  stamp: string | undefined,
 ): boolean {
   const onBase =
     base !== undefined &&
@@ -134,7 +162,12 @@ function stillPending(
   if (base === undefined || !onBase) return true;
   // An edit is a pending blob the base never held: a record the base published and a lane later
   // changed (closed) is older than the base's, not an edit of it.
-  return !publishedBlobs(root, base, entry.name).has(entry.blob);
+  // An entry written after the base's last change of the record (a reopen restores an older blob)
+  // is an edit, whatever blob it holds.
+  return (
+    !publishedBlobs(root, base, entry.name).has(entry.blob) ||
+    !changedSince(root, base, stamp, entry.name)
+  );
 }
 
 function isTracked(root: string, name: string): boolean {
@@ -160,7 +193,8 @@ function liveEntries(root: string): Entry[] {
   const entries = refEntries(root);
   if (entries.length === 0) return entries;
   const base = baseRef(root);
-  return entries.filter((entry) => stillPending(root, base, entry));
+  const stamp = stampedBase(root);
+  return entries.filter((entry) => stillPending(root, base, entry, stamp));
 }
 
 /** Pending records of the main checkout by id; empty in a linked worktree. */
@@ -177,6 +211,17 @@ export function pendingTaskFiles(root: string): Map<string, Buffer> {
 /** Whether `id` is held on the pending ref, whatever the working tree says. */
 export function isPendingId(root: string, id: string): boolean {
   return refEntries(root).some((entry) => entry.name === `${id}.json`);
+}
+
+function stampLines(root: string): string[] {
+  const base = baseRef(root);
+  const sha =
+    base === undefined
+      ? undefined
+      : git(root, ['rev-parse', `${base}^{commit}`])
+          .stdout.toString()
+          .trim();
+  return sha === undefined || sha === '' ? [] : ['-m', `base: ${sha}`];
 }
 
 function writeEntries(root: string, entries: Entry[], message: string): void {
@@ -201,6 +246,7 @@ function writeEntries(root: string, entries: Entry[], message: string): void {
     ...(old === '' ? [] : ['-p', old]),
     '-m',
     message,
+    ...stampLines(root),
   ]);
   // Compare-and-swap: a concurrent create fails loudly instead of losing a record.
   gitText(root, ['update-ref', PENDING_REF, commit, old]);
