@@ -324,3 +324,32 @@ test('quoted assignments, exact heredoc delimiters, cp -t into a file and env -S
     { kind: 'branch', name: 'lane' },
   ]);
 });
+
+test('an unquoted heredoc runs its substitutions, a quoted one does not; timeout and its kin run their command', () => {
+  const names = (line: string) =>
+    commands(line).map((words) => words.join(' '));
+  assert.ok(
+    names("cat <<EOF\n$(\ngit commit -m 'bad title'\n)\nEOF").includes(
+      'git commit -m bad title',
+    ),
+  );
+  assert.ok(
+    names('cat <<EOF\nx `git commit -m bad` y\nEOF').includes(
+      'git commit -m bad',
+    ),
+  );
+  assert.ok(
+    !names("cat <<'EOF'\n$(git commit -m bad)\nEOF").includes(
+      'git commit -m bad',
+    ),
+  );
+  const argv = (line: string) =>
+    resolveCommand(commandsOf(line)[0]?.words ?? [])?.argv.map(
+      (word) => word.text,
+    );
+  assert.deepEqual(argv('timeout 1 tee out'), ['tee', 'out']);
+  assert.deepEqual(argv('timeout -k 2 -s KILL 1 tee out'), ['tee', 'out']);
+  assert.deepEqual(argv('nohup nice -n 5 setsid -f tee out'), ['tee', 'out']);
+  assert.deepEqual(argv('nice -5 stdbuf -oL tee out'), ['tee', 'out']);
+  assert.equal(argv('timeout 1'), undefined);
+});

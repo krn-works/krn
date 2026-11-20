@@ -193,7 +193,23 @@ class Reader {
         this.i = eol < 0 ? s.length : eol + 1;
       }
       doc.body = lines.join('\n');
+      if (!doc.target.quoted) this.expandedBody(doc.body);
     }
+  }
+
+  /** An unquoted heredoc expands its body: the commands in its `$(...)` and backticks run. */
+  private expandedBody(body: string): void {
+    const sub = new Reader(body);
+    for (let k = 0; k < body.length; ) {
+      const c = body[k];
+      if (c === '\\') k += 2;
+      else if (c === '$' || c === '`') {
+        sub.i = k;
+        sub.expansion();
+        k = Math.max(sub.i, k + 1);
+      } else k++;
+    }
+    this.steps.push(...sub.steps);
   }
 
   private word(): Word {
@@ -462,6 +478,65 @@ const COMMAND_SHORT: Record<string, OptionKind> = {
   v: 'none',
   V: 'none',
 };
+// Coreutils wrappers that run the command after their options (and `operands` words, timeout's duration).
+const RUNNERS: Record<
+  string,
+  {
+    short: Record<string, OptionKind>;
+    long: Record<string, OptionKind>;
+    operands: number;
+  }
+> = {
+  timeout: {
+    short: { f: 'flag', p: 'flag', v: 'flag', k: 'arg', s: 'arg' },
+    long: {
+      foreground: 'flag',
+      'preserve-status': 'flag',
+      verbose: 'flag',
+      'kill-after': 'arg',
+      signal: 'arg',
+      help: 'none',
+      version: 'none',
+    },
+    operands: 1,
+  },
+  nohup: {
+    short: {},
+    long: { help: 'none', version: 'none' },
+    operands: 0,
+  },
+  nice: {
+    short: {
+      n: 'arg',
+      ...Object.fromEntries([...'0123456789'].map((d) => [d, 'flag'])),
+    },
+    long: { adjustment: 'arg', help: 'none', version: 'none' },
+    operands: 0,
+  },
+  setsid: {
+    short: { c: 'flag', f: 'flag', w: 'flag' },
+    long: {
+      ctty: 'flag',
+      fork: 'flag',
+      wait: 'flag',
+      help: 'none',
+      version: 'none',
+    },
+    operands: 0,
+  },
+  stdbuf: {
+    short: { i: 'arg', o: 'arg', e: 'arg' },
+    long: {
+      input: 'arg',
+      output: 'arg',
+      error: 'arg',
+      help: 'none',
+      version: 'none',
+    },
+    operands: 0,
+  },
+};
+
 const EXEC_SHORT: Record<string, OptionKind> = {
   c: 'flag',
   l: 'flag',
@@ -566,6 +641,14 @@ export function resolveCommand(words: readonly Word[]): Resolved | undefined {
             ? options(argv, EXEC_SHORT)
             : { at: 0, chdirs: [] };
     if (read === undefined) return undefined;
+    const runner = RUNNERS[name];
+    if (runner && !argv[0]?.quoted) {
+      const run = options(argv, runner.short, runner.long);
+      if (run === undefined || run.at + runner.operands >= argv.length)
+        return undefined;
+      argv = argv.slice(run.at + runner.operands);
+      continue;
+    }
     if (read.split) {
       chdirs.push(...read.chdirs);
       argv = read.split;

@@ -121,14 +121,6 @@ const compoundWord =
   /^\s*(?:if|then|elif|else|fi|for|select|while|until|do|done|case|esac|function)(?:\s|$)/u;
 
 /**
- * A newline after a pipe, `&&` or `||` continues the command: the shell reads the next line as its operand.
- * `text` is what follows the last cut; `op` is the operator that cut it.
- */
-const continuesLine = (text: string, op: string | undefined) =>
-  /(?:^|[^|])\|\s*$/u.test(text) ||
-  (text.trim() === '' && (op === '&&' || op === '||'));
-
-/**
  * The top-level steps of a command list, each with the operator after it (`&&`, `||`, `;`, `&` or a
  * newline); a pipeline stays one step. Undefined when the text holds syntax the split does not follow:
  * a subshell, group, command substitution, heredoc or compound command.
@@ -142,8 +134,22 @@ function steps(command: string): Step[] | undefined {
     i += op.length;
     start = i;
   };
+  // After a pipe, `|&`, `&&` or `||` the shell reads the next line as the operand: a newline continues.
+  let continued = false;
   while (i < command.length) {
     const c = command[i] as string;
+    if (c === ' ' || c === '\t') {
+      i += 1;
+      continue;
+    }
+    if (c === '\n' && continued) {
+      i += 1;
+      continue;
+    }
+    // A comment keeps the pending continuation: its text, a trailing `|` included, is not an operator.
+    const comment =
+      c === '#' && (i === 0 || /[\s;&|]/u.test(command[i - 1] ?? ''));
+    if (!comment) continued = false;
     if (c === "'") {
       const end = command.indexOf("'", i + 1);
       if (end < 0) return undefined;
@@ -157,7 +163,7 @@ function steps(command: string): Step[] | undefined {
       if (j >= command.length) return undefined;
       i = j + 1;
     } else if (c === '\\') i += 2;
-    else if (c === '#' && (i === 0 || /[\s;&|]/u.test(command[i - 1] ?? ''))) {
+    else if (comment) {
       const eol = command.indexOf('\n', i);
       i = eol < 0 ? command.length : eol;
     } else if (command.startsWith('${', i)) {
@@ -166,14 +172,13 @@ function steps(command: string): Step[] | undefined {
       i = end + 1;
     } else if ('(){}`'.includes(c) || command.startsWith('<<', i))
       return undefined;
-    else if (command.startsWith('&&', i) || command.startsWith('||', i))
+    else if (command.startsWith('&&', i) || command.startsWith('||', i)) {
       cut(command.slice(i, i + 2));
-    else if (
-      c === '\n' &&
-      continuesLine(command.slice(start, i), found.at(-1)?.op)
-    )
-      i += 1;
-    else if (c === ';' || c === '\n') cut(c);
+      continued = true;
+    } else if (c === '|' && command[i - 1] !== '>') {
+      i += command[i + 1] === '&' ? 2 : 1;
+      continued = true;
+    } else if (c === ';' || c === '\n') cut(c);
     else if (
       c === '&' &&
       !/[<>|]/u.test(command[i - 1] ?? '') &&

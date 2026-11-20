@@ -443,3 +443,27 @@ test('a newline after a pipe or a logical operator keeps the continued command i
     );
   }
 });
+
+test('a pipe in a comment, and a newline after |&, keep the next line where the shell runs it', () => {
+  const setup =
+    'npm() { printf \'%s\\n\' watcher-output >&2; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
+  for (const command of [
+    'npm test # output |\ncd ..\npwd',
+    'npm test -- --watch |&\ncat',
+    'npm test -- --watch | # then\ncat',
+  ]) {
+    const run = (line: string) =>
+      spawnSync('bash', ['-c', setup + line], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 3000,
+      });
+    const original = run(command);
+    const rewritten = run(gated(command, 1000, 'gate'));
+    assert.deepEqual(
+      [rewritten.status, rewritten.stdout, rewritten.stderr],
+      [original.status, original.stdout, original.stderr],
+      command,
+    );
+  }
+});
