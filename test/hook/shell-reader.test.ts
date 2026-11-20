@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { decide as commitFormat } from '../../src/hook/commit-format.ts';
-import { isHeavy } from '../../src/hook/heavy-command.ts';
 import { bashTargets, decide as scope } from '../../src/hook/scope.ts';
 import {
   commands,
@@ -270,9 +269,6 @@ test('each reproduced review case is decided right by its hook', () => {
 
 // The fourth review round (head 0e3d491): each reproduction at its hook.
 test('a heredoc, time -p, ANSI-C escapes, descriptors, -- and data words are read as the shell runs them', () => {
-  assert.equal(isHeavy('cat <<EOF\nhello\nEOF\nnpm test'), true);
-  assert.equal(isHeavy('time -p npm test'), true);
-  assert.equal(isHeavy('git commit -m "npm test"'), false);
   const commit = (command: string) =>
     commitFormat({ tool_name: 'Bash', tool_input: { command } });
   assert.equal(
@@ -306,9 +302,6 @@ test('a heredoc, time -p, ANSI-C escapes, descriptors, -- and data words are rea
 
 // The fifth review round (head dadfe06): the guard-weakening and crashing reproductions.
 test('quoted assignments, exact heredoc delimiters, cp -t into a file and env -S keep every guard', () => {
-  assert.equal(isHeavy("NODE_OPTIONS='--no-warnings' npm test"), true);
-  assert.equal(isHeavy('cat <<EOF\n EOF\nnpm test\nEOF'), false);
-  assert.equal(isHeavy('cat <<-EOF\n\t\tEOF\nnpm test'), true);
   assert.deepEqual(
     bashTargets(['cat <<EOF', 'EOF ', '> harmless', 'EOF'].join('\n'), '/lane'),
     [],

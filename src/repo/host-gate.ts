@@ -95,19 +95,6 @@ export function hostPressure(
 /** Set in the environment of a job that holds a gate slot, so a nested heavy command runs inside it instead of queueing again. */
 export const SLOT_HELD_ENV = 'KRN_TEST_SLOT_HELD';
 
-/** Set by the heavy gate beside SLOT_HELD_ENV: the epoch ms at which its slot lease ends (a job that holds a slot without a lease sets none). */
-export const SLOT_LEASE_END_ENV = 'KRN_TEST_SLOT_LEASE_END';
-
-/** True while the environment marks a held slot that is still alive: no lease end, or one not yet reached. */
-export function slotHeld(
-  env: NodeJS.ProcessEnv,
-  now: number = Date.now(),
-): boolean {
-  if (!env[SLOT_HELD_ENV]) return false;
-  const end = Number(env[SLOT_LEASE_END_ENV]);
-  return !env[SLOT_LEASE_END_ENV] || !Number.isFinite(end) || now < end;
-}
-
 /** What a new lane is admitted on: the host sample plus the heavy-gate units held out of its capacity. */
 export type HostCapacity = {
   sample: HostSample;

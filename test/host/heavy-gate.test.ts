@@ -10,23 +10,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import {
-  defaultJobWeight,
-  parseRun,
-  run as runInProcess,
-} from '../../scripts/host/heavy-gate.ts';
+import { defaultJobWeight, parseRun } from '../../scripts/host/heavy-gate.ts';
 import {
   gateLimits,
   hostGateDir,
   hostPressure,
   projectedLoad,
-  SLOT_HELD_ENV,
 } from '../../src/repo/host-gate.ts';
-import {
-  type Admission,
-  slotHolders,
-  withSlot,
-} from '../../src/repo/slot-lock.ts';
+import { type Admission, withSlot } from '../../src/repo/slot-lock.ts';
 import { defaultTestSlots, testSlotOptions } from '../../src/repo/test-slot.ts';
 
 const GATE = join(import.meta.dirname, '../../scripts/host/heavy-gate.ts');
@@ -391,100 +382,4 @@ test('the gate lives outside every checkout and KRN fast takes a weight that fit
     [3, 1, undefined],
   );
   assert.equal(defaultJobWeight(16), 4);
-});
-
-test('a lease gives the slot back while the work runs on, and the late release leaves the next holder alone', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'heavy-lease-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  t.mock.timers.enable({ apis: ['setTimeout'] });
-  const settled = async (holders: number) => {
-    for (let i = 0; i < 100 && slotHolders(dir).length !== holders; i += 1)
-      await Promise.resolve();
-  };
-  let leased = false;
-  let endWatcher = () => {};
-  // A watcher sent through the gate: its work outlives the lease.
-  const watcher = withSlot(
-    { dir, slots: 1, leaseMs: 50, onLease: () => (leased = true) },
-    () => new Promise<void>((done) => (endWatcher = done)),
-  );
-  await settled(1);
-  assert.equal(slotHolders(dir).length, 1, 'the watcher holds the slot');
-  t.mock.timers.tick(50);
-  assert.equal(slotHolders(dir).length, 0, 'the lease released the slot');
-  assert.equal(leased, true);
-  let finish = () => {};
-  const next = withSlot(
-    { dir, slots: 1 },
-    () => new Promise<void>((done) => (finish = done)),
-  );
-  await settled(1);
-  assert.equal(slotHolders(dir).length, 1, 'the next job took the freed slot');
-  endWatcher();
-  await watcher;
-  assert.equal(
-    slotHolders(dir).length,
-    1,
-    'the watcher ending did not delete the slot the next job holds',
-  );
-  finish();
-  await next;
-  assert.equal(slotHolders(dir).length, 0);
-});
-
-test('a lease past the 32-bit timer limit keeps the slot instead of firing at once', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'heavy-lease-long-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  t.mock.timers.enable({ apis: ['setTimeout'] });
-  let end: (() => void) | undefined;
-  const job = withSlot(
-    { dir, slots: 1, leaseMs: 2 ** 31 },
-    () => new Promise<void>((done) => (end = done)),
-  );
-  // Wait until the work runs: the slot exists a turn before withSlot calls it.
-  for (let i = 0; i < 100 && end === undefined; i += 1) await Promise.resolve();
-  t.mock.timers.tick(1000);
-  assert.equal(slotHolders(dir).length, 1, 'the slot is still held');
-  end?.();
-  await job;
-});
-
-test('a nested gate started after its parent lease expired takes its own slot', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'gate-lease-'));
-  try {
-    const gate = new URL('../../scripts/host/heavy-gate.ts', import.meta.url)
-      .href;
-    const leaf = `import { status } from ${JSON.stringify(gate)};
-      process.exitCode = JSON.parse(status(['--json'])).used === 1 ? 0 : 42;`;
-    const child = `import { run } from ${JSON.stringify(gate)};
-      for (; Date.now() <= Number(process.env.KRN_TEST_SLOT_LEASE_END); );
-      process.exitCode = await run(
-        ['--deadline-ms', '1000', '--', process.execPath, '--input-type=module', '-e', ${JSON.stringify(leaf)}],
-        { ...process.env, KRN_GATE_LEASE_S: '30' },
-      );`;
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      KRN_HEAVY_GATE_DIR: dir,
-      KRN_HEAVY_GATE_UNITS: '1',
-      KRN_HEAVY_GATE_LOAD_PER_CORE: '100000',
-      KRN_HEAVY_GATE_MIN_MB: '0',
-      KRN_GATE_LEASE_S: '0.02',
-    };
-    delete env[SLOT_HELD_ENV];
-    const code = await runInProcess(
-      [
-        '--deadline-ms',
-        '1000',
-        '--',
-        process.execPath,
-        '--input-type=module',
-        '-e',
-        child,
-      ],
-      env,
-    );
-    assert.equal(code, 0, 'the nested command held a slot of its own');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 });

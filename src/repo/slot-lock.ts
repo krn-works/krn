@@ -26,17 +26,7 @@ export type SlotOptions = {
   pressure?: ((admission: Admission) => string | undefined) | undefined;
   /** Called once, with the pid of a holder, when the caller starts to wait. */
   onWait?: (holderPid: number | undefined, reason: string) => void;
-  /**
-   * withSlot only: the most milliseconds the slot is held; past it the slot is released while the work
-   * runs on, so a job that never ends (a watcher, a server) cannot hold a slot for its whole life.
-   */
-  leaseMs?: number | undefined;
-  /** Called once when the lease releases the slot early. */
-  onLease?: () => void;
 };
-
-/** The longest delay setTimeout honours; a larger one fires after 1 ms. */
-const MAX_TIMER_MS = 2 ** 31 - 1;
 
 /** Exit code a command uses when the slot wait ran past its deadline (the repository timeout code). */
 export const SLOT_TIMEOUT_EXIT = 75;
@@ -257,26 +247,10 @@ function tryTake(options: SlotOptions): Pass {
     while (taken.has(index)) index += 1;
     const slot = join(options.dir, `slot-${index}`);
     mkdirSync(slot);
-    const mine = record(weight);
-    writeFileSync(join(slot, 'pid'), mine);
-    // The slot is ours while it is the directory made here, whatever became of the record inside it.
-    const made = statSync(slot);
-    let released = false;
+    writeFileSync(join(slot, 'pid'), record(weight));
     return {
       kind: 'taken',
-      // Once only, and only while the slot is still ours: after an early release (a lease) another job
-      // may hold the same slot-N, and a second release must not delete its slot.
-      release: () => {
-        if (released) return;
-        released = true;
-        try {
-          const now = statSync(slot);
-          if (now.ino === made.ino && now.birthtimeMs === made.birthtimeMs)
-            rmSync(slot, { recursive: true, force: true });
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        }
-      },
+      release: () => rmSync(slot, { recursive: true, force: true }),
     };
   } finally {
     unlock();
@@ -335,22 +309,9 @@ export async function withSlot<T>(
   work: () => Promise<T>,
 ): Promise<T> {
   const release = await acquire(options);
-  const lease =
-    options.leaseMs === undefined
-      ? undefined
-      : setTimeout(
-          () => {
-            release();
-            options.onLease?.();
-          },
-          // setTimeout fires at once past its 32-bit limit: a longer lease is held to the limit (about 24.8 days).
-          Math.min(options.leaseMs, MAX_TIMER_MS),
-        );
-  lease?.unref();
   try {
     return await work();
   } finally {
-    clearTimeout(lease);
     release();
   }
 }

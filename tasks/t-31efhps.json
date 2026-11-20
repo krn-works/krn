@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "src/hook/shell-reader.ts is the one shell reader scope, commit-format, unpushed-delete and heavy-command import; their tokenizers are gone; test/hook/shell-reader.test.ts checks quoting rows against real bash and every reproduced review case at its hook"
+    "note": "src/hook/shell-reader.ts is the one shell reader scope, commit-format, unpushed-delete import; their tokenizers are gone; test/hook/shell-reader.test.ts checks quoting rows against real bash and every reproduced review case at its hook"
   },
   "created": "2026-11-20",
   "priority": 2,

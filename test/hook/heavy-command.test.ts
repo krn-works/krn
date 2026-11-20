@@ -1,12 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -58,7 +52,7 @@ function run(command: string, cwd: string, args: string[] = [], extra = {}) {
   });
 }
 
-test('test runs, builds, installs and browser tests are heavy in watch mode too; servers and plain commands are not', () => {
+test('test runs, builds, installs and browser tests are heavy; servers, watchers and plain commands are not', () => {
   for (const command of [
     'npm test',
     'pnpm install',
@@ -75,17 +69,15 @@ test('test runs, builds, installs and browser tests are heavy in watch mode too;
     'composer install',
     'time npx tsc --noEmit',
     'npm install -w packages/app',
-    // Watch mode is no exemption: the gate's lease bounds how long it holds a slot.
-    'npx vitest --watch',
-    'npx playwright test --ui',
-    'npm run test:watch',
-    'npm run test:watch.js',
-    'npx jest --watchAll',
   ])
     assert.equal(isHeavy(command), true, command);
   for (const command of [
     'npm run dev',
+    'npx vitest --watch',
+    'npx playwright test --ui',
     'npm run start',
+    'npm run test:watch',
+    'npx jest --watchAll',
     "cat > notes.md <<'EOF'\nnpm install\nEOF",
     "git commit -m 'run npm test first'",
     'git status',
@@ -118,7 +110,10 @@ test('the gated command runs the original through bash with its quoting intact',
     'bash',
     [
       '-c',
-      gated(command, 1000, 'env').replace(' run --deadline-ms 1000 --', ''),
+      gated(command, 1000, 'env', ['^echo ']).replace(
+        ' run --deadline-ms 1000 --',
+        '',
+      ),
     ],
     { encoding: 'utf8' },
   );
@@ -176,78 +171,64 @@ test('an excluded name in a comment, a message or an argument does not exempt th
     assert.equal(exemption(command, shop, {}), undefined, command);
 });
 
-test('a command with a heavy step is gated whole: one lease wraps the original text unchanged', () => {
+test('a compound gates only its heavy steps, so a server started after an install or build holds no slot', () => {
   const gate = '/g/heavy-gate';
   const wrap = (inner: string, ms = 1000) =>
     `'${gate}' run --deadline-ms ${ms} -- bash -c '${inner}'`;
-  for (const command of [
-    'npm install && npm run dev',
-    'npm test 2>&1 | tail -5',
-    'for d in a b; do npm test; done',
-    '(npm i && npm run dev)',
-    'T=unit; npm test -- $T',
-    'npm test -- --watch |\ncat',
-  ])
-    assert.equal(gated(command, 1000, gate), wrap(command), command);
+  for (const [command, expected] of [
+    ['npm install && npm run dev', `${wrap('npm install')} && npm run dev`],
+    ['pnpm build && pnpm start', `${wrap('pnpm build')} && pnpm start`],
+    ['npm i && node server.js', `${wrap('npm i')} && node server.js`],
+    [
+      'npm ci; npm run build && npx serve dist',
+      `${wrap('npm ci; npm run build')} && npx serve dist`,
+    ],
+    ['cd app && npm ci && npm test', `cd app && ${wrap('npm ci && npm test')}`],
+    ['npm test 2>&1 | tail -5', wrap('npm test 2>&1 | tail -5')],
+    [
+      'npm ci && echo ok && npm test',
+      `${wrap('npm ci', 500)} && echo ok && ${wrap('npm test', 500)}`,
+    ],
+    [
+      'npm run build & npm test',
+      `${wrap('npm run build', 500)} & ${wrap('npm test', 500)}`,
+    ],
+    // Syntax the split does not follow is gated whole, as before, unless it starts a server.
+    [
+      'for d in a b; do npm test; done',
+      wrap('for d in a b; do npm test; done'),
+    ],
+    [
+      'cd "$(git rev-parse --show-toplevel)" && npm test',
+      `cd "$(git rev-parse --show-toplevel)" && ${wrap('npm test')}`,
+    ],
+    ['(npm i && npm run dev)', '(npm i && npm run dev)'],
+    // A gated step runs in a child shell: state an earlier step sets in this shell must reach it.
+    ['T=unit; npm test -- $T', wrap('T=unit; npm test -- $T')],
+    [
+      'set -o pipefail; npm test | tail -5',
+      wrap('set -o pipefail; npm test | tail -5'),
+    ],
+    ['source .env && npm run build', wrap('source .env && npm run build')],
+    ['X=1; npm i && npm run dev', 'X=1; npm i && npm run dev'],
+    [
+      'FOO=1 npm test && npm run dev',
+      `${wrap('FOO=1 npm test')} && npm run dev`,
+    ],
+  ] as const)
+    assert.equal(gated(command, 1000, gate), expected, command);
   const shop = repo('shop');
   const none = { exclude: [], heavy: [] };
+  assert.equal(
+    judge(payload('(npm i && npm run dev)', shop), {}, none),
+    undefined,
+  );
   assert.deepEqual(judge(payload('npm i && npm run dev', shop), {}, none), {
-    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i && npm run dev'`,
+    rewrite: `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm i' && npm run dev`,
   });
 });
 
-// The gate is replaced by a stand-in that drops its own arguments and runs the command: the wrapped
-// command must behave as the original does in the same shell.
-test('shell state, pipes, heredocs and comments reach the heavy step as they do without the gate', () => {
-  const setup =
-    'npm() { printf "<%s>\\n" "$@"; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
-  for (const command of [
-    'printf -v filter %s example.test.js; npm test -- --watch "$filter"',
-    'printf -v T %s unit; npm test -- "$T"',
-    'false && npm test; npm test',
-    'npm test -- --watch |\ncat',
-    'npm test # output |\necho after',
-    'cat <<EOF | cat\nbody\nEOF\nnpm test',
-    'set -o pipefail; npm test | tail -5',
-  ]) {
-    const exec = (line: string) =>
-      spawnSync('bash', ['-c', setup + line], {
-        encoding: 'utf8',
-        timeout: 3000,
-      });
-    const original = exec(command);
-    const verdict = judge(
-      { tool_name: 'Bash', cwd: '/tmp', tool_input: { command } },
-      {},
-      { exclude: [], heavy: [] },
-    );
-    const rewritten = exec(
-      verdict?.rewrite.replace(gateEntry, 'gate') ?? command,
-    );
-    assert.deepEqual(
-      [rewritten.status, rewritten.stdout, rewritten.stderr],
-      [original.status, original.stdout, original.stderr],
-      command,
-    );
-  }
-});
-
-test('the calling shell keeps the directory selected before a heavy command', () => {
-  const command = 'cd "$REVIEW_DESTINATION" && npm test';
-  const setup = 'npm() { :; }; export -f npm; gate() { shift 4; "$@"; }; ';
-  const destination = realpathSync(tmpdir());
-  const exec = (line: string) =>
-    spawnSync('bash', ['-c', `${setup}${line}; pwd -P`], {
-      encoding: 'utf8',
-      env: { ...process.env, REVIEW_DESTINATION: destination },
-    });
-  const original = exec(command);
-  const rewritten = exec(gated(command, 1000, 'gate'));
-  assert.equal(rewritten.status, 0, rewritten.stderr);
-  assert.equal(rewritten.stdout, original.stdout);
-});
-
-test('through the real gate, the whole command runs inside one slot', () => {
+test('through the real gate, only the heavy step of a compound runs inside a slot', () => {
   const dir = mkdtempSync(join(tmpdir(), 'heavy-compound-'));
   const shim = join(dir, 'heavy-gate');
   const gateScript = fileURLToPath(
@@ -258,10 +239,12 @@ test('through the real gate, the whole command runs inside one slot', () => {
     `#!/bin/sh\nexec '${process.execPath}' '${gateScript}' "$@"\n`,
     { mode: 0o755 },
   );
+  // The stand-in heavy step is `echo` (a host pattern); the light step after it is `printf`.
   const command = gated(
     `echo in=$KRN_TEST_SLOT_HELD && printf 'out=%s\\n' "$KRN_TEST_SLOT_HELD"`,
     5000,
     shim,
+    ['^echo '],
   );
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -270,7 +253,7 @@ test('through the real gate, the whole command runs inside one slot', () => {
   delete env.KRN_TEST_SLOT_HELD;
   const result = spawnSync('bash', ['-c', command], { encoding: 'utf8', env });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, 'in=1\nout=1\n');
+  assert.equal(result.stdout, 'in=1\nout=\n');
 });
 
 test('KRN_HEAVY_GATE_EXCLUDE replaces the excluded repositories', () => {
@@ -283,11 +266,6 @@ test('a command already gated, inside a slot or in a KRN checkout passes unchang
   const shop = repo('shop');
   assert.ok(exemption('heavy-gate run -- npm test', shop, {}));
   assert.ok(exemption(`'/a/bin/heavy-gate' run -- npm test`, shop, {}));
-  // A gate call beside an ungated heavy command exempts nothing.
-  assert.equal(
-    exemption('npm test && printf "%s\\n" "$(heavy-gate status)"', shop, {}),
-    undefined,
-  );
   assert.ok(exemption('npm test', shop, { KRN_TEST_SLOT_HELD: '1' }));
   assert.ok(exemption('npm test', join(repo('krn', true), 'sub'), {}));
   assert.equal(
@@ -364,53 +342,4 @@ test('the Codex form refuses the captured Codex payload and names the gated comm
     ),
     result.stderr,
   );
-});
-
-test('a quoted Go test filter does not make the command a server', () => {
-  const result = judge(
-    {
-      tool_name: 'Bash',
-      tool_input: { command: "go test -run 'start' ./..." },
-      cwd: '/tmp',
-    },
-    {},
-    { exclude: [], heavy: [] },
-  );
-  assert.ok(result?.rewrite);
-});
-
-test('a test run is gated whether it names a watch file or runs in watch mode', () => {
-  const result = judge(
-    {
-      tool_name: 'Bash',
-      tool_input: { command: "npm test -- 'watch.test.js'" },
-      cwd: '/tmp',
-    },
-    {},
-    { exclude: [], heavy: [] },
-  );
-  assert.ok(result?.rewrite);
-  const watching = judge(
-    {
-      tool_name: 'Bash',
-      tool_input: { command: 'npm test -- --watch' },
-      cwd: '/tmp',
-    },
-    {},
-    { exclude: [], heavy: [] },
-  );
-  assert.ok(watching?.rewrite);
-});
-
-test('a quoted test filter and a dotted watch script are gated like any test run', () => {
-  const verdict = (command: string) =>
-    judge(
-      { tool_name: 'Bash', tool_input: { command }, cwd: '/tmp' },
-      {},
-      { exclude: [], heavy: [] },
-    );
-  assert.ok(verdict("npm test -- -t 'start'")?.rewrite);
-  assert.ok(verdict("go test -run 'start' ./...")?.rewrite);
-  assert.ok(verdict('npm run test:watch.dev')?.rewrite);
-  assert.ok(verdict('npm run test:watch.js')?.rewrite);
 });

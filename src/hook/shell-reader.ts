@@ -1,4 +1,4 @@
-// The one shell command reader the Bash hooks share (scope, commit-format, unpushed-delete, heavy-command).
+// The one shell command reader the Bash hooks share (scope, commit-format, unpushed-delete).
 // It reads a command line the way POSIX sh and bash split it, without running anything: words with single,
 // double, backslash and $'...' quoting removed; the operators `;`, newline, `&&`, `||`, `|`, `|&` and `&`;
 // redirections with their descriptor and target word; heredoc bodies as data; `#` comments; and subshell,

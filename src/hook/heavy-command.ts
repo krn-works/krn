@@ -2,8 +2,7 @@
 // a test run, build, package install or browser test through `heavy-gate run` (scripts/host/heavy-gate.ts),
 // so every project on the host waits for a slot instead of piling onto a loaded laptop. Claude Code gets
 // the command rewritten through updatedInput; Codex (`--codex`) gets a refusal naming the wrapped command
-// to run instead. A heavy form in watch or server mode is gated like any other run: the gate holds its
-// slot for one lease (KRN_GATE_LEASE_S) and lets it run on, so no command guesses which runs end. It passes a command
+// to run instead. It passes a dev server or watcher (it would hold a slot for its whole life), a command
 // already inside the gate, KRN's own checkouts (fast and the Stop hook gate themselves) and the
 // excluded repositories (wilq-seo is never gated). The host config ($XDG_CONFIG_HOME/krn/heavy-gate.json,
 // untracked) adds excluded repository names and patterns of the host's own heavy jobs (a project's
@@ -14,9 +13,110 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { hookStdin } from '../harness/claude.ts';
-import { slotHeld } from '../repo/host-gate.ts';
-import { shellWord } from '../repo/shell-text.ts';
-import { commands, commandsOf, readShell, type Word } from './shell-reader.ts';
+import { SLOT_HELD_ENV } from '../repo/host-gate.ts';
+import { executableText, shellWord } from '../repo/shell-text.ts';
+
+// The gate keeps the word splitter it had before the shared shell reader (src/hook/shell-reader.ts): its
+// handling of shell state is decided under t-w2bsagz, so no behavior changes here.
+type Token = { word: string } | { separator: true };
+
+/** A `"$(cat <<'EOF' ... EOF)"` word: the heredoc text, else undefined. */
+function heredocText(word: string): string | undefined {
+  const match =
+    /^\$\(\s*cat\s+<<-?\s*(['"]?)(\w+)\1[^\n]*\n([\s\S]*?)\n\s*\2\s*\n?\s*\)\s*$/u.exec(
+      word,
+    );
+  return match?.[3];
+}
+
+/** Shell words and command separators of `command`; quotes are removed, `$(...)` inside double quotes is kept verbatim. */
+function shellTokens(command: string): Token[] {
+  const tokens: Token[] = [];
+  let word: string | undefined;
+  let dynamic = false;
+  const push = () => {
+    if (word !== undefined)
+      tokens.push({ word: dynamic ? `\u0000${word}` : word });
+    word = undefined;
+    dynamic = false;
+  };
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i] ?? '';
+    if (c === "'") {
+      const end = command.indexOf("'", i + 1);
+      const stop = end < 0 ? command.length : end;
+      word = (word ?? '') + command.slice(i + 1, stop);
+      i = stop;
+    } else if (c === '"') {
+      let text = '';
+      i++;
+      while (i < command.length && command[i] !== '"') {
+        const d = command[i] ?? '';
+        if (d === '\\' && i + 1 < command.length) {
+          text += command[i + 1];
+          i += 2;
+        } else if (d === '$' && command[i + 1] === '(') {
+          const heredoc = /^\$\(\s*cat\s+<<-?\s*(['"]?)(\w+)\1[^\n]*\n/u.exec(
+            command.slice(i),
+          );
+          let end: number;
+          if (heredoc) {
+            const close = new RegExp(
+              `\\n\\s*${heredoc[2]}\\s*\\n?\\s*\\)`,
+              'u',
+            );
+            const found = close.exec(command.slice(i + heredoc[0].length - 1));
+            end = found
+              ? i + heredoc[0].length - 1 + found.index + found[0].length
+              : command.length;
+          } else {
+            let depth = 0;
+            end = i + 1;
+            for (; end < command.length; end++) {
+              if (command[end] === '(') depth++;
+              else if (command[end] === ')' && --depth === 0) break;
+            }
+            end++;
+          }
+          const inner = command.slice(i, end);
+          const text2 = heredocText(inner);
+          if (text2 === undefined) dynamic = true;
+          text += text2 ?? inner;
+          i = end;
+        } else {
+          if (d === '$' || d === '`') dynamic = true;
+          text += d;
+          i++;
+        }
+      }
+      word = (word ?? '') + text;
+    } else if (c === '\\' && i + 1 < command.length) {
+      word = (word ?? '') + command[i + 1];
+      i++;
+    } else if (/[\s]/u.test(c)) {
+      push();
+      if (c === '\n') tokens.push({ separator: true });
+    } else if (c === ';' || c === '&' || c === '|' || c === '(' || c === ')') {
+      push();
+      tokens.push({ separator: true });
+    } else {
+      if (c === '$' || c === '`') dynamic = true;
+      word = (word ?? '') + c;
+    }
+  }
+  push();
+  return tokens;
+}
+
+/** The commands of `command`: each a list of words, separators dropped. */
+function commands(command: string): string[][] {
+  const out: string[][] = [[]];
+  for (const token of shellTokens(command)) {
+    if ('separator' in token) out.push([]);
+    else out[out.length - 1]?.push(token.word);
+  }
+  return out.filter((words) => words.length > 0);
+}
 
 /** Repositories (by directory name) whose commands are never gated. */
 export const DEFAULT_EXCLUDE = ['wilq-seo'];
@@ -26,7 +126,7 @@ export const gateEntry = fileURLToPath(
   new URL('../../bin/heavy-gate', import.meta.url),
 );
 
-const pkg = '(?:npm|pnpm|yarn|bun)';
+const pkg = String.raw`(?:npm|pnpm|yarn|bun)`;
 const heavyForms: RegExp[] = [
   new RegExp(String.raw`^${pkg} (?:test|t|install|i|ci|add)(?:\s|$)`, 'u'),
   new RegExp(
@@ -42,6 +142,9 @@ const heavyForms: RegExp[] = [
   /^mise run (?:test|check|build|e2e)[\w:.-]*(?:\s|$)/u,
   /^docker (?:build|compose build)(?:\s|$)/u,
 ];
+// Any word holding `watch` (--watch, --watchAll, test:watch) or naming a server keeps running: never gated.
+const longLived =
+  /(?:^|\s)(?:[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
 const wrappers = new Set(['time', 'nice', 'exec', 'command', 'env']);
 
 const pattern = z.string().refine((source) => {
@@ -102,9 +205,78 @@ function program(words: readonly string[]): string {
 
 /** The programs of `command` as text; quoted text and heredoc bodies are data, not commands. */
 function programs(command: string): string[] {
-  return commandsOf(command).map(({ words }) =>
-    program(words.map((word) => word.text)),
-  );
+  return commands(executableText(command)).map(program);
+}
+
+/** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */
+function startsServer(command: string): boolean {
+  return programs(command).some((text) => longLived.test(text));
+}
+
+type Step = { text: string; op: string };
+
+/**
+ * A step that changes the shell's own state (an assignment, options, an alias, a sourced file): a gated
+ * step after it runs in a child `bash -c`, which would not see an unexported variable or `set -o pipefail`.
+ */
+const shellState =
+  /^\s*(?:(?:set|shopt|alias|source|\.|declare|typeset|local|readonly|eval|enable|trap)(?:\s|$)|[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]*\])?\+?=)/u;
+
+/** A reserved word that opens or continues compound syntax the step split does not follow. */
+const compoundWord =
+  /^\s*(?:if|then|elif|else|fi|for|select|while|until|do|done|case|esac|function)(?:\s|$)/u;
+
+/**
+ * The top-level steps of a command list, each with the operator after it (`&&`, `||`, `;`, `&` or a
+ * newline); a pipeline stays one step. Undefined when the text holds syntax the split does not follow:
+ * a subshell, group, command substitution, heredoc or compound command.
+ */
+function steps(command: string): Step[] | undefined {
+  const found: Step[] = [];
+  let start = 0;
+  let i = 0;
+  const cut = (op: string) => {
+    found.push({ text: command.slice(start, i), op });
+    i += op.length;
+    start = i;
+  };
+  while (i < command.length) {
+    const c = command[i] as string;
+    if (c === "'") {
+      const end = command.indexOf("'", i + 1);
+      if (end < 0) return undefined;
+      i = end + 1;
+    } else if (c === '"') {
+      let j = i + 1;
+      while (j < command.length && command[j] !== '"') {
+        if (command[j] === '`' || command.startsWith('$(', j)) return undefined;
+        j += command[j] === '\\' ? 2 : 1;
+      }
+      if (j >= command.length) return undefined;
+      i = j + 1;
+    } else if (c === '\\') i += 2;
+    else if (c === '#' && (i === 0 || /[\s;&|]/u.test(command[i - 1] ?? ''))) {
+      const eol = command.indexOf('\n', i);
+      i = eol < 0 ? command.length : eol;
+    } else if (command.startsWith('${', i)) {
+      const end = command.indexOf('}', i);
+      if (end < 0) return undefined;
+      i = end + 1;
+    } else if ('(){}`'.includes(c) || command.startsWith('<<', i))
+      return undefined;
+    else if (command.startsWith('&&', i) || command.startsWith('||', i))
+      cut(command.slice(i, i + 2));
+    else if (c === ';' || c === '\n') cut(c);
+    else if (
+      c === '&' &&
+      !/[<>|]/u.test(command[i - 1] ?? '') &&
+      command[i + 1] !== '>'
+    )
+      cut(c);
+    else i += 1;
+  }
+  found.push({ text: command.slice(start), op: '' });
+  return found.some((step) => compoundWord.test(step.text)) ? undefined : found;
 }
 
 /** True when one of the commands of `command` is a heavy job (test run, build, install, browser test, or a host pattern) that ends on its own. */
@@ -116,8 +288,8 @@ export function isHeavy(
     ...heavyForms,
     ...extra.map((source) => new RegExp(source, 'u')),
   ];
-  return programs(command).some((text) =>
-    forms.some((form) => form.test(text)),
+  return programs(command).some(
+    (text) => forms.some((form) => form.test(text)) && !longLived.test(text),
   );
 }
 
@@ -152,34 +324,16 @@ const dirFlag = /^(?:-C|--prefix|--dir|--cwd)(?:=(.+))?$/u;
  * The directories `command` runs in besides its cwd: `cd` and `pushd` operands and the values of
  * `-C`, `--prefix`, `--dir` and `--cwd`. A word in a comment, a message or a file argument is none.
  */
-function runDirs(command: string, extra: readonly string[]): string[] {
+function runDirs(command: string): string[] {
   const found: string[] = [];
-  let depth = 0;
-  const all: { words: readonly Word[]; forked: boolean }[] = [];
-  for (const step of readShell(command)) {
-    if (step.kind === 'open') depth += 1;
-    else if (step.kind === 'close') depth -= 1;
-    else if (step.command.words.length > 0)
-      all.push({
-        words: step.command.words,
-        forked: step.command.forked || depth > 0,
-      });
-  }
-  // A `cd` in a subshell, substitution or pipeline stage does not move the commands of the parent shell:
-  // it counts only while no heavy command runs in the parent.
-  const parentHeavy = all.some(
-    ({ words, forked }) =>
-      !forked && isHeavy(words.map((word) => word.text).join(' '), extra),
-  );
-  for (const { words: tokens, forked } of all) {
-    const words = tokens.map((word) => word.text);
+  for (const words of commands(command)) {
     const comment = words.findIndex((word) => word.startsWith('#'));
     const live = comment < 0 ? words : words.slice(0, comment);
     const first = live.findIndex(
       (word) => !/^[A-Za-z_][A-Za-z0-9_]*=/u.test(word),
     );
     const name = live[first];
-    if ((name === 'cd' || name === 'pushd') && !(forked && parentHeavy)) {
+    if (name === 'cd' || name === 'pushd') {
       const operand = live.slice(first + 1).find((w) => !w.startsWith('-'));
       if (operand) found.push(operand);
     }
@@ -199,16 +353,10 @@ export function exemption(
   env: NodeJS.ProcessEnv,
   config: HostConfig = emptyConfig,
 ): string | undefined {
-  if (slotHeld(env)) return 'already inside a gate slot';
-  // Already gated only when every heavy command runs inside a gate call: a `$(heavy-gate status)`
-  // beside an ungated `npm test` exempts nothing.
-  const all = commands(command);
-  const viaGate = (words: string[]) =>
-    basename(program(words).split(' ')[0] ?? '') === 'heavy-gate';
+  if (env[SLOT_HELD_ENV]) return 'already inside a gate slot';
   if (
-    all.some(viaGate) &&
-    !all.some(
-      (words) => !viaGate(words) && isHeavy(words.join(' '), config.heavy),
+    commands(command).some(
+      (words) => basename(program(words).split(' ')[0] ?? '') === 'heavy-gate',
     )
   )
     return 'already gated';
@@ -221,7 +369,7 @@ export function exemption(
   const dir = real(cwd);
   const segments = [
     dir,
-    ...runDirs(command, config.heavy).map((to) => real(resolve(dir, to))),
+    ...runDirs(command).map((to) => real(resolve(dir, to))),
   ]
     .flatMap(homes)
     .flatMap((path) => path.split(sep));
@@ -239,23 +387,65 @@ export function deadlineMs(input: Record<string, unknown>): number {
   return Math.max(10_000, Math.floor(timeout / 2));
 }
 
-/** Leading `cd DIR &&` steps stay outside the gate, so the Bash tool keeps the directory change of the calling shell. */
+/** Leading `cd DIR &&` steps: they stay outside the gate, so the Bash tool keeps the directory change. */
 const leadingCd = /^(?:cd\s+(?:'[^']*'|"[^"]*"|[^\s;&|]+)\s*&&\s*)+/u;
 
 /**
- * The command run through the gate as one unit: one slot lease wraps the whole original text (past leading
- * `cd DIR &&` steps, which only move the calling shell), which the child shell runs unchanged. The step reader only decides that a command is heavy; no part of the text
- * is cut out or rewritten, so pipes across newlines, heredocs, comments, wrappers and shell state set
- * by an earlier step reach the heavy step as they do without the gate. No permission decision is made,
- * so the normal permission flow applies to it.
+ * The command with its heavy steps run through the gate; no permission decision is made, so the normal
+ * permission flow applies to it. Only heavy steps hold a slot: `npm i && npm run dev` gates the install,
+ * never the server after it. Adjacent heavy steps joined by `&&`, `||`, `;` or a newline share one slot,
+ * and several gated runs split the deadline. Syntax the step split does not follow is gated whole, as
+ * before, unless it starts a server; then it is left unchanged.
  */
 export function gated(
   command: string,
   deadline: number,
   gate = gateEntry,
+  extra: readonly string[] = [],
 ): string {
-  const cd = leadingCd.exec(command)?.[0] ?? '';
-  return `${cd}${shellWord(gate)} run --deadline-ms ${deadline} -- bash -c ${shellWord(command.slice(cd.length))}`;
+  const wrap = (text: string, ms: number) =>
+    `${shellWord(gate)} run --deadline-ms ${ms} -- bash -c ${shellWord(text)}`;
+  const whole = () => {
+    if (startsServer(command)) return command;
+    const cd = leadingCd.exec(command)?.[0] ?? '';
+    return `${cd}${wrap(command.slice(cd.length), deadline)}`;
+  };
+  const list = steps(command);
+  if (list === undefined) return whole();
+  const runs: { from: number; to: number }[] = [];
+  list.forEach((step, at) => {
+    if (!isHeavy(step.text, extra) || startsServer(step.text)) return;
+    const last = runs.at(-1);
+    // A background `&` ends a run: the gate would not wait for the job it puts in the background.
+    if (last?.to === at - 1 && list[at - 1]?.op !== '&') last.to = at;
+    else runs.push({ from: at, to: at });
+  });
+  const lastRun = runs.at(-1)?.from ?? 0;
+  if (
+    list.some(
+      (step, at) =>
+        at < lastRun &&
+        !runs.some(({ from, to }) => at >= from && at <= to) &&
+        shellState.test(step.text),
+    )
+  )
+    return whole();
+  const share = Math.floor(deadline / Math.max(1, runs.length));
+  let out = '';
+  let at = 0;
+  for (const { from, to } of runs) {
+    for (; at < from; at += 1) out += `${list[at]?.text}${list[at]?.op}`;
+    const inner = list
+      .slice(from, to + 1)
+      .map((step, k) => step.text + (from + k < to ? step.op : ''))
+      .join('');
+    const lead = /^\s*/u.exec(inner)?.[0] ?? '';
+    const trail = /\s*$/u.exec(inner)?.[0] ?? '';
+    out += `${lead}${wrap(inner.trim(), share)}${trail}${list[to]?.op}`;
+    at = to + 1;
+  }
+  for (; at < list.length; at += 1) out += `${list[at]?.text}${list[at]?.op}`;
+  return out;
 }
 
 export type Verdict = { rewrite: string } | undefined;
@@ -276,7 +466,7 @@ export function judge(
     return undefined;
   const dir = typeof cwd === 'string' ? cwd : process.cwd();
   if (exemption(command, dir, env, config)) return undefined;
-  const rewrite = gated(command, deadlineMs(input));
+  const rewrite = gated(command, deadlineMs(input), gateEntry, config.heavy);
   return rewrite === command ? undefined : { rewrite };
 }
 

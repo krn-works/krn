@@ -9,9 +9,7 @@ import {
   hostPressure,
   hostUnits,
   SLOT_HELD_ENV,
-  SLOT_LEASE_END_ENV,
   sampleHost,
-  slotHeld,
 } from '../../src/repo/host-gate.ts';
 import {
   SLOT_TIMEOUT_EXIT,
@@ -97,24 +95,14 @@ function runChild(command: string[], env: NodeJS.ProcessEnv): Promise<number> {
   });
 }
 
-/**
- * How long one gated command holds its host slot (KRN_GATE_LEASE_S, default 1200 s, twice the Bash
- * foreground cap): a watcher or server sent through the gate gives its slot back instead of holding it
- * for its whole life, and a one-shot job longer than the lease runs on without one.
- */
-function leaseMs(env: NodeJS.ProcessEnv = process.env): number {
-  const seconds = Number(env.KRN_GATE_LEASE_S);
-  return (Number.isFinite(seconds) && seconds > 0 ? seconds : 1200) * 1000;
-}
-
 export async function run(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<number> {
   const parsed = parseRun(args);
-  // A job already inside a live slot (fast, a wrapped test run) runs its nested heavy commands in that
-  // slot; once the enclosing lease has ended the slot is gone, so a nested gate takes its own.
-  if (slotHeld(env)) return runChild(parsed.command, { ...env });
+  const childEnv = { ...env, [SLOT_HELD_ENV]: '1' };
+  // A job already inside a slot (fast, a wrapped test run) runs its nested heavy commands in that slot.
+  if (env[SLOT_HELD_ENV]) return runChild(parsed.command, childEnv);
   const units = hostUnits(env);
   const started = Date.now();
   try {
@@ -130,11 +118,6 @@ export async function run(
           hostPressure(sampleHost(), gateLimits(env), admission),
         slots: units,
         weight: parsed.weight ?? defaultJobWeight(units),
-        leaseMs: leaseMs(env),
-        onLease: () =>
-          process.stderr.write(
-            `heavy-gate: released the host slot after its ${leaseMs(env) / 1000}s lease (KRN_GATE_LEASE_S); the command runs on\n`,
-          ),
       },
       () => {
         const waited = (Date.now() - started) / 1000;
@@ -142,11 +125,7 @@ export async function run(
           process.stderr.write(
             `heavy-gate: got a slot after ${waited.toFixed(1)}s\n`,
           );
-        return runChild(parsed.command, {
-          ...env,
-          [SLOT_HELD_ENV]: '1',
-          [SLOT_LEASE_END_ENV]: String(Date.now() + leaseMs(env)),
-        });
+        return runChild(parsed.command, childEnv);
       },
     );
   } catch (error) {
