@@ -8,11 +8,14 @@ import {
   statesBlocker,
 } from '../../src/brain/proof-line.ts';
 import { configHome } from '../../src/harness/claude.ts';
+import { type TokenCounts, tokensOf } from './token-cost.ts';
 
 export interface SessionResult {
   ok: boolean;
   detail: string;
   cost: number | undefined;
+  /** Tokens by type over every model the result names; a resumed session reports the whole session so far. */
+  tokens?: TokenCounts;
   /** The model(s) the session realized, from the result's usage keys, sorted and joined by a comma. */
   model?: string;
   turns?: number;
@@ -233,6 +236,7 @@ export function parseSessionResult(
     ok: !failed,
     detail: `session ${subtype}`,
     cost,
+    ...tokensField(record.modelUsage),
     ...modelOf(record.modelUsage),
     ...(stopRefusals === undefined ? {} : { stopRefusals }),
     ...(noProgress === undefined ? {} : { noProgress }),
@@ -266,4 +270,10 @@ function modelOf(usage: unknown): { model?: string } {
   if (typeof usage !== 'object' || usage === null) return {};
   const names = Object.keys(usage).sort();
   return names.length === 0 ? {} : { model: names.join(',') };
+}
+
+/** The `tokens` field of a result, or nothing when its `modelUsage` carries no counts. */
+function tokensField(usage: unknown): { tokens?: TokenCounts } {
+  const tokens = tokensOf(usage);
+  return tokens === undefined ? {} : { tokens };
 }

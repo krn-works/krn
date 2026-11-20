@@ -180,6 +180,14 @@ test('parseSessionResult reads the captured result', () => {
     ok: true,
     detail: 'session success',
     cost: 0.08594,
+    // Tokens by type from modelUsage; at the list price they sum to the reported cost.
+    tokens: {
+      input: 2,
+      output: 4,
+      cacheRead: 0,
+      cacheWrite5m: 0,
+      cacheWrite1h: 21474,
+    },
     model: 'claude-sonnet-5-5',
   });
   assert.equal(parseSessionResult('not json').ok, false);

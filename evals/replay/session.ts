@@ -175,6 +175,7 @@ function resultOf(
       ok: false,
       detail: `session timeout after ${Math.round(s.timeoutMs / 1000)}s (capped below the App token lifetime)`,
       cost: seen?.cost,
+      ...(seen?.tokens === undefined ? {} : { tokens: seen.tokens }),
       ...(seen?.model === undefined ? {} : { model: seen.model }),
     };
   }

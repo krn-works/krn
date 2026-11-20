@@ -118,7 +118,7 @@ test('both arms meet the same gate: a session that ended untested is resumed onc
   const untestedCodex =
     '{"type":"thread.started","thread_id":"th-1"}\n{"type":"turn.completed"}';
   for (const [harness, first, second, cost] of [
-    ['claude', untestedClaude, capture('claude-stream'), 0.3],
+    ['claude', untestedClaude, capture('claude-stream'), 0.2],
     ['codex', untestedCodex, capture('codex-stream'), 0.2],
   ] as const) {
     const turns: { prompt: string; resume?: string; usd: number }[] = [];
@@ -141,7 +141,7 @@ test('both arms meet the same gate: a session that ended untested is resumed onc
     assert.equal(a.fields.testsRun, 1);
     assert.equal(a.fields.toolCalls, 1);
     assert.equal(a.fields.stopReason, 'end_turn');
-    // Claude reports each run's own spend; Codex's rollout is cumulative.
+    // A resumed Claude session and Codex's rollout both report spend from the session's start: the last one counts.
     assert.ok(Math.abs((a.fields.cost ?? 0) - cost) < 1e-9, harness);
   }
 });
