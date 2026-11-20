@@ -13,7 +13,12 @@ import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
-import { createManifest, newLaneId, retireGoneLane } from '../lane/manifest.ts';
+import {
+  createManifest,
+  newLaneId,
+  retireGoneLane,
+  retireLane,
+} from '../lane/manifest.ts';
 import {
   type Lane,
   readLane,
@@ -288,6 +293,7 @@ export function pruneMergedLanes(
         },
       });
       if (!removal.removed) continue;
+      retireLane(main, path, 'pruned: its ship merged');
     } else gitRun(main, ['branch', '-D', branch]);
     removed.push(branch);
     process.stderr.write(
@@ -474,7 +480,8 @@ export async function dropLane(rest: string[]): Promise<string> {
       `lane ${slug} does not exist; run git worktree list for the live lanes`,
     );
   const released: string[] = [];
-  if (existsSync(path)) {
+  const hasWorktree = existsSync(path);
+  if (hasWorktree) {
     const only = soleTaskRecords(main, path);
     if (only.length > 0)
       throw new CliUsageError(
@@ -498,6 +505,7 @@ export async function dropLane(rest: string[]): Promise<string> {
     git(main, ['worktree', 'remove', '--force', path]);
   }
   if (hasBranch) git(main, ['branch', '-D', slug]);
+  if (hasWorktree) retireLane(main, path, 'dropped by krn lane drop');
   return `dropped lane ${slug}${released.length === 0 ? '' : ` (released ${released.join(', ')})`}`;
 }
 

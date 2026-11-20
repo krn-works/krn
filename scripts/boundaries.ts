@@ -17,7 +17,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   harness: [],
   outcome: ['harness', 'repo', 'task'],
   state: [],
-  ci: ['repo'],
+  ci: ['repo', 'lane'],
   // The lane lifecycle reader (ADR 0028); Stop imports it once it asks lane state instead of inferring it.
   lane: ['repo'],
   adopt: ['brain', 'harness', 'task', 'repo'],

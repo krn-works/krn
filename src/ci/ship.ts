@@ -3,6 +3,7 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
+import { retireLane } from '../lane/manifest.ts';
 import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { repositoryOfRemote } from '../repo/remote.ts';
@@ -355,6 +356,12 @@ async function shipRun(
           ...(runtime.worktreeUsers ? { users: runtime.worktreeUsers } : {}),
         })
       : { removed: false as const, reason: 'no --drop' };
+    if (removal.removed)
+      try {
+        retireLane(main, worktree, 'removed by krn pr ship --drop');
+      } catch {
+        // The PR is merged: a manifest that stays live is retired when a lane next starts at the path.
+      }
     return `${
       removal.removed
         ? `lane: worktree ${worktree} and branch ${branch} removed`

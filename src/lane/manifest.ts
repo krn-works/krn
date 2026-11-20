@@ -277,11 +277,8 @@ export function transition(
   return next;
 }
 
-/**
- * Retires the live manifest of a worktree path that no longer exists (a lane dropped before drop wrote
- * `retired`), so a new lane may start at the same path; a path still on disk keeps its lane.
- */
-export function retireGoneLane(main: string, worktree: string): void {
+/** Retires the live manifest of the gone worktree at `worktree`; throws when the manifest cannot be written. */
+function retireStale(main: string, worktree: string, reason: string): void {
   if (existsSync(worktree)) return;
   // Manifests hold the real path; the main checkout may be reached through a symlink.
   let real = worktree;
@@ -295,8 +292,39 @@ export function retireGoneLane(main: string, worktree: string): void {
     transition(main, stale.laneId, {
       kind: 'retired',
       at: new Date().toISOString(),
-      reason: 'its worktree is gone; a new lane starts at the same path',
+      reason,
     });
+}
+
+/**
+ * Records that the worktree at `worktree` was removed (drop, prune and ship --drop call it after removing it).
+ * The removal already happened, so a manifest that cannot be written (a held swap marker, a full disk) must
+ * not abort the verb half done: it warns, and the next lane start at that path retires it.
+ */
+export function retireLane(
+  main: string,
+  worktree: string,
+  reason: string,
+): void {
+  try {
+    retireStale(main, worktree, reason);
+  } catch (error) {
+    process.stderr.write(
+      `lane: removed ${worktree} but could not record it as retired (${error instanceof Error ? error.message : String(error)}); the next lane start there retires it\n`,
+    );
+  }
+}
+
+/**
+ * A lane dropped before its removal wrote `retired`: retires it so a new lane may start at the same path.
+ * Lane start calls it before it touches git, so a manifest that cannot be written refuses the start (throws).
+ */
+export function retireGoneLane(main: string, worktree: string): void {
+  retireStale(
+    main,
+    worktree,
+    'its worktree is gone; a new lane starts at the same path',
+  );
 }
 
 /** Retired manifests whose retirement is older than RETIRED_KEEP_MS: what `krn prune` deletes; live ones never. */
