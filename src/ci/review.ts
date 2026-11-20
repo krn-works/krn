@@ -70,7 +70,8 @@ const answerSchema = z.object({
       evidence: z.array(z.string()).default([]),
       reproduce: z.string().optional(),
       class: z.string().optional(),
-      kind: z.string().optional(),
+      // A kind the reviewer omits, nulls or misspells as a non-string is no kind: it blocks.
+      kind: z.string().optional().catch(undefined),
     }),
   ),
 });
