@@ -431,19 +431,19 @@ test('failuresIn keeps a failing Vitest run whose logging pipeline exited zero',
 test('a test command piped into a logger keeps its failing exit under the Stop hook shell', async () => {
   // Loaded by name so the base source, which lacks the shell wrapper, fails by assertion.
   const stop: Record<string, unknown> = await import('../../src/hook/stop.ts');
-  const pipefailed = stop.pipefailed;
+  const testShell = stop.testShell;
   assert.equal(
-    typeof pipefailed,
+    typeof testShell,
     'function',
     'the Stop hook names its test shell',
   );
-  if (typeof pipefailed !== 'function') return;
-  const masked = spawnSync('sh', ['-c', String(pipefailed('false | cat'))]);
-  assert.notEqual(masked.status, 0);
-  assert.equal(
-    spawnSync('sh', ['-c', String(pipefailed('true | cat'))]).status,
-    0,
-  );
+  if (typeof testShell !== 'function') return;
+  const exit = (command: string) => {
+    const [file, args] = testShell(command) as [string, string[]];
+    return spawnSync(file, args).status;
+  };
+  assert.notEqual(exit('false | cat'), 0);
+  assert.equal(exit('true | cat'), 0);
 });
 
 test('selectTests: name match for other stacks, go packages, guards, full fallback, deleted files', () => {

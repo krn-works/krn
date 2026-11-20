@@ -614,11 +614,12 @@ const RUNNER_FAILED =
   /^FAILED \((?:failures|errors)=\d|^=+ .*\b\d+ (?:failed|error)|^FAIL\t|^test result: FAILED\.|^\s*(?:Test Files|Tests|Test Suites):?\s+[1-9]\d* failed|^\s*[1-9]\d* failing$|^ℹ fail [1-9]/mu;
 
 /**
- * The shell text the Stop hook runs a test command as: under pipefail where the shell has it, so a
- * logging pipeline (`npm test | tee log`) exits with the runner's failure whatever runner it wraps.
+ * The shell the Stop hook runs a test command in: bash under pipefail (dash, the `sh` of Debian and
+ * Ubuntu, lacks it), so a logging pipeline (`npm test | tee log`) exits with the runner's failure
+ * whatever runner it wraps.
  */
-export function pipefailed(command: string): string {
-  return `(set -o pipefail) 2>/dev/null && set -o pipefail; ${command} 2>&1`;
+export function testShell(command: string): [string, string[]] {
+  return ['bash', ['-o', 'pipefail', '-c', `${command} 2>&1`]];
 }
 
 const MISSING_KEY = '<run>::missing dependency';
@@ -660,7 +661,7 @@ function spawnCommand(
   command: string,
 ): ReturnType<CommandRunner> {
   if (!existsSync(root)) return [missingRootKey(root)];
-  const run = spawnSync('sh', ['-c', pipefailed(command)], {
+  const run = spawnSync(...testShell(command), {
     cwd: root,
     encoding: 'utf8',
     env: { ...receiverEnv(root), NODE_TEST_CONTEXT: undefined },
