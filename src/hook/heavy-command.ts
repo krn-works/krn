@@ -44,6 +44,10 @@ const heavyForms: RegExp[] = [
 // Any word holding `watch` (--watch, --watchAll, test:watch) or naming a server keeps running: never gated.
 const longLived =
   /(?:^|\s)(?:[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
+// A `go test|vet|build` argument (a `-run start` filter) names a test, never a server: the Go toolchain runs to completion.
+const goToolchain = /^go (?:test|vet|build)(?:\s|$)/u;
+const keepsRunning = (text: string) =>
+  !goToolchain.test(text) && longLived.test(text);
 const wrappers = new Set(['time', 'nice', 'exec', 'command', 'env']);
 
 const pattern = z.string().refine((source) => {
@@ -111,7 +115,7 @@ function programs(command: string): string[] {
 
 /** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */
 function startsServer(command: string): boolean {
-  return programs(command).some((text) => longLived.test(text));
+  return programs(command).some((text) => keepsRunning(text));
 }
 
 type Step = { text: string; op: string };
@@ -190,7 +194,7 @@ export function isHeavy(
     ...extra.map((source) => new RegExp(source, 'u')),
   ];
   return programs(command).some(
-    (text) => forms.some((form) => form.test(text)) && !longLived.test(text),
+    (text) => forms.some((form) => form.test(text)) && !keepsRunning(text),
   );
 }
 

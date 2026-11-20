@@ -406,10 +406,16 @@ export function commands(text: string): string[][] {
     .filter((words) => words.length > 0);
 }
 
-/** The program a word names (`/usr/bin/git` is `git`); an expanding word names none. */
+/**
+ * The program a word names (`/usr/bin/git` is `git`). An expanding word names one only through a literal
+ * last path segment after a `/` (`"$GIT_BIN_DIR/git"`); `$PROG` or `$DIR/$PROG` names none.
+ */
 export function programName(word: Word | undefined): string {
-  if (word === undefined || word.expands) return '';
-  return word.text.slice(word.text.lastIndexOf('/') + 1);
+  if (word === undefined) return '';
+  const slash = word.text.lastIndexOf('/');
+  const name = word.text.slice(slash + 1);
+  if (!word.expands) return name;
+  return slash >= 0 && !/[$`<>(]/u.test(name) ? name : '';
 }
 
 /** A command after its wrappers: `argv[0]` is the program that runs, `chdirs` the `env -C` directories in order. */
