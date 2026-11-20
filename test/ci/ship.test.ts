@@ -72,6 +72,8 @@ function receiver(options: {
   /** The `gh run list --commit` statuses of the head, per ask; the last one repeats. */
   runs?: string[][];
   runList?: string;
+  /** `gh run list --commit` answers per ask, the last repeating; wins over `runs`. */
+  runLists?: string[];
   /** The origin URL `git remote get-url origin` prints; none exits 2. */
   origin?: string;
   /** The check-runs answers of the head, per ask (the last repeats), instead of rows derived from the rollup. */
@@ -91,6 +93,13 @@ function receiver(options: {
     calls.push(`gh ${a.join(' ')}`);
     if (a[0] === 'run' && a[1] === 'list') {
       if (options.runList !== undefined) return options.runList;
+      if (options.runLists !== undefined) {
+        const listed = [...options.runLists];
+        const next = options.runLists.length > 1 ? 1 : 0;
+        const answer = listed[0] ?? '[]';
+        options.runLists.splice(0, next);
+        return answer;
+      }
       const next = runs.length > 1 ? runs.shift() : runs[0];
       return JSON.stringify((next ?? []).map((status) => ({ status })));
     }
@@ -1567,6 +1576,71 @@ test('a rerun attempt that fails again still exits 74 on its own run', async () 
       e.message,
       /Check concluded failure on a{40} in run 44381299774/u,
     );
+    return true;
+  });
+});
+
+test('a cancelled Check attempt is awaited while GitHub lists a newer run of its workflow, and that run merges', async () => {
+  // PR #1551 (real check-runs, see provenance): the newest aggregate row is the cancelled attempt of run 44781928074,
+  // while a newer run was queued and had no job row yet, so only the run list shows it.
+  // Only the rows of the newer run 44782200146 are dropped: its jobs did not exist at that moment.
+  const stale = JSON.stringify(
+    (
+      JSON.parse(
+        capture(
+          'fixtures/gh',
+          'check-runs-1551-newer-run',
+        ).streams.stdout?.toString('utf8') ?? '',
+      ) as { detailsUrl: string }[]
+    ).filter((row) => !row.detailsUrl.includes('/runs/44782200146/')),
+  );
+  const listing = (newer: string) =>
+    JSON.stringify([
+      {
+        databaseId: 44781928074,
+        status: 'completed',
+        workflowDatabaseId: 378810503,
+      },
+      { databaseId: 44785668602, status: newer, workflowDatabaseId: 378810503 },
+      { databaseId: 44785000000, status: 'queued', workflowDatabaseId: 1 },
+    ]);
+  const r = receiver({
+    pulls: [...Array(5).fill(auto), merged],
+    checkRuns: [...Array(4).fill(stale), rerunCapture()],
+    runLists: [...Array(4).fill(listing('queued')), listing('completed')],
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('a failed Check still exits 74 while only an unrelated workflow is unfinished on the head', async () => {
+  const failed = JSON.stringify(
+    (
+      JSON.parse(
+        capture(
+          'fixtures/gh',
+          'check-runs-1551-newer-run',
+        ).streams.stdout?.toString('utf8') ?? '',
+      ) as { detailsUrl: string }[]
+    ).filter((row) => !row.detailsUrl.includes('/runs/44782200146/')),
+  );
+  const r = receiver({
+    pulls: [auto],
+    checkRuns: [failed],
+    runLists: [
+      JSON.stringify([
+        {
+          databaseId: 44781928074,
+          status: 'completed',
+          workflowDatabaseId: 378810503,
+        },
+        { databaseId: 44780000000, status: 'queued', workflowDatabaseId: 1 },
+        { databaseId: 44785000000, status: 'queued', workflowDatabaseId: 1 },
+      ]),
+    ],
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 74);
     return true;
   });
 });

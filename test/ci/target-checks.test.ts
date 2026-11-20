@@ -131,10 +131,62 @@ test('a failed Check attempt is superseded while a newer row of its Actions run 
   const other = run({
     id: 6,
     status: 'IN_PROGRESS',
-    detailsUrl: 'https://github.com/o/r/actions/runs/10/job/6',
+    detailsUrl: 'https://github.com/o/r/actions/runs/8/job/6',
   });
   assert.equal(supersededByRerun(failed, [failed, other]), false);
   assert.equal(supersededByRerun({ ...failed, id: null }, [failed]), false);
+});
+
+test('only an unfinished row of the Actions run of the failed Check supersedes it, not a row of another run', () => {
+  // PR #1551's check-runs (real output, CHECK_FACT_FILTER): run 44780963518 was cancelled by 44781928074, which was
+  // cancelled by 44782200146, still running. The newest aggregate row is the failed one of 44781928074; a newer run of
+  // its workflow is judged by workflow ID from the run list (ship `newerRun`), never by the job names of other runs.
+  const facts = JSON.parse(
+    capture(
+      'fixtures/gh',
+      'check-runs-1551-newer-run',
+    ).streams.stdout?.toString('utf8') ?? '',
+  ) as CheckFact[];
+  const supersededByRerun = requiredCheck.supersededByRerun;
+  const newest = selectRequiredCheck(facts);
+  assert.equal(newest?.id, 136447715991);
+  assert.equal(newest?.conclusion, 'FAILURE');
+  assert.equal(newest && supersededByRerun(newest, facts), false);
+  // A later unfinished job of the same run is a rerun of it.
+  const sameRun = (over: CheckFact): CheckFact[] => [
+    ...facts,
+    {
+      id: 999999999999,
+      name: 'Test (1/14)',
+      appId: REQUIRED_CHECK_APP_ID,
+      status: 'IN_PROGRESS',
+      conclusion: '',
+      detailsUrl:
+        'https://github.com/krn-works/krn/actions/runs/44781928074/job/1',
+      ...over,
+    },
+  ];
+  assert.equal(newest && supersededByRerun(newest, sameRun({})), true);
+  // Another App, a finished row, or a row of another run with the same job name never does.
+  assert.equal(
+    newest && supersededByRerun(newest, sameRun({ appId: 99 })),
+    false,
+  );
+  assert.equal(
+    newest && supersededByRerun(newest, sameRun({ status: 'COMPLETED' })),
+    false,
+  );
+  assert.equal(
+    newest &&
+      supersededByRerun(
+        newest,
+        sameRun({
+          detailsUrl:
+            'https://github.com/krn-works/krn/actions/runs/44790000000/job/1',
+        }),
+      ),
+    false,
+  );
 });
 
 const repo = JSON.stringify({

@@ -1,0 +1,18 @@
+{
+  "id": "t-jr3x5fr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "supersededByRerun now also covers an unfinished row of a newer Actions run of the head; proved by test/ci/target-checks.test.ts on the verbatim PR 1551 capture (red before, green after)"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Ship waits on the rerun of a failed required Check instead of the failed attempt",
+  "after": [],
+  "body": [
+    "Evidence: PR #1554 lane report 2026-11-20: after a body-only fix and gh run rerun, krn pr ship kept watching the earlier failed Check run on the same head and returned exit 74; an empty commit was needed for a fresh run.\nOutcome: ship selects the newest attempt of the required Check on the head (rerun attempts supersede failed ones) and waits on it.\nProof: a ship test from a verbatim gh capture of a rerun (failed attempt 1, in-progress attempt 2 on one head) waits instead of exiting 74.\nFiles: src/ci/ship.ts, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

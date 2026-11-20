@@ -9,6 +9,7 @@ import { repositoryOfRemote } from '../repo/remote.ts';
 import {
   CHECK_FACT_FILTER,
   type CheckFact,
+  gateContexts as gateContextsOf,
   isGreen,
   requiredContext,
   selectRequiredCheck,
@@ -216,10 +217,15 @@ async function shipRun(
   // Every GitHub call that names a repository uses an App token minted for that repository.
   const scoped: Runner = (command, a, ...rest) => {
     const named = a.indexOf('--repo');
-    return command === 'gh' && named >= 0 && a[named + 1] !== undefined
+    const pathRepo =
+      a[0] === 'api'
+        ? /^repos\/([^/\s]+\/[^/\s?]+)(?:[/?]|$)/u.exec(a[1] ?? '')?.[1]
+        : undefined;
+    const repository = named >= 0 ? a[named + 1] : pathRepo;
+    return command === 'gh' && repository !== undefined
       ? runner(
           'env',
-          [`KRN_APP_REPOSITORY=${a[named + 1]}`, command, ...a],
+          [`KRN_APP_REPOSITORY=${repository}`, command, ...a],
           ...rest,
         )
       : runner(command, a, ...rest);
@@ -280,6 +286,8 @@ async function shipRun(
     ).trim();
 
   // The gate judges the context the repository requires, and waits while that exact context is absent.
+  let gateContexts: string[] = [];
+  let optionalContexts: string[] = [];
   const requiredName = await (async () => {
     try {
       const branchBody = await gh(['api', `repos/${repo}/branches/${target}`]);
@@ -287,12 +295,14 @@ async function shipRun(
         'api',
         `repos/${repo}/rules/branches/${target}`,
       ]);
+      const gate = gateContextsOf(branchBody, rulesBody);
+      gateContexts = gate.required;
+      optionalContexts = gate.optional;
       return requiredContext(branchBody, rulesBody);
     } catch {
       return REQUIRED_CHECK_NAME;
     }
   })();
-
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
     git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
@@ -902,6 +912,43 @@ ${synced}`;
       .parse(JSON.parse(text))
       .some((run) => run.status.toLowerCase() !== 'completed');
   };
+  // A newer, unfinished run of the workflow (by ID) that produced `runId`, on the same head: it may be listed before it has one job row.
+  const newerRun = async (at: string, runId: string) => {
+    const text = await gh([
+      'run',
+      'list',
+      '--repo',
+      repo,
+      '--commit',
+      at,
+      '--json',
+      'status,databaseId,workflowDatabaseId,headSha',
+    ]);
+    const listed = z
+      .array(
+        z.object({
+          status: z.string(),
+          databaseId: z.number().optional(),
+          workflowDatabaseId: z.number().optional(),
+          headSha: z.string().optional(),
+        }),
+      )
+      .parse(JSON.parse(text));
+    // Workflow display names and job names are not unique: only the workflow's own ID says two runs are the same workflow.
+    const onHead = (run: { headSha?: string | undefined }) =>
+      run.headSha === undefined || run.headSha === at;
+    const workflow = listed.find(
+      (run) => String(run.databaseId) === runId && onHead(run),
+    )?.workflowDatabaseId;
+    return listed.some(
+      (run) =>
+        workflow !== undefined &&
+        run.workflowDatabaseId === workflow &&
+        onHead(run) &&
+        (run.databaseId ?? 0) > Number(runId) &&
+        run.status.toLowerCase() !== 'completed',
+    );
+  };
   const checks = async (at: string): Promise<CheckFact[]> =>
     JSON.parse(
       await gh([
@@ -916,8 +963,10 @@ ${synced}`;
     outcome = await waitForMerge({
       view,
       checks,
-      context: requiredName,
+      contexts: gateContexts.length > 0 ? gateContexts : [requiredName],
+      optional: optionalContexts,
       queued,
+      newerRun,
       head,
       mergeCurrent,
       pr,
@@ -969,10 +1018,14 @@ async function waitForMerge(options: {
   view: () => Promise<PrView>;
   /** The check runs of the head with their App ids: the required check is selected by name and App. */
   checks: (head: string) => Promise<CheckFact[]>;
-  /** The context the repository requires; the plain `Check` when unset. */
-  context?: string;
+  /** Every aggregate context the repository requires from GitHub Actions: a merge is requested when all are green. */
+  contexts: string[];
+  /** Contexts a ruleset requires from any source beside the pinned ones: judged once the Actions App has a run of them. */
+  optional?: string[];
   /** Whether GitHub lists a run queued for the head, though the PR shows no Check yet. */
   queued: (head: string) => Promise<boolean>;
+  /** Whether a newer unfinished run of the workflow of Actions run `runId` is listed for the head. */
+  newerRun: (head: string, runId: string) => Promise<boolean>;
   head: string;
   /** Called once per head after a green Check: merges it, or returns the new head after updating the branch to the base. */
   mergeCurrent: (head: string) => Promise<string | undefined>;
@@ -1032,17 +1085,51 @@ async function waitForMerge(options: {
         `verdict: conflict: PR #${options.pr} conflicts with its base; rebase and rerun with --force`,
       );
     const facts = await options.checks(head);
-    const check = selectRequiredCheck(facts, options.context);
-    const conclusion = check?.conclusion || undefined;
-    // A completed attempt that a queued or running rerun supersedes is pending, not red or green.
-    const settled =
-      check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
-    if (
-      check !== undefined &&
-      settled &&
-      conclusion !== undefined &&
-      !isGreen(conclusion)
-    ) {
+    // Each required context is judged on its own newest row; a completed attempt that a queued or running rerun
+    // supersedes is pending, not red or green, and so is a failed or cancelled one while GitHub lists a newer run of
+    // its workflow (by ID), which may not have a single job row yet.
+    let listFailure: string | undefined;
+    const judged = await Promise.all(
+      [
+        ...options.contexts,
+        ...(options.optional ?? []).filter(
+          (context) => selectRequiredCheck(facts, context) !== undefined,
+        ),
+      ].map(async (context) => {
+        const check = selectRequiredCheck(facts, context);
+        const conclusion = check?.conclusion || undefined;
+        let settled =
+          check?.status === 'COMPLETED' && !supersededByRerun(check, facts);
+        const failedRun = /\/runs\/(\d+)/u.exec(check?.detailsUrl ?? '')?.[1];
+        if (
+          settled &&
+          conclusion !== undefined &&
+          !isGreen(conclusion) &&
+          failedRun !== undefined
+        ) {
+          // The run list is advisory: a refusal (403) means no newer run is known, and the failed Check stands; an
+          // error GitHub may answer differently later (5xx, after the gh retry policy) leaves the verdict undecided.
+          try {
+            if (await options.newerRun(head, failedRun)) settled = false;
+          } catch (error) {
+            const reason = lookupFailure(error);
+            if (!/\bHTTP 403\b/u.test(reason)) listFailure ??= reason;
+          }
+        }
+        return { check, conclusion, settled };
+      }),
+    );
+    if (listFailure !== undefined)
+      return stop(
+        75,
+        `gate: the run list of ${head} failed, so the failed Check cannot be judged final: ${listFailure}`,
+      );
+    const failed = judged.find(
+      ({ settled, conclusion }) =>
+        settled && conclusion !== undefined && !isGreen(conclusion),
+    );
+    if (failed?.check !== undefined && failed.conclusion !== undefined) {
+      const { check, conclusion } = failed;
       const run = /\/runs\/(\d+)/u.exec(check.detailsUrl ?? '')?.[1];
       return stop(
         74,
@@ -1054,7 +1141,12 @@ async function waitForMerge(options: {
         `gate: ${check.name} concluded ${conclusion.toLowerCase()} on ${head}${run === undefined ? '' : ` in run ${run}; logs: gh run view ${run} --log-failed; rerun: gh run rerun ${run} --failed`}`,
       );
     }
-    if (!requested && settled && isGreen(conclusion)) {
+    const settled = judged.every(
+      (entry) => entry.settled && entry.conclusion !== undefined,
+    );
+    const green = settled && judged.every((entry) => isGreen(entry.conclusion));
+    const missing = judged.some((entry) => entry.check === undefined);
+    if (!requested && green) {
       const updated = await options.mergeCurrent(head);
       if (updated === undefined) requested = true;
       else {
@@ -1068,7 +1160,7 @@ async function waitForMerge(options: {
       }
     }
     const elapsed = options.now() - start;
-    if (settled && conclusion !== undefined) {
+    if (settled) {
       mergeBy ??= options.now() + mergeTimeoutMs;
       if (options.now() >= mergeBy)
         return stop(
@@ -1077,7 +1169,7 @@ async function waitForMerge(options: {
           `verdict: open: merge requested but PR #${options.pr} is ${pull.mergeable ?? 'unknown'} (review or another required rule blocks it)`,
         );
     } else if (
-      check === undefined &&
+      missing &&
       elapsed >= startTimeoutMs &&
       !(await options.queued(head))
     )
@@ -1093,6 +1185,14 @@ async function waitForMerge(options: {
     await options.sleep(pollMs);
   }
 }
+
+/** What a failed gh call said: its stderr, else its message. */
+const lookupFailure = (error: unknown): string =>
+  error instanceof CommandFailure
+    ? error.result.stderr.trim() || error.message
+    : error instanceof Error
+      ? error.message
+      : String(error);
 
 /**
  * Refreshes the pinned Product entry once the PR merged, so `krn task` stays fresh without a
