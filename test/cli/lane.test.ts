@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import {
   chmodSync,
   copyFileSync,
@@ -502,6 +503,51 @@ test('lane drop removes the worktree and branch and releases the claim', () => {
     // The task can be claimed by a new lane again.
     assert.equal(lane(repo, 'start', 'again', '--task', 't-abc1234').status, 0);
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane drop refuses while a live ship or a process works in the worktree', async () => {
+  const { base, repo } = fixture();
+  const children: ReturnType<typeof spawn>[] = [];
+  try {
+    assert.equal(lane(repo, 'start', 'busy', '--task', 't-abc1234').status, 0);
+    const path = join(repo, '.krn', 'worktrees', 'busy');
+    // A live ship: its pid file names a running process whose command line is a ship, running elsewhere.
+    const ship = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 60000)', 'ship'],
+      { cwd: base, stdio: 'ignore' },
+    );
+    children.push(ship);
+    mkdirSync(join(path, '.krn', 'tmp'), { recursive: true });
+    writeFileSync(join(path, '.krn', 'tmp', 'ship.pid'), `${ship.pid}\n`);
+    const refused = lane(repo, 'drop', 'busy');
+    assert.equal(refused.status, 64, refused.stderr);
+    assert.match(refused.stderr, /live ship/u);
+    assert.ok(existsSync(path));
+    ship.kill('SIGKILL');
+    await once(ship, 'exit');
+    // A process whose cwd is inside the worktree.
+    const inside = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 60000)'],
+      {
+        cwd: path,
+        stdio: 'ignore',
+      },
+    );
+    children.push(inside);
+    const busy = lane(repo, 'drop', 'busy');
+    assert.equal(busy.status, 64, busy.stderr);
+    assert.match(busy.stderr, /works inside it/u);
+    assert.ok(existsSync(path));
+    inside.kill('SIGKILL');
+    await once(inside, 'exit');
+    assert.equal(lane(repo, 'drop', 'busy').status, 0);
+    assert.equal(existsSync(path), false);
+  } finally {
+    for (const child of children) child.kill('SIGKILL');
     rmSync(base, { recursive: true, force: true });
   }
 });

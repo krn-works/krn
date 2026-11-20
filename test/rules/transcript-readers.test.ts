@@ -16,12 +16,36 @@ test('no source outside src/harness reads transcript files', async () => {
     }
     return out;
   };
+  // Modules that read the transcript a hook payload names (agent_transcript_path, transcript_path);
+  // each is listed on purpose, so a new reader fails here until it is reviewed and added.
+  const hookPayloadReaders = new Set([
+    'cli/doctor-hooks.ts',
+    'context/gauge.ts',
+    'context/replay.ts',
+    'context/restart.ts',
+    'hook/outcome-judge.ts',
+    'hook/session-standards.ts',
+    'hook/session-start.ts',
+    'hook/stop.ts',
+    'memory/identifier-index.ts',
+    'memory/operator-inbox-store.ts',
+    'successor/operator-inbox.ts',
+  ]);
+  const payloadReaders: string[] = [];
   const readers: string[] = [];
   for (const file of await walk(src)) {
     if (file.startsWith(join(src, 'harness'))) continue;
     const text = await readFile(file, 'utf8');
+    if (/agent_transcript_path|\btranscript_path\b|transcriptPath/u.test(text))
+      payloadReaders.push(file.slice(src.length));
     if (/\.claude\/projects|createInterface|['"`]subagents['"`]/u.test(text))
       readers.push(file.slice(src.length));
   }
   assert.deepEqual(readers, []);
+  assert.deepEqual(
+    payloadReaders.filter((file) => !hookPayloadReaders.has(file)),
+    [],
+  );
+  // stop.ts reads transcripts in five places; the rule must see it.
+  assert.ok(payloadReaders.includes('hook/stop.ts'));
 });

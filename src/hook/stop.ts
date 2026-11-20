@@ -57,6 +57,7 @@ import {
   clearSandboxPlaceholders,
   isSandboxPlaceholder,
 } from '../state/sandbox-placeholders.ts';
+import { inspectClaim, type TaskClaim } from '../task/claims.ts';
 import { isTaskPath } from '../task/paths.ts';
 import {
   claudeJudge,
@@ -686,16 +687,27 @@ export function linkPackageModules(root: string, dir: string, depth = 3) {
   walk('', depth);
 }
 
+/** The temporary base worktree could not be created: an infrastructure fault, never a test result. */
+class BaseWorktreeError extends Error {}
+
 /** Failing keys of `measure` at the base commit, run in a temporary detached worktree that is always removed. */
 function failuresAtBase(
   root: string,
   from: string,
   measure: (dir: string) => string[],
+  strict = false,
 ): Set<string> {
   const dir = mkdtempSync(join(tmpdir(), 'worker-stop-base-'));
   try {
     const added = git(root, ['worktree', 'add', '--detach', dir, from]);
-    if (added.status !== 0) return new Set();
+    if (added.status !== 0) {
+      // Strict callers blame no test for a base they could not even check out.
+      if (strict)
+        throw new BaseWorktreeError(
+          `git worktree add of ${from} failed: ${(added.stderr || added.stdout).trim()}`,
+        );
+      return new Set();
+    }
     // The base may already carry node_modules (a D23 clone commits its symlink); link only when absent.
     const modules = join(dir, 'node_modules');
     let linked = true;
@@ -1109,32 +1121,37 @@ function redAtBase(
   // With no related command every changed file would rerun the whole suite: run it once and blame only named files.
   const suite = changed.filter((file) => runsSuite(file, contract));
   if (changed.length > 0)
-    failuresAtBase(root, from, (dir) => {
-      for (const file of changed) {
-        mkdirSync(dirname(join(dir, file)), { recursive: true });
-        copyFileSync(join(root, file), join(dir, file));
-      }
-      if (suite.length > 0 && contract !== undefined) {
-        const base = suiteRun(dir, suite, shell, contract);
-        if (base.output !== '')
-          outputs.push(
-            `== ${contract.test} at the base (${suite.join(', ')}) ==\n${base.output}`,
-          );
-        if (base.failures.length > 0 && brokenEnvironment(base.output))
-          for (const file of suite) broken.set(file, base.output);
-        else for (const file of base.failing) red.add(file);
-      }
-      for (const file of changed) {
-        if (suite.includes(file)) continue;
-        const base = testFileRun(dir, file, run, shell, contract);
-        if (base.output !== '')
-          outputs.push(`== ${file} at the base ==\n${base.output}`);
-        if (base.failures.length === 0) continue;
-        if (brokenEnvironment(base.output)) broken.set(file, base.output);
-        else red.add(file);
-      }
-      return [];
-    });
+    failuresAtBase(
+      root,
+      from,
+      (dir) => {
+        for (const file of changed) {
+          mkdirSync(dirname(join(dir, file)), { recursive: true });
+          copyFileSync(join(root, file), join(dir, file));
+        }
+        if (suite.length > 0 && contract !== undefined) {
+          const base = suiteRun(dir, suite, shell, contract);
+          if (base.output !== '')
+            outputs.push(
+              `== ${contract.test} at the base (${suite.join(', ')}) ==\n${base.output}`,
+            );
+          if (base.failures.length > 0 && brokenEnvironment(base.output))
+            for (const file of suite) broken.set(file, base.output);
+          else for (const file of base.failing) red.add(file);
+        }
+        for (const file of changed) {
+          if (suite.includes(file)) continue;
+          const base = testFileRun(dir, file, run, shell, contract);
+          if (base.output !== '')
+            outputs.push(`== ${file} at the base ==\n${base.output}`);
+          if (base.failures.length === 0) continue;
+          if (brokenEnvironment(base.output)) broken.set(file, base.output);
+          else red.add(file);
+        }
+        return [];
+      },
+      true,
+    );
   if (outputs.length > 0) saveRunLog(root, 'base-run.log', outputs.join('\n'));
   return { red, broken };
 }
@@ -1171,7 +1188,14 @@ function testFirstRefusal(
   const changed = changedSinceBase(root, from).filter(
     (path) => isTestFile(path) && existsSync(join(root, path)),
   );
-  const { red, broken } = redAtBase(root, from, changed, run, shell, contract);
+  let base: BaseRuns;
+  try {
+    base = redAtBase(root, from, changed, run, shell, contract);
+  } catch (error) {
+    if (!(error instanceof BaseWorktreeError)) throw error;
+    return `Test-first check could not run: ${error.message}. This is a repository or host fault, not a missing red test; free disk space, run \`git worktree prune\`, then stop again, or end with a line \`BLOCKER: <what stops you>\`.`;
+  }
+  const { red, broken } = base;
   const characterization = testsOnlyDiff(root, from);
   const characterizing = new Set(
     characterizingTests(
@@ -1744,6 +1768,12 @@ export function laneWorktree(
   return cwd;
 }
 
+/** The claim of a task unless the claim reader (src/task) finds it expired; a file it cannot fully parse still names its lane. */
+function heldClaim(main: string, id: string): Partial<TaskClaim> | undefined {
+  const inspected = inspectClaim(main, id);
+  return inspected.state === 'expired' ? undefined : inspected.claim;
+}
+
 function laneWorktreeIn(main: string, text: string): string | undefined {
   const marker = join(main, '.krn', 'worktrees') + sep;
   const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -1760,10 +1790,8 @@ function laneWorktreeIn(main: string, text: string): string | undefined {
   for (const id of text.match(/(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/gu) ??
     []) {
     try {
-      const claim = JSON.parse(
-        readFileSync(join(main, '.krn', 'task-claims', `${id}.json`), 'utf8'),
-      ) as { worktree?: unknown };
-      if (typeof claim.worktree === 'string' && existsSync(claim.worktree))
+      const claim = heldClaim(main, id);
+      if (typeof claim?.worktree === 'string' && existsSync(claim.worktree))
         return claim.worktree;
     } catch {
       /* No claim for this id. */
@@ -1831,10 +1859,8 @@ export function laneRecords(
   const records: LaneRecord[] = [];
   for (const id of ids) {
     try {
-      const claim = JSON.parse(
-        readFileSync(join(main, '.krn', 'task-claims', `${id}.json`), 'utf8'),
-      ) as { branch?: unknown; worktree?: unknown };
-      if (typeof claim.branch === 'string' && claim.branch !== '')
+      const claim = heldClaim(main, id);
+      if (typeof claim?.branch === 'string' && claim.branch !== '')
         records.push({
           branch: claim.branch,
           ...(typeof claim.worktree === 'string' && claim.worktree !== ''
@@ -1957,6 +1983,27 @@ export function claimedWorktree(
   return tree ?? start;
 }
 
+/**
+ * The checkout a Stop is judged in: the lane worktree of a krn-lane subagent (it shares the lead's
+ * CLAUDE_PROJECT_DIR, its own checkout is the payload cwd), else the project dir, then the worktree of
+ * a lane claim; a removed lane worktree is judged at its main checkout. judgeStop and stopHook both use it.
+ */
+export function stopCheckout(
+  payload: unknown,
+  env: NodeJS.ProcessEnv,
+): { start: string; root: string } {
+  const fields = payload as { cwd?: unknown } | null;
+  const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
+  const sessionDir = resolve(
+    subagent
+      ? laneWorktree(fields?.cwd as string, payload, env.CLAUDE_PROJECT_DIR)
+      : (env.CLAUDE_PROJECT_DIR ??
+          (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
+  );
+  const start = claimedWorktree(sessionDir, env, payload);
+  return { start, root: ownerCheckout(start) };
+}
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -1974,16 +2021,8 @@ export function judgeStop(
     last_assistant_message?: unknown;
     stop_hook_active?: unknown;
   } | null;
-  // A krn-lane subagent shares the lead's CLAUDE_PROJECT_DIR; its own checkout is the payload cwd.
   const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
-  const sessionDir = resolve(
-    subagent
-      ? laneWorktree(fields?.cwd as string, payload, env.CLAUDE_PROJECT_DIR)
-      : (env.CLAUDE_PROJECT_DIR ??
-          (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
-  );
-  const start = claimedWorktree(sessionDir, env, payload);
-  const root = ownerCheckout(start);
+  const { start, root } = stopCheckout(payload, env);
   const who = worker(env, root, branch, payload);
   if (!who) return undefined;
   if (nonDeliveryBrief(env, payload)) return undefined;
@@ -2076,11 +2115,8 @@ export function stopHook(
     const refusal = judge(payload, env, runTests, branch);
     if (refusal === undefined) return { code: 0, stderr: '' };
     // The same refusal on an unchanged tree three times in a row can never be met: allow the stop.
-    const fields = payload as { cwd?: unknown; session_id?: unknown } | null;
-    const dir =
-      env.CLAUDE_PROJECT_DIR ??
-      (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd());
-    const cwd = resolve(dir);
+    const fields = payload as { session_id?: unknown } | null;
+    const cwd = stopCheckout(payload, env).root;
     saveRefusal(cwd, refusal);
     const tree = [
       'rev-parse HEAD',
