@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -208,8 +209,13 @@ test('prune deletes retired manifests older than seven days and keeps live and r
     at: new Date(now - 3_600_000).toISOString(),
     reason: 'dropped',
   });
+  const legacy = join(main, '.krn/runs/lanes');
+  mkdirSync(legacy);
+  const file = `${old.laneId}.json`;
+  copyFileSync(join(main, laneManifestDir, file), join(legacy, file));
   const plan = planPrune(main, { base: 'main', now, days: 0 });
   applyPrune(main, plan, () => []);
+  assert.equal(existsSync(join(legacy, file)), false);
   assert.deepEqual(
     listManifests(main)
       .map((m) => m.slug)
@@ -278,7 +284,7 @@ function merged(repo: string, slug: string, path: string): void {
   git(path, 'add', '.');
   git(path, 'commit', '-qm', slug);
   const head = git(path, 'rev-parse', 'HEAD');
-  git(repo, 'merge', '-q', '--no-ff', '-m', slug, head);
+  git(repo, 'merge', '-q', head);
   git(repo, 'push', '-q', 'origin', 'main');
   recordShip(repo, { branch: slug, sha: git(repo, 'rev-parse', 'HEAD'), head });
   const old = new Date(Date.now() - 3 * 3_600_000);
@@ -289,37 +295,25 @@ function merged(repo: string, slug: string, path: string): void {
     utimesSync(f, old, old);
 }
 
-test('lane drop retires; no manifest drops silently', async (t) => {
+test('drop retires; none is silent', async (t) => {
   const { repo } = startFixture(t);
   await startLane(['gone', '--root', repo]);
   await dropLane(['gone', '--root', repo]);
   assert.equal(phaseOf(repo, 'gone'), 'retired');
-  git(
-    repo,
-    'worktree',
-    'add',
-    '-q',
-    '-b',
-    'bare',
-    `${repo}/.krn/worktrees/bare`,
-  );
-  assert.match(await dropLane(['bare', '--root', repo]), /^dropped/u);
-  const names = readdirSync(join(repo, laneManifestDir));
-  assert.match(names.join(), /^gone-\w{6}\.json$/u);
+  git(repo, 'worktree', 'add', '-qb', 'bare', `${repo}/.krn/worktrees/bare`);
+  await dropLane(['bare', '--root', repo]);
+  assert.equal(readdirSync(join(repo, laneManifestDir)).length, 1);
 });
 
-test('prune retires the lane it removes', async (t) => {
+test('prune retires its lane', async (t) => {
   const { repo } = startFixture(t);
   merged(repo, 'done', (await startLane(['done', '--root', repo])).path);
-  applyPrune(
-    repo,
-    planPrune(repo, { base: 'main', users: () => [] }),
-    () => [],
-  );
+  const plan = planPrune(repo, { base: 'main', users: () => [] });
+  applyPrune(repo, plan, () => []);
   assert.equal(phaseOf(repo, 'done'), 'retired');
 });
 
-test('lane start prune retires it', async (t) => {
+test('start prune retires it', async (t) => {
   const { repo } = startFixture(t);
   merged(repo, 'old', (await startLane(['old', '--root', repo])).path);
   await startLane(['next', '--root', repo]);

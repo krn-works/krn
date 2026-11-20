@@ -21,6 +21,8 @@ import { z } from 'zod';
 
 /** Where manifests live, relative to the main checkout; the directory also holds lead files, which readers skip. */
 export const laneManifestDir = '.krn/runs/lane-manifests';
+/** Where manifests lived before they moved; `krn prune` still ages its retired ones out. */
+const legacyManifestDir = '.krn/runs/lanes';
 /** A retired manifest older than this is deleted by `krn prune`. */
 export const RETIRED_KEEP_MS = 7 * 24 * 3_600_000;
 
@@ -117,8 +119,8 @@ export function allowedTransition(
   }
 }
 
-function manifestPath(main: string, id: string): string {
-  return join(main, laneManifestDir, `${id}.json`);
+function manifestPath(main: string, id: string, dir = laneManifestDir): string {
+  return join(main, dir, `${id}.json`);
 }
 
 function parse(text: string): LaneManifest | undefined {
@@ -142,22 +144,26 @@ function readBytes(path: string): Buffer | undefined {
 export function readManifest(
   main: string,
   id: string,
+  dir = laneManifestDir,
 ): LaneManifest | undefined {
-  const bytes = readBytes(manifestPath(main, id));
+  const bytes = readBytes(manifestPath(main, id, dir));
   return bytes === undefined ? undefined : parse(bytes.toString('utf8'));
 }
 
 /** Every manifest that parses; directories, lead files and torn JSON in the same directory are skipped. */
-export function listManifests(main: string): LaneManifest[] {
+export function listManifests(
+  main: string,
+  dir = laneManifestDir,
+): LaneManifest[] {
   let names: string[];
   try {
-    names = readdirSync(join(main, laneManifestDir));
+    names = readdirSync(join(main, dir));
   } catch {
     return [];
   }
   return names
     .filter((name) => name.endsWith('.json'))
-    .map((name) => readManifest(main, name.slice(0, -'.json'.length)))
+    .map((name) => readManifest(main, name.slice(0, -'.json'.length), dir))
     .filter((m): m is LaneManifest => m?.laneId !== undefined);
 }
 
@@ -314,11 +320,13 @@ export function retireGoneLane(main: string, worktree: string): void {
 
 /** Retired manifests whose retirement is older than RETIRED_KEEP_MS: what `krn prune` deletes; live ones never. */
 export function expiredManifests(main: string, now = Date.now()): string[] {
-  return listManifests(main)
-    .filter(
-      (m) =>
-        m.phase.kind === 'retired' &&
-        now - Date.parse(m.phase.at) > RETIRED_KEEP_MS,
-    )
-    .map((m) => manifestPath(main, m.laneId));
+  return [laneManifestDir, legacyManifestDir].flatMap((dir) =>
+    listManifests(main, dir)
+      .filter(
+        (m) =>
+          m.phase.kind === 'retired' &&
+          now - Date.parse(m.phase.at) > RETIRED_KEEP_MS,
+      )
+      .map((m) => manifestPath(main, m.laneId, dir)),
+  );
 }
