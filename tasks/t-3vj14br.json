@@ -1,0 +1,14 @@
+{
+  "id": "t-3vj14br",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Context-band gate runs from the repository and measures notification cost",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-20 asked whether a 400k window with advisories at 200k is the right recipe, and asked to optimise it. The gate in t-1nkf30z is due on or after 2026-11-24.\nEvidence: .krn/runs/lead/context-budget/analyze_peak.py fails with FileNotFoundError on prs2.json. The analysis lives untracked under .krn/runs, so the gate cannot run. The corpus now holds 161 lead sessions and 14959 priced turns (2026-11-09..2026-11-20). In the 2026-11-19/20 lead session, background-agent \"still waiting\" notifications took a large share of the lead's context.\nFiles: scripts/context-gate.ts (new, moved from .krn/runs), src/context/gauge.ts, src/ledger*\nOutcome: `krn ledger --context-bands` fetches PR data itself and prints first-push-green and rework per context band, plus the Fisher verdict for t-1nkf30z. A second line reports the share of lead context spent on subagent notifications.\nProof: a test with a fixture corpus prints the expected bands and verdict; run on the live corpus, its output is committed into the t-1nkf30z decision."
+  ],
+  "kind": "defect",
+  "area": "context"
+}

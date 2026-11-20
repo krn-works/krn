@@ -1,0 +1,14 @@
+{
+  "id": "t-0jc7766",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "CI and fast: tasks-only PRs run hygiene, name-match selection shrinks, load-free tests, open-red gate fails closed",
+  "after": [],
+  "body": [
+    "Source: Fable pipeline audit .krn/runs/arch-review/pipeline.md (items 2, 3, 5, 7) and a lead observation on 2026-11-20.\nEvidence:\n- scripts/ci-changes.mjs:20: a PR that changes only tasks/ skips the tests. Closing a quarantined task passes lint while test-hygiene is red; reproduced in a clone.\n- scripts/fast-check.ts:325,405: matching tests by path name selects 19 tests worth 482 s of the 838 s that `fast` spends on tests.\n- scripts/test-suite.mjs:271-272 and src/cli/lane.ts:629: a test reads the host load, so #1520 was green on its PR and main was red for 17 min.\n- .github/workflows/mutation-samples.yml:6-9: the last weekly run (11-16) failed and nothing consumes its result.\n- `krn lane start` let a lane through its open-red PR limit while gh had no token (bw-serve was down): the gate fails open.\nFiles: scripts/ci-changes.mjs, scripts/fast-check.ts, scripts/test-suite.mjs, src/cli/lane.ts, .github/workflows/mutation-samples.yml\nOutcome: a tasks-only PR runs test-hygiene; the name-match rule selects only tests that import or spawn the changed file, so `fast` on the #1530 diff selects at least 15 fewer tests; no test reads host load; the open-red gate exits 75 when gh is unavailable; mutation samples run green or are removed.\nProof: one regression test per item; fast-plan JSON for the #1530 tree shows the smaller set."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}

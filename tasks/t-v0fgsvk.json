@@ -1,0 +1,15 @@
+{
+  "id": "t-v0fgsvk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "Ship ignores the Check of a cancelled run superseded on the same SHA",
+  "after": [],
+  "body": [
+    "Source: ufltpv takeover agent, 2026-11-20 (shipping #1529).\nEvidence: `krn pr ship` exited 74 because it read the Check of a cancelled run, although a newer run on the same SHA had concluded success.\nFiles: src/ci/ship.ts (Check lookup), test/ci/ship*.test.ts\nOutcome: for a given SHA, ship reads the conclusion of the newest non-cancelled run; a cancelled run superseded by a newer one never yields exit 74.\nProof: a test with a captured `gh run list` sequence (one cancelled run, then one successful run on the same SHA) shows ship exiting 0 with verdict merged.",
+    "Root cause (takeover agent, 2026-11-20): the 'edited' pull_request trigger added in #1530 (c70c6b0) starts a second CI run whenever ship edits the PR title or body; that run cancels the first, and ship reads the cancelled Check as red. It hit #1537 and #1534. Fix both ends: ship waits for the newest run on the head, and the edited trigger runs only the PR-body job, or does not cancel the test run."
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
