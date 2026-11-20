@@ -40,6 +40,8 @@ function receiver(options: {
   hasRule?: boolean;
   check?: string;
   existing?: string;
+  /** The `gh pr view <n> --json title,body` answer of the existing PR, verbatim. */
+  current?: string;
   mergedBefore?: string;
   /** The JSON answer to the lookup of every merged PR of the branch, whatever its head. */
   mergedOfBranch?: string;
@@ -131,6 +133,8 @@ function receiver(options: {
         stdout: '',
         stderr: options.mergeRefusal,
       });
+    if (a[0] === 'pr' && a[1] === 'view' && a.includes('title,body'))
+      return options.current ?? '{"body":"","title":"old title"}\n';
     if (a[0] === 'pr' && a[1] !== 'view') return '';
     if (a[0] === 'pr' && a[1] === 'view') {
       const next = pulls.length > 1 ? pulls.shift() : pulls[0];
@@ -460,6 +464,26 @@ test('ship reuses the open PR of the branch instead of creating another', async 
       c.startsWith(`gh pr merge 7 --repo o/r --squash --match-head-commit`),
     ),
   );
+});
+
+test('ship leaves the PR alone when its title and body already match, since an edit starts a new CI run', async () => {
+  // A verbatim `gh pr view 7 --json title,body` capture: GitHub keeps the text, here with CRLF and a trailing newline added.
+  const current = `${JSON.stringify({
+    body: `${weakensBody.replace(/\n/gu, '\r\n')}\r\n`,
+    title,
+  })}\n`;
+  const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
+  await shipCommand([...args, '--force'], r);
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr view 7')));
+  assert.ok(!r.calls.some((c) => c.startsWith('gh pr edit')));
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr merge 7')));
+});
+
+test('ship edits the PR when only the body differs', async () => {
+  const current = JSON.stringify({ body: 'old body\n', title });
+  const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
+  await shipCommand([...args, '--force'], r);
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
 });
 
 test('a near-empty body is refused with exit 65 naming every missing part, before any git or gh call', async () => {
