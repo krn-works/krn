@@ -270,3 +270,23 @@ test('dispose stops a running reviewer and removes its scratch worktree', async 
   ]).stdout.toString();
   assert.equal(listed.trim().split('\n').length, 1);
 });
+
+test('a verbatim Codex answer parses through the answer schema and reaches the record and the comment', async (t) => {
+  const f = fixture(t, 'src/ci/gate.ts', 'export const ok = false;\n');
+  const answer = join(
+    import.meta.dirname,
+    '..',
+    'fixtures',
+    'codex',
+    'review-findings.json',
+  );
+  const comments: string[] = [];
+  const review = startReview(
+    input(f, `cp "${answer}" "$KRN_REVIEW_OUT"`, comments),
+  );
+  const verdict = await review.verdict(f.head);
+  // Its reproduction imports modules this fixture repository lacks: never reproduced, never a block.
+  assert.equal(verdict.kind, 'pass');
+  assert.equal(verdict.kind === 'pass' ? verdict.findings.length : 0, 1);
+  assert.match(comments[0] ?? '', /\*\*not reproduced\*\* Zielony `Check`/u);
+});
