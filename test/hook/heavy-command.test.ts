@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -102,7 +108,7 @@ test('the Claude Code form rewrites a heavy command into the gate with the Bash 
   assert.equal(input.timeout, 600000);
   assert.equal(
     input.command,
-    `'${gateEntry}' run --deadline-ms 300000 -- bash -c 'cd sub && npm test'`,
+    `cd sub && '${gateEntry}' run --deadline-ms 300000 -- bash -c 'npm test'`,
   );
 });
 
@@ -176,7 +182,6 @@ test('a command with a heavy step is gated whole: one lease wraps the original t
     `'${gate}' run --deadline-ms ${ms} -- bash -c '${inner}'`;
   for (const command of [
     'npm install && npm run dev',
-    'cd app && npm ci && npm test',
     'npm test 2>&1 | tail -5',
     'for d in a b; do npm test; done',
     '(npm i && npm run dev)',
@@ -225,6 +230,21 @@ test('shell state, pipes, heredocs and comments reach the heavy step as they do 
       command,
     );
   }
+});
+
+test('the calling shell keeps the directory selected before a heavy command', () => {
+  const command = 'cd "$REVIEW_DESTINATION" && npm test';
+  const setup = 'npm() { :; }; export -f npm; gate() { shift 4; "$@"; }; ';
+  const destination = realpathSync(tmpdir());
+  const exec = (line: string) =>
+    spawnSync('bash', ['-c', `${setup}${line}; pwd -P`], {
+      encoding: 'utf8',
+      env: { ...process.env, REVIEW_DESTINATION: destination },
+    });
+  const original = exec(command);
+  const rewritten = exec(gated(command, 1000, 'gate'));
+  assert.equal(rewritten.status, 0, rewritten.stderr);
+  assert.equal(rewritten.stdout, original.stdout);
 });
 
 test('through the real gate, the whole command runs inside one slot', () => {
@@ -340,7 +360,7 @@ test('the Codex form refuses the captured Codex payload and names the gated comm
   assert.equal(result.status, 2);
   assert.ok(
     result.stderr.includes(
-      `'${gateEntry}' run --deadline-ms 60000 -- bash -c 'cd sub && npm test --prefix ..'`,
+      `cd sub && '${gateEntry}' run --deadline-ms 60000 -- bash -c 'npm test --prefix ..'`,
     ),
     result.stderr,
   );
