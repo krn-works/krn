@@ -258,7 +258,11 @@ test('a krn-lane subagent in the lead environment is refused a tracker write by 
   assert.match(run.stderr, /Refused: .*tasks\/x\.json/u);
 });
 
-const main = '/r/main';
+// A checkout whose worktree directory has no manifest: a lane started before manifests existed, judged by the
+// legacy rule (ADR 0029 decision 2, step 4).
+const main = realpathSync(mkdtempSync(join(tmpdir(), 'krn-scope-legacy-')));
+mkdirSync(join(main, '.krn', 'worktrees', 'lane-a'), { recursive: true });
+test.after(() => rmSync(main, { recursive: true, force: true }));
 const subagent = (tool_name: string, tool_input: object, cwd = main) => ({
   agent_type: 'krn-lane',
   agent_id: 'a1',
@@ -272,7 +276,7 @@ test('a lane subagent writing the main checkout is refused naming its worktree; 
   const edit = subagent('Edit', { file_path: `${main}/src/x.ts` });
   assert.match(
     decide(edit, lead) ?? '',
-    /^Refused: \/r\/main\/src\/x\.ts is in the main checkout.*\.krn\/worktrees\/<lane>/u,
+    /^Refused: .*\/src\/x\.ts is in the main checkout.*\.krn\/worktrees\/<lane>/u,
   );
   const named = subagent(
     'Edit',

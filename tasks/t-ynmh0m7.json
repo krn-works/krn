@@ -1,0 +1,18 @@
+{
+  "id": "t-ynmh0m7",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "laneOfSession, start --lane binding via the PreToolUse Bash hook and manifest-based scope proven by test/lane/session.test.ts and test/lane/lifecycle.test.ts"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Hooks find their lane through the manifest and scope refuses unbound and out-of-lane writes",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 decision 2 and migration step 3 (docs/adr/0029-lane-manifest-and-task-writer.md); audit D4a/D4b (scope lets a krn-lane subagent write tasks/ in its worktree and outside it), reproductions listed in test/lane/lifecycle.test.ts header; t-1zptswy and t-48b8v1f.\nOutcome: laneOfSession(payload, env, cwd) in src/lane/manifest.ts resolves KRN_LANE_ID, then the agent binding (manifest agents[] written when a krn-lane subagent runs krn lane start --lane <laneId>, seen by the PreToolUse Bash hook through the shell reader), then the checkout, then legacy (an existing worktree without a manifest), else unbound-worker or lead; krn lane brief reserves the laneId and prints the start command; scope refuses unbound-worker writes, bound-lane writes outside worktree and targets, and lane writes under tasks/.\nProof: lifecycle suite cases D4a and D4b green; a verbatim PreToolUse krn-lane capture fixture binds the agent; legacy lanes keep writing; npm run fast PASS.\nFiles: src/lane/manifest.ts, src/hook/scope.ts, src/cli/lane.ts (brief, start --lane), test/lane/, test/hook/scope.test.ts"
+  ],
+  "kind": "debt",
+  "area": "hook"
+}
