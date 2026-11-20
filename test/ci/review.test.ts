@@ -183,6 +183,44 @@ test('a tier 2 finding that fails on the head and passes on the base blocks, wit
   assert.equal(comments.length, 1);
 });
 
+test('a reproduced over-refusal is posted and does not block, while a reproduced finding of any other kind still blocks', async (t) => {
+  const finding = (kind: unknown) => ({
+    id: 'refused',
+    title: 'the deny hook refuses a harmless command',
+    evidence: ['src/ci/gate.ts:1'],
+    reproduce: '! grep -q BUG src/ci/gate.ts',
+    ...(kind === undefined ? {} : { kind }),
+  });
+  const f = fixture(t, 'src/ci/gate.ts', 'export const ok = false; // BUG\n');
+  const comments: string[] = [];
+  const verdict = await startReview(
+    input(f, reviewer(f.root, [finding('over-refusal')]), comments),
+  ).verdict(f.head);
+  assert.equal(verdict.kind, 'pass');
+  assert.match(verdict.line, /1 reproduced, 0 blocking/u);
+  assert.match(comments[0] ?? '', /tier 2 pass/u);
+  assert.match(
+    comments[0] ?? '',
+    /\*\*reproduced over-refusal, not blocking\*\* the deny hook refuses/u,
+  );
+  // A reviewer that nulls or mistypes the kind still gets a verdict (not exit 85), and it blocks.
+  for (const kind of [
+    'bypass',
+    'wrong-pass',
+    'other',
+    'novel',
+    undefined,
+    null,
+    42,
+  ]) {
+    const g = fixture(t, 'src/ci/gate.ts', 'export const ok = false; // BUG\n');
+    const blocked = await startReview(
+      input(g, reviewer(g.root, [finding(kind)]), []),
+    ).verdict(g.head);
+    assert.equal(blocked.kind, 'block', `kind ${String(kind)}`);
+  }
+});
+
 test('a reproduce command that is red on the base too stays unreproduced and the ship passes', async (t) => {
   const f = fixture(t, 'src/ci/gate.ts', 'export const ok = false;\n');
   const comments: string[] = [];

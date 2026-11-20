@@ -19,13 +19,17 @@ const schema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['id', 'title', 'evidence', 'reproduce', 'class'],
+        required: ['id', 'title', 'evidence', 'reproduce', 'class', 'kind'],
         properties: {
           id: { type: 'string' },
           title: { type: 'string' },
           evidence: { type: 'array', items: { type: 'string' } },
           reproduce: { type: 'string' },
           class: { type: 'string' },
+          kind: {
+            type: 'string',
+            enum: ['bypass', 'wrong-pass', 'over-refusal', 'other'],
+          },
         },
       },
     },
@@ -65,7 +69,8 @@ export function prompt(base: string, head: string, files: string[]): string {
   return [
     `You review one change in this repository with fresh eyes. The change is \`git diff ${base}...${head}\`; your share is these files: ${files.join(', ')}. Read their diff and whatever code they touch or call. You know nothing of the author's intent beyond the diff.`,
     'Report only correctness defects the change introduces or makes reachable: an input or state that gives a wrong result, a crash, or a check that passes when it must fail. No style, naming or suggestions.',
-    'For each defect give: id (short slug); title (one English sentence: input -> wrong outcome); evidence (list of "path:line" in the changed code); reproduce (one shell command run from the repository root that exits non-zero while the defect exists and 0 once it is fixed, e.g. `node --test .krn/tmp/review/<name>.test.ts`); class (receiver-state, untested-branch, ambient-host, unenumerated-callers, stub-mismatch, gate-self or other).',
+    'For each defect give: id (short slug); title (one English sentence: input -> wrong outcome); evidence (list of "path:line" in the changed code); reproduce (one shell command run from the repository root that exits non-zero while the defect exists and 0 once it is fixed, e.g. `node --test .krn/tmp/review/<name>.test.ts`); class (receiver-state, untested-branch, ambient-host, unenumerated-callers, stub-mismatch, gate-self or other); kind (bypass, wrong-pass, over-refusal or other).',
+    'kind: bypass = a guard, hook or check lets through an input it exists to deny; wrong-pass = a check passes when it must fail; over-refusal = a guard whose job is to deny refuses a harmless input, and nothing else (never an allowed input handled wrong, a wrong value or a crash); other = any other defect. When unsure, it is not over-refusal. A reproduced over-refusal is posted and does not block the merge; every other reproduced kind blocks.',
     'Write reproduction files only under .krn/tmp/review/. An empty findings list is the right answer when you find nothing you can reproduce.',
   ].join('\n');
 }

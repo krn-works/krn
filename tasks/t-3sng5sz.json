@@ -1,0 +1,18 @@
+{
+  "id": "t-3sng5sz",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Reviewer findings carry a kind; a reproduced over-refusal is posted and does not block (ADR 0014 review convergence amendment)"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "decide(ci): the review gate converges on deny-hook rewrites instead of blocking every reproduced edge case",
+  "after": [],
+  "body": [
+    "Evidence: PR #1546 (Bash hook parsing) went through four review rounds, each blocked by newly reproduced edge cases (3, 2, then 8 of 16 findings on the shared shell reader; records under .krn/runs/review/). An adversarial reviewer always finds another shell edge case, and the gate of ADR 0014 blocks on any reproduced finding regardless of harm, so a deny-by-default hook rewrite does not converge. Most findings were over-blocking (a harmless command refused), a few were real bypasses.\nDecision needed (lead under the autonomy grant, ADR 0014 amendment first): give reviewer findings a 'kind' (bypass or wrong-pass vs over-refusal) and block only on reproduced bypass/wrong-pass findings for deny hooks, posting over-refusals as unblocking; or cap review rounds per patch series.\nOutcome: ADR 0014 records the chosen rule and test/ci/review.test.ts passes with a case where a reproduced over-refusal finding does not block.\nProof: the new review test fails by assertion on the base source and passes with the change."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

@@ -70,6 +70,8 @@ const answerSchema = z.object({
       evidence: z.array(z.string()).default([]),
       reproduce: z.string().optional(),
       class: z.string().optional(),
+      // A kind the reviewer omits, nulls or misspells as a non-string is no kind: it blocks.
+      kind: z.string().optional().catch(undefined),
     }),
   ),
 });
@@ -83,6 +85,15 @@ export type ReviewFinding = Answer & {
   /** Exit of the reproduce command on the head, then on the merge base. */
   exits?: { head: number | null; base: number | null };
 };
+
+/**
+ * A reproduced finding blocks unless the reviewer marks it an over-refusal: a deny guard refusing a
+ * harmless input. Such a finding is posted and does not block, so a deny-by-default guard converges
+ * instead of meeting a fresh shell edge case every round. A missing or unknown kind blocks.
+ */
+function blocks(finding: ReviewFinding): boolean {
+  return finding.status === 'confirmed' && finding.kind !== 'over-refusal';
+}
 
 export type ReviewVerdict =
   | { kind: 'skip'; line: string }
@@ -219,7 +230,7 @@ export function reviewComment(
     return `${header}\n\n${verdict.line}\n`;
   const rows = verdict.findings.map(
     (f) =>
-      `- **${f.status === 'confirmed' ? 'reproduced' : 'not reproduced'}** ${f.title} (${f.evidence.join(', ') || 'no location'})${
+      `- **${f.status !== 'confirmed' ? 'not reproduced' : blocks(f) ? 'reproduced' : 'reproduced over-refusal, not blocking'}** ${f.title} (${f.evidence.join(', ') || 'no location'})${
         f.reproduce
           ? `\n  reproduce: \`${f.reproduce}\` exited ${f.exits?.head ?? 'n/a'} on the head, ${f.exits?.base ?? 'n/a'} on the base`
           : ''
@@ -367,7 +378,8 @@ export function startReview(input: ReviewInput): ReviewHandle {
           run('cp', ['-r', reproductions, join(records, patch)], main);
         removeScratch(scratch);
         const confirmed = findings.filter((f) => f.status === 'confirmed');
-        const kind = confirmed.length > 0 ? 'block' : 'pass';
+        const blocking = findings.filter(blocks);
+        const kind = blocking.length > 0 ? 'block' : 'pass';
         writeFileSync(
           stored,
           `${JSON.stringify({ head: at, base: baseSha, patch, kind, seconds, findings }, null, 2)}\n`,
@@ -375,7 +387,7 @@ export function startReview(input: ReviewInput): ReviewHandle {
         resolve({
           kind,
           findings,
-          line: `review: ${kind} after ${seconds}s, ${findings.length} finding(s), ${confirmed.length} reproduced`,
+          line: `review: ${kind} after ${seconds}s, ${findings.length} finding(s), ${confirmed.length} reproduced, ${blocking.length} blocking`,
         });
       });
     });

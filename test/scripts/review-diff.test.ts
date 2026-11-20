@@ -41,6 +41,8 @@ test('the prompt names the range and the share, and asks for a reproduce command
   assert.match(text, /git diff abc\.\.\.def/u);
   assert.match(text, /src\/a\.ts, src\/b\.ts/u);
   assert.match(text, /\.krn\/tmp\/review\//u);
+  assert.match(text, /kind \(bypass, wrong-pass, over-refusal or other\)/u);
+  assert.match(text, /When unsure, it is not over-refusal/u);
   assert.doesNotMatch(text, /intent of the author|the author wants/iu);
 });
 
