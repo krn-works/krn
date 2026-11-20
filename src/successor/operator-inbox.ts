@@ -9,6 +9,9 @@ import {
   openEntries,
   promptOrigin,
 } from '../memory/operator-inbox-store.ts';
+import { pendingTaskFiles } from '../task/pending.ts';
+import { isTaskId, TaskDataError } from '../task/record.ts';
+import { hasTask } from '../task/store.ts';
 
 // The operator-inbox command: capture hook input, list open prompts, dispose one, search mentions.
 // run() returns the exit code; scripts/claude/operator-inbox.ts only wires argv, stdin and the streams.
@@ -109,11 +112,16 @@ async function execute(
     if ([task, memory, answered].filter((v) => v !== undefined).length !== 1)
       fail(usage, 64);
     if (task !== undefined) {
-      if (
-        !/^t-[a-z0-9]{7}$/u.test(task) ||
-        !existsSync(join(root, 'tasks', `${task}.json`))
-      )
-        fail(`FAIL ${task}: no tasks/${task}.json`, 1);
+      // The task store reads the pending ref, tasks/ and the archive: a record any of them holds counts.
+      let found = false;
+      try {
+        found = isTaskId(task) && hasTask(root, task);
+      } catch (error) {
+        if (!(error instanceof TaskDataError)) throw error;
+        fail(`FAIL ${task}: ${error.message}`, 1);
+      }
+      if (!found)
+        fail(`FAIL ${task}: no task record; krn task list shows the ids`, 1);
       dispose(root, hash, 'task', task);
     } else if (memory !== undefined) {
       const slug = memory.replace(/\.md$/u, '');
@@ -149,6 +157,12 @@ async function execute(
       }
     };
     read(join(root, 'tasks'), '.json');
+    // A record the task store holds only on the pending ref has no file under tasks/.
+    for (const [id, contents] of pendingTaskFiles(root))
+      sources.push({
+        path: `pending tasks/${id}.json`,
+        text: contents.toString('utf8').toLowerCase(),
+      });
     read(memory, '.md');
     for (const entry of allEntries(root))
       sources.push({
