@@ -25,7 +25,6 @@ import {
 } from './claims.ts';
 import { type CloseEvidenceSink, closeEvidenceOf } from './close-evidence.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
-import { addPendingTask, pendingApplies } from './pending.ts';
 import { allTaskQualityFailures, recordQualityFailures } from './quality.ts';
 import {
   isTaskCategory,
@@ -43,6 +42,7 @@ import {
   type TaskStatus,
   TaskUsageError,
 } from './record.ts';
+import { createsPending } from './storage.ts';
 import {
   changeDependency,
   checkTaskDirectory,
@@ -286,7 +286,7 @@ function create(args: string[], json: boolean): CommandOutput {
       : registeredTaskWorktree(cwdRoot, worktree);
   const mainRoot = mainCheckoutRoot(cwdRoot);
   // In the main checkout the record waits on the pending ref for `krn task publish`.
-  const pending = worktree === undefined && pendingApplies(cwdRoot);
+  const pending = worktree === undefined && createsPending(cwdRoot);
   const record = createTask(
     targetRoot,
     {
@@ -303,12 +303,6 @@ function create(args: string[], json: boolean): CommandOutput {
     {
       uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot],
       refuse: refuseLowQuality,
-      ...(pending
-        ? {
-            write: (id: string, contents: string) =>
-              addPendingTask(cwdRoot, id, contents),
-          }
-        : {}),
     },
   );
   if (pending)

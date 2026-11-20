@@ -14,6 +14,7 @@ import {
   check,
   checkBinaries,
   checkStores,
+  checkWriters,
   LAYERS,
   PRODUCT_WORKSHOP_EXCEPTIONS,
   specifiers,
@@ -198,4 +199,20 @@ test('tasks/, the record files and lane manifests are named in code only by thei
     ['src/cli/lane.ts:1', 'src/hook/bad.ts:1', 'src/hook/bad.ts:2'],
   );
   assert.deepEqual(checkStores(repo), []);
+});
+
+test('the pending ref writers are named only by the task storage owner and its helper', () => {
+  const root = fixture({
+    'src/task/storage.ts': 'addPendingTask(); takePendingTask();',
+    'src/task/pending.ts': 'export function addPendingTask() {}',
+    'src/task/cli.ts':
+      "// addPendingTask in a comment\nimport { removePendingTasks } from './pending.ts';",
+    'src/cli/lane.ts': 'commitPendingRecords();',
+    'src/cli/read.ts': 'pendingTaskFiles();',
+  });
+  assert.deepEqual(
+    checkWriters(root).map((v) => `${v.file}:${v.line}`),
+    ['src/cli/lane.ts:1', 'src/task/cli.ts:2'],
+  );
+  assert.deepEqual(checkWriters(repo), []);
 });

@@ -1,16 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import {
-  copyFileSync,
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
   statSync,
-  writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { liveShipPid } from '../ci/ship-live.ts';
@@ -55,12 +52,13 @@ import {
   releaseClaim,
 } from '../task/claims.ts';
 import { taskFile } from '../task/paths.ts';
-import {
-  addPendingTask,
-  pendingTaskFiles,
-  takePendingTask,
-} from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
+import {
+  type CarriedRecord,
+  carryTaskRecord,
+  dropCarriedCopy,
+  takePendingRecord,
+} from '../task/storage.ts';
 import { readTask, repositoryRoot } from '../task/store.ts';
 import { gitWith } from './git-with.ts';
 import { laneBrief } from './lane-brief.ts';
@@ -359,11 +357,6 @@ function gitOk(root: string, args: string[]): boolean {
 // the new worktree is cut from the origin base branch, so the record moves with the lane.
 // A record edited locally (a note appended before the lane) moves too: the worktree gets the
 // edit and the invoking checkout returns to its committed version.
-interface CarriedRecord {
-  readonly file: string;
-  readonly tracked: boolean;
-}
-
 function untrackedTaskRecord(
   origin: string,
   id: string,
@@ -381,19 +374,6 @@ function untrackedTaskRecord(
     );
   }
   return { file, tracked: false };
-}
-
-// The copy lands first; the original goes only once the claim has succeeded.
-function carryTaskRecord(
-  { file, tracked }: CarriedRecord,
-  worktree: string,
-  id: string,
-): boolean {
-  const target = join(worktree, 'tasks', `${id}.json`);
-  if (existsSync(target) && !tracked) return false;
-  mkdirSync(dirname(target), { recursive: true });
-  copyFileSync(file, target);
-  return true;
 }
 
 export async function laneCommand(args: string[]): Promise<void> {
@@ -594,25 +574,6 @@ function laneTargets(origin: string, task: string | undefined): string[] {
     .map((entry) => resolve(entry));
 }
 
-/** Moves a pending record into the checkout; `restore` puts the pending ref and the checkout back as they were. */
-function takePending(
-  origin: string,
-  task: string,
-): { restore: () => void } | undefined {
-  const contents = pendingTaskFiles(origin).get(task);
-  if (contents === undefined) return undefined;
-  const file = join(origin, taskFile(task));
-  const before = existsSync(file) ? readFileSync(file) : undefined;
-  takePendingTask(origin, task);
-  return {
-    restore: () => {
-      if (before === undefined) rmSync(file, { force: true });
-      else writeFileSync(file, before);
-      addPendingTask(origin, task, contents.toString());
-    },
-  };
-}
-
 export async function startLane(
   rest: string[],
   deps: LaneDeps = {},
@@ -688,7 +649,8 @@ export async function startLane(
   retireGoneLane(main, path);
   const targets = laneTargets(origin, task);
   // A record pending on the publish ref moves into the checkout, then into the lane like any untracked one.
-  const taken = task === undefined ? undefined : takePending(origin, task);
+  const taken =
+    task === undefined ? undefined : takePendingRecord(origin, task);
   try {
     const carried =
       task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
@@ -746,7 +708,7 @@ export async function startLane(
     // The lane holds the record now: the checkout copy goes only after every step that could still fail.
     if (copied && carried !== undefined && task !== undefined) {
       if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
-      else rmSync(carried.file);
+      else dropCarriedCopy(carried);
     }
     return { path: realpathSync(path), slug };
   } catch (error) {

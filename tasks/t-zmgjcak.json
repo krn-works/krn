@@ -1,0 +1,14 @@
+{
+  "id": "t-zmgjcak",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "One task storage owner: locateTask and writeTaskRecord behind every krn task verb",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 decision 3 and migration step 2a (docs/adr/0029-lane-manifest-and-task-writer.md); reproduction .krn/tmp/gemini/d8.test.ts (dep on pending: changeDependency after a pending editTask writes tasks/ while readTask reads the pending ref; on a pending-only task it exits 65 archived) fails on base bb545b1.\nOutcome: src/task/storage.ts owns locateTask(root,id) and writeTaskRecord(root,record); the eleven task-record write sites listed in ADR 0029 Context call them or are private helpers of storage.ts; every krn task verb behaves the same on pending, worktree-only and published records.\nProof: a verb-by-storage matrix test (create, show, list, edit, dep add, dep rm, close, publish, take on pending, worktree-only and published records) on a real git fixture, red on base for dep add/rm on pending, green after; the d8 cases become tracked tests.\nFiles: src/task/storage.ts, src/task/store.ts, src/task/pending.ts, src/cli/lane.ts, test/task/"
+  ],
+  "kind": "debt",
+  "area": "task"
+}

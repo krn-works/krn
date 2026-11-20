@@ -324,10 +324,36 @@ export function checkStores(root: string): StoreViolation[] {
   return found;
 }
 
+/** The pending ref writers: ADR 0029 lets only the task storage owner (and its git helper) call them. */
+const WRITERS = {
+  names:
+    /\b(?:addPendingTask|removePendingTasks|takePendingTask|commitPendingRecords)\b/u,
+  owners: ['src/task/storage.ts', 'src/task/pending.ts'],
+};
+
+/** Calls or imports of the pending ref writers outside the task storage owner. */
+export function checkWriters(root: string): StoreViolation[] {
+  const source = join(root, 'src');
+  const found: StoreViolation[] = [];
+  for (const file of existsSync(source) ? walk(source) : []) {
+    const rel = relative(root, file).split(sep).join('/');
+    if (WRITERS.owners.includes(rel)) continue;
+    const code = blank(readFileSync(file, 'utf8'));
+    for (const match of code.matchAll(new RegExp(WRITERS.names, 'gu')))
+      found.push({
+        file: rel,
+        line: code.slice(0, match.index).split('\n').length,
+        store: 'the pending task ref writers',
+        owner: WRITERS.owners[0] as string,
+      });
+  }
+  return found;
+}
+
 export function main(root: string): number {
   const violations = check(root);
   const spawns = checkBinaries(root);
-  const stores = checkStores(root);
+  const stores = [...checkStores(root), ...checkWriters(root)];
   for (const v of stores)
     process.stderr.write(
       `${v.file}:${v.line}: names ${v.store} outside its owner ${v.owner} (STORES in scripts/boundaries.ts)\n`,
