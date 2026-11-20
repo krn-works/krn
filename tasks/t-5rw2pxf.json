@@ -1,7 +1,11 @@
 {
   "id": "t-5rw2pxf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "report prints cost log-ratio CI, Holm p, n units and bootstrap USD per resolved CI; strict refuses a row without total_cost_usd (test/evals/replay-cost-ci.test.ts)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "The A/B/C report gives CIs and unit counts for cost and refuses a missing cost",
