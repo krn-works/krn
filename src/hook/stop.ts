@@ -65,7 +65,7 @@ import {
   outcomeRefusal,
 } from './outcome-judge.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
-import { stuckInStopLoop } from './stop-loop.ts';
+import { failureLogNote, stuckInStopLoop } from './stop-loop.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
@@ -1386,7 +1386,7 @@ function inspectTests(
   const logged = headOutput ? saveFailureLog(root, headOutput) : undefined;
   const output =
     headOutput && logged
-      ? `\nFailure output (full log: ${logged}):\n${failureExcerpt(headOutput)}`
+      ? `\nFailure output ${failureLogNote(logged)}:\n${failureExcerpt(headOutput)}`
       : '';
   // No test was named: the run broke before any test, so nothing can have "passed at the base".
   if (fresh.every((key) => NAMELESS.test(key))) {

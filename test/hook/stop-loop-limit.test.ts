@@ -69,3 +69,40 @@ test('a refusal is saved under .krn/runs/stop-check so the lane and the lead can
     'Stop refused: nothing committed\n',
   );
 });
+
+test('a failing test command refused identically is stuck although each refusal prints a new log path', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stop-loop-fail-'));
+  const git = (...args: string[]) =>
+    assert.equal(spawnSync('git', ['-C', dir, ...args]).status, 0);
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'a@b.c');
+  git('config', 'user.name', 'a');
+  writeFileSync(
+    join(dir, 'krn.json'),
+    `${JSON.stringify({ base: 'main', test: 'echo FAIL test_a.py; exit 1' })}\n`,
+  );
+  writeFileSync(join(dir, 'a.py'), 'x = 1\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'base');
+  git('checkout', '-q', '-b', 'work');
+  writeFileSync(join(dir, 'a.py'), 'x = 2\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'change');
+  const env = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: dir,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_LANE: 'work',
+    KRN_TEST_FIRST: '0',
+    KRN_ACCEPTANCE_CLAUSES: '0',
+    KRN_BASE_GREEN: '1',
+    KRN_TEST_SLOT_HELD: '1',
+  };
+  const payload = JSON.stringify({ session_id: 's1', cwd: dir });
+  const codes: number[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+    codes.push(stopHook(payload, env, 'work').code);
+  }
+  assert.deepEqual(codes, [2, 2, 2, 0]);
+});
