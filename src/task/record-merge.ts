@@ -67,7 +67,12 @@ export function mergeTaskRecords(copies: RecordCopies): RecordMerge {
     } else return { conflict: key };
   }
   const result = parseTaskDocument(`${JSON.stringify(merged)}\n`);
-  return result.record === undefined
-    ? { invalid: `merged: ${result.findings.join('; ')}` }
-    : { merged: serializeTask(result.record) };
+  if (result.record === undefined)
+    return { invalid: `merged: ${result.findings.join('; ')}` };
+  // The merged record must also pass as written, so a merge never emits what the check refuses.
+  const text = serializeTask(result.record);
+  const written = parseTaskDocument(text);
+  return written.findings.length > 0
+    ? { invalid: `merged: ${written.findings.join('; ')}` }
+    : { merged: text };
 }

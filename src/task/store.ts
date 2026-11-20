@@ -606,6 +606,10 @@ export function changeDependency(
     ]);
   if (id === dependency)
     throw new TaskDataError([`tasks/${id}.json: task cannot depend on itself`]);
+  if (!existsSync(join(root, 'tasks', `${id}.json`)))
+    throw new TaskDataError([
+      `tasks/${id}.json: task is archived and read-only; create a new task instead`,
+    ]);
 
   let after: TaskId[];
   if (operation === 'add') {
