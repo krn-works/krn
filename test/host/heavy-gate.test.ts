@@ -17,7 +17,11 @@ import {
   hostPressure,
   projectedLoad,
 } from '../../src/repo/host-gate.ts';
-import { type Admission, withSlot } from '../../src/repo/slot-lock.ts';
+import {
+  type Admission,
+  slotHolders,
+  withSlot,
+} from '../../src/repo/slot-lock.ts';
 import { defaultTestSlots, testSlotOptions } from '../../src/repo/test-slot.ts';
 
 const GATE = join(import.meta.dirname, '../../scripts/host/heavy-gate.ts');
@@ -382,4 +386,43 @@ test('the gate lives outside every checkout and KRN fast takes a weight that fit
     [3, 1, undefined],
   );
   assert.equal(defaultJobWeight(16), 4);
+});
+
+test('a lease gives the slot back while the work runs on, and the late release leaves the next holder alone', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'heavy-lease-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const settled = async (holders: number) => {
+    for (let i = 0; i < 100 && slotHolders(dir).length !== holders; i += 1)
+      await Promise.resolve();
+  };
+  let leased = false;
+  let endWatcher = () => {};
+  // A watcher sent through the gate: its work outlives the lease.
+  const watcher = withSlot(
+    { dir, slots: 1, leaseMs: 50, onLease: () => (leased = true) },
+    () => new Promise<void>((done) => (endWatcher = done)),
+  );
+  await settled(1);
+  assert.equal(slotHolders(dir).length, 1, 'the watcher holds the slot');
+  t.mock.timers.tick(50);
+  assert.equal(slotHolders(dir).length, 0, 'the lease released the slot');
+  assert.equal(leased, true);
+  let finish = () => {};
+  const next = withSlot(
+    { dir, slots: 1 },
+    () => new Promise<void>((done) => (finish = done)),
+  );
+  await settled(1);
+  assert.equal(slotHolders(dir).length, 1, 'the next job took the freed slot');
+  endWatcher();
+  await watcher;
+  assert.equal(
+    slotHolders(dir).length,
+    1,
+    'the watcher ending did not delete the slot the next job holds',
+  );
+  finish();
+  await next;
+  assert.equal(slotHolders(dir).length, 0);
 });

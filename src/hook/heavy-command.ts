@@ -2,7 +2,8 @@
 // a test run, build, package install or browser test through `heavy-gate run` (scripts/host/heavy-gate.ts),
 // so every project on the host waits for a slot instead of piling onto a loaded laptop. Claude Code gets
 // the command rewritten through updatedInput; Codex (`--codex`) gets a refusal naming the wrapped command
-// to run instead. It passes a dev server or watcher (it would hold a slot for its whole life), a command
+// to run instead. A heavy form in watch or server mode is gated like any other run: the gate holds its
+// slot for one lease (KRN_GATE_LEASE_S) and lets it run on, so no command guesses which runs end. It passes a command
 // already inside the gate, KRN's own checkouts (fast and the Stop hook gate themselves) and the
 // excluded repositories (wilq-seo is never gated). The host config ($XDG_CONFIG_HOME/krn/heavy-gate.json,
 // untracked) adds excluded repository names and patterns of the host's own heavy jobs (a project's
@@ -41,13 +42,6 @@ const heavyForms: RegExp[] = [
   /^mise run (?:test|check|build|e2e)[\w:.-]*(?:\s|$)/u,
   /^docker (?:build|compose build)(?:\s|$)/u,
 ];
-// Any word holding `watch` (--watch, --watchAll, test:watch) but not a source file name (`watch.test.js`) or naming a server keeps running: never gated.
-const longLived =
-  /(?:^|\s)(?:(?![\w:.-]*\.(?:[cm]?[jt]sx?|json|py|go|rs|rb|php)(?:\s|$))[\w:.-]*watch[\w:.-]*|--ui|--serve|serve|dev|start|preview)(?:\s|$)/u;
-// A `go test|vet|build` argument (a `-run start` filter) names a test, never a server: the Go toolchain runs to completion.
-const goToolchain = /^go (?:test|vet|build)(?:\s|$)/u;
-const keepsRunning = (text: string) =>
-  !goToolchain.test(text) && longLived.test(text);
 const wrappers = new Set(['time', 'nice', 'exec', 'command', 'env']);
 
 const pattern = z.string().refine((source) => {
@@ -111,18 +105,6 @@ function programs(command: string): string[] {
   return commandsOf(command).map(({ words }) =>
     program(words.map((word) => word.text)),
   );
-}
-
-/** The programs of `command` with each quoted word marked (`'start`): a quoted word is data (a test filter), never a server word. */
-function barePrograms(command: string): string[] {
-  return commandsOf(command).map(({ words }) =>
-    program(words.map((word) => (word.quoted ? `'${word.text}` : word.text))),
-  );
-}
-
-/** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */
-function startsServer(command: string): boolean {
-  return barePrograms(command).some((text) => keepsRunning(text));
 }
 
 type Step = { text: string; op: string };
@@ -200,10 +182,8 @@ export function isHeavy(
     ...heavyForms,
     ...extra.map((source) => new RegExp(source, 'u')),
   ];
-  const bare = barePrograms(command);
-  return programs(command).some(
-    (text, i) =>
-      forms.some((form) => form.test(text)) && !keepsRunning(bare[i] ?? text),
+  return programs(command).some((text) =>
+    forms.some((form) => form.test(text)),
   );
 }
 
@@ -320,7 +300,6 @@ export function gated(
   const wrap = (text: string, ms: number) =>
     `${shellWord(gate)} run --deadline-ms ${ms} -- bash -c ${shellWord(text)}`;
   const whole = () => {
-    if (startsServer(command)) return command;
     const cd = leadingCd.exec(command)?.[0] ?? '';
     return `${cd}${wrap(command.slice(cd.length), deadline)}`;
   };
@@ -328,7 +307,7 @@ export function gated(
   if (list === undefined) return whole();
   const runs: { from: number; to: number }[] = [];
   list.forEach((step, at) => {
-    if (!isHeavy(step.text, extra) || startsServer(step.text)) return;
+    if (!isHeavy(step.text, extra)) return;
     const last = runs.at(-1);
     // A background `&` ends a run: the gate would not wait for the job it puts in the background.
     if (last?.to === at - 1 && list[at - 1]?.op !== '&') last.to = at;

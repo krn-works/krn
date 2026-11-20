@@ -26,6 +26,13 @@ export type SlotOptions = {
   pressure?: ((admission: Admission) => string | undefined) | undefined;
   /** Called once, with the pid of a holder, when the caller starts to wait. */
   onWait?: (holderPid: number | undefined, reason: string) => void;
+  /**
+   * withSlot only: the most milliseconds the slot is held; past it the slot is released while the work
+   * runs on, so a job that never ends (a watcher, a server) cannot hold a slot for its whole life.
+   */
+  leaseMs?: number | undefined;
+  /** Called once when the lease releases the slot early. */
+  onLease?: () => void;
 };
 
 /** Exit code a command uses when the slot wait ran past its deadline (the repository timeout code). */
@@ -247,10 +254,25 @@ function tryTake(options: SlotOptions): Pass {
     while (taken.has(index)) index += 1;
     const slot = join(options.dir, `slot-${index}`);
     mkdirSync(slot);
-    writeFileSync(join(slot, 'pid'), record(weight));
+    const mine = record(weight);
+    writeFileSync(join(slot, 'pid'), mine);
+    let released = false;
     return {
       kind: 'taken',
-      release: () => rmSync(slot, { recursive: true, force: true }),
+      // Once only, and only while the slot is still ours: after an early release (a lease) another job
+      // may hold the same slot-N, and a second release must not delete its slot.
+      release: () => {
+        if (released) return;
+        released = true;
+        let current: string | undefined;
+        try {
+          current = readFileSync(join(slot, 'pid'), 'utf8');
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+          throw error;
+        }
+        if (current === mine) rmSync(slot, { recursive: true, force: true });
+      },
     };
   } finally {
     unlock();
@@ -309,9 +331,18 @@ export async function withSlot<T>(
   work: () => Promise<T>,
 ): Promise<T> {
   const release = await acquire(options);
+  const lease =
+    options.leaseMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          release();
+          options.onLease?.();
+        }, options.leaseMs);
+  lease?.unref();
   try {
     return await work();
   } finally {
+    clearTimeout(lease);
     release();
   }
 }
