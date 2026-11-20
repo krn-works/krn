@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Proposed. Step 1 lands with this ADR. Tasks t-z8gnzyt (lane state) and t-ytj078w (protocol lines) carry the rest.
+Proposed. Step 1 lands with this ADR. t-91n0383 (one owner for lane state) carries the rest, and the ADR 0022 amendment it requires adopts or supersedes this one; the Stop hook readers (src/hook/stop.ts), a `STORES` entry for the ship record in scripts/boundaries.ts and the matrix test are still open there.
 
 ## Context
 
@@ -134,8 +134,8 @@ C's phase 1 is the first step because it lands without a new writer and directly
    - `forgetShip` becomes a `retired` transition.
 5. Lane run's parked and red files (`src/cli/lane-run/delivery.ts:172`, `prepare.ts:93`) and its reuse decision (`prepare.ts:165`) become lifecycle fields and phases.
    - `src/cli/lane-run/verdict.ts:347` reads the recorded `merged` instead of the last verdict line.
-   - Stop's `shippedMerge` is deleted (t-z8gnzyt proof: no ship-record or worktree probing left in `stop.ts` or `lane.ts`).
-6. Add `src/repo/protocol-lines.ts` (t-ytj078w), with a round trip per kind.
+   - Stop's `shippedMerge` is deleted (proof: no ship-record or worktree probing left in `stop.ts` or `lane.ts`).
+6. Add `src/repo/protocol-lines.ts` (no task yet), with a round trip per kind.
    - Readers move to it in this order: `BLOCKER` (3 readers), `Ticket`/`Refs` (8), `Weakens-tests` (2), `Delivery`, the proof line, and the title task id.
    - `scripts/outside-acceptance.ts` and `scripts/weak-tests.mjs` import it.
 7. Once no lane predates the record (one prune grace period), delete the evidence fallback from `readLane`, and with it the remaining `existsSync` and branch-ref probing.
