@@ -16,3 +16,4 @@
 | [0022](0022-harness-integration-and-delivery-transport.md) | accepted | One hook process per event with a latency budget; a lane ends at auto-merge; transport is gh behind the required Check; plugin and MCP deferred behind triggers. |
 | [0023](0023-onboarding-installs-gates-that-run.md) | accepted | `krn adopt` installs gates that run, fills CI gaps without duplicating, and files categorised gate tasks; ratchets wait for a real adopter. |
 | [0024](0024-one-tracked-plan-and-three-rule-sources.md) | accepted | One tracked plan every session starts from; rule sources fold to AGENTS.md, the plan and skills in two measured steps. |
+| [0026](0026-standards-simplification.md) | proposed | A rule is stated once, at its check or in AGENTS.md; KRN's own JSON rule stores go; the shipped pack stays one catalog. |
