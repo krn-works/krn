@@ -1,0 +1,21 @@
+{
+  "id": "t-sq7jdqk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "Ship's gh api calls for another repository run with the default App token scope",
+  "after": [],
+  "body": [
+    "scoped() adds KRN_APP_REPOSITORY only when args carry --repo; `gh api repos/<repo>/...` names the repo only in the path, so branches, rules and check-runs reads use the wrong token (src/ci/ship.ts:278-282, 210-219, 855-860). Same class as closed t-h8111g4.",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d1-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/ci/ship.ts, test/ci/ship.test.ts\nProof: node --test .krn/runs/gemini-audit/d1-ship-api-scope.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "ci",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d1"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "t-9c10td6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "Adding a dependency to an archived task writes a duplicate record beside the archive",
+  "after": [],
+  "body": [
+    "changeDependency has no archive guard (editTask has one, store.ts:528-531), so it writes tasks/<id>.json beside tasks/archive/*.jsonl and checkTaskDirectory fails (src/task/store.ts:591-626).",
+    "Evidence: an external Gemini audit (2026-11-20) wrote the reproduction .krn/runs/gemini-audit/d8-*.test.ts; it fails by assertion on main 1856e2d, and an independent krn-reader pass confirmed the premise and the expected behaviour against the source.",
+    "Outcome: the reproduction becomes the regression test at the lowest layer that shows the defect (KRN-14) and passes; the fix names the defect class in Root cause and Redesign lines (KRN-15).",
+    "Files: src/task/store.ts, test/task/store.test.ts\nProof: node --test .krn/runs/gemini-audit/d8-task-dep-corrupts-archive.test.ts fails by assertion on the base and passes after the fix"
+  ],
+  "kind": "defect",
+  "area": "task",
+  "from": {
+    "kind": "finding",
+    "ref": "gemini-audit-d8"
+  }
+}
