@@ -219,6 +219,32 @@ test('finish reads a comma list of Refs ids', async () => {
   }
 });
 
+test('finish reads a Refs trailer under a commit message larger than the default git buffer', async () => {
+  const { base, repo, worktree } = fixture('Refs', '', task);
+  try {
+    // The message goes through stdin: 2 MB does not fit one argument.
+    const amended = spawnSync(
+      'git',
+      ['-C', worktree, 'commit', '--amend', '-q', '-F', '-'],
+      {
+        input: `feat(lane): big (${task})\n\n${'x'.repeat(2 * 1024 * 1024)}\n\nRefs: ${task}\n`,
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(amended.status, 0, amended.stderr);
+    git(worktree, 'push', '-q', '--force', 'origin', 'stopped');
+    writeVerified(worktree);
+    const { gh } = fakeGh(worktree);
+    const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
+      gh,
+      sleep,
+    }).catch((error: unknown) => assert.fail(String(error)));
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('finish with notes naming no task derives Refs from the commit trailer and ships', async () => {
   const { base, repo, worktree } = fixture('Refs');
   try {

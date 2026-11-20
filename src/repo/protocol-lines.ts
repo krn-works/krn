@@ -4,10 +4,22 @@ export type TicketLine = { key: 'Ticket' | 'Refs'; ids: string[] };
 const trailerLine = /^[A-Za-z][\w-]*:[ \t]+\S/u;
 const ticketLine = /^(ticket|refs):[ \t]*(.*)$/iu;
 
+/** Joins each indented continuation line to the line above it, as git unfolds a folded trailer. */
+function unfold(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const last = out.length - 1;
+    if (last >= 0 && /^[ \t]+\S/u.test(line))
+      out[last] = `${out[last]} ${line.trim()}`;
+    else out.push(line.trimEnd());
+  }
+  return out;
+}
+
 function ticketLinesOf(lines: string[]): TicketLine[] {
   const found: TicketLine[] = [];
-  for (const line of lines) {
-    const match = ticketLine.exec(line.trim());
+  for (const line of unfold(lines)) {
+    const match = ticketLine.exec(line);
     if (match === null) continue;
     const ids = (match[2] ?? '').split(/[\s,]+/u).filter((id) => id !== '');
     if (ids.length > 0)
@@ -20,23 +32,23 @@ function ticketLinesOf(lines: string[]): TicketLine[] {
 }
 
 /**
- * The `Ticket:`/`Refs:` lines of a commit or pull request message, in order. It follows git's
- * trailer block (the trailing paragraphs made only of `Key: value` lines, so a Co-Authored-By
- * paragraph below a Ticket paragraph still counts) and, when that block names none, falls back
- * to any such line of the message.
+ * The `Ticket:`/`Refs:` lines of a commit or pull request message, in order. A key starts in
+ * column 0 (an indented example in prose is not a trailer) and an indented line continues the one
+ * above it. It follows git's trailer block (the trailing paragraphs made only of `Key: value`
+ * lines, so a Co-Authored-By paragraph below a Ticket paragraph still counts) and, when that
+ * block names none, falls back to any such line of the message.
  */
 export function parseTickets(message: string): TicketLine[] {
-  const paragraphs = message
-    .replace(/\r\n?/gu, '\n')
-    .trim()
-    .split(/\n[ \t]*\n/u);
+  const text = message.replace(/\r\n?/gu, '\n');
   const block: string[] = [];
-  for (const paragraph of paragraphs.reverse()) {
-    const lines = paragraph.split('\n').map((line) => line.trim());
+  for (const paragraph of text
+    .trim()
+    .split(/\n[ \t]*\n/u)
+    .reverse()) {
+    const lines = unfold(paragraph.split('\n'));
     if (!lines.every((line) => trailerLine.test(line))) break;
-    block.unshift(...lines);
+    block.unshift(...paragraph.split('\n'));
   }
   const inBlock = ticketLinesOf(block);
-  if (inBlock.length > 0) return inBlock;
-  return ticketLinesOf(message.replace(/\r\n?/gu, '\n').split('\n'));
+  return inBlock.length > 0 ? inBlock : ticketLinesOf(text.split('\n'));
 }

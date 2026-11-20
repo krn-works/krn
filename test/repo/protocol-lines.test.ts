@@ -46,3 +46,17 @@ test('the key matches case-insensitively like git trailers', () => {
     { key: 'Ticket', ids: ['t-abc1234', 't-1kn5yb8'] },
   ]);
 });
+
+test('a Refs list folded onto a continuation line is read', () => {
+  assert.deepEqual(parseTickets('fix: y\n\nRefs: t-abc1234,\n  t-1kn5yb8\n'), [
+    { key: 'Refs', ids: ['t-abc1234', 't-1kn5yb8'] },
+  ]);
+});
+
+test('an indented Ticket example in prose is no trailer', () => {
+  assert.deepEqual(
+    parseTickets('fix: y\n\nUse it like this:\n\n    Ticket: t-abc1234\n'),
+    [],
+  );
+  assert.deepEqual(parseTickets('## Why\n\n  Refs: t-abc1234\n\nmore\n'), []);
+});

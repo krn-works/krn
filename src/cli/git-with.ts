@@ -7,6 +7,7 @@ export function gitWith(
   return (cwd, args) => {
     const result = spawnSync('git', ['-C', cwd, ...args], {
       encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
     });
     if (result.status !== 0)
       throw fail(
