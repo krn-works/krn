@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Where a merged ship is recorded, relative to the main checkout (ignored state). */
@@ -24,9 +24,19 @@ export function recordShip(
   }
 }
 
-/** Forgets the merged ship of a branch name a new lane is about to reuse: the record belongs to the old lane. */
-export function forgetShip(main: string, branch: string): void {
-  rmSync(join(main, shipRecordDir, `${encodeURIComponent(branch)}.json`), {
-    force: true,
-  });
+/**
+ * Forgets the merged ship of a branch name a new lane is about to reuse: the record belongs to the old lane.
+ * Returns the undo a refused lane start runs, which puts the record back byte for byte.
+ */
+export function forgetShip(main: string, branch: string): () => void {
+  const path = join(main, shipRecordDir, `${encodeURIComponent(branch)}.json`);
+  let before: Buffer | undefined;
+  try {
+    before = readFileSync(path);
+  } catch {
+    // No record: nothing to forget and nothing to put back.
+    return () => undefined;
+  }
+  rmSync(path, { force: true });
+  return () => writeFileSync(path, before);
 }

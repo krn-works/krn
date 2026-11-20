@@ -90,6 +90,12 @@ export const STORES: ReadonlyArray<{
     literal:
       /['"`](?:standards\/records\.json|\.agents\/(?:records|decisions)\.json|\.krn\/brain\/exposures\.jsonl)/u,
   },
+  // ADR 0029: the lane manifest has one writer; every other module asks it.
+  {
+    name: 'lane manifests',
+    owner: 'src/lane/manifest.ts',
+    literal: /['"`]\.krn\/runs\/lanes(?:\/|['"`])/u,
+  },
 ];
 
 export type Violation = {

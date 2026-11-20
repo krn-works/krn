@@ -14,10 +14,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { startLane } from '../../src/cli/lane.ts';
+import { applyPrune, planPrune } from '../../src/cli/prune.ts';
 import {
   allowedTransition,
   createManifest,
-  deleteExpiredManifests,
   type LaneManifest,
   type LanePhase,
   laneManifestDir,
@@ -28,7 +28,7 @@ import {
   transition,
 } from '../../src/lane/manifest.ts';
 import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
-import { startFixture } from '../helpers/lane-start.ts';
+import { git, startFixture } from '../helpers/lane-start.ts';
 
 admitLanesOnAnyHost();
 
@@ -50,9 +50,9 @@ const shippingWithPr: LanePhase = { kind: 'shipping', pid: 4242, head, pr: 7 };
 const allowed: Record<LanePhase['kind'] | 'none', string[]> = {
   none: ['reserved', 'started'],
   reserved: ['started', 'retired'],
-  started: ['shipping', 'parked', 'retired'],
+  started: ['shipping', 'shipping+pr', 'parked', 'retired'],
   shipping: ['shipping+pr', 'merged', 'shipped', 'started', 'retired'],
-  shipped: ['shipping', 'started', 'merged', 'retired'],
+  shipped: ['shipping', 'shipping+pr', 'started', 'merged', 'retired'],
   parked: ['started', 'retired'],
   merged: ['retired'],
   retired: [],
@@ -206,7 +206,8 @@ test('prune deletes retired manifests older than seven days and keeps live and r
     at: new Date(now - 3_600_000).toISOString(),
     reason: 'dropped',
   });
-  deleteExpiredManifests(main, now);
+  const plan = planPrune(main, { base: 'main', now, days: 0 });
+  applyPrune(main, plan, () => []);
   assert.deepEqual(
     listManifests(main)
       .map((m) => m.slug)
@@ -249,4 +250,20 @@ test('a started lane has one started manifest naming its worktree, task and base
       branch: 'reused',
     },
   );
+});
+
+test('a slug restarted after its worktree went retires the earlier manifest and starts a new lane', async (t) => {
+  const { repo } = startFixture(t);
+  const start = () =>
+    startLane(['again', '--task', 't-abc1234', '--root', repo]);
+  const { path } = await start();
+  // Drop does not write `retired` yet: the worktree and branch go, the manifest stays.
+  git(repo, 'worktree', 'remove', '--force', path);
+  git(repo, 'branch', '-D', 'again');
+  await start();
+  const phases = listManifests(repo)
+    .map((m) => m.phase.kind)
+    .sort();
+  assert.deepEqual(phases, ['retired', 'started']);
+  assert.equal(liveManifestOfWorktree(repo, path)?.phase.kind, 'started');
 });

@@ -394,6 +394,19 @@ function removeTakeoverMarkers(mainRoot: string, id: TaskId): void {
   }
 }
 
+/**
+ * The claim half of `claimTask`'s refusals, read only: a lane start asks it before any side effect. A live
+ * claim of the same actor is shared, so only another actor's live claim or a corrupt one refuses (exit 75).
+ */
+export function assertClaimFree(root: string, id: TaskId, actor: string): void {
+  const held = inspectClaimAt(mainCheckoutRoot(root), id);
+  if (
+    held.state === 'corrupt' ||
+    (held.state === 'live' && held.claim?.actor !== actor)
+  )
+    throw heldClaimError(held);
+}
+
 export async function claimNext(
   root: string,
   options: ClaimOptions,

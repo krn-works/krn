@@ -1,6 +1,6 @@
 // `krn prune [--days N] [--dry-run] [--root DIR]`: frees the disk agent work leaves in an adopted repository.
 // Three classes, each measured before removal: merged lane worktrees under .krn/worktrees, scratch/ directories of
-// finished runs under .krn/runs, and (only with --days) runs older than N days. The .krn layout (src/state/layout.ts)
+// finished runs under .krn/runs, and (only with --days) runs older than N days; retired lane manifests go after 7 days. The .krn layout (src/state/layout.ts)
 // owns which run owners are kept forever; --days never overrides it, and a KEEP file keeps any run.
 import {
   existsSync,
@@ -13,6 +13,7 @@ import {
 import { join, relative, resolve, sep } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { expiredManifests } from '../lane/manifest.ts';
 import { contractBase } from '../repo/contract.ts';
 import {
   removeFinishedLane,
@@ -230,6 +231,9 @@ export function planPrune(main: string, opts: PruneOptions): PrunePlan {
       (s) => !plan.runs.some((r) => s.path.startsWith(r.path + sep)),
     );
   }
+  // Lane manifests: live ones are always kept, retired ones go a week after retirement (ADR 0029).
+  for (const path of expiredManifests(main, opts.now))
+    plan.runs.push({ path, bytes: size(path) });
   return plan;
 }
 
