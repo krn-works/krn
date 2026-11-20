@@ -394,6 +394,15 @@ test('failuresIn names failing tests from pytest and go output, else the exit st
   assert.deepEqual(failuresIn(GO_RED, 1), ['TestAdd', 'example.com/gom/calc']);
   assert.deepEqual(failuresIn('boom\n', 2), ['<run>::exit 2']);
   assert.deepEqual(failuresIn('ok\n', 0), []);
+  assert.deepEqual(failuresIn('ERROR: handled retry\nok\n', 0), []);
+});
+
+test('failuresIn keeps a failing unittest run whose logging pipeline exited zero', () => {
+  const output =
+    'FAIL: test_regression (test_example.Example.test_regression)\n----\nAssertionError: 1 != 2\n\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n';
+  assert.deepEqual(failuresIn(output, 0), [
+    'test_example.Example.test_regression',
+  ]);
 });
 
 test('selectTests: name match for other stacks, go packages, guards, full fallback, deleted files', () => {

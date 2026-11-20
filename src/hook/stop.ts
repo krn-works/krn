@@ -601,13 +601,17 @@ function spawnTests(root: string, tests: string[]): string[] | CommandResult {
 
 // One failing test per match, by runner: pytest summary, unittest, go, cargo, jest/vitest file lines.
 const FAILURE_LINES: readonly RegExp[] = [
-  /^(?:FAILED|ERROR) (\S+)/mu,
+  /^(?:FAILED|ERROR) ([^\s(]\S*)/mu,
   /^(?:FAIL|ERROR): \S+ \(([^)]+)\)/mu,
   /^\s*--- FAIL: (\S+)/mu,
   /^FAIL\s+(\S+)\s/mu,
   /^test (\S+) \.\.\. FAILED/mu,
   /^\s*FAIL\s+(\S+)/mu,
 ];
+
+// Summary lines runners print only when tests failed: unittest, pytest, go, cargo.
+const RUNNER_FAILED =
+  /^FAILED \((?:failures|errors)=\d|^=+ .*\b\d+ (?:failed|error)|^FAIL\t|^test result: FAILED\./mu;
 
 const MISSING_KEY = '<run>::missing dependency';
 const MISSING_DEPENDENCY =
@@ -624,8 +628,8 @@ export function failuresIn(output: string, status: number | string): string[] {
         break;
       }
     }
-  // A run that exits 0 passed: ERROR or FAIL words in its log lines name no failing test.
-  if (status === 0) return [];
+  // A run that exits 0 passed unless a runner's own failure summary says otherwise (a logging pipeline masks the exit).
+  if (status === 0) return RUNNER_FAILED.test(output) ? [...found].sort() : [];
   if (found.size === 0) found.add(`<run>::exit ${status}`);
   if (MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
   return [...found].sort();
