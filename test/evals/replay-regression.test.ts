@@ -115,10 +115,19 @@ test('a graded row records regressed true only when the passing change breaks a 
     );
     assert.equal(rows['t-aaaaaaa']?.pass, true);
     assert.equal(rows['t-aaaaaaa']?.regressed, false);
+    // A green suite after the rep needs no base run: the base result is recorded only when it was measured.
+    assert.equal(rows['t-aaaaaaa']?.afterSuite, 0);
+    assert.equal(rows['t-aaaaaaa']?.baseSuite, undefined);
     assert.equal(rows['t-bbbbbbb']?.pass, true);
     assert.equal(rows['t-bbbbbbb']?.regressed, true);
+    // Red after the rep, green at the base commit: both results sit on the row.
+    assert.notEqual(rows['t-bbbbbbb']?.afterSuite, 0);
+    assert.equal(typeof rows['t-bbbbbbb']?.afterSuite, 'number');
+    assert.equal(rows['t-bbbbbbb']?.baseSuite, 0);
     assert.equal(rows['t-ccccccc']?.pass, false);
     assert.equal(rows['t-ccccccc']?.regressed, false);
+    // A rep that fails the hidden test is not tested for regression: no suite result.
+    assert.equal(rows['t-ccccccc']?.afterSuite, undefined);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

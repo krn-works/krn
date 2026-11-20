@@ -362,24 +362,35 @@ export async function gatedAttempt(
 export const changedTree = (wt: string): boolean =>
   outsideGit(wt, ['status', '--porcelain']).trim() !== '';
 
+/** The suite results of one passing rep; `regressed` is undefined when the suite is red at base too. */
+export interface SuiteVerdict {
+  regressed: boolean | undefined;
+  afterSuite: number;
+  baseSuite?: number;
+}
+
 /**
  * Whether a change that passes the hidden test breaks a test that passed at the base commit: the unit's suite
  * (screening.ts suiteCommand) on the changed tree without the hidden file, and, only when that is red, on a fresh
- * base checkout. Undefined when the suite is red at base too, so the unit cannot show a regression.
+ * base checkout. `regressed` is undefined when the suite is red at base too, so the unit cannot show a regression.
  */
 export async function regressedAgainstBase(
   { unit }: LiveUnit,
   wt: string,
   log: string,
   o: { sources: string; scratch: string },
-): Promise<boolean | undefined> {
-  if ((await gradeSuite(wt, unit, log, o.scratch)) === 0) return false;
+): Promise<SuiteVerdict> {
+  const afterSuite = await gradeSuite(wt, unit, log, o.scratch);
+  if (afterSuite === 0) return { regressed: false, afterSuite };
   const base = baseCheckout(o.sources, unit, o.scratch);
   try {
     appendFileSync(log, `\n== ${unit.id} base suite\n`);
-    return (await gradeSuite(base, unit, log, o.scratch)) === 0
-      ? true
-      : undefined;
+    const baseSuite = await gradeSuite(base, unit, log, o.scratch);
+    return {
+      regressed: baseSuite === 0 ? true : undefined,
+      afterSuite,
+      baseSuite,
+    };
   } finally {
     try {
       forceRemove(base);
@@ -473,12 +484,14 @@ export async function liveAttempt(
     ? await gradeWorktree(wt, unit, dir, log, o.scratch)
     : undefined;
   const pass = g ? g.install === 0 && g.test === 0 : undefined;
-  const regressed =
+  const suite =
     g === undefined
       ? undefined
       : pass === true
         ? await regressedAgainstBase({ unit, dir }, wt, log, o)
-        : false;
+        : undefined;
+  const regressed =
+    g === undefined ? undefined : pass === true ? suite?.regressed : false;
   const verdict = attemptVerdict({
     ran: a.ran,
     testsRun: a.fields.testsRun,
@@ -494,6 +507,14 @@ export async function liveAttempt(
       queueMs,
       verdict,
       ...(regressed === undefined ? {} : { regressed }),
+      ...(suite === undefined
+        ? {}
+        : {
+            afterSuite: suite.afterSuite,
+            ...(suite.baseSuite === undefined
+              ? {}
+              : { baseSuite: suite.baseSuite }),
+          }),
       ...(g ? { gradeTail: g.tail } : {}),
     },
   };
