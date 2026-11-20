@@ -353,3 +353,35 @@ test('an unquoted heredoc runs its substitutions, a quoted one does not; timeout
   assert.deepEqual(argv('nice -5 stdbuf -oL tee out'), ['tee', 'out']);
   assert.equal(argv('timeout 1'), undefined);
 });
+
+test('an expanding commit body keeps the literal subject, and inherited property names run as plain programs', () => {
+  const command = [
+    'git commit -m "$(cat <<EOF',
+    'invalid subject',
+    '',
+    '$(printf body)',
+    'EOF',
+    ')"',
+  ].join('\n');
+  assert.match(
+    commitFormat({ tool_name: 'Bash', tool_input: { command } }) ?? '',
+    /^Refused: commit subject/u,
+  );
+  for (const name of [
+    'toString',
+    'constructor',
+    '__proto__',
+    'hasOwnProperty',
+  ]) {
+    assert.deepEqual(
+      resolveCommand(commandsOf(`${name} -h`)[0]?.words ?? [])?.argv.map(
+        (word) => word.text,
+      ),
+      [name, '-h'],
+    );
+    assert.deepEqual(
+      resolveCommand(commandsOf(`env --${name} x`)[0]?.words ?? []),
+      undefined,
+    );
+  }
+});

@@ -451,6 +451,7 @@ test('a pipe in a comment, and a newline after |&, keep the next line where the 
     'npm test # output |\ncd ..\npwd',
     'npm test -- --watch |&\ncat',
     'npm test -- --watch | # then\ncat',
+    'npm test -- --watch | \\\n\ncat',
   ]) {
     const run = (line: string) =>
       spawnSync('bash', ['-c', setup + line], {
