@@ -340,3 +340,36 @@ test('publish drops a pending record the base later closed and keeps one edited 
   assert.ok(!dry.stdout.includes(closedLater), dry.stdout);
   assert.ok(dry.stdout.includes(editedLater), dry.stdout);
 });
+
+test('create succeeds with one warning when another pending record names an unknown task', (t) => {
+  const f = fixture(t);
+  addPendingTask(
+    f.main,
+    't-wmb4e0h',
+    `${JSON.stringify({
+      id: 't-wmb4e0h',
+      title: 'Names an unknown task',
+      status: 'open',
+      priority: 2,
+      created: '2026-11-19',
+      after: [],
+      body: [],
+      kind: 'fix',
+      area: 'task',
+      stack: [],
+      resolution: { ref: 't-1kt1vb9' },
+    })}\n`,
+  );
+  const r = spawnSync(
+    process.execPath,
+    [cli, 'task', ...withCategories(['create', '--title', 'Fresh record'])],
+    { cwd: f.main, encoding: 'utf8' },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  const warnings = r.stderr
+    .split('\n')
+    .filter((line) => line.includes('t-wmb4e0h'));
+  assert.equal(warnings.length, 1, r.stderr);
+  assert.match(warnings[0] ?? '', /^warning: pending tasks\/t-wmb4e0h\.json/u);
+  assert.ok(pendingTaskFiles(f.main).has(r.stdout.trim()));
+});

@@ -68,6 +68,8 @@ interface TaskStoreOptions {
   uniquenessRoots?: string[];
   /** Findings for a record about to be written; any finding refuses the write. */
   refuse?: (record: TaskRecord, index: Map<string, TaskRecord>) => string[];
+  /** Receives one warning line per pending record that has findings (default: stderr). */
+  warn?: (line: string) => void;
   /** Writes the new record instead of `tasks/<id>.json` under the root (the pending ref). */
   write?: (id: TaskId, contents: string) => void;
 }
@@ -364,7 +366,21 @@ export function createTask(
   input: NewTask,
   options: TaskStoreOptions = {},
 ): TaskRecord {
-  const index = loadTaskIndex(root);
+  assertFormat(root, 'krn.task');
+  const scan = scanTaskDirectory(root);
+  // A pending record waiting for publish is another author's work: its defects warn, never block.
+  const blocking = scan.findings.filter((f) => !f.startsWith('pending '));
+  if (blocking.length > 0) throw new TaskDataError(blocking);
+  const warned = new Set<string>();
+  for (const finding of scan.findings) {
+    const record = finding.slice(0, finding.indexOf(':'));
+    if (warned.has(record)) continue;
+    warned.add(record);
+    (options.warn ?? ((line) => process.stderr.write(`${line}\n`)))(
+      `warning: ${finding}`,
+    );
+  }
+  const index = scan.records;
   validateNewTask(input, index);
   const directory = join(root, 'tasks');
   mkdirSync(directory, { recursive: true });

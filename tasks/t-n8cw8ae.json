@@ -1,7 +1,11 @@
 {
   "id": "t-n8cw8ae",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "create warns on a pending record's findings instead of failing; test red on base, green on branch"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Task create validates only its own record, never another pending record's refs",
