@@ -127,6 +127,23 @@ const read = (load: () => string) => {
   }
 };
 
+/** The opaque command that mentions a branch or remote-branch deletion, with its construct; the reader cannot say which ref it deletes. */
+function opaqueDelete(command: string): string | undefined {
+  for (const { words, opaque } of commandsOf(command)) {
+    if (opaque === undefined) continue;
+    const text = words.map((word) => word.text).join(' ');
+    if (!/\bgit\b/u.test(text)) continue;
+    const branch =
+      /\bbranch\b/u.test(text) &&
+      /(?:^|\s)(?:-[a-zA-Z]*[dD][a-zA-Z]*|--delete)(?:\s|$)/u.test(text);
+    const push =
+      /\bpush\b/u.test(text) && /(?:^|\s)(?:--delete|\+?:\S)/u.test(text);
+    if (branch || push)
+      return `Refused: the command uses ${opaque} and deletes a branch, so the hook cannot tell which ref it removes or whether it holds unpushed work. Run the deletion as a plain \`git branch -D <name>\` or \`git push <remote> --delete <name>\`.`;
+  }
+  return undefined;
+}
+
 export function decide(payload: unknown): string | undefined {
   const value = payload as {
     cwd?: unknown;
@@ -135,6 +152,8 @@ export function decide(payload: unknown): string | undefined {
   const command = value?.tool_input?.command;
   const cwd = typeof value?.cwd === 'string' ? value.cwd : process.cwd();
   if (typeof command !== 'string') return undefined;
+  const refusal = opaqueDelete(command);
+  if (refusal !== undefined) return refusal;
   for (const target of targets(command)) {
     const at: At = target.repository
       ? {

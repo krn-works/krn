@@ -30,6 +30,12 @@ export interface Command {
   readonly words: readonly Word[];
   readonly redirects: readonly Redirect[];
   readonly forked: boolean;
+  /**
+   * The construct the reader does not model exactly (`coproc`, `eval`, `1>&1`, an unknown `$'\\q'` escape),
+   * in this command or in a substitution inside it. A guard treats such a command as one that may reach
+   * its target and refuses it, naming this construct.
+   */
+  readonly opaque?: string;
 }
 
 /** The reading of a command line in execution order; `open`/`close` bound a subshell or substitution. */
@@ -74,6 +80,8 @@ class Reader {
   readonly steps: Step[] = [];
   private i = 0;
   private readonly pending: Redirect[] = [];
+  /** The first opaque construct met since it was last taken; a substitution reports its inner commands here. */
+  private found: string | undefined;
 
   private readonly s: string;
 
@@ -88,22 +96,37 @@ class Reader {
     let redirects: Redirect[] = [];
     let piped = false;
     let depth = 0;
+    let inherited: string | undefined;
+    const take = () => {
+      inherited ??= this.found;
+      this.found = undefined;
+    };
     const finish = (forked = false) => {
+      take();
       while (words[0] && !words[0].quoted && RESERVED.has(words[0].text)) {
         // `time -p` takes its one option with it.
         if (words.shift()?.text === 'time' && words[0]?.text === '-p')
           words.shift();
       }
-      if (words.length > 0 || redirects.length > 0)
+      if (words.length > 0 || redirects.length > 0) {
+        const opaque = opaqueConstruct(words, redirects) ?? inherited;
         this.steps.push({
           kind: 'command',
-          command: { words, redirects, forked: forked || piped },
+          command: {
+            words,
+            redirects,
+            forked: forked || piped,
+            ...(opaque !== undefined && { opaque }),
+          },
         });
+      }
+      inherited = undefined;
       words = [];
       redirects = [];
       piped = false;
     };
     while (this.i < s.length) {
+      take();
       const c = s[this.i] as string;
       const next = s[this.i + 1];
       if (c === '\\' && next === '\n') this.i += 2;
@@ -309,6 +332,8 @@ class Reader {
           this.i += 1 + code[0].length;
           continue;
         }
+        if (escapes[e] === undefined && !`\\'"?`.includes(e))
+          this.found ??= `the unknown escape \\${e} in $'...'`;
         text += escapes[e] ?? e;
         this.i += 2;
       } else {
@@ -336,6 +361,7 @@ class Reader {
       const sub = new Reader(inner);
       sub.list();
       this.steps.push({ kind: 'open' }, ...sub.steps, { kind: 'close' });
+      this.found = firstOpaque(sub.steps);
       this.i = Math.min(end + 1, s.length);
       return raw();
     }
@@ -371,10 +397,39 @@ class Reader {
 
   /** The commands of a `$(`, `<(` or `>(` group (cursor past its `(`), bounded by open and close. */
   private group(): void {
+    const from = this.steps.length;
     this.steps.push({ kind: 'open' });
     this.list(true);
     this.steps.push({ kind: 'close' });
+    this.found = firstOpaque(this.steps.slice(from)) ?? this.found;
   }
+}
+
+/** The first opaque construct among `steps`. */
+function firstOpaque(steps: readonly Step[]): string | undefined {
+  for (const step of steps)
+    if (step.kind === 'command' && step.command.opaque !== undefined)
+      return step.command.opaque;
+  return undefined;
+}
+
+/**
+ * The construct of one command the reader does not interpret: a word that runs other text (`coproc`,
+ * `eval`) or a descriptor duplication other than the usual `2>&1` family (it can send a command's output
+ * anywhere, so what a `$(cat <<EOF)` prints is unknown).
+ */
+function opaqueConstruct(
+  words: readonly Word[],
+  redirects: readonly Redirect[],
+): string | undefined {
+  const name = programName(resolveCommand(words)?.argv[0]);
+  const first = programName(words[0]);
+  for (const word of [name, first])
+    if (word === 'coproc' || word === 'eval') return word;
+  for (const redirect of redirects)
+    if ((redirect.op === '>&' || redirect.op === '<&') && redirect.fd !== '2')
+      return `the descriptor duplication ${redirect.fd}${redirect.op}${redirect.target.text}`;
+  return undefined;
 }
 
 /** The index past the `close` that matches the `open` at `at`. */

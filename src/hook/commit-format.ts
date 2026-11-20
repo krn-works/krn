@@ -84,6 +84,17 @@ export function prTitle(words: readonly Word[]): string | undefined {
   return undefined;
 }
 
+const MESSAGE_FROM_ELSEWHERE =
+  /^(?:-F|--file|-C|-c|--reuse-message|--reedit-message|--fixup|--squash)(?:=|$)/u;
+
+/** An opaque command that runs `git commit` with a message it does not take from a file or another commit. */
+function opaqueCommit(words: readonly Word[]): boolean {
+  const texts = words.map((word) => word.text);
+  if (!texts.some((text) => /\bgit\b/u.test(text))) return false;
+  if (!texts.some((text) => /\bcommit\b/u.test(text))) return false;
+  return !texts.some((text) => MESSAGE_FROM_ELSEWHERE.test(text));
+}
+
 /** The refusal for a Bash command, or undefined when every subject and title it sets is well formed. */
 export function decide(payload: unknown): string | undefined {
   const call = payload as {
@@ -95,7 +106,9 @@ export function decide(payload: unknown): string | undefined {
     return undefined;
   if (!/\bgit\b[\s\S]*\bcommit\b|\bgh\b[\s\S]*\bpr\b/u.test(command))
     return undefined;
-  for (const { words } of commandsOf(command)) {
+  for (const { words, opaque } of commandsOf(command)) {
+    if (opaque !== undefined && opaqueCommit(words))
+      return `Refused: the commit message cannot be read because the command uses ${opaque}. Write the message as -m '<subject>' or pass -F <file>.`;
     const subject = commitSubject(words);
     const title = prTitle(words);
     const text = subject ?? title;
