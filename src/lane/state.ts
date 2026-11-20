@@ -1,4 +1,4 @@
-// The one reader of a lane's lifecycle evidence (ADR 0026). Read-only: `krn pr ship` writes the ship
+// The one reader of a lane's lifecycle evidence (ADR 0027). Read-only: `krn pr ship` writes the ship
 // record; lane status, the lane budget and lane prune ask this module instead of reading it themselves.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

@@ -20,3 +20,4 @@
 | [0026](0026-standards-simplification.md) | proposed | A rule is stated once, at its check or in AGENTS.md; KRN's own JSON rule stores go; the shipped pack stays one catalog. |
 | [0027](0027-ship-state-model.md) | proposed | Ship and its sibling readers branch on one pure GitHub PR state classifier with a verbatim fixture per state, and one gh client owns retries. |
 | [0026](0026-lane-lifecycle.md) | proposed | One reader of lane state (`src/lane/state.ts`), then one recorded lifecycle per lane; one parser per protocol line; seven ordered migration steps. |
+| [0027](0027-lane-lifecycle.md) | proposed | One reader of lane state (`src/lane/state.ts`), then one recorded lifecycle per lane; one parser per protocol line; seven ordered migration steps. |

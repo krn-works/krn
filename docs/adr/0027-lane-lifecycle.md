@@ -1,4 +1,4 @@
-# 26. Lane lifecycle: one reader of lane state, then one record; one parser per protocol line
+# 27. Lane lifecycle: one reader of lane state, then one record; one parser per protocol line
 
 Date: 2026-11-19
 
