@@ -19,7 +19,6 @@ import {
   isTaskCategory,
   isTaskId,
   parseTaskDocument,
-  serializeTask,
   TASK_CATEGORIES,
   type TaskAcceptance,
   type TaskCategory,
@@ -32,8 +31,7 @@ import {
   type TaskStatus,
   TaskUsageError,
 } from './record.ts';
-import { atomicWrite } from './staged-write.ts';
-import { locateTask, writeTaskRecord } from './storage.ts';
+import { createTaskRecord, locateTask, writeTaskRecord } from './storage.ts';
 
 // Exit code of `krn task close` when an acceptance command fails.
 const ACCEPTANCE_FAILED_EXIT = 66;
@@ -61,13 +59,13 @@ interface EditTask {
 
 interface TaskStoreOptions {
   makeId?: () => TaskId;
+  /** Holds the new record on the pending ref (see `createsPending`) instead of `tasks/<id>.json`. */
+  pending?: boolean;
   uniquenessRoots?: string[];
   /** Findings for a record about to be written; any finding refuses the write. */
   refuse?: (record: TaskRecord, index: Map<string, TaskRecord>) => string[];
   /** Receives one warning line per pending record that has findings (default: stderr). */
   warn?: (line: string) => void;
-  /** Writes the new record instead of `tasks/<id>.json` under the root (the pending ref). */
-  write?: (id: TaskId, contents: string) => void;
 }
 
 export function repositoryRoot(cwd = process.cwd()): string {
@@ -401,12 +399,8 @@ export function createTask(
     };
     const refusal = options.refuse?.(record, index) ?? [];
     if (refusal.length > 0) throw new TaskDataError(refusal);
-    if (options.write !== undefined) {
-      options.write(id, serializeTask(record));
-      return record;
-    }
     try {
-      atomicWrite(root, path, serializeTask(record));
+      createTaskRecord(root, record, options.pending === true);
       return record;
     } catch (error) {
       if (isAlreadyExists(error)) continue;

@@ -14,7 +14,15 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { addPendingTask, pendingTaskFiles } from '../../src/task/pending.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
-import { locateTask, writeTaskRecord } from '../../src/task/storage.ts';
+import {
+  createsPending,
+  createTaskRecord,
+  locateTask,
+  publishPendingRecords,
+  settlePublished,
+  takePendingRecord,
+  writeTaskRecord,
+} from '../../src/task/storage.ts';
 import {
   changeDependency,
   closeTask,
@@ -151,5 +159,74 @@ test('writeTaskRecord on a published record in a lane worktree writes tasks/', (
       /Lane edit/,
     );
     assert.equal(locateTask(lane, 't-pub0002').where, 'tree');
+  });
+});
+
+const record = (id: string, title: string): TaskRecord =>
+  JSON.parse(mk(id, title)) as TaskRecord;
+
+test('createTaskRecord goes to the pending ref in the main checkout and to tasks/ in a lane', () => {
+  withFixture((repo) => {
+    assert.equal(createsPending(repo), true);
+    createTaskRecord(repo, record('t-new0005', 'Explicit tree'));
+    assert.equal(locateTask(repo, 't-new0005').where, 'tree');
+    createTaskRecord(repo, record('t-new0006', 'New'), true);
+    assert.equal(existsSync(join(repo, 'tasks', 't-new0006.json')), false);
+    assert.equal(locateTask(repo, 't-new0006').where, 'pending');
+    const lane = join(repo, '..', 'lane');
+    git(repo, 'worktree', 'add', '-q', '-b', 'lane', lane);
+    assert.equal(createsPending(lane), false);
+    createTaskRecord(lane, record('t-new0007', 'Lane new'));
+    assert.equal(locateTask(lane, 't-new0007').where, 'tree');
+    assert.throws(() => createTaskRecord(lane, record('t-new0007', 'Again')));
+  });
+});
+
+test('takePendingRecord moves a pending record into the checkout and restore puts it back', () => {
+  withFixture((repo) => {
+    assert.equal(takePendingRecord(repo, 't-pub0002'), undefined);
+    createTaskRecord(repo, record('t-pnd0008', 'Pending'), true);
+    const taken = takePendingRecord(repo, 't-pnd0008');
+    assert.ok(taken);
+    assert.equal(existsSync(join(repo, 'tasks', 't-pnd0008.json')), true);
+    assert.equal(pendingTaskFiles(repo).has('t-pnd0008'), false);
+    taken.restore();
+    assert.equal(existsSync(join(repo, 'tasks', 't-pnd0008.json')), false);
+    assert.equal(locateTask(repo, 't-pnd0008').where, 'pending');
+  });
+});
+
+test('a pending edit of a published record is taken over the clean copy and restored', () => {
+  withFixture((repo) => {
+    editTask(repo, 't-pub0002', { title: 'Edited' });
+    assert.equal(locateTask(repo, 't-pub0002').where, 'pending');
+    const taken = takePendingRecord(repo, 't-pub0002');
+    assert.ok(taken);
+    assert.match(
+      readFileSync(join(repo, 'tasks', 't-pub0002.json'), 'utf8'),
+      /Edited/,
+    );
+    taken.restore();
+    assert.match(
+      readFileSync(join(repo, 'tasks', 't-pub0002.json'), 'utf8'),
+      /Published/,
+    );
+    assert.equal(locateTask(repo, 't-pub0002').record?.title, 'Edited');
+  });
+});
+
+test('publishPendingRecords commits pending records in a worktree and settlePublished clears the ref', () => {
+  withFixture((repo) => {
+    createTaskRecord(repo, record('t-pnd0009', 'Pending'), true);
+    const lane = join(repo, '..', 'lane');
+    git(repo, 'worktree', 'add', '-q', '-b', 'lane', lane);
+    const commit = publishPendingRecords(lane, pendingTaskFiles(repo));
+    assert.deepEqual(commit.ids, ['t-pnd0009']);
+    assert.match(
+      git(lane, 'show', '--stat', '--format=%s', 'HEAD'),
+      /t-pnd0009/,
+    );
+    settlePublished(repo, commit.ids);
+    assert.equal(pendingTaskFiles(repo).size, 0);
   });
 });

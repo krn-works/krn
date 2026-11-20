@@ -3,12 +3,8 @@ import { join } from 'node:path';
 import { shipCommand } from '../ci/ship.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
-import {
-  branchOnOrigin,
-  commitPendingRecords,
-  pendingTaskFiles,
-  removePendingTasks,
-} from '../task/pending.ts';
+import { branchOnOrigin, pendingTaskFiles } from '../task/pending.ts';
+import { publishPendingRecords, settlePublished } from '../task/storage.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { dropLane, startLane } from './lane.ts';
 import { cliShipRuntime } from './pr.ts';
@@ -48,10 +44,10 @@ export async function publishCommand(
     '--root',
     main,
   ]);
-  let commit: ReturnType<typeof commitPendingRecords>;
+  let commit: ReturnType<typeof publishPendingRecords>;
   let verdict: string;
   try {
-    commit = commitPendingRecords(path, files);
+    commit = publishPendingRecords(path, files);
     const bodyFile = join(path, '.krn', 'tmp', 'publish-body.md');
     mkdirSync(join(path, '.krn', 'tmp'), { recursive: true });
     writeFileSync(bodyFile, commit.body);
@@ -71,6 +67,6 @@ export async function publishCommand(
     await dropUnpushedLane(main, slug);
     throw error;
   }
-  removePendingTasks(main, commit.ids);
+  settlePublished(main, commit.ids);
   return `publish: ${commit.ids.join(' ')}\n${verdict}\n`;
 }

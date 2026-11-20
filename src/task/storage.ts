@@ -1,11 +1,22 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { findArchived } from './archive.ts';
 import {
   addPendingTask,
+  commitPendingRecords,
   editGoesPending,
+  type PublishCommit,
   pendingApplies,
   pendingTaskFiles,
+  removePendingTasks,
+  takePendingTask,
 } from './pending.ts';
 import {
   parseTaskDocument,
@@ -73,4 +84,82 @@ export function writeTaskRecord(root: string, record: TaskRecord): void {
     addPendingTask(root, record.id, contents);
   else
     atomicWrite(root, join(root, 'tasks', `${record.id}.json`), contents, true);
+}
+
+/** Whether a record created in `root` waits on the pending ref (the main checkout) rather than `tasks/`. */
+export function createsPending(root: string): boolean {
+  return pendingApplies(root);
+}
+
+/**
+ * Creates a new record on the pending ref when the caller asked for it (`createsPending` says it
+ * applies), else in `tasks/`, where a file that already exists throws EEXIST.
+ */
+export function createTaskRecord(
+  root: string,
+  record: TaskRecord,
+  pending = false,
+): void {
+  const contents = serializeTask(record);
+  if (pending) addPendingTask(root, record.id, contents);
+  else atomicWrite(root, join(root, 'tasks', `${record.id}.json`), contents);
+}
+
+/**
+ * Moves the pending record of `id` into the checkout's `tasks/`; `restore` puts the ref and the
+ * checkout back as they were. Undefined when nothing is pending for `id`.
+ */
+export function takePendingRecord(
+  root: string,
+  id: TaskId,
+): { restore: () => void } | undefined {
+  const contents = pendingTaskFiles(root).get(id);
+  if (contents === undefined) return undefined;
+  const file = join(root, 'tasks', `${id}.json`);
+  const before = existsSync(file) ? readFileSync(file) : undefined;
+  takePendingTask(root, id);
+  return {
+    restore: () => {
+      if (before === undefined) rmSync(file, { force: true });
+      else writeFileSync(file, before);
+      addPendingTask(root, id, contents.toString());
+    },
+  };
+}
+
+/** Commits the pending records into `worktree` as one commit; the ref keeps them until `settlePublished`. */
+export function publishPendingRecords(
+  worktree: string,
+  files: ReadonlyMap<string, Buffer>,
+): PublishCommit {
+  return commitPendingRecords(worktree, files);
+}
+
+/** Drops published records from the pending ref. */
+export function settlePublished(root: string, ids: readonly string[]): void {
+  removePendingTasks(root, ids);
+}
+
+/** A record of the main checkout a lane start carries: the file and whether git tracks it. */
+export interface CarriedRecord {
+  readonly file: string;
+  readonly tracked: boolean;
+}
+
+/** Copies a carried record into the lane worktree; false when the lane already holds an untracked copy. */
+export function carryTaskRecord(
+  { file, tracked }: CarriedRecord,
+  worktree: string,
+  id: TaskId,
+): boolean {
+  const target = join(worktree, 'tasks', `${id}.json`);
+  if (existsSync(target) && !tracked) return false;
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(file, target);
+  return true;
+}
+
+/** Removes the checkout's untracked copy of a record the lane now holds. */
+export function dropCarriedCopy(carried: CarriedRecord): void {
+  rmSync(carried.file);
 }
