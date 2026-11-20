@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Proposed. The first step (the pure classifier `src/ci/github-state.ts` and its fixtures) is in; ship, verify, the open-red limit and the lane receiver are not rewired yet. Task t-7bntdj9.
+Proposed. The first step (the pure classifier `src/ci/github-state.ts` and its fixtures) is in; ship, verify, the open-red limit and the lane receiver are not rewired yet. Tracked by t-91n0383 (typed ship verdict) and t-hf1z9se (checks by name, App id and every required context); the ADR 0022 amendment that t-91n0383 requires adopts or supersedes this model.
 
 ## Context
 
