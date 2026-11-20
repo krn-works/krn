@@ -500,6 +500,8 @@ export function worktreeDependencies(
     .filter(Boolean)
     .map((f) => dirname(f));
   let linked = false;
+  let bare = false;
+  const made: string[] = [];
   for (const dir of new Set(dirs)) {
     const to = join(tree, dir, 'node_modules');
     if (existsSync(to)) {
@@ -507,8 +509,12 @@ export function worktreeDependencies(
       continue;
     }
     const from = join(root, dir, 'node_modules');
-    if (!existsSync(from)) continue;
+    if (!existsSync(from)) {
+      bare = true;
+      continue;
+    }
     symlinkSync(from, to);
+    made.push(to);
     if (!ignoredOnly) {
       linked = true;
       continue;
@@ -526,7 +532,10 @@ export function worktreeDependencies(
       if (dir === '.' && tree.startsWith(`${root}/`)) linked = true;
     }
   }
-  if (linked || !install) return undefined;
+  // A package directory with no node_modules in either checkout still needs its install, even when
+  // another one is linked; the install must not run through our own links into the root checkout.
+  if (!install || (linked && !bare)) return undefined;
+  for (const link of made) if (existsSync(link)) rmSync(link);
   const ran = runInstall(install);
   if (ran.status === 0) return undefined;
   const said =

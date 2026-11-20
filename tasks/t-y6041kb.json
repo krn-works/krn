@@ -1,0 +1,18 @@
+{
+  "id": "t-y6041kb",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "d10 shorthand routes (task, doctor) indexed via handler function; d11 worktreeDependencies installs when a subpackage lacks node_modules; both tests red on base, green now"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "fix(repo): fast indexes shorthand cli routes and adopt installs a subpackage that lacks node_modules",
+  "after": [],
+  "body": [
+    "Cross-model audit (2026-11-20) defects, each with a red reproduction under /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini (all 16 re-run red on 5a85fb8):\n- d10: /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini/d10-fast-check-cli-routes.test.ts\n- d11: /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini/d11-adopt-monorepo-deps.test.ts\nAcceptance: each reproduction becomes a regression test at the lowest layer (KRN-14) in the tracked test tree, red before the fix and green after; one PR for the sector.\nProof: each listed reproduction, moved into the tracked test tree, passes with the fix and fails by assertion on the base source."
+  ],
+  "kind": "defect",
+  "area": "repo"
+}

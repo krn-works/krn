@@ -1021,7 +1021,7 @@ test('a change to a widely imported module plans its direct importers and leaves
     existsSync(path) && lstatSync(path).isFile()
       ? readFileSync(path, 'utf8')
       : undefined;
-  const target = 'src/brain/packet.ts';
+  const target = 'src/brain/record.ts';
   const plan = planTests(
     [target],
     tests,
@@ -1060,4 +1060,13 @@ test('fast check runs tsc and the tests once when Biome rewrites a changed file'
   assert.match(result.stdout, /fast PASS:/u, result.stderr + result.stdout);
   assert.equal(readFileSync(join(dir, 'a.ts'), 'utf8'), 'formatted\n');
   assert.equal(readFileSync(runs, 'utf8').split('\n').length - 1, 1);
+});
+
+test('cliCommandModules indexes shorthand routes through their handler function', () => {
+  const modules = cliCommandModules(process.cwd());
+  for (const command of ['task', 'doctor'])
+    assert.ok(
+      (modules.get(command)?.size ?? 0) > 0,
+      `expected "${command}" to map to its modules, got: ${[...modules.keys()].join(', ')}`,
+    );
 });
