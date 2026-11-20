@@ -131,10 +131,42 @@ test('a failed Check attempt is superseded while a newer row of its Actions run 
   const other = run({
     id: 6,
     status: 'IN_PROGRESS',
-    detailsUrl: 'https://github.com/o/r/actions/runs/10/job/6',
+    detailsUrl: 'https://github.com/o/r/actions/runs/8/job/6',
   });
   assert.equal(supersededByRerun(failed, [failed, other]), false);
   assert.equal(supersededByRerun({ ...failed, id: null }, [failed]), false);
+});
+
+test('a failed Check of an older Actions run is superseded while a newer run of the head is unfinished', () => {
+  // PR #1551's check-runs (real output, CHECK_FACT_FILTER): run 44780963518 was cancelled by 44781928074, which was
+  // cancelled by 44782200146, still running. The newest aggregate row is the failed one of 44781928074.
+  const facts = JSON.parse(
+    capture(
+      'fixtures/gh',
+      'check-runs-1551-newer-run',
+    ).streams.stdout?.toString('utf8') ?? '',
+  ) as CheckFact[];
+  const supersededByRerun = requiredCheck.supersededByRerun;
+  const newest = selectRequiredCheck(facts);
+  assert.equal(newest?.id, 136447715991);
+  assert.equal(newest?.conclusion, 'FAILURE');
+  assert.equal(newest && supersededByRerun(newest, facts), true);
+  // Once the newer run finished, its failed row speaks for the head again.
+  const finished = facts.map((f) =>
+    f.status === 'COMPLETED'
+      ? f
+      : { ...f, status: 'COMPLETED', conclusion: 'SUCCESS' },
+  );
+  assert.equal(newest && supersededByRerun(newest, finished), false);
+  // An unfinished row of an older run never supersedes the aggregate of a newer one.
+  const olderRunning = facts.map((f) =>
+    f.detailsUrl?.includes('/runs/44780963518/') === true
+      ? { ...f, status: 'IN_PROGRESS', conclusion: '' }
+      : f.detailsUrl?.includes('/runs/44782200146/') === true
+        ? { ...f, status: 'COMPLETED', conclusion: 'SUCCESS' }
+        : f,
+  );
+  assert.equal(newest && supersededByRerun(newest, olderRunning), false);
 });
 
 const repo = JSON.stringify({

@@ -60,9 +60,11 @@ const actionsRun = (run: CheckFact) =>
   /\/actions\/runs\/(\d+)\//u.exec(run.detailsUrl ?? '')?.[1];
 
 /**
- * Whether a rerun supersedes this completed run: another row of the same Actions run, created after it, is not completed.
- * `gh run rerun --failed` copies the jobs it keeps and adds the aggregate's row only when its needs finish, so until then
- * the stale attempt is the newest aggregate row and the rerun shows only as a newer unfinished job.
+ * Whether a later attempt supersedes this completed run: a row created after it, not completed, belongs to the same Actions
+ * run (a rerun) or to a newer Actions run of the head (a push, an edit or a rerun that cancelled this one).
+ * `gh run rerun --failed` copies the jobs it keeps and adds the aggregate's row only when its needs finish, and a new run
+ * adds its aggregate row last, so until then the stale attempt is the newest aggregate row and the later attempt shows
+ * only as a newer unfinished job.
  */
 export function supersededByRerun(
   check: CheckFact,
@@ -71,13 +73,16 @@ export function supersededByRerun(
   const owner = actionsRun(check);
   if (owner === undefined || typeof check.id !== 'number') return false;
   const after = check.id;
-  return runs.some(
-    (run) =>
+  return runs.some((run) => {
+    const other = actionsRun(run);
+    return (
       typeof run.id === 'number' &&
       run.id > after &&
-      actionsRun(run) === owner &&
-      run.status !== 'COMPLETED',
-  );
+      other !== undefined &&
+      Number(other) >= Number(owner) &&
+      run.status !== 'COMPLETED'
+    );
+  });
 }
 
 const branchSchema = z.object({
