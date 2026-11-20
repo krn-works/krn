@@ -259,7 +259,8 @@ function tryTake(options: SlotOptions): Pass {
     mkdirSync(slot);
     const mine = record(weight);
     writeFileSync(join(slot, 'pid'), mine);
-    const inode = statSync(join(slot, 'pid')).ino;
+    // The slot is ours while it is the directory made here, whatever became of the record inside it.
+    const made = statSync(slot);
     let released = false;
     return {
       kind: 'taken',
@@ -268,22 +269,13 @@ function tryTake(options: SlotOptions): Pass {
       release: () => {
         if (released) return;
         released = true;
-        let current: string | undefined;
         try {
-          current = readFileSync(join(slot, 'pid'), 'utf8');
-        } catch (error) {
-          const code = (error as NodeJS.ErrnoException).code;
-          // The record vanished mid-job: the slot is still the one this job made, and an empty directory
-          // would count against capacity for as long as it stays.
-          if (code === 'ENOENT') {
+          const now = statSync(slot);
+          if (now.ino === made.ino && now.birthtimeMs === made.birthtimeMs)
             rmSync(slot, { recursive: true, force: true });
-            return;
-          }
-          // A record its owner made unreadable is still ours while it is the file we wrote.
-          if (code !== 'EACCES') throw error;
-          if (statSync(join(slot, 'pid')).ino === inode) current = mine;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
-        if (current === mine) rmSync(slot, { recursive: true, force: true });
       },
     };
   } finally {
