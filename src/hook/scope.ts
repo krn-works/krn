@@ -185,7 +185,7 @@ function maskQuotes(command: string): string {
   return command.replace(/'[^']*'|"[^"]*"/gu, (quoted) =>
     quoted
       .slice(1, -1)
-      .replace(/[<>|;&]/gu, '_')
+      .replace(/[<>|;&()]/gu, '_')
       .replace(/\s/gu, '_'),
   );
 }

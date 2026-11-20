@@ -121,6 +121,9 @@ function argsOf(words: string[], program: string): string[] | undefined {
   if (words[i] === 'env' || (words[i] ?? '').endsWith('/env')) {
     i++;
     while ((words[i] ?? '').startsWith('-') && words[i] !== '--') {
+      // `-S STRING` splits STRING into the command itself: the later words are its data.
+      if (/^(?:--split-string|-[a-zA-Z]*S)/u.test(words[i] ?? ''))
+        return undefined;
       i += ['-u', '--unset', '-C', '--chdir', '-S', '--split-string'].includes(
         words[i] ?? '',
       )

@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { findArchived } from '../task/archive.ts';
 
 // PreToolUse hook for Bash: refuses `git branch -D` and `git worktree remove` when the
 // branch tip is on no remote, names an open task in a `Ticket:` or `Refs:` trailer, and
@@ -135,10 +136,15 @@ export function decide(payload: unknown): string | undefined {
       const root = dirname(
         git(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
       );
-      // A lane that carried a pending task holds the only copy: the tip's own tree then names the task.
-      const task =
-        read(() => readFileSync(join(root, 'tasks', `${id}.json`), 'utf8')) ||
-        git(cwd, ['show', `${tip}:tasks/${id}.json`]);
+      let task = read(() =>
+        readFileSync(join(root, 'tasks', `${id}.json`), 'utf8'),
+      );
+      if (task === '') {
+        // Closed and archived on main: that state wins over a stale open copy on the tip.
+        if (read(() => findArchived(root, id)?.status ?? '') !== '') continue;
+        // A lane that carried a pending task holds the only copy: the tip's own tree names it.
+        task = git(cwd, ['show', `${tip}:tasks/${id}.json`]);
+      }
       if ((JSON.parse(task) as { status?: unknown }).status !== 'open')
         continue;
       if (task.includes(tip.slice(0, 7))) continue;

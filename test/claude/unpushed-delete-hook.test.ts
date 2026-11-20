@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { decide } from '../../src/hook/unpushed-delete.ts';
+import { archiveClosedTasks } from '../../src/task/archive.ts';
+import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const script = fileURLToPath(
   new URL('../../src/dispatch/main.ts', import.meta.url),
@@ -194,6 +197,42 @@ test('the hook refuses removing a lane that holds the only copy of an open task'
     const refused = hook(f.repo, `git worktree remove --force ${lane}`);
     assert.equal(refused.status, 2, refused.stderr);
     assert.match(refused.stderr, /t-def5678/u);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('a lane tip with a stale open record does not override a closed archive entry', async () => {
+  const f = await fixture();
+  try {
+    const open: TaskRecord = {
+      id: 't-abc1234',
+      status: 'open',
+      resolution: null,
+      created: '2020-01-01',
+      priority: 2,
+      title: 'Fixture task',
+      after: [],
+      body: [],
+    };
+    const path = join(f.repo, 'tasks', 't-abc1234.json');
+    const closed: TaskRecord = {
+      ...open,
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: 'Completed separately' },
+    };
+    await writeFile(path, serializeTask(closed));
+    assert.deepEqual(
+      archiveClosedTasks(f.repo, [closed], new Date('2020-02-01')).archived,
+      [open.id],
+    );
+    git(f.repo, ['add', '-A']);
+    git(f.repo, ['commit', '--quiet', '-m', 'Archive closed task']);
+    git(f.repo, ['push', '--quiet', 'origin', 'main']);
+    assert.equal(
+      decide({ cwd: f.repo, tool_input: { command: 'git branch -D lane' } }),
+      undefined,
+    );
   } finally {
     await f.cleanup();
   }
