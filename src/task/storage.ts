@@ -91,10 +91,17 @@ export function createsPending(root: string): boolean {
   return pendingApplies(root);
 }
 
-/** Creates a new record where `createsPending` says; a `tasks/` file that already exists throws EEXIST. */
-export function createTaskRecord(root: string, record: TaskRecord): void {
+/**
+ * Creates a new record on the pending ref when the caller asked for it (`createsPending` says it
+ * applies), else in `tasks/`, where a file that already exists throws EEXIST.
+ */
+export function createTaskRecord(
+  root: string,
+  record: TaskRecord,
+  pending = false,
+): void {
   const contents = serializeTask(record);
-  if (createsPending(root)) addPendingTask(root, record.id, contents);
+  if (pending) addPendingTask(root, record.id, contents);
   else atomicWrite(root, join(root, 'tasks', `${record.id}.json`), contents);
 }
 

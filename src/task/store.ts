@@ -59,6 +59,8 @@ interface EditTask {
 
 interface TaskStoreOptions {
   makeId?: () => TaskId;
+  /** Holds the new record on the pending ref (see `createsPending`) instead of `tasks/<id>.json`. */
+  pending?: boolean;
   uniquenessRoots?: string[];
   /** Findings for a record about to be written; any finding refuses the write. */
   refuse?: (record: TaskRecord, index: Map<string, TaskRecord>) => string[];
@@ -398,7 +400,7 @@ export function createTask(
     const refusal = options.refuse?.(record, index) ?? [];
     if (refusal.length > 0) throw new TaskDataError(refusal);
     try {
-      createTaskRecord(root, record);
+      createTaskRecord(root, record, options.pending === true);
       return record;
     } catch (error) {
       if (isAlreadyExists(error)) continue;

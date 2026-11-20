@@ -325,9 +325,14 @@ export function checkStores(root: string): StoreViolation[] {
 }
 
 /** The pending ref writers: ADR 0029 lets only the task storage owner (and its git helper) call them. */
+const WRITER_NAMES =
+  '(?:addPendingTask|removePendingTasks|takePendingTask|commitPendingRecords)';
 const WRITERS = {
-  names:
-    /\b(?:addPendingTask|removePendingTasks|takePendingTask|commitPendingRecords)\b/u,
+  // A call, or a name inside an import list: text that only mentions a writer is not a use.
+  names: new RegExp(
+    `\\b${WRITER_NAMES}\\s*\\(|\\bimport\\s*(?:type\\s*)?\\{[^}]*\\b${WRITER_NAMES}\\b[^}]*\\}`,
+    'u',
+  ),
   owners: ['src/task/storage.ts', 'src/task/pending.ts'],
 };
 

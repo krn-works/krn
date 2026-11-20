@@ -209,6 +209,7 @@ test('the pending ref writers are named only by the task storage owner and its h
       "// addPendingTask in a comment\nimport { removePendingTasks } from './pending.ts';",
     'src/cli/lane.ts': 'commitPendingRecords();',
     'src/cli/read.ts': 'pendingTaskFiles();',
+    'src/cli/text.ts': "export const m = 'addPendingTask failed';",
   });
   assert.deepEqual(
     checkWriters(root).map((v) => `${v.file}:${v.line}`),

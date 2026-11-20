@@ -303,6 +303,7 @@ function create(args: string[], json: boolean): CommandOutput {
     {
       uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot],
       refuse: refuseLowQuality,
+      pending,
     },
   );
   if (pending)

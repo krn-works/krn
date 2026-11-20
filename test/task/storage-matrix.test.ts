@@ -168,7 +168,9 @@ const record = (id: string, title: string): TaskRecord =>
 test('createTaskRecord goes to the pending ref in the main checkout and to tasks/ in a lane', () => {
   withFixture((repo) => {
     assert.equal(createsPending(repo), true);
-    createTaskRecord(repo, record('t-new0006', 'New'));
+    createTaskRecord(repo, record('t-new0005', 'Explicit tree'));
+    assert.equal(locateTask(repo, 't-new0005').where, 'tree');
+    createTaskRecord(repo, record('t-new0006', 'New'), true);
     assert.equal(existsSync(join(repo, 'tasks', 't-new0006.json')), false);
     assert.equal(locateTask(repo, 't-new0006').where, 'pending');
     const lane = join(repo, '..', 'lane');
@@ -183,7 +185,7 @@ test('createTaskRecord goes to the pending ref in the main checkout and to tasks
 test('takePendingRecord moves a pending record into the checkout and restore puts it back', () => {
   withFixture((repo) => {
     assert.equal(takePendingRecord(repo, 't-pub0002'), undefined);
-    createTaskRecord(repo, record('t-pnd0008', 'Pending'));
+    createTaskRecord(repo, record('t-pnd0008', 'Pending'), true);
     const taken = takePendingRecord(repo, 't-pnd0008');
     assert.ok(taken);
     assert.equal(existsSync(join(repo, 'tasks', 't-pnd0008.json')), true);
@@ -215,7 +217,7 @@ test('a pending edit of a published record is taken over the clean copy and rest
 
 test('publishPendingRecords commits pending records in a worktree and settlePublished clears the ref', () => {
   withFixture((repo) => {
-    createTaskRecord(repo, record('t-pnd0009', 'Pending'));
+    createTaskRecord(repo, record('t-pnd0009', 'Pending'), true);
     const lane = join(repo, '..', 'lane');
     git(repo, 'worktree', 'add', '-q', '-b', 'lane', lane);
     const commit = publishPendingRecords(lane, pendingTaskFiles(repo));
