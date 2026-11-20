@@ -1,0 +1,18 @@
+{
+  "id": "t-37482pn",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane drop, prune, lane-start prune and ship --drop write retired through the manifest writer; manifests moved to .krn/runs/lane-manifests; real-git tests in test/lane/retire.test.ts"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Drop, prune and ship write the retired lane phase, and manifests get a directory of their own",
+  "after": [],
+  "body": [
+    "Evidence: 2026-11-20 .krn/runs/lanes/ holds manifests still in phase started for lanes whose PRs merged and whose worktrees were dropped or pruned (task-storage-pod135 after #1557, task-archive-nto74x after #1558); nothing writes the retired transition yet. The directory also holds other files (briefs/, gold.md, *.md prompts, publish logs) written by another owner under the same .krn/runs/lanes/ name.\nOutcome: krn lane drop, krn prune's lane removal and krn pr ship --drop write the retired transition through src/lane/manifest.ts; manifests live in a directory no other writer uses (move to .krn/runs/lane-manifests/ or move the other owner's files), and the STORES entry names it.\nProof: a real-git test: start, ship-merged (fake receiver), prune and drop each leave the lane's manifest in phase retired; a boundary test fails if a non-manifest file is written into the manifest directory.\nFiles: src/lane/manifest.ts, src/cli/lane.ts, src/cli/prune.ts, src/ci/ship.ts, scripts/boundaries.ts, test/lane/"
+  ],
+  "kind": "debt",
+  "area": "lane"
+}

@@ -13,7 +13,7 @@ import {
 import { join, relative, resolve, sep } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
-import { expiredManifests } from '../lane/manifest.ts';
+import { expiredManifests, retireLane } from '../lane/manifest.ts';
 import { contractBase } from '../repo/contract.ts';
 import {
   removeFinishedLane,
@@ -251,8 +251,10 @@ export function applyPrune(
   };
   for (const wt of plan.worktrees) {
     const removal = removeFinishedLane(main, wt.path, wt.branch, { users });
-    if (removal.removed) done.worktrees.push(wt);
-    else done.kept.push({ path: wt.path, reason: removal.reason });
+    if (removal.removed) {
+      retireLane(main, wt.path, 'pruned: its lane was merged');
+      done.worktrees.push(wt);
+    } else done.kept.push({ path: wt.path, reason: removal.reason });
   }
   git(main, ['worktree', 'prune']);
   for (const item of [...plan.scratch, ...plan.runs]) {

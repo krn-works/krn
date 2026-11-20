@@ -47,7 +47,7 @@ Out of scope, each its own task: the Stop loop breaker never trips because the r
 
 ### 1. One lane manifest
 
-- **Where.** `.krn/runs/lanes/<laneId>.json` in the main checkout, an ignored path the `r-state-paths` record allows, so it outlives the worktree. A `STORES` entry in `scripts/boundaries.ts` names `src/lane/manifest.ts` its only writer. `krn prune` (`src/cli/prune.ts`), which ages run directories by owner, keeps live manifests and deletes `retired` ones after 7 days.
+- **Where.** `.krn/runs/lane-manifests/<laneId>.json` in the main checkout, an ignored path the `r-state-paths` record allows, so it outlives the worktree. A `STORES` entry in `scripts/boundaries.ts` names `src/lane/manifest.ts` its only writer. `krn prune` (`src/cli/prune.ts`), which ages run directories by owner, keeps live manifests and deletes `retired` ones after 7 days.
 - **Identity.** `laneId` is `<slug>-<6 random base36>`. A reused branch, slug or task gets a new `laneId`; no reader takes an earlier lane's manifest or ship record for this one. One live (not `retired`) manifest per worktree path.
 - **Shape**, parsed once with a zod schema: `{ laneId, slug, branch?, worktree?, base, task?, targets: string[], actor, createdAt, agents: string[], phase }`. `targets` holds the `lane-target:` paths of the task body or `KRN_LANE_TARGET`, read once at start. `phase` is a discriminated union: `reserved`, `started`, `shipping { pid, head, pr? }`, `shipped { pr, head }` (no live ship process), `parked { reason }`, `merged { sha, head }`, `retired { at, reason }`.
 - **Transitions**, one exhaustive switch; any other edge throws (exit 70):

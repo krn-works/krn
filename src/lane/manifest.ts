@@ -1,4 +1,4 @@
-// The one writer of lane manifests (ADR 0029 decision 1): `.krn/runs/lanes/<laneId>.json` in the main checkout.
+// The one writer of lane manifests (ADR 0029 decision 1): `.krn/runs/lane-manifests/<laneId>.json` in the main checkout.
 // Every write validates its transition against the table below before it touches the file, and no caller
 // writes the file itself (STORES in scripts/boundaries.ts).
 import { createHash, randomBytes } from 'node:crypto';
@@ -20,7 +20,7 @@ import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 
 /** Where manifests live, relative to the main checkout; the directory also holds lead files, which readers skip. */
-export const laneManifestDir = '.krn/runs/lanes';
+export const laneManifestDir = '.krn/runs/lane-manifests';
 /** A retired manifest older than this is deleted by `krn prune`. */
 export const RETIRED_KEEP_MS = 7 * 24 * 3_600_000;
 
@@ -278,10 +278,14 @@ export function transition(
 }
 
 /**
- * Retires the live manifest of a worktree path that no longer exists (a lane dropped before drop wrote
- * `retired`), so a new lane may start at the same path; a path still on disk keeps its lane.
+ * Retires the live manifest of the worktree at `worktree`, which is gone (drop, prune and ship --drop call it
+ * after removing the worktree; a new lane starting at the same path calls it too). A lane with no live manifest is skipped silently.
  */
-export function retireGoneLane(main: string, worktree: string): void {
+export function retireLane(
+  main: string,
+  worktree: string,
+  reason: string,
+): void {
   if (existsSync(worktree)) return;
   // Manifests hold the real path; the main checkout may be reached through a symlink.
   let real = worktree;
@@ -295,8 +299,17 @@ export function retireGoneLane(main: string, worktree: string): void {
     transition(main, stale.laneId, {
       kind: 'retired',
       at: new Date().toISOString(),
-      reason: 'its worktree is gone; a new lane starts at the same path',
+      reason,
     });
+}
+
+/** A lane dropped before its removal wrote `retired`: retires it so a new lane may start at the same path. */
+export function retireGoneLane(main: string, worktree: string): void {
+  retireLane(
+    main,
+    worktree,
+    'its worktree is gone; a new lane starts at the same path',
+  );
 }
 
 /** Retired manifests whose retirement is older than RETIRED_KEEP_MS: what `krn prune` deletes; live ones never. */

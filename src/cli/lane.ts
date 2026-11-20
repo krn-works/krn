@@ -13,7 +13,12 @@ import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
-import { createManifest, newLaneId, retireGoneLane } from '../lane/manifest.ts';
+import {
+  createManifest,
+  newLaneId,
+  retireGoneLane,
+  retireLane,
+} from '../lane/manifest.ts';
 import {
   type Lane,
   readLane,
@@ -288,6 +293,7 @@ export function pruneMergedLanes(
         },
       });
       if (!removal.removed) continue;
+      retireLane(main, path, 'pruned: its ship merged');
     } else gitRun(main, ['branch', '-D', branch]);
     removed.push(branch);
     process.stderr.write(
@@ -496,6 +502,7 @@ export async function dropLane(rest: string[]): Promise<string> {
       released.push(id);
     }
     git(main, ['worktree', 'remove', '--force', path]);
+    retireLane(main, path, 'dropped by krn lane drop');
   }
   if (hasBranch) git(main, ['branch', '-D', slug]);
   return `dropped lane ${slug}${released.length === 0 ? '' : ` (released ${released.join(', ')})`}`;

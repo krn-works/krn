@@ -8,7 +8,7 @@
 // - D3: a worker with no commit stops on another lane's ship record or merged sha (step 4).
 // - D7: `krn lane drop` refuses a lane whose only task change is a staged deletion (step 2b).
 // - D8: dep on a published record with a pending edit; a start whose task depends on a pending record (2a).
-// - The manifest phase after ship (step 5) and drop (t-91n0383 retire path): those snapshots omit manifests.
+// - The manifest phase after ship (step 5): that snapshot omits manifests; drop retires the manifest.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -108,7 +108,7 @@ function snapshot(repo: string): Stores {
   files('tasks', join(repo, 'tasks'));
   files('claims', join(repo, '.krn', 'task-claims'));
   files('ship', join(repo, '.krn', 'runs', 'ship'));
-  files('manifests', join(repo, '.krn', 'runs', 'lanes'));
+  files('manifests', join(repo, '.krn', 'runs', 'lane-manifests'));
   const pending = spawnSync(
     'git',
     ['-C', repo, 'ls-tree', '-r', 'refs/krn/pending-tasks'],
@@ -386,10 +386,13 @@ test('one lane walks every verb and each changes only its own stores', async (t)
   await t.test(
     'drop releases the claim, removes worktree and branch',
     async () => {
-      const touched = await verb(() => dropLane([slug, '--root', repo]), {
-        manifests: false,
-      });
-      assert.deepEqual(touched, ['branches', 'claims', 'worktrees']);
+      const touched = await verb(() => dropLane([slug, '--root', repo]));
+      assert.deepEqual(touched, [
+        'branches',
+        'claims',
+        'manifests',
+        'worktrees',
+      ]);
       assert.equal(existsSync(worktree), false);
       assert.equal(
         git(repo, 'branch', '--list', slug),
