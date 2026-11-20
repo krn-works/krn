@@ -14,6 +14,7 @@ import {
 } from '../../evals/replay/abc.ts';
 import type { ArmId } from '../../evals/replay/arms.ts';
 import type { Row } from '../../evals/replay/rows.ts';
+import { inputOnly } from './token-fixture.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -40,6 +41,7 @@ const complete = (): Row[] =>
         rep,
         pass: arm === 'C' ? rep === 1 : rep === 2,
         cost: 0.5,
+        tokens: inputOnly(0.5),
         harness: 'a1',
         model: 'sonnet',
       })),
@@ -62,6 +64,8 @@ const prereg = [
   'model: sonnet',
   'harness-sha: a1',
   'mde-pp: 15',
+  'cost-prices: input 2, output 10, cache-read 0.1, cache-write-5m 2.5, cache-write-1h 4',
+  'cost-sensitivity: input 2, output 10, cache-read 2, cache-write-5m 2, cache-write-1h 2',
   '## Units',
   '- t-aa',
   '- t-bb',
@@ -146,7 +150,7 @@ test('a duplicate, ungraded or mixed-model cell is a problem', () => {
 });
 
 test('an unknown cost stays null, is reported and never counts as zero dollars', () => {
-  const rows = complete().map((r, i) => (i === 0 ? { ...r, cost: null } : r));
+  const rows = complete().map((r, i) => (i === 0 ? { ...r, tokens: null } : r));
   const report = analyze(rows, frozen);
   assert.deepEqual(report.unknownCost, { A: 1, B: 0, C: 0 });
   assert.match(reportLines(report, frozen).join('\n'), /unknown cost A 1/);

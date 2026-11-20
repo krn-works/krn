@@ -1,0 +1,9 @@
+{
+  "text": "A test of how code combines a receiver's output feeds it the receiver's verbatim captures, never synthetic values that restate the code's own assumption about that output.",
+  "kind": "prose",
+  "evidence": [
+    "test/fixtures/replay/claude-resume.jsonl",
+    "evals/replay/arm-session.ts"
+  ],
+  "recorded_at": "2026-11-20"
+}

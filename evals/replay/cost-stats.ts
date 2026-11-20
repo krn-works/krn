@@ -2,14 +2,32 @@
 // task. Pure and deterministic; the paired log-ratio CI comes from pairedDifference in the d23 analysis.
 import type { ArmId } from './arms.ts';
 import type { Row } from './rows.ts';
+import { LIST_PRICES, type PriceVector, tokenCost } from './token-cost.ts';
 
 export interface Interval {
   low: number;
   high: number;
 }
 
-/** The one reader of a row's session cost in USD (total_cost_usd); undefined when unknown, never 0. */
-export const rowCost = (r: Row): number | undefined => r.cost ?? undefined;
+/**
+ * The one reader of a row's session cost in USD: its tokens priced at `prices` (the preregistered `cost-prices` vector
+ * by default); undefined when the row records no tokens, never 0. The reported total_cost_usd is not read here.
+ */
+export const rowCost = (
+  r: Row,
+  prices: PriceVector = LIST_PRICES,
+): number | undefined => {
+  const t = r.tokens;
+  if (t === null || t === undefined) return undefined;
+  // A record that lacks a counter, or holds one that is not a finite non-negative number, is malformed, never a price.
+  for (const k of Object.keys(prices) as (keyof PriceVector)[]) {
+    const n: unknown = t[k];
+    if (!(typeof n === 'number' && Number.isFinite(n) && n >= 0))
+      return undefined;
+  }
+  const usd = tokenCost(t, prices);
+  return Number.isFinite(usd) ? usd : undefined;
+};
 
 export const BOOTSTRAP_RESAMPLES = 2000;
 const SEED = 0x2545f491;
@@ -35,6 +53,7 @@ export function usdPerResolvedCi(
   spent: Row[],
   graded: Row[],
   arm: ArmId,
+  prices: PriceVector = LIST_PRICES,
 ): Interval | null {
   const per = new Map<string, { usd: number; passes: number }>();
   const cell = (unit: string) => {
@@ -42,7 +61,8 @@ export function usdPerResolvedCi(
     per.set(unit, c);
     return c;
   };
-  for (const r of spent) if (r.arm === arm) cell(r.unit).usd += rowCost(r) ?? 0;
+  for (const r of spent)
+    if (r.arm === arm) cell(r.unit).usd += rowCost(r, prices) ?? 0;
   for (const r of graded) if (r.arm === arm && r.pass) cell(r.unit).passes += 1;
   const cells = [...per.keys()]
     .sort()

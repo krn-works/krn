@@ -17,6 +17,7 @@ import type { ArmId } from '../../evals/replay/arms.ts';
 import type { Row } from '../../evals/replay/rows.ts';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
 import { loadUnits } from '../../evals/units/unit.ts';
+import { inputOnly } from './token-fixture.ts';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const prereg = join(repo, 'evals/replay/abc.prereg.md');
@@ -32,6 +33,7 @@ const reps = (unit: string, arm: ArmId, passes: number, cost: number): Row[] =>
     rep,
     pass: rep <= passes,
     cost,
+    tokens: inputOnly(cost),
     harness: 'h',
   }));
 
@@ -228,7 +230,7 @@ test('strict matrix refuses a uniform wrong harness sha or an unpinned or unknow
 
 test('parsePrereg reads the pinned model families and the frozen harness sha', () => {
   const p = parsePrereg(
-    'reps: 1\nalpha: 0.05\nmde-pp: 15\ncontrasts: C-A\nmodel: sonnet (fallback opus, as x sets it)\nharness-sha: 0123abcd\n- t-1\n',
+    'reps: 1\nalpha: 0.05\nmde-pp: 15\ncontrasts: C-A\nmodel: sonnet (fallback opus, as x sets it)\nharness-sha: 0123abcd\ncost-prices: input 2, output 10, cache-read 0.1, cache-write-5m 2.5, cache-write-1h 4\ncost-sensitivity: input 2, output 10, cache-read 2, cache-write-5m 2, cache-write-1h 2\n- t-1\n',
   );
   assert.deepEqual(p.models, ['sonnet', 'opus']);
   assert.equal(p.harness, '0123abcd');
@@ -236,15 +238,15 @@ test('parsePrereg reads the pinned model families and the frozen harness sha', (
 
 /** Verbatim rows as the matrix runner writes them (one JSON object per line), with the regression flag the grader sets. */
 const verbatim = [
-  '{"unit":"t-1","arm":"A","rep":1,"pass":true,"cost":0.8,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
-  '{"unit":"t-1","arm":"B","rep":1,"pass":true,"cost":0.7,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
-  '{"unit":"t-1","arm":"C","rep":1,"pass":true,"cost":0.4,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
-  '{"unit":"t-2","arm":"A","rep":1,"pass":true,"cost":0.9,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":true}',
-  '{"unit":"t-2","arm":"B","rep":1,"pass":false,"cost":0.9,"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
-  '{"unit":"t-2","arm":"C","rep":1,"pass":true,"cost":0.5,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
-  '{"unit":"t-3","arm":"A","rep":1,"pass":false,"cost":0.6,"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
-  '{"unit":"t-3","arm":"B","rep":1,"pass":true,"cost":0.6,"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
-  '{"unit":"t-3","arm":"C","rep":1,"pass":true,"cost":0.3,"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-1","arm":"A","rep":1,"pass":true,"cost":0.8,"tokens":{"input":400000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
+  '{"unit":"t-1","arm":"B","rep":1,"pass":true,"cost":0.7,"tokens":{"input":350000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-1","arm":"C","rep":1,"pass":true,"cost":0.4,"tokens":{"input":200000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-2","arm":"A","rep":1,"pass":true,"cost":0.9,"tokens":{"input":450000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":true}',
+  '{"unit":"t-2","arm":"B","rep":1,"pass":false,"cost":0.9,"tokens":{"input":450000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
+  '{"unit":"t-2","arm":"C","rep":1,"pass":true,"cost":0.5,"tokens":{"input":250000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
+  '{"unit":"t-3","arm":"A","rep":1,"pass":false,"cost":0.6,"tokens":{"input":300000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"fail","regressed":false}',
+  '{"unit":"t-3","arm":"B","rep":1,"pass":true,"cost":0.6,"tokens":{"input":300000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","regressed":false}',
+  '{"unit":"t-3","arm":"C","rep":1,"pass":true,"cost":0.3,"tokens":{"input":150000,"output":0,"cacheRead":0,"cacheWrite5m":0,"cacheWrite1h":0},"harness":"h","model":"claude-sonnet-4","verdict":"pass","injection":900,"regressed":false}',
 ].map((l) => JSON.parse(l) as Row);
 
 const threeUnits: Prereg = { ...frozen, units: ['t-1', 't-2', 't-3'], reps: 1 };
