@@ -2022,3 +2022,63 @@ test('pythonAssertionFailures reads unittest FAIL and pytest assertion lines, no
     'tests/test_app.py::test_d',
   ]);
 });
+
+// KRN-12: the 502 text is the stderr shape gh prints for a gateway answer (`gh: <message> (HTTP 502)`).
+for (const status of ['502', '429']) {
+  test(`ship retries a gh pr view that answers HTTP ${status} while it waits and merges`, async () => {
+    const r = receiver({ pulls: [auto, merged] });
+    const { rest, asked } = flakyView(r, {
+      times: 2,
+      stderr: `gh: Server Error (HTTP ${status})\n`,
+    });
+    const out = await shipCommand(args, rest);
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+    assert.ok(asked.length >= 3);
+  });
+}
+
+test('a gh pr view that keeps answering HTTP 502 stops after the retry budget with the receiver stderr', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const stderr = 'gh: Server Error (HTTP 502)\n';
+  const { rest } = flakyView(r, { times: 999, stderr });
+  await assert.rejects(shipCommand(args, rest), (e: Error) => {
+    assert.equal(e.message, stderr);
+    return true;
+  });
+});
+
+test('a merged ship prints its verdict even when the cleanup after the merge throws', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const out = await shipCommand([...args, '--drop'], {
+    ...r,
+    worktreeUsers: () => {
+      throw new Error('ps unavailable');
+    },
+  });
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.match(out, /^warning: ps unavailable$/mu);
+  assert.ok(out.indexOf('verdict: merged') < out.indexOf('warning:'));
+});
+
+test('the task named in the title wins over KRN_TASK for the claim release', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  const asked: string[] = [];
+  const before = process.env.KRN_TASK;
+  process.env.KRN_TASK = 't-zzzzzzz';
+  try {
+    await shipCommand(args, {
+      ...r,
+      releaseClaim: (_m, _w, task) => asked.push(task),
+    });
+  } finally {
+    if (before === undefined) delete process.env.KRN_TASK;
+    else process.env.KRN_TASK = before;
+  }
+  assert.deepEqual(asked, ['t-3ag9eqn']);
+});
+
+test('the usage text states exits 69 and 70', async () => {
+  const { shipUsage } = await import('../../src/ci/ship.ts');
+  assert.match(shipUsage, /\b70 /u);
+  assert.match(shipUsage, /\b69 /u);
+});

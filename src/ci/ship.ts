@@ -31,7 +31,7 @@ import {
 } from './test-failures.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 65 the body file lacks `## Why`, `## Verified` or a Ticket/Refs line, or the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 70 a push refused, or any other failure the message names (a gh call GitHub answered with an error, a PR url missing), 69 the Check never started within 300s of the push or branch update, 65 the body file lacks `## Why`, `## Verified` or a Ticket/Refs line, or the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -62,6 +62,9 @@ const networkBudgetMs = 300_000;
  */
 export const answeredFailure = (stderr: string) =>
   /\bHTTP [1-5]\d\d\b|\bGraphQL: |head branch was modified/iu.test(stderr);
+/** An answer that says "try again": rate limit or a gateway error. A read is repeated; a merge or create is not. */
+export const transientFailure = (stderr: string) =>
+  /\bHTTP (?:429|502|503|504)\b/u.test(stderr);
 const pollMs = 10_000;
 const gateTimeoutMs = 1_800_000;
 const startTimeoutMs = 300_000;
@@ -219,7 +222,7 @@ async function shipRun(
     runtime.gh ??
     (async (a) => {
       // `pr create` is not idempotent: a lost reply could hide a created PR, so its caller looks first.
-      const once = a[0] === 'pr' && a[1] === 'create';
+      const once = a[0] === 'pr' && (a[1] === 'create' || a[1] === 'merge');
       let waited = 0;
       for (let attempt = 1; ; attempt += 1) {
         const result = scoped('gh', a, cwd, undefined, ghTimeoutMs);
@@ -227,7 +230,11 @@ async function shipRun(
         const spent = afterPush
           ? waited >= networkBudgetMs
           : attempt >= networkTries;
-        if (once || spent || answeredFailure(result.stderr))
+        if (
+          once ||
+          spent ||
+          (answeredFailure(result.stderr) && !transientFailure(result.stderr))
+        )
           throw new CommandFailure(result);
         const pause = Math.min(
           networkBackoffMs * 2 ** (attempt - 1),
@@ -302,8 +309,9 @@ async function shipRun(
       ? `main sync: fast-forwarded to origin/${target}`
       : `main sync: warning, not fast-forwarded: ${(moved.stderr.trim().split('\n')[0] ?? '').trim()}`;
   };
+  // The title names the task the PR carries; the environment only fills in when the title names none.
   const task =
-    process.env.KRN_TASK ?? /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1];
+    /\((t-[a-z0-9]{7})\)\s*$/u.exec(title)?.[1] ?? process.env.KRN_TASK;
   // The lane ends here. With --drop (the lead's ship) the worktree and branch go once no other process
   // works inside them; a lane agent's ship keeps them, since its session may still run steps there
   // that no process cwd reveals, and the next `krn lane start` prunes them. The PR is merged by now:
@@ -716,7 +724,10 @@ ${synced}`;
       }
       pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
       if (!Number.isInteger(pr))
-        throw new Error(`gh pr create printed no PR url: ${created.trim()}`);
+        throw Object.assign(
+          new Error(`gh pr create printed no PR url: ${created.trim()}`),
+          { exitCode: 70 },
+        );
     }
   } else {
     await gh([
@@ -865,15 +876,26 @@ ${synced}`;
       pr,
       (await view().catch(() => undefined))?.statusCheckRollup ?? [],
     );
-    lines.push(
-      ...refreshAfterMerge(
+    // The PR is merged: the verdict goes first, and a release or cleanup that throws is a warning line.
+    lines.push(`verdict: merged ${outcome.merged}`);
+    const after = (step: () => string | string[]) => {
+      try {
+        const out = step();
+        lines.push(...(typeof out === 'string' ? [out] : out));
+      } catch (error) {
+        lines.push(
+          `warning: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    };
+    after(() =>
+      refreshAfterMerge(
         ownsProductRelease(worktree)
           ? () => runner('bash', [releaseScript], worktree)
           : undefined,
       ),
-      `verdict: merged ${outcome.merged}`,
-      cleanup(outcome.merged),
     );
+    after(() => cleanup(outcome.merged));
     return lines.join('\n');
   }
   throw Object.assign(new Error(lines.join('\n')), {
