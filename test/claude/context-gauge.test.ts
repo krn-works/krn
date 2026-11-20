@@ -85,12 +85,12 @@ test('gauge places its advisories and ceiling at fractions of the global window'
   const { advisoriesOf, ceilingOf } = await import(gaugeModule);
   assert.deepEqual(advisoriesOf(400000), { first: 200000, second: 250000 });
   assert.equal(ceilingOf(400000), 300000);
-  assert.deepEqual(advisoriesOf(600000), { first: 266666, second: 333333 });
+  assert.deepEqual(advisoriesOf(600000), { first: 350000, second: 375000 });
   assert.equal(ceilingOf(600000), 400000);
   // The operator's 1M window keeps the relay ceiling at 400k.
-  assert.deepEqual(advisoriesOf(1000000), { first: 266666, second: 333333 });
+  assert.deepEqual(advisoriesOf(1000000), { first: 350000, second: 375000 });
   assert.equal(ceilingOf(1000000), 400000);
-  // A 1M global window and no project window: the gauge advises at 2/3 of the 400k ceiling.
+  // A 1M global window and no project window: the gauge advises at 7/8 of the 400k ceiling.
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
   const run = (total: number) => {
     const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
@@ -119,10 +119,10 @@ test('gauge places its advisories and ceiling at fractions of the global window'
       join(root, 'user/settings.json'),
       JSON.stringify({ autoCompactWindow: 1000000 }),
     );
-    assert.equal(run(266000), '');
+    assert.equal(run(349000), '');
     assert.match(
-      run(268000),
-      /Context at 268k of 1000k\. Finish the current step, then run delivery-handoff\./u,
+      run(351000),
+      /Context at 351k of 1000k\. Finish the current step, then run delivery-handoff\./u,
     );
     // The environment variable outranks every settings file, as in Claude Code.
     process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = '300000';
