@@ -8,6 +8,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { z } from 'zod';
@@ -52,7 +53,11 @@ import {
   releaseClaim,
 } from '../task/claims.ts';
 import { taskFile } from '../task/paths.ts';
-import { takePendingTask } from '../task/pending.ts';
+import {
+  addPendingTask,
+  pendingTaskFiles,
+  takePendingTask,
+} from '../task/pending.ts';
 import { isTaskId } from '../task/record.ts';
 import { readTask, repositoryRoot } from '../task/store.ts';
 import { gitWith } from './git-with.ts';
@@ -471,6 +476,10 @@ export async function dropLane(rest: string[]): Promise<string> {
   if (slug === undefined || !/^[a-z0-9][a-z0-9._-]*$/u.test(slug))
     throw new CliUsageError(`krn lane drop needs a lane slug\n${laneUsage}`);
   const main = mainCheckoutRoot(repositoryRoot(root ?? process.cwd()));
+  if (slug === contractBase(main))
+    throw new CliUsageError(
+      `${slug} is the base branch, not a lane; krn lane drop never deletes it`,
+    );
   const path = join(main, '.krn', 'worktrees', slug);
   const hasBranch = gitOk(main, [
     'show-ref',
@@ -571,6 +580,25 @@ export async function checkLaneCeiling(
     );
 }
 
+/** Moves a pending record into the checkout; `restore` puts the pending ref and the checkout back as they were. */
+function takePending(
+  origin: string,
+  task: string,
+): { restore: () => void } | undefined {
+  const contents = pendingTaskFiles(origin).get(task);
+  if (contents === undefined) return undefined;
+  const file = join(origin, taskFile(task));
+  const before = existsSync(file) ? readFileSync(file) : undefined;
+  takePendingTask(origin, task);
+  return {
+    restore: () => {
+      if (before === undefined) rmSync(file, { force: true });
+      else writeFileSync(file, before);
+      addPendingTask(origin, task, contents.toString());
+    },
+  };
+}
+
 export async function startLane(
   rest: string[],
   deps: LaneDeps = {},
@@ -639,42 +667,48 @@ export async function startLane(
   // A temporary refusal comes after every configuration error, so a retry is never wasted on one.
   checkLaneCapacity(slug, deps.capacity);
   // A record pending on the publish ref moves into the checkout, then into the lane like any untracked one.
-  if (task !== undefined) takePendingTask(origin, task);
-  const carried =
-    task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
-  // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
-  // the shared git dir, so any config write (upstream tracking) fails while a lane runs.
+  const taken = task === undefined ? undefined : takePending(origin, task);
   try {
-    addLaneWorktree(main, slug, path, base);
-  } catch (error) {
-    // git creates the branch before the worktree directory; a failed add would leave it behind
-    // and every retry would refuse with "branch already exists".
-    gitOk(main, ['worktree', 'prune']);
-    gitOk(main, ['branch', '-D', slug]);
-    throw error;
-  }
-  if (task !== undefined) {
+    const carried =
+      task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
+    // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
+    // the shared git dir, so any config write (upstream tracking) fails while a lane runs.
     try {
-      const copied =
-        carried !== undefined && carryTaskRecord(carried, path, task);
-      // A further lane of the same actor shares the claim it already holds: the claim stays held once.
-      const held = inspectClaim(main, task);
-      const shared = held.state === 'live' && held.claim?.actor === actor;
-      if (!shared)
-        await claimTask(main, task, {
-          actor,
-          worktree: path,
-          reason: reason ?? `lane ${slug}`,
-        });
-      if (copied && carried !== undefined) {
-        if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
-        else rmSync(carried.file);
-      }
+      addLaneWorktree(main, slug, path, base);
     } catch (error) {
-      git(main, ['worktree', 'remove', '--force', path]);
-      git(main, ['branch', '-D', slug]);
+      // git creates the branch before the worktree directory; a failed add would leave it behind
+      // and every retry would refuse with "branch already exists".
+      gitOk(main, ['worktree', 'prune']);
+      gitOk(main, ['branch', '-D', slug]);
       throw error;
     }
+    if (task !== undefined) {
+      try {
+        const copied =
+          carried !== undefined && carryTaskRecord(carried, path, task);
+        // A further lane of the same actor shares the claim it already holds: the claim stays held once.
+        const held = inspectClaim(main, task);
+        const shared = held.state === 'live' && held.claim?.actor === actor;
+        if (!shared)
+          await claimTask(main, task, {
+            actor,
+            worktree: path,
+            reason: reason ?? `lane ${slug}`,
+          });
+        if (copied && carried !== undefined) {
+          if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
+          else rmSync(carried.file);
+        }
+      } catch (error) {
+        git(main, ['worktree', 'remove', '--force', path]);
+        git(main, ['branch', '-D', slug]);
+        throw error;
+      }
+    }
+    return { path: realpathSync(path), slug };
+  } catch (error) {
+    // A refused start leaves the record where it waited: back on the pending ref, the checkout clean.
+    taken?.restore();
+    throw error;
   }
-  return { path: realpathSync(path), slug };
 }
