@@ -398,3 +398,20 @@ test('a quoted test filter and a dotted watch script are gated like any test run
   assert.ok(verdict('npm run test:watch.dev')?.rewrite);
   assert.ok(verdict('npm run test:watch.js')?.rewrite);
 });
+
+test('a heavy step guarded by a failed condition does not take the independent step after a semicolon into its run', () => {
+  const prelude =
+    'npm() { printf \'%s\\n\' ran; }\nexport -f npm\ngate() { shift 4; "$@"; }\n';
+  const run = (line: string) =>
+    spawnSync('bash', ['-c', prelude + line], { encoding: 'utf8' });
+  for (const command of [
+    'false && npm test -- --watch; npm test -- --watch',
+    'false && npm test; npm test',
+    'false || true && npm test && npm test\nnpm test',
+  ]) {
+    const original = run(command);
+    const rewritten = run(gated(command, 1000, 'gate'));
+    assert.equal(rewritten.stdout, original.stdout, command);
+    assert.equal(rewritten.status, original.status, command);
+  }
+});

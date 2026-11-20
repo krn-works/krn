@@ -316,7 +316,17 @@ export function gated(
     if (!isHeavy(step.text, extra)) return;
     const last = runs.at(-1);
     // A background `&` ends a run: the gate would not wait for the job it puts in the background.
-    if (last?.to === at - 1 && list[at - 1]?.op !== '&') last.to = at;
+    // A run behind `&&` or `||` runs only on that condition: a `;` or newline inside it would put the
+    // independent step after it under the same condition.
+    const prior = last === undefined ? undefined : list[last.from - 1]?.op;
+    const guarded = prior === '&&' || prior === '||';
+    const joint = list[at - 1]?.op;
+    if (
+      last?.to === at - 1 &&
+      joint !== '&' &&
+      !(guarded && (joint === ';' || joint === '\n'))
+    )
+      last.to = at;
     else runs.push({ from: at, to: at });
   });
   const lastRun = runs.at(-1)?.from ?? 0;
