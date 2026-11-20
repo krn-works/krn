@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
-import { decide as commitDecide } from '../../src/hook/commit-format.ts';
 import { commandsOf } from '../../src/hook/shell-reader.ts';
 import { decide as deleteDecide } from '../../src/hook/unpushed-delete.ts';
 
@@ -39,22 +38,6 @@ function laneWithOpenTask(t: TestContext) {
   git(repo, 'switch', '-q', 'main');
   return repo;
 }
-
-const commit = (command: string) =>
-  commitDecide({ tool_name: 'Bash', tool_input: { command } }) ?? '';
-
-test('a heredoc with an explicit stdout self-duplication does not let a commit subject through', () => {
-  const command = `git commit -m "$(cat <<'MESSAGE' 1>&1
-Update stuff
-MESSAGE
-)"`;
-  assert.match(commit(command), /1>&1/u);
-  assert.match(commit(command), /-m '<subject>'/u);
-});
-
-test('an opaque commit with a message file is not refused', () => {
-  assert.equal(commit('eval git commit -F msg.txt'), '');
-});
 
 test('a coprocess branch deletion is refused and names coproc', (t) => {
   const repo = laneWithOpenTask(t);

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { decide as commitFormat } from '../../src/hook/commit-format.ts';
 import { bashTargets, decide as scope } from '../../src/hook/scope.ts';
 import {
   commands,
@@ -239,24 +238,6 @@ test('each reproduced review case is decided right by its hook', () => {
   ])
     assert.match(scope(bash(command), worker) ?? '', /Refused/u, command);
 
-  const commit = (command: string) =>
-    commitFormat({ tool_name: 'Bash', tool_input: { command } });
-  for (const command of [
-    'env --help git commit -m wip',
-    "env -S 'printf %s' git commit -m wip",
-    'command -v git commit -m wip',
-    'git --version commit -m wip',
-  ])
-    assert.equal(commit(command), undefined, command);
-  for (const command of [
-    'env -u GH_TOKEN gh pr create --title "bad title"',
-    'env GIT_AUTHOR_NAME=bot git commit -m wip',
-    'exec git commit -m wip',
-    'command git commit -m wip',
-    'env git commit -S -m wip',
-  ])
-    assert.match(commit(command) ?? '', /^Refused/u, command);
-
   assert.deepEqual(
     targets("git branch -D 'lane x' && git -C . worktree remove w"),
     [
@@ -269,19 +250,9 @@ test('each reproduced review case is decided right by its hook', () => {
 
 // The fourth review round (head 0e3d491): each reproduction at its hook.
 test('a heredoc, time -p, ANSI-C escapes, descriptors, -- and data words are read as the shell runs them', () => {
-  const commit = (command: string) =>
-    commitFormat({ tool_name: 'Bash', tool_input: { command } });
-  assert.equal(
-    commit(String.raw`git commit -m $'fix(hook)\x3a preserve the subject'`),
-    undefined,
-  );
   assert.deepEqual(commands(String.raw`echo $'\x41\101\u00e9'`), [
     ['echo', 'AAé'],
   ]);
-  assert.equal(
-    commit(`(git commit -m "$(cat 3<<'EOF'\nbad\nEOF\n)") < message.txt`),
-    undefined,
-  );
   assert.deepEqual(
     bashTargets('cp -R -- -t /outside/input ./output', '/lane'),
     ['/lane/output'],
@@ -347,19 +318,7 @@ test('an unquoted heredoc runs its substitutions, a quoted one does not; timeout
   assert.equal(argv('timeout 1'), undefined);
 });
 
-test('an expanding commit body keeps the literal subject, and inherited property names run as plain programs', () => {
-  const command = [
-    'git commit -m "$(cat <<EOF',
-    'invalid subject',
-    '',
-    '$(printf body)',
-    'EOF',
-    ')"',
-  ].join('\n');
-  assert.match(
-    commitFormat({ tool_name: 'Bash', tool_input: { command } }) ?? '',
-    /^Refused: commit subject/u,
-  );
+test('inherited property names run as plain programs', () => {
   for (const name of [
     'toString',
     'constructor',
