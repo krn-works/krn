@@ -177,6 +177,12 @@ function stripHeredocs(command: string): string {
   return kept.join('\n');
 }
 
+/** Stand-ins for a quoted parenthesis, which is text, not a subshell; `unmaskParens` restores a path. */
+const PAREN_OPEN = '\u0001';
+const PAREN_CLOSE = '\u0002';
+const unmaskParens = (text: string): string =>
+  text.replaceAll(PAREN_OPEN, '(').replaceAll(PAREN_CLOSE, ')');
+
 /**
  * Neutralises shell operators inside quotes: `'<task-id>'` or `"a > b"` is text, not a redirect.
  * Quoted paths keep their characters, so a quoted redirect target still resolves.
@@ -185,7 +191,9 @@ function maskQuotes(command: string): string {
   return command.replace(/'[^']*'|"[^"]*"/gu, (quoted) =>
     quoted
       .slice(1, -1)
-      .replace(/[<>|;&()]/gu, '_')
+      .replace(/[<>|;&]/gu, '_')
+      .replace(/\(/gu, PAREN_OPEN)
+      .replace(/\)/gu, PAREN_CLOSE)
       .replace(/\s/gu, '_'),
   );
 }
@@ -240,7 +248,7 @@ export function bashTargets(
     if (/^(?:&&|\|\||[;\n&])$/u.test(segment)) continue;
     const cd = /^\s*(?:cd|pushd)\s+(?:--\s+)?([^\s|]+)\s*$/u.exec(segment);
     if (cd) {
-      const to = expandHome(cd[1] as string, home);
+      const to = expandHome(unmaskParens(cd[1] as string), home);
       // `cd -` and `cd $D` go where the hook cannot see: later relative targets stay opaque.
       dir =
         to === '-' || opaque(to) || opaque(dir)
@@ -249,7 +257,7 @@ export function bashTargets(
       continue;
     }
     for (const raw of segmentTargets(segment, redirectsOnly)) {
-      const target = expandHome(raw, home);
+      const target = expandHome(unmaskParens(raw), home);
       if (isDevice(target)) found.push(target);
       else if (opaque(target) || (opaque(dir) && !isAbsolute(target)))
         found.push(join(UNRESOLVED, target));
