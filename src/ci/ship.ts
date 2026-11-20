@@ -11,6 +11,7 @@ import {
   type CheckFact,
   isGreen,
   requiredContext,
+  requiredContexts,
   selectRequiredCheck,
   supersededByRerun,
 } from '../repo/required-check.ts';
@@ -285,6 +286,7 @@ async function shipRun(
     ).trim();
 
   // The gate judges the context the repository requires, and waits while that exact context is absent.
+  let refused: string | undefined;
   const requiredName = await (async () => {
     try {
       const branchBody = await gh(['api', `repos/${repo}/branches/${target}`]);
@@ -292,11 +294,16 @@ async function shipRun(
         'api',
         `repos/${repo}/rules/branches/${target}`,
       ]);
+      const required = requiredContexts(branchBody, rulesBody);
+      if (required.length > 1)
+        refused = `the repository requires ${required.length} GitHub Actions aggregates (${required.join(', ')}); the gate judges one context, so ship will not request a merge`;
       return requiredContext(branchBody, rulesBody);
     } catch {
       return REQUIRED_CHECK_NAME;
     }
   })();
+  if (refused !== undefined)
+    throw Object.assign(new Error(refused), { exitCode: 74 });
 
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
