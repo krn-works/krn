@@ -408,7 +408,14 @@ export function landing(target: string, cwd: string): string {
       continue;
     }
     const next = join(at, part);
-    const stat = lstatSync(next, { throwIfNoEntry: false });
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(next, { throwIfNoEntry: false });
+    } catch {
+      // A component the kernel cannot walk (a file used as a directory, no permission): the write
+      // lands nowhere the hook can check, so every guard that needs a landing refuses it.
+      return join(UNRESOLVED, target);
+    }
     if (!stat?.isSymbolicLink()) {
       at = next;
       continue;

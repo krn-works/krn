@@ -104,9 +104,8 @@ function program(words: readonly string[]): string {
 
 /** The programs of `command` as text; quoted text and heredoc bodies are data, not commands. */
 function programs(command: string): string[] {
-  // A quoted word is data (`-m "npm test"`, `--grep "dev"`): it stands as `""`, never as a program or flag.
   return commandsOf(command).map(({ words }) =>
-    program(words.map((word) => (word.quoted ? '""' : word.text))),
+    program(words.map((word) => word.text)),
   );
 }
 

@@ -174,9 +174,12 @@ test('wrappers resolve to the command that runs, or to none', () => {
     ['env --help git commit -m wip', undefined],
     ['env --he git commit -m wip', undefined],
     ['env --version git x', undefined],
-    ['env -S "printf %s" git x', undefined],
-    ['env -iS"printf %s" git x', undefined],
-    ['env --split-string=x git x', undefined],
+    ['env -S "printf %s" git x', ['printf', '%s', 'git', 'x']],
+    ['env -iS"printf %s" git x', ['printf', '%s', 'git', 'x']],
+    ['env --split-string=x git x', ['x', 'git', 'x']],
+    ["env -S 'git' branch -D lane", ['git', 'branch', '-D', 'lane']],
+    ["env -S '-i A=1 git' x", ['git', 'x']],
+    ['env -S "$CMD" git x', undefined],
     ['env --bogus git x', undefined],
     ['env -u', undefined],
     ['env A=1', undefined],
@@ -298,5 +301,26 @@ test('a heredoc, time -p, ANSI-C escapes, descriptors, -- and data words are rea
       name: 'lane',
       repository: ['--git-dir=/o.git', '-C', 'r'],
     },
+  ]);
+});
+
+// The fifth review round (head dadfe06): the guard-weakening and crashing reproductions.
+test('quoted assignments, exact heredoc delimiters, cp -t into a file and env -S keep every guard', () => {
+  assert.equal(isHeavy("NODE_OPTIONS='--no-warnings' npm test"), true);
+  assert.equal(isHeavy('cat <<EOF\n EOF\nnpm test\nEOF'), false);
+  assert.equal(isHeavy('cat <<-EOF\n\t\tEOF\nnpm test'), true);
+  assert.deepEqual(
+    bashTargets(['cat <<EOF', 'EOF ', '> harmless', 'EOF'].join('\n'), '/lane'),
+    [],
+  );
+  assert.doesNotThrow(() =>
+    bashTargets('cp -t package.json README.md', process.cwd()),
+  );
+  assert.match(
+    bashTargets('cp -t package.json README.md', process.cwd())[0] ?? '',
+    /^\/\$unresolved\//u,
+  );
+  assert.deepEqual(targets("env -S 'git' branch -D lane"), [
+    { kind: 'branch', name: 'lane' },
   ]);
 });

@@ -111,7 +111,7 @@ class Reader {
       else if (c === '\n') {
         this.i++;
         finish();
-        this.heredocs(nested);
+        this.heredocs();
       } else if (c === '#') {
         const eol = s.indexOf('\n', this.i);
         this.i = eol < 0 ? s.length : eol;
@@ -174,7 +174,7 @@ class Reader {
   }
 
   /** Heredoc bodies start on the line after their operator; each line is data up to its delimiter. */
-  private heredocs(nested: boolean): void {
+  private heredocs(): void {
     const s = this.s;
     for (const doc of this.pending.splice(0)) {
       const delimiter = doc.target.text;
@@ -183,19 +183,10 @@ class Reader {
         const eol = s.indexOf('\n', this.i);
         const end = eol < 0 ? s.length : eol;
         const line = s.slice(this.i, end);
+        // Bash ends the body only at a line that is exactly the delimiter; `<<-` strips leading tabs.
         const bare = doc.op === '<<-' ? line.replace(/^\t+/u, '') : line;
-        if (bare.trim() === delimiter) {
+        if (bare === delimiter) {
           this.i = eol < 0 ? s.length : eol + 1;
-          break;
-        }
-        // `EOF)` ends the heredoc and the `$(` that holds it on one line.
-        const lead = bare.length - bare.trimStart().length;
-        if (
-          nested &&
-          bare.trimStart().startsWith(delimiter) &&
-          /^\s*\)/u.test(bare.trimStart().slice(delimiter.length))
-        ) {
-          this.i += line.length - bare.length + lead + delimiter.length;
           break;
         }
         lines.push(line);
@@ -429,8 +420,9 @@ export interface Resolved {
 
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/u;
 
-type OptionKind = 'flag' | 'arg' | 'optional' | 'none';
-// GNU env 9 (`env --help`): `none` means no command runs (help, version) or the hook cannot see it (-S).
+type OptionKind = 'flag' | 'arg' | 'optional' | 'none' | 'split';
+// GNU env 9 (`env --help`): `none` means no command runs (help, version); `split` (-S) splits its value
+// into the words that follow, as env does.
 const ENV_LONG: Record<string, OptionKind> = {
   argv0: 'arg',
   'ignore-environment': 'flag',
@@ -438,7 +430,7 @@ const ENV_LONG: Record<string, OptionKind> = {
   null: 'flag',
   unset: 'arg',
   chdir: 'arg',
-  'split-string': 'none',
+  'split-string': 'split',
   'block-signal': 'optional',
   'default-signal': 'optional',
   'ignore-signal': 'optional',
@@ -453,7 +445,7 @@ const ENV_SHORT: Record<string, OptionKind> = {
   '0': 'flag',
   u: 'arg',
   C: 'arg',
-  S: 'none',
+  S: 'split',
   v: 'flag',
 };
 // bash `help command` and `help exec`: `command -v`/`-V` only describe the command.
@@ -477,7 +469,7 @@ function options(
   argv: readonly Word[],
   short: Record<string, OptionKind>,
   long: Record<string, OptionKind> = {},
-): { at: number; chdirs: Word[] } | undefined {
+): { at: number; chdirs: Word[]; split?: Word[] } | undefined {
   const chdirs: Word[] = [];
   let i = 1;
   while (i < argv.length) {
@@ -494,12 +486,13 @@ function options(
       if (kind === undefined || kind === 'none') return undefined;
       if (kind === 'flag' && eq >= 0) return undefined;
       let value: Word | undefined;
-      if (kind === 'arg') {
+      if (kind === 'arg' || kind === 'split') {
         if (eq < 0) i++;
         value = eq >= 0 ? { ...word, text: text.slice(eq + 1) } : argv[i];
         if (value === undefined) return undefined;
       }
       if (key === 'chdir' && value) chdirs.push(value);
+      if (kind === 'split') return splitString(argv, i, value as Word, chdirs);
       i++;
       continue;
     }
@@ -508,12 +501,13 @@ function options(
       const kind = short[letter];
       if (kind === undefined || kind === 'none' || kind === 'optional')
         return undefined;
-      if (kind === 'arg') {
+      if (kind === 'arg' || kind === 'split') {
         if (j + 1 === text.length) i++;
         const value =
           j + 1 < text.length ? { ...word, text: text.slice(j + 1) } : argv[i];
         if (value === undefined) return undefined;
         if (letter === 'C') chdirs.push(value);
+        if (kind === 'split') return splitString(argv, i, value, chdirs);
         break;
       }
     }
@@ -523,9 +517,29 @@ function options(
 }
 
 /**
+ * `env -S STRING` puts the words of STRING in its own place and reads options again: the result is
+ * `split` with argv[0] still env. A STRING the shell still expands names no command the hook can see.
+ */
+function splitString(
+  argv: readonly Word[],
+  at: number,
+  value: Word,
+  chdirs: Word[],
+): { at: number; chdirs: Word[]; split: Word[] } | undefined {
+  if (value.expands) return undefined;
+  const words = commandsOf(value.text)[0]?.words ?? [];
+  if (words.some((word) => word.expands)) return undefined;
+  return {
+    at: 0,
+    chdirs,
+    split: [argv[0] as Word, ...words, ...argv.slice(at + 1)],
+  };
+}
+
+/**
  * The command that runs after `VAR=value` prefixes and the env, command and exec wrappers, looped until
  * none is left; undefined when no command runs (an option that only prints, a wrapper with no command)
- * or the hook cannot see it (`env -S`).
+ * or the hook cannot see it (an `env -S` string the shell still expands).
  */
 export function resolveCommand(words: readonly Word[]): Resolved | undefined {
   let argv = words;
@@ -544,6 +558,11 @@ export function resolveCommand(words: readonly Word[]): Resolved | undefined {
             ? options(argv, EXEC_SHORT)
             : { at: 0, chdirs: [] };
     if (read === undefined) return undefined;
+    if (read.split) {
+      chdirs.push(...read.chdirs);
+      argv = read.split;
+      continue;
+    }
     if (read.at === 0) return argv.length > 0 ? { argv, chdirs } : undefined;
     chdirs.push(...read.chdirs);
     // A lone `-` after env's options means -i.
