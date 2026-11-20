@@ -18,7 +18,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: ['harness', 'repo', 'task'],
   state: [],
   ci: ['repo'],
-  // The lane lifecycle reader (ADR 0027); Stop imports it once it asks lane state instead of inferring it.
+  // The lane lifecycle reader (ADR 0028); Stop imports it once it asks lane state instead of inferring it.
   lane: ['repo'],
   adopt: ['brain', 'harness', 'task', 'repo'],
   repo: [],
@@ -207,7 +207,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
   bw: [],
   git: [
     'src/cli/doctor-claims.ts',
-    // The one reader of lane state (ADR 0027): ship records, the lane tip and the merge on the base.
+    // The one reader of lane state (ADR 0028): ship records, the lane tip and the merge on the base.
     'src/lane/state.ts',
     'src/repo/lane-removal.ts',
     'src/repo/test-slot.ts',
