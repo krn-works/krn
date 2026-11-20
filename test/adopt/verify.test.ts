@@ -470,3 +470,28 @@ test('worktreeDependencies runs the install when nothing links, and names a fail
     rmSync(tree, { recursive: true, force: true });
   }
 });
+
+test('worktreeDependencies installs when a tracked subpackage lacks node_modules despite a root link', () => {
+  const { root, tree } = dependencyTrees('.krn\nnode_modules\n');
+  mkdirSync(join(tree, 'packages', 'app'), { recursive: true });
+  writeFileSync(join(tree, 'packages', 'app', 'package.json'), '{}\n');
+  assert.equal(
+    spawnSync('git', ['-C', tree, 'add', '.'], { encoding: 'utf8' }).status,
+    0,
+  );
+  const ran: string[] = [];
+  try {
+    assert.equal(
+      worktreeDependencies(root, tree, 'npm ci', (command) => {
+        ran.push(command);
+        // The install runs on the tree's own directories, never through a link into the root.
+        assert.equal(existsSync(join(tree, 'node_modules')), false);
+        return { status: 0 };
+      }),
+      undefined,
+    );
+    assert.deepEqual(ran, ['npm ci']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

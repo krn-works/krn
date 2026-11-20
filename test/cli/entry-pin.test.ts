@@ -98,7 +98,7 @@ test('krn doctor reads the configured entry', async () => {
       cwd: work,
       encoding: 'utf8',
     }).trim();
-    const result = spawnSync(krn, ['doctor'], {
+    const result = spawnSync(krn, ['doctor', '--claim-hours', '1000000'], {
       encoding: 'utf8',
       env: {
         ...process.env,
@@ -106,7 +106,8 @@ test('krn doctor reads the configured entry', async () => {
         KRN_ADOPTED_REGISTRY: join(root, 'no-registry.json'),
       },
     });
-    assert.equal(result.status, 0, result.stderr);
+    // A live claim of the working checkout must not decide the entry check.
+    assert.equal(result.status, 0, result.stderr + result.stdout);
     assert.match(result.stdout, new RegExp(`^entry=${entry}$`, 'mu'));
     assert.match(result.stdout, /^status=fresh$/mu);
   } finally {

@@ -153,7 +153,7 @@ const SPAWN_CALL =
 function spawnsEntry(source: string): boolean {
   return CLI_SPAWN.test(source) && SPAWN_CALL.test(source);
 }
-const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?: )/u;
+const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?(?:: |,$))/mu;
 
 /** Repo modules reached from an entry through relative imports, transitively. */
 function importClosure(
@@ -269,14 +269,25 @@ export function cliCommandModules(
   const index = 'src/cli/index.ts';
   const file = join(root, index);
   if (!existsSync(file)) return modules;
-  for (const branch of readFileSync(file, 'utf8').split(
-    /(?=command === ')|(?=^ {2}'?[\w-]+'?: )/mu,
+  const source = readFileSync(file, 'utf8');
+  for (const branch of source.split(
+    /(?=command === ')|(?=^ {2}'?[\w-]+'?(?:: |,$))/mu,
   )) {
     const hit = ROUTE.exec(branch);
     const name = hit?.[1] ?? hit?.[2];
     if (name === undefined) continue;
     const closure = modules.get(name) ?? new Set<string>();
-    for (const entry of importedPaths(index, branch))
+    // A shorthand route (`task,`) stands for the handler function of that name declared above it.
+    const handler = new RegExp(
+      `^(?:async )?function ${name}\\([\\s\\S]*?^\\}$`,
+      'mu',
+    ).exec(source);
+    const body =
+      hit?.[2] !== undefined &&
+      /^ {2}'?[\w-]+'?,$/mu.test(branch.split('\n')[0] ?? '')
+        ? (handler?.[0] ?? '')
+        : branch;
+    for (const entry of importedPaths(index, body))
       for (const path of importClosure(root, entry, depth)) closure.add(path);
     modules.set(name, closure);
   }
