@@ -9,9 +9,11 @@ import {
 import { dirname, join } from 'node:path';
 import {
   ARCHIVE_AFTER_DAYS,
+  type ArchivedLine,
   archiveTexts,
   dueForArchive,
   findArchived,
+  readArchive,
 } from './archive.ts';
 import {
   addPendingTask,
@@ -63,6 +65,16 @@ export function locateTask(root: string, id: TaskId): LocatedTask {
   const archived = findArchived(root, id);
   if (archived !== undefined) return { where: 'archived', record: archived };
   return { where: 'absent' };
+}
+
+/** The pending ref's record texts by id: the versions that replace a `tasks/` copy of the same id. */
+export function pendingRecordTexts(root: string): Map<TaskId, Buffer> {
+  return pendingTaskFiles(root);
+}
+
+/** The archive's lines, the lowest precedence of `locateTask`. */
+export function archivedLines(root: string): ArchivedLine[] {
+  return readArchive(root);
 }
 
 /** Whether a record of `where` is written to the pending ref (a published record is, in the main checkout). */

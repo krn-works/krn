@@ -26,7 +26,10 @@ import {
 } from '../../src/task/storage.ts';
 import {
   changeDependency,
+  checkTaskDirectory,
   closeTask,
+  createTask,
+  dependentsOf,
   editTask,
   readTask,
 } from '../../src/task/store.ts';
@@ -316,5 +319,47 @@ test('archive of a worktree-only record moves it from the lane tasks/ and leaves
       TODAY,
     );
     assert.deepEqual(again.archived, []);
+  });
+});
+
+const after = (id: string, deps: string[]) =>
+  serializeTask({ ...(JSON.parse(mk(id, id)) as TaskRecord), after: deps });
+
+test('a pending dependency reversal replaces the tree edges, so the graph has no phantom cycle', () => {
+  withFixture((repo) => {
+    const [a, b] = ['t-aaaaaaa', 't-bbbbbbb'];
+    writeFileSync(join(repo, 'tasks', `${a}.json`), after(a as string, []));
+    writeFileSync(
+      join(repo, 'tasks', `${b}.json`),
+      after(b as string, [a as string]),
+    );
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-qm', 'seed');
+    git(repo, 'push', '-q', 'origin', 'main');
+    changeDependency(repo, b as string, a as string, 'rm');
+    changeDependency(repo, a as string, b as string, 'add');
+    assert.deepEqual(checkTaskDirectory(repo), []);
+  });
+});
+
+test('dependentsOf lists a pending dependent and drops a tree dependent whose pending version no longer depends', () => {
+  withFixture((repo) => {
+    const a = 't-aaaaaaa';
+    writeFileSync(join(repo, 'tasks', `${a}.json`), after(a, []));
+    writeFileSync(
+      join(repo, 'tasks', 't-ccccccc.json'),
+      after('t-ccccccc', [a]),
+    );
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-qm', 'seed');
+    git(repo, 'push', '-q', 'origin', 'main');
+    const created = createTask(
+      repo,
+      { title: 'B', after: [a], body: ['Outcome: o'] },
+      { pending: true },
+    );
+    assert.deepEqual(dependentsOf(repo, a), [created.id, 't-ccccccc'].sort());
+    changeDependency(repo, 't-ccccccc', a, 'rm');
+    assert.deepEqual(dependentsOf(repo, a), [created.id]);
   });
 });
