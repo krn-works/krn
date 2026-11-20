@@ -586,3 +586,24 @@ test('a quoted copy source with parentheses is not a write target', () => {
     undefined,
   );
 });
+
+test('a quoted cd into a worktree whose name has parentheses still writes that worktree', (t) => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-scope-paren-')));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const wt = join(base, 'lane(1)');
+  mkdirSync(join(wt, 'src'), { recursive: true });
+  const env = {
+    CLAUDE_PROJECT_DIR: wt,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_TASK: 't-abc1234',
+    KRN_SCOPE: 'src/',
+  };
+  const call = (command: string) =>
+    decide(
+      { cwd: base, tool_name: 'Bash', tool_input: { command } },
+      env,
+      'lane(1)',
+    );
+  assert.equal(call(`cd '${wt}' && echo ok > src/a.ts`), undefined);
+  assert.notEqual(call(`cd '${base}' && echo no > src/a.ts`), undefined);
+});
