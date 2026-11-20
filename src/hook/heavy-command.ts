@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { hookStdin } from '../harness/claude.ts';
 import { SLOT_HELD_ENV } from '../repo/host-gate.ts';
 import { executableText, shellWord } from '../repo/shell-text.ts';
-import { commands } from './commit-format.ts';
+import { commands } from './shell-reader.ts';
 
 /** Repositories (by directory name) whose commands are never gated. */
 export const DEFAULT_EXCLUDE = ['wilq-seo'];
@@ -25,7 +25,7 @@ export const gateEntry = fileURLToPath(
   new URL('../../bin/heavy-gate', import.meta.url),
 );
 
-const pkg = String.raw`(?:npm|pnpm|yarn|bun)`;
+const pkg = '(?:npm|pnpm|yarn|bun)';
 const heavyForms: RegExp[] = [
   new RegExp(String.raw`^${pkg} (?:test|t|install|i|ci|add)(?:\s|$)`, 'u'),
   new RegExp(

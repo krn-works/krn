@@ -3,6 +3,12 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { findArchived } from '../task/archive.ts';
+import {
+  commandsOf,
+  gitCall,
+  programName,
+  resolveCommand,
+} from './shell-reader.ts';
 
 // PreToolUse hook for Bash: refuses `git branch -D` and `git worktree remove` when the
 // branch tip is on no remote, names an open task in a `Ticket:` or `Refs:` trailer, and
@@ -14,22 +20,16 @@ import { findArchived } from '../task/archive.ts';
 
 type Target = { kind: 'branch' | 'worktree'; name: string };
 
-const words = (text: string) =>
-  text
-    .trim()
-    .split(/\s+/u)
-    .map((word) => word.replace(/^['"]|['"]$/gu, ''));
-
 export function targets(command: string): Target[] {
   const found: Target[] = [];
-  for (const part of command.split(/&&|\|\||;|\n|\|/u)) {
-    const argv = words(part);
-    const git = argv.indexOf('git');
-    if (git < 0) continue;
-    let rest = argv.slice(git + 1);
-    while (rest[0] === '-C' || rest[0] === '-c') rest = rest.slice(2);
-    const [verb, ...args] = rest;
-    if (verb === 'branch') {
+  for (const { words } of commandsOf(command)) {
+    const argv = resolveCommand(words)?.argv ?? [];
+    // A git run by another wrapper (`sudo git`, `xargs git`) deletes the same branch.
+    const at = argv.findIndex((word) => programName(word) === 'git');
+    const call = at < 0 ? undefined : gitCall(argv.slice(at));
+    if (call === undefined) continue;
+    const args = call.args.map((word) => word.text);
+    if (call.verb === 'branch') {
       const force =
         args.includes('-D') ||
         ((args.includes('-d') || args.includes('--delete')) &&
@@ -38,7 +38,7 @@ export function targets(command: string): Target[] {
       for (const name of args.filter((arg) => !arg.startsWith('-')))
         found.push({ kind: 'branch', name });
     }
-    if (verb === 'worktree' && args[0] === 'remove') {
+    if (call.verb === 'worktree' && args[0] === 'remove') {
       for (const name of args.slice(1).filter((arg) => !arg.startsWith('-')))
         found.push({ kind: 'worktree', name });
     }
