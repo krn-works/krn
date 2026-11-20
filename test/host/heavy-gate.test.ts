@@ -426,3 +426,20 @@ test('a lease gives the slot back while the work runs on, and the late release l
   await next;
   assert.equal(slotHolders(dir).length, 0);
 });
+
+test('a lease past the 32-bit timer limit keeps the slot instead of firing at once', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'heavy-lease-long-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let end: (() => void) | undefined;
+  const job = withSlot(
+    { dir, slots: 1, leaseMs: 2 ** 31 },
+    () => new Promise<void>((done) => (end = done)),
+  );
+  // Wait until the work runs: the slot exists a turn before withSlot calls it.
+  for (let i = 0; i < 100 && end === undefined; i += 1) await Promise.resolve();
+  t.mock.timers.tick(1000);
+  assert.equal(slotHolders(dir).length, 1, 'the slot is still held');
+  end?.();
+  await job;
+});

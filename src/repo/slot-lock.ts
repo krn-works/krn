@@ -35,6 +35,9 @@ export type SlotOptions = {
   onLease?: () => void;
 };
 
+/** The longest delay setTimeout honours; a larger one fires after 1 ms. */
+const MAX_TIMER_MS = 2 ** 31 - 1;
+
 /** Exit code a command uses when the slot wait ran past its deadline (the repository timeout code). */
 export const SLOT_TIMEOUT_EXIT = 75;
 
@@ -334,10 +337,14 @@ export async function withSlot<T>(
   const lease =
     options.leaseMs === undefined
       ? undefined
-      : setTimeout(() => {
-          release();
-          options.onLease?.();
-        }, options.leaseMs);
+      : setTimeout(
+          () => {
+            release();
+            options.onLease?.();
+          },
+          // setTimeout fires at once past its 32-bit limit: a longer lease is held to the limit (about 24.8 days).
+          Math.min(options.leaseMs, MAX_TIMER_MS),
+        );
   lease?.unref();
   try {
     return await work();

@@ -267,6 +267,11 @@ test('a command already gated, inside a slot or in a KRN checkout passes unchang
   const shop = repo('shop');
   assert.ok(exemption('heavy-gate run -- npm test', shop, {}));
   assert.ok(exemption(`'/a/bin/heavy-gate' run -- npm test`, shop, {}));
+  // A gate call beside an ungated heavy command exempts nothing.
+  assert.equal(
+    exemption('npm test && printf "%s\\n" "$(heavy-gate status)"', shop, {}),
+    undefined,
+  );
   assert.ok(exemption('npm test', shop, { KRN_TEST_SLOT_HELD: '1' }));
   assert.ok(exemption('npm test', join(repo('krn', true), 'sub'), {}));
   assert.equal(
