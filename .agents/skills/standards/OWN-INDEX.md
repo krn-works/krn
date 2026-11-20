@@ -9,7 +9,7 @@ s-ci-task-quality [tasks/**]: Task records pass every task-quality rule: a state
 s-ci-typecheck [**/*.ts+1]: The tree typechecks under tsc --noEmit; every tracked .ts file is reached by the tsconfig include globs
 s-ci-commit-title [scripts/commit-title.ts]: The PR title, which becomes the squash subject, reads `type(scope): outcome (t-id)`
 s-ci-weakened-tests [test/**]: A PR deletes no assertion, adds no skip, only or todo, and deletes no test file whose target stays, unless its body has a `Weakens-tests: <reason>` line
-s-ci-fix-churn [src/**+2]: A fix PR on a file fixed for 6+ tasks in 14 days, or of a task with 2 fixes after its feature, has `Root cause:` and `Redesign:` body lines
+s-ci-fix-churn [src/**+2]: A fix PR of a hot file or fix-chained task has `Root cause:` and `Redesign:` body lines
 s-ci-task-records [tasks/**]: A PR whose commits carry `Ticket: <id>` closes that task; work that leaves it open carries `Refs: <id>`
 s-ci-test-suite [test/**+1]: The full suite passes in every CI shard; a new test file under test/ mirrors its src area and uses node:test
 s-ci-agent-config-secrets [.claude/**+2]: Tracked agent config holds no token-shaped values

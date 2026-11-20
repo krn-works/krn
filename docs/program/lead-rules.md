@@ -41,7 +41,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 ## Fix chains and hot modules
 
 - A feature ships after one end-to-end run on its real receiver (KRN-12); that run's failures are fixed in one PR, not one PR each.
-- Before briefing a fix, run `node scripts/fix-churn.mjs --report`. A fix of a hot file or fix-chained task is briefed as a defect class (KRN-15) with the earlier fix subjects; a hot file without an open redesign task gets one (`krn task create --kind debt`) and the `architecture` skill.
+- Before briefing a fix, run `node scripts/fix-churn.ts --report`. A fix of a hot file or fix-chained task is briefed as a defect class (KRN-15) with the earlier fix subjects; a hot file without an open redesign task gets one (`krn task create --kind debt`) and the `architecture` skill.
 
 ## Parallel lanes
 

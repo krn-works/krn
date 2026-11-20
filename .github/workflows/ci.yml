@@ -109,7 +109,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: node scripts/fix-churn.mjs "$BASE" "$HEAD"
+        run: node scripts/fix-churn.ts "$BASE" "$HEAD"
 
       # A pull request whose commits carry `Ticket: <id>` must close that task;
       # work that leaves it open carries `Refs: <id>` (ADR 0015).

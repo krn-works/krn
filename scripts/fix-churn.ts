@@ -5,7 +5,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 /** Days of base history counted, ending at the base commit's own date. */
 export const WINDOW_DAYS = 14;
@@ -14,6 +13,10 @@ export const FILE_LIMIT = 6;
 /** Earlier fix commits of one task, after its first feat commit, that make it a fix chain. */
 export const TASK_LIMIT = 2;
 
+/** One commit of the base history: its subject and the files it touched. */
+export type Commit = { subject: string; files: string[] };
+type Git = (...args: string[]) => string;
+
 const SOURCE = /^(?:src|scripts|bin)\/.+\.(?:ts|mts|mjs|js|cjs)$/u;
 const TEST_FILE = /(?:^|\/)[^/]+\.test\.(?:ts|mts|mjs|js|cjs)$/u;
 const TASK_ID = /\((t-[a-z0-9]{7})\)\s*(?:\(#\d+\))?\s*$/u;
@@ -21,23 +24,25 @@ const ROOT_CAUSE = /^\s*Root cause:\s*\S.{9,}/imu;
 const REDESIGN = /^\s*Redesign:\s*(t-[a-z0-9]{7}|this PR)\b/imu;
 
 /** A source file whose fixes count: code under src, scripts or bin, never a test. */
-export const isSource = (path) => SOURCE.test(path) && !TEST_FILE.test(path);
+export const isSource = (path: string): boolean =>
+  SOURCE.test(path) && !TEST_FILE.test(path);
 
-const typeOf = (subject) => /^([a-z]+)(?:\([^)]*\))?!?:/u.exec(subject)?.[1];
-const taskOf = (subject) => TASK_ID.exec(subject)?.[1];
+const typeOf = (subject: string): string | undefined =>
+  /^([a-z]+)(?:\([^)]*\))?!?:/u.exec(subject)?.[1];
+const taskOf = (subject: string): string | undefined =>
+  TASK_ID.exec(subject)?.[1];
 /** How many distinct fixes the subjects hold: one per task id, one per subject without an id. */
-export const distinct = (subjects) =>
+export const distinct = (subjects: readonly string[]): number =>
   new Set(subjects.map((subject) => taskOf(subject) ?? subject)).size;
 
-/**
- * Hot files and fix-chained tasks of a history.
- * @param {{subject: string, files: string[]}[]} commits newest first, as git log prints them
- * @returns {{files: Map<string, string[]>, tasks: Map<string, string[]>}} the earlier fix subjects of each
- */
-export function churn(commits) {
-  const files = new Map();
-  const tasks = new Map();
-  const featured = new Set();
+/** Hot files and fix-chained tasks of a history given newest first, as git log prints it: the earlier fix subjects of each. */
+export function churn(commits: readonly Commit[]): {
+  files: Map<string, string[]>;
+  tasks: Map<string, string[]>;
+} {
+  const files = new Map<string, string[]>();
+  const tasks = new Map<string, string[]>();
+  const featured = new Set<string>();
   for (const commit of [...commits].reverse()) {
     const type = typeOf(commit.subject);
     const task = taskOf(commit.subject);
@@ -51,22 +56,29 @@ export function churn(commits) {
   return { files, tasks };
 }
 
-/**
- * The verdict for one PR.
- * @param {{title: string, body?: string, changed: string[], commits: {subject: string, files: string[]}[], taskExists?: (id: string) => boolean}} input
- * @returns {{ok: boolean, overridden: boolean, findings: string[], problems: string[]}}
- */
+/** The verdict for one PR. */
 export function checkFixChurn({
   title,
   body = '',
   changed,
   commits,
   taskExists = () => true,
-}) {
+}: {
+  title: string;
+  body?: string;
+  changed: readonly string[];
+  commits: readonly Commit[];
+  taskExists?: (id: string) => boolean;
+}): {
+  ok: boolean;
+  overridden: boolean;
+  findings: string[];
+  problems: string[];
+} {
   if (typeOf(title) !== 'fix')
     return { ok: true, overridden: false, findings: [], problems: [] };
   const history = churn(commits);
-  const findings = [];
+  const findings: string[] = [];
   for (const file of changed.filter(isSource)) {
     const earlier = history.files.get(file) ?? [];
     if (distinct(earlier) >= FILE_LIMIT)
@@ -82,17 +94,18 @@ export function checkFixChurn({
     );
   if (findings.length === 0)
     return { ok: true, overridden: false, findings, problems: [] };
-  const problems = [];
+  const problems: string[] = [];
   if (!ROOT_CAUSE.test(body))
     problems.push(
       'the body has no `Root cause: <the defect class these fixes share>` line',
     );
+  // The match is case-insensitive, so "This PR" is the same claim as "this PR", never a task id.
   const redesign = REDESIGN.exec(body)?.[1];
   if (redesign === undefined)
     problems.push(
       'the body has no `Redesign: <task id | this PR>` line naming the redesign that ends the class',
     );
-  else if (redesign !== 'this PR' && !taskExists(redesign))
+  else if (redesign.toLowerCase() !== 'this pr' && !taskExists(redesign))
     problems.push(`Redesign names ${redesign}, which has no tasks/ record`);
   return {
     ok: problems.length === 0,
@@ -103,7 +116,7 @@ export function checkFixChurn({
 }
 
 /** Base history of the window as `{subject, files}` newest first. */
-export function readHistory(git, base) {
+export function readHistory(git: Git, base: string): Commit[] {
   const date = git('log', '-1', '--format=%cI', base).trim();
   const since = new Date(Date.parse(date) - WINDOW_DAYS * 86_400_000);
   const out = git(
@@ -123,9 +136,13 @@ export function readHistory(git, base) {
     });
 }
 
-function report(commits) {
+function report(commits: readonly Commit[]): string {
   const { files, tasks } = churn(commits);
-  const rank = (map, limit, count) =>
+  const rank = (
+    map: Map<string, string[]>,
+    limit: number,
+    count: (subjects: string[]) => number,
+  ) =>
     [...map]
       .filter(([, s]) => count(s) >= limit)
       .sort((a, b) => count(b[1]) - count(a[1]));
@@ -138,8 +155,8 @@ function report(commits) {
   return lines.join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const git = (...args) =>
+if (import.meta.main) {
+  const git: Git = (...args) =>
     execFileSync('git', args, {
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
@@ -154,7 +171,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     console.log('fix-churn: no base/head, skipped');
     process.exit(0);
   }
-  let result;
+  let result: ReturnType<typeof checkFixChurn>;
   try {
     const changed = git(
       'diff',
@@ -180,7 +197,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     });
   } catch (error) {
     // Fail open: a history this check cannot read is no finding.
-    console.log(`fix-churn: history unreadable, skipped: ${error.message}`);
+    console.log(
+      `fix-churn: history unreadable, skipped: ${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exit(0);
   }
   for (const finding of result.findings) console.log(`fix-churn: ${finding}`);

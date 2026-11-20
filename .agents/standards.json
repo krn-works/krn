@@ -231,7 +231,7 @@
     "type": "standard",
     "area": "ci",
     "layer": "krn-delivery",
-    "text": "A fix PR on a file fixed for 6+ tasks in 14 days, or of a task with 2 fixes after its feature, has `Root cause:` and `Redesign:` body lines. CI runs `node scripts/fix-churn.mjs`; `--report` lists hot files and fix chains.",
+    "text": "A fix PR of a hot file or fix-chained task has `Root cause:` and `Redesign:` body lines. CI runs `node scripts/fix-churn.ts`; `--report` lists hot files and fix chains.",
     "audience": "worker",
     "tier": "reflex",
     "applies": {
@@ -251,11 +251,11 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "node scripts/ci-check-wired.ts 'node scripts/fix-churn.mjs'"
+      "run": "node scripts/ci-check-wired.ts 'node scripts/fix-churn.ts'"
     },
     "provenance": {
       "origin": "CI workflow and package.json scripts",
-      "evidence": ["scripts/fix-churn.mjs"],
+      "evidence": ["scripts/fix-churn.ts"],
       "proposals": []
     },
     "status": "accepted",

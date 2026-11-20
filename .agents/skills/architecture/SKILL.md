@@ -22,7 +22,7 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 
 ## Repeated fixes
 
-A module fixed for three or more different cases in two weeks has a wrong model. Before the next fix there, read the earlier ones (`git log --since=14.days --format=%s -- <file>`), name the class they share, and give that state or format one owner with each case as a fixture; else ship the narrow fix with a redesign task. Here `node scripts/fix-churn.mjs --report` lists them (KRN-15).
+A module fixed for three or more different cases in two weeks has a wrong model. Before the next fix there, read the earlier ones (`git log --since=14.days --format=%s -- <file>`), name the class they share, and give that state or format one owner with each case as a fixture; else ship the narrow fix with a redesign task. Here `node scripts/fix-churn.ts --report` lists them (KRN-15).
 
 ## Process
 

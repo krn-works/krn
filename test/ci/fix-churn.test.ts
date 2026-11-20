@@ -9,9 +9,9 @@ import {
   churn,
   FILE_LIMIT,
   TASK_LIMIT,
-} from '../../scripts/fix-churn.mjs';
+} from '../../scripts/fix-churn.ts';
 
-const script = join(import.meta.dirname, '../../scripts/fix-churn.mjs');
+const script = join(import.meta.dirname, '../../scripts/fix-churn.ts');
 
 const fixes = (file: string, count: number, from = 0) =>
   Array.from({ length: count }, (_, i) => ({
@@ -112,7 +112,8 @@ test('a Redesign line must name this PR or a task record that exists', () => {
   });
   assert.equal(missing.ok, false);
   assert.match(missing.problems.join('\n'), /t-nosuchx, which has no tasks/u);
-  for (const redesign of ['t-realtsk', 'this PR'])
+  // The Redesign match ignores case, so "This PR" once fell through to the task lookup and failed.
+  for (const redesign of ['t-realtsk', 'this PR', 'This PR'])
     assert.equal(
       checkFixChurn({
         ...input,

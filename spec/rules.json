@@ -125,7 +125,7 @@
     {
       "id": "KRN-15",
       "trigger": "a module or task takes another fix",
-      "action": "the author MUST read its earlier fixes (`node scripts/fix-churn.mjs --report`), name the defect class they share in a `Root cause:` PR body line, and end the class by a redesign in the same PR or a linked redesign task (`Redesign: <task id | this PR>`) instead of adding one more edge case",
+      "action": "the author MUST name the defect class its earlier fixes share and its redesign in `Root cause:` and `Redesign:` PR body lines (`node scripts/fix-churn.ts --report`)",
       "owner": "author",
       "audience": "lead",
       "enforcement": {
