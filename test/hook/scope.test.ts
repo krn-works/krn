@@ -579,3 +579,10 @@ test('a subshell cd writes where it points and ends at the closing parenthesis',
   assert.notEqual(call(`(cd ${main} && echo pwned > src/a.ts)`), undefined);
   assert.equal(call(`(cd ${main} && true); echo ok > src/a.ts`), undefined);
 });
+
+test('a quoted copy source with parentheses is not a write target', () => {
+  assert.equal(
+    decide(bash("cp 'tasks/draft(old).txt' src/copy.txt"), worker('src/')),
+    undefined,
+  );
+});

@@ -86,3 +86,8 @@ test('an env wrapper does not hide a malformed subject or title', () => {
     undefined,
   );
 });
+
+test('env -S supplies the command, so later git words are data', () => {
+  assert.equal(decide(bash("env -S 'printf %s' git commit -m wip")), undefined);
+  assert.notEqual(decide(bash('env git commit -S -m wip')), undefined);
+});
