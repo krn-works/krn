@@ -13,11 +13,9 @@ permissions:
 env:
   KRN_LIVE: ''
 
-# A body-only `edited` event is re-checked (the body rules read it) but queues behind the
-# run in progress instead of cancelling the run a ship is watching.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.event.action != 'edited' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   changes:

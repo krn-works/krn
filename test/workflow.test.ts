@@ -381,28 +381,21 @@ test('CI workflow cancels superseded pull request runs but preserves main runs',
 
   assert.deepEqual(entries, [
     ['group', 'ci-${{ github.ref }}'],
-    [
-      'cancel-in-progress',
-      "${{ github.ref != 'refs/heads/main' && github.event.action != 'edited' }}",
-    ],
+    ['cancel-in-progress', "${{ github.ref != 'refs/heads/main' }}"],
   ]);
 
   const cancelExpression = entries[1]?.[1];
   const match = cancelExpression?.match(
-    /^\$\{\{\s*github\.ref\s*!=\s*'([^']+)'\s*&&\s*github\.event\.action\s*!=\s*'([^']+)'\s*\}\}$/u,
+    /^\$\{\{\s*github\.ref\s*!=\s*'([^']+)'\s*\}\}$/u,
   );
   assert.ok(
     match,
-    'cancel-in-progress must compare github.ref with a protected ref and the event action with the body edit',
+    'cancel-in-progress must compare github.ref with a protected ref',
   );
-  const shouldCancel = (ref: string, action: string): boolean =>
-    ref !== match[1] && action !== match[2];
+  const shouldCancel = (ref: string): boolean => ref !== match[1];
 
-  assert.equal(shouldCancel('refs/heads/main', 'synchronize'), false);
-  assert.equal(shouldCancel('refs/pull/42/merge', 'synchronize'), true);
-  // A body-only edit is re-checked (the body rules read it) but never cancels the run in progress.
-  assert.equal(shouldCancel('refs/pull/42/merge', 'edited'), false);
-  assert.match(source, /types: \[opened, synchronize, reopened, edited\]/u);
+  assert.equal(shouldCancel('refs/heads/main'), false);
+  assert.equal(shouldCancel('refs/pull/42/merge'), true);
 });
 
 test('shared project CI pins its actions and ends in one aggregate Check that the self-test proves red and green', async () => {
