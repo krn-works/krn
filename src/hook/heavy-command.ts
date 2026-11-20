@@ -239,9 +239,12 @@ export function deadlineMs(input: Record<string, unknown>): number {
   return Math.max(10_000, Math.floor(timeout / 2));
 }
 
+/** Leading `cd DIR &&` steps stay outside the gate, so the Bash tool keeps the directory change of the calling shell. */
+const leadingCd = /^(?:cd\s+(?:'[^']*'|"[^"]*"|[^\s;&|]+)\s*&&\s*)+/u;
+
 /**
- * The command run through the gate as one unit: one slot lease wraps the whole original text, which the
- * child shell runs unchanged. The step reader only decides that a command is heavy; no part of the text
+ * The command run through the gate as one unit: one slot lease wraps the whole original text (past leading
+ * `cd DIR &&` steps, which only move the calling shell), which the child shell runs unchanged. The step reader only decides that a command is heavy; no part of the text
  * is cut out or rewritten, so pipes across newlines, heredocs, comments, wrappers and shell state set
  * by an earlier step reach the heavy step as they do without the gate. No permission decision is made,
  * so the normal permission flow applies to it.
@@ -251,7 +254,8 @@ export function gated(
   deadline: number,
   gate = gateEntry,
 ): string {
-  return `${shellWord(gate)} run --deadline-ms ${deadline} -- bash -c ${shellWord(command)}`;
+  const cd = leadingCd.exec(command)?.[0] ?? '';
+  return `${cd}${shellWord(gate)} run --deadline-ms ${deadline} -- bash -c ${shellWord(command.slice(cd.length))}`;
 }
 
 export type Verdict = { rewrite: string } | undefined;
