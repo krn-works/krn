@@ -130,9 +130,20 @@ async function main(): Promise<void> {
     );
     process.exit(64);
   }
-  const numstat = spawnSync('git', ['diff', '--numstat', '--no-renames', `${base}...${head}`], {
-    encoding: 'utf8',
-  });
+  const numstat = spawnSync(
+    'git',
+    [
+      '-c',
+      'core.quotePath=false',
+      'diff',
+      '--numstat',
+      '--no-renames',
+      `${base}...${head}`,
+    ],
+    {
+      encoding: 'utf8',
+    },
+  );
   if (numstat.status !== 0) {
     process.stderr.write(`review-diff: git diff failed: ${numstat.stderr}\n`);
     process.exit(70);

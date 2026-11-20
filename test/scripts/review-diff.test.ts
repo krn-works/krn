@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 import { chunks, prompt } from '../../scripts/review-diff.ts';
 
@@ -40,4 +42,20 @@ test('the prompt names the range and the share, and asks for a reproduce command
   assert.match(text, /src\/a\.ts, src\/b\.ts/u);
   assert.match(text, /\.krn\/tmp\/review\//u);
   assert.doesNotMatch(text, /intent of the author|the author wants/iu);
+});
+
+test('the reviewer krn.json takes from the base is a tracked script: a broken path would stop every tier 2 ship with exit 85', () => {
+  const root = join(import.meta.dirname, '..', '..');
+  const contract: unknown = JSON.parse(
+    readFileSync(join(root, 'krn.json'), 'utf8'),
+  );
+  const command =
+    typeof contract === 'object' && contract !== null && 'review' in contract
+      ? String(contract.review)
+      : '';
+  const script = /git show origin\/main:(scripts\/[\w-]+\.ts) /u.exec(
+    command,
+  )?.[1];
+  assert.ok(script, `krn.json review names no script of the base: ${command}`);
+  assert.ok(existsSync(join(root, script)), `${script} is missing`);
 });

@@ -177,12 +177,18 @@ function verify(
   };
   const command = finding.reproduce?.trim();
   if (!command) return plain;
-  const head = exitOf(command, scratch);
+  // Each run starts from clean tracked files: an edit a reproduction leaves never reaches the next run.
+  // Untracked reproduction files stay across the reset and the checkout.
+  const clean = () => run('git', ['reset', '-q', '--hard'], scratch).code === 0;
+  const head = clean() ? exitOf(command, scratch) : null;
   let base: number | null = null;
   if (head !== null && head !== 0 && !BROKEN.has(head)) {
-    // Untracked reproduction files stay across the checkout.
-    if (run('git', ['checkout', '-q', '--detach', baseSha], scratch).code === 0)
+    if (
+      clean() &&
+      run('git', ['checkout', '-q', '--detach', baseSha], scratch).code === 0
+    )
       base = exitOf(command, scratch);
+    clean();
     run('git', ['checkout', '-q', '--detach', at], scratch);
   }
   const located =
@@ -230,7 +236,12 @@ const recordSchema = z.object({ kind: z.string(), head: z.string() });
  */
 export function startReview(input: ReviewInput): ReviewHandle {
   const { run, cwd, base, head, main, now } = input;
-  const numstat = run('git', ['diff', '--numstat', `${base}...${head}`], cwd);
+  const numstat = run(
+    'git',
+    // An unquoted path: a quoted non-ASCII name would miss its risky prefix.
+    ['-c', 'core.quotePath=false', 'diff', '--numstat', `${base}...${head}`],
+    cwd,
+  );
   const skip = (line: string): ReviewHandle => ({
     line,
     verdict: () => Promise.resolve({ kind: 'skip', line }),

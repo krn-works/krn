@@ -3,7 +3,10 @@
     {
       "id": "nested-check-masked",
       "title": "Zielony `Check` maskuje nowszy, nieudany wymagany `ci / Check`, więc kontrola gałęzi bazowej przepuszcza uruchomienie sesji.",
-      "evidence": ["src/repo/required-check.ts:43", "src/repo/required-check.ts:45"],
+      "evidence": [
+        "src/repo/required-check.ts:43",
+        "src/repo/required-check.ts:45"
+      ],
       "reproduce": "node --input-type=module -e 'import assert from \"node:assert/strict\"; import { receiverGaps } from \"./src/cli/lane-run/receiver.ts\"; import { REQUIRED_CHECK_APP_ID as id } from \"./src/repo/ci-admission-contract.ts\"; const row = (name, conclusion, started_at) => ({name, conclusion, started_at, status: \"completed\", app: {id}}); const gaps = receiverGaps(\"main\", {repo: JSON.stringify({default_branch: \"main\", allow_auto_merge: true}), branch: JSON.stringify({protection: {required_status_checks: {checks: [{context: \"ci / Check\", app_id: id}]}}}), rules: \"[]\", checkRuns: JSON.stringify({check_runs: [row(\"Check\", \"success\", \"2026-11-17T10:00:00Z\"), row(\"ci / Check\", \"failure\", \"2026-11-17T10:05:00Z\")]})}); assert.match(gaps.join(\"\\n\"), /baseline is red/);'",
       "class": "receiver-state"
     }

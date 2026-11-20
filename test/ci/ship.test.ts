@@ -187,6 +187,9 @@ function receiver(options: {
     if (a[0] === 'diff' && a[2]?.startsWith('HEAD...'))
       return out(options.baseDiff ?? 'src/x.ts\n');
     if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
+    // The review reads its numstat with unquoted paths (`git -c core.quotePath=false diff`).
+    if (a[0] === '-c' && a[2] === 'diff')
+      return out(options.diff ?? 'src/x.ts\n');
     if (a[0] === 'status') {
       const afterScoped = calls.some((call) =>
         call.includes('node scripts/fast'),

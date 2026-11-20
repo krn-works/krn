@@ -22,7 +22,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
 - Before accepting, rerun a lane's cited command.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
-- Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), then `bin/krn pr ship --worktree <path> --title <title> --body-file <file>`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Codex workers and `npm run gate` are opt-in, never prerequisites. Use Conventional Commits.
+- Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), then `bin/krn pr ship --worktree <path> --title <title> --body-file <file>`. The only required check is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`); ship also joins the krn.json `review` verdict for a tier 2 diff (ADR 0014). Codex workers and `npm run gate` are opt-in, never prerequisites. Use Conventional Commits.
 - With lanes running, the lead stops launching new lanes, drains the running ones, then hands off.
 - Unattended, never ask the operator: park the decision as a decide task (`krn task create`) and launch the successor.
 - Fable plan requests follow `docs/program/fable-plan-brief.md`.
@@ -45,7 +45,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - After the other lane merges, rebase only on a conflict, push with `--force-with-lease`, and let auto-merge wait for the new `Check`.
 - Retry a merge that stops on a main-checkout `index.lock` held by the other lane; the refusal is transient.
 
-A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.
+A plain PR with a `Ticket:` trailer (or none) merges on the `Check` and, for a tier 2 diff, the review verdict.
 
 ## Lane brief additions
 

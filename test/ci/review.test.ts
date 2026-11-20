@@ -290,3 +290,31 @@ test('a verbatim Codex answer parses through the answer schema and reaches the r
   assert.equal(verdict.kind === 'pass' ? verdict.findings.length : 0, 1);
   assert.match(comments[0] ?? '', /\*\*not reproduced\*\* Zielony `Check`/u);
 });
+
+test('a one-line change to a non-ASCII path under a risky prefix is tier 2, not hidden by git quoting', async (t) => {
+  const f = fixture(t, 'src/ci/żółć.ts', 'export const a = 1;\n');
+  const review = startReview(input(f, undefined, []));
+  assert.match(review.line, /tier 2/u);
+});
+
+test('a tracked file a head reproduction edits is restored before the base run, so the defect still blocks', async (t) => {
+  const f = fixture(t, 'src/ci/gate.ts', 'export const ok = false; // BUG\n');
+  const comments: string[] = [];
+  const review = startReview(
+    input(
+      f,
+      reviewer(f.root, [
+        {
+          id: 'dirty',
+          title: 'the reproduction leaves an edit behind',
+          evidence: ['src/ci/gate.ts:1'],
+          reproduce:
+            'if grep -q BUG src/ci/gate.ts; then echo dirty > .gitignore; exit 1; fi; ! grep -q dirty .gitignore',
+        },
+      ]),
+      comments,
+    ),
+  );
+  const verdict = await review.verdict(f.head);
+  assert.equal(verdict.kind, 'block');
+});
