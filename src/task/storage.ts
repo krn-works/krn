@@ -1,12 +1,15 @@
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { contractBase } from '../repo/contract.ts';
 import {
   ARCHIVE_AFTER_DAYS,
   type ArchivedLine,
@@ -219,4 +222,119 @@ export function archiveClosedTasks(
     archived: moving.map((record) => record.id).sort(),
     files: [...texts.keys()],
   };
+}
+
+function gitText(root: string, args: string[]): string | undefined {
+  const out = spawnSync('git', ['-C', root, ...args], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return out.status === 0 ? out.stdout : undefined;
+}
+
+/** A record text in one form, so a reformatted copy of the same record compares equal. */
+function normalized(text: string): string {
+  const parsed = parseTaskDocument(text);
+  return parsed.record === undefined ? text : serializeTask(parsed.record);
+}
+
+/** The worktree path of `branch`: the lane directory when it exists (also detached), else the one git lists. */
+function worktreeOfBranch(main: string, branch: string): string | undefined {
+  const lane = join(main, '.krn', 'worktrees', branch);
+  if (existsSync(lane)) return lane;
+  const listing = gitText(main, ['worktree', 'list', '--porcelain', '-z']);
+  let path: string | undefined;
+  for (const field of (listing ?? '').split('\0')) {
+    if (field.startsWith('worktree ')) path = field.slice('worktree '.length);
+    else if (field === `branch refs/heads/${branch}` && path !== undefined)
+      return path;
+  }
+  return undefined;
+}
+
+const nulList = (text: string | undefined) =>
+  (text ?? '').split('\0').filter(Boolean);
+
+/** Every `tasks/<id>.json` version the lane holds: its worktree files and index, or its branch tip. */
+function laneVersions(main: string, branch: string): Map<TaskId, string[]> {
+  const base = contractBase(main);
+  const published = (ref: string) =>
+    spawnSync('git', [
+      '-C',
+      main,
+      'merge-base',
+      '--is-ancestor',
+      ref,
+      `origin/${base}`,
+    ]).status === 0;
+  const found = new Map<TaskId, string[]>();
+  const add = (path: string, text: string | undefined) => {
+    const match = /^tasks\/(t-[a-z0-9]+)\.json$/u.exec(path);
+    if (match?.[1] === undefined || text === undefined) return;
+    const id = match[1] as TaskId;
+    found.set(id, [...(found.get(id) ?? []), text]);
+  };
+  // The lane's versions are the set {branch tip blob, index blob, worktree file}, each read on its own:
+  // the absence of one never hides another.
+  const tip = `refs/heads/${branch}`;
+  const tipPaths = nulList(
+    gitText(main, ['ls-tree', '-r', '-z', '--name-only', tip, '--', 'tasks']),
+  );
+  const tipText = (path: string) => gitText(main, ['show', `${tip}:${path}`]);
+  // A version unchanged from a tip already on origin/<base> is published.
+  const tipPublished = published(tip);
+  const keep = (path: string, text: string | undefined) =>
+    text !== undefined && !(tipPublished && text === tipText(path))
+      ? text
+      : undefined;
+  for (const path of tipPaths) add(path, keep(path, tipText(path)));
+  const worktree = worktreeOfBranch(main, branch);
+  if (worktree === undefined) return found;
+  const paths = new Set(
+    nulList(
+      gitText(worktree, [
+        'ls-files',
+        '-z',
+        '--cached',
+        '--others',
+        '--exclude-standard',
+        '--',
+        'tasks',
+      ]),
+    ),
+  );
+  for (const path of paths) {
+    const file = join(worktree, path);
+    if (existsSync(file) && statSync(file).isFile())
+      add(path, keep(path, readFileSync(file, 'utf8')));
+    add(path, keep(path, gitText(worktree, ['show', `:${path}`])));
+  }
+  return found;
+}
+
+/**
+ * The ids of the task record versions that exist only in the lane `branch`: held by its worktree tree or index,
+ * or by its branch tip when the worktree is gone, and equal to no copy in the main checkout (pending ref,
+ * `tasks/`, archive) or on `origin/<base>`. A staged deletion holds no version.
+ * A version counts as held only when its bytes equal a copy there, or when the lane tip it is unchanged from is already
+ * an ancestor of `origin/<base>`.
+ */
+export function laneOnlyRecords(main: string, branch: string): TaskId[] {
+  const base = contractBase(main);
+  const only: TaskId[] = [];
+  for (const [id, versions] of laneVersions(main, branch)) {
+    const held: string[] = [];
+    try {
+      const located = locateTask(main, id);
+      if (located.record !== undefined)
+        held.push(serializeTask(located.record));
+    } catch {
+      /* A malformed record in the main checkout holds no usable version. */
+    }
+    const origin = gitText(main, ['show', `origin/${base}:tasks/${id}.json`]);
+    if (origin !== undefined) held.push(normalized(origin));
+    if (versions.some((text) => !held.includes(normalized(text))))
+      only.push(id);
+  }
+  return only.sort();
 }
