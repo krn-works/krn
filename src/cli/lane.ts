@@ -12,6 +12,7 @@ import {
 import { dirname, join, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { recordBriefExposure } from '../brain/worker-packet.ts';
+import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
@@ -574,7 +575,18 @@ export async function dropLane(rest: string[]): Promise<string> {
       throw new CliUsageError(
         `lane ${slug} holds the only copy of ${only.join(', ')}; commit it on the lane branch or copy it to the main checkout, then drop again`,
       );
-    for (const id of claimsFrom(main, realpathSync(path))) {
+    const real = realpathSync(path);
+    const ship = liveShipPid(path);
+    if (ship !== undefined)
+      throw new CliUsageError(
+        `lane ${slug} has a live ship (pid ${ship}); wait for it to end or kill it, then drop again`,
+      );
+    const users = worktreeUsers(path);
+    if (users === undefined || users.length > 0)
+      throw new CliUsageError(
+        `lane ${slug} is in use: ${users === undefined ? 'this host cannot list process cwds' : `process ${users.slice(0, 3).join(', ')} works inside it`}; end that process, then drop again`,
+      );
+    for (const id of claimsFrom(main, real)) {
       await releaseClaim(main, id);
       released.push(id);
     }

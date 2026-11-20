@@ -40,6 +40,7 @@ import {
 } from '../../src/hook/stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
+import { serializeClaim } from '../../src/task/claims.ts';
 
 const hook = fileURLToPath(new URL('../../src/hook/stop.ts', import.meta.url));
 
@@ -1810,7 +1811,7 @@ test('a krn-lane subagent whose payload cwd is another worktree is checked at th
     sh(main, 'worktree', 'add', '-q', '-b', 'lead-wt', lead, 'main');
     writeFileSync(join(own, 'src/a.ts'), 'export const a = 2;\n');
     sh(own, 'add', '.');
-    sh(own, 'commit', '-q', '-m', 'lane change');
+    sh(own, 'commit', '-q', '-m', 'x');
     const leadEnv = { CLAUDE_PROJECT_DIR: '/somewhere/else' };
     const transcript = (line: string) => {
       const file = join(main, 'agent.jsonl');
@@ -2695,7 +2696,7 @@ test('test-first: a base worktree lacking its dependencies is named a base-envir
       judgeStop(payload(dir), env, () => [], '', baseRun(dir, output)) ?? '';
     assert.match(reason, /base environment is broken/u);
     assert.match(reason, /npm ci/u);
-    assert.doesNotMatch(reason, /no changed test fails at the base/u);
+    assert.doesNotMatch(reason, /no changed test/u);
     const saved = readFileSync(
       join(dir, '.krn/runs/stop-check/base-environment.log'),
       'utf8',
@@ -2967,5 +2968,81 @@ test('test-first through the node runner: a base missing a new source file of th
     assert.equal(judgeStop(payload(dir), testFirst(dir)), undefined);
   } finally {
     rmSync(outer, { recursive: true, force: true });
+  }
+});
+
+test('a base worktree that cannot be created is an infrastructure fault, not no test red', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    writeFileSync(join(dir, '.git', 'worktrees'), 'x'); // git cannot add a worktree
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    const reason = judgeStop(payload(dir), env, () => []) ?? '';
+    assert.match(reason, /could not run/u);
+    assert.doesNotMatch(reason, /no changed test/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function ownAndLead() {
+  const main = clone();
+  const own = join(main, '.krn', 'worktrees', 'lane-own');
+  const lead = join(main, '.krn', 'worktrees', 'lead-wt');
+  sh(main, 'worktree', 'add', '-q', '-b', 'lane-own', own, 'main');
+  sh(main, 'worktree', 'add', '-q', '-b', 'lead-wt', lead, 'main');
+  const sub = (agent_transcript_path: string) => ({
+    ...payload(lead),
+    agent_id: 'a1',
+    agent_type: 'krn-lane',
+    agent_transcript_path,
+  });
+  return { main, own, lead, sub };
+}
+
+test('the Stop hook saves its refusal in the checkout it judged, not the project dir', () => {
+  const { main, own, lead, sub } = ownAndLead();
+  try {
+    const path = subagentTranscript(main, [
+      { name: 'Edit', input: { file_path: join(own, 'src/a.ts') } },
+    ]);
+    const env = {
+      CLAUDE_PROJECT_DIR: lead,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_TASK: 't-abc1234',
+    };
+    const stopped = stopHook(JSON.stringify(sub(path)), env, 'work');
+    assert.equal(stopped.code, 2);
+    const kept = (dir: string) =>
+      existsSync(join(dir, '.krn/runs/stop-check/last-refusal.txt'));
+    assert.deepEqual([kept(own), kept(lead)], [true, false]);
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+  }
+});
+
+test('an expired task claim does not name the session lane', () => {
+  const { main, own, sub } = ownAndLead();
+  try {
+    sh(own, 'commit', '-q', '--allow-empty', '-m', 'x');
+    const transcript = subagentTranscript(main, [
+      { name: 'Bash', input: { command: 'git commit -m t-abcdefg' } },
+    ]);
+    // The claimed branch is gone: expired, so the lead worktree is judged.
+    mkdirSync(join(main, '.krn', 'task-claims'), { recursive: true });
+    writeFileSync(
+      join(main, '.krn', 'task-claims', 't-abcdefg.json'),
+      serializeClaim({
+        id: 't-abcdefg',
+        actor: 'a',
+        worktree: own,
+        branch: 'gone',
+        claimed: '2026-11-20T00:00:00.000Z',
+        reason: null,
+      }),
+    );
+    assert.match(judgeStop(sub(transcript), {}, () => []) ?? '', /no commit/u);
+  } finally {
+    rmSync(main, { recursive: true, force: true });
   }
 });

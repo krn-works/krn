@@ -1,7 +1,11 @@
 {
   "id": "t-fw5y0zm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "five defects fixed; regression tests red on base, green on branch: lane drop live-ship and cwd guards, Stop base-worktree infra error, Stop resolved checkout for refusal file, expired claims ignored, transcript-reader rule widened"
+  },
   "created": "2026-11-19",
   "priority": 1,
   "title": "Lane drop, Stop and claim reads use the real lane checkout and live-ship guards",

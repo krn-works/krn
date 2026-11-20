@@ -42,7 +42,7 @@ function jobBlocks(source: string): Map<string, string> {
   return new Map([...blocks].map(([name, body]) => [name, body.join('\n')]));
 }
 
-test('CI workflow runs lint, typecheck and twelve test shards on hosted runners behind one aggregate Check', async () => {
+test('CI workflow runs lint, typecheck and its test shards on hosted runners behind one aggregate Check', async () => {
   const source = await readFile(workflowPath, 'utf8');
   const jobs = jobBlocks(source);
   assert.deepEqual(
