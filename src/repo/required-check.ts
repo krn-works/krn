@@ -106,7 +106,7 @@ const rulesSchema = z.array(
           .array(
             z.object({
               context: z.string(),
-              integration_id: z.number().optional(),
+              integration_id: z.number().nullish(),
             }),
           )
           .optional(),

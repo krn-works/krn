@@ -216,10 +216,15 @@ async function shipRun(
   // Every GitHub call that names a repository uses an App token minted for that repository.
   const scoped: Runner = (command, a, ...rest) => {
     const named = a.indexOf('--repo');
-    return command === 'gh' && named >= 0 && a[named + 1] !== undefined
+    const pathRepo =
+      a[0] === 'api'
+        ? /^repos\/([^/\s]+\/[^/\s?]+)(?:[/?]|$)/u.exec(a[1] ?? '')?.[1]
+        : undefined;
+    const repository = named >= 0 ? a[named + 1] : pathRepo;
+    return command === 'gh' && repository !== undefined
       ? runner(
           'env',
-          [`KRN_APP_REPOSITORY=${a[named + 1]}`, command, ...a],
+          [`KRN_APP_REPOSITORY=${repository}`, command, ...a],
           ...rest,
         )
       : runner(command, a, ...rest);
