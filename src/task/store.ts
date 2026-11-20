@@ -11,13 +11,8 @@ import {
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
-import { ARCHIVE_DIR, findArchived, readArchive } from './archive.ts';
-import {
-  addPendingTask,
-  editGoesPending,
-  isPendingId,
-  pendingTaskFiles,
-} from './pending.ts';
+import { ARCHIVE_DIR, readArchive } from './archive.ts';
+import { isPendingId, pendingTaskFiles } from './pending.ts';
 import {
   createTaskId,
   isCategoryToken,
@@ -38,6 +33,7 @@ import {
   TaskUsageError,
 } from './record.ts';
 import { atomicWrite } from './staged-write.ts';
+import { locateTask, writeTaskRecord } from './storage.ts';
 
 // Exit code of `krn task close` when an acceptance command fails.
 const ACCEPTANCE_FAILED_EXIT = 66;
@@ -309,21 +305,7 @@ export function listTasks(
  * directory. A malformed record is reported; the rest of the tracker is not checked.
  */
 export function readTask(root: string, id: TaskId): TaskRecord | undefined {
-  const pending = pendingTaskFiles(root).get(id);
-  if (pending !== undefined) {
-    const parsed = parseTaskDocument(pending);
-    if (parsed.record !== undefined && parsed.id === id) return parsed.record;
-  }
-  const path = join(root, 'tasks', `${id}.json`);
-  if (existsSync(path)) {
-    const parsed = parseTaskDocument(readFileSync(path));
-    if (parsed.record === undefined || parsed.id !== id)
-      throw new TaskDataError(
-        parsed.findings.map((finding) => `tasks/${id}.json: ${finding}`),
-      );
-    return parsed.record;
-  }
-  return findArchived(root, id);
+  return locateTask(root, id).record;
 }
 
 /**
@@ -469,18 +451,7 @@ export function closeTask(
   const record = getTask(root, id);
   if (record.status === 'closed')
     throw new TaskDataError([`tasks/${id}.json: task is already closed`]);
-  // A record waiting on the pending ref, or a published one in the main checkout, is closed on
-  // the ref, so publish ships the closed record and the main checkout stays clean.
-  const pending = pendingTaskFiles(root).has(id) || editGoesPending(root, id);
-  const write = (task: TaskRecord) =>
-    pending
-      ? addPendingTask(root, id, serializeTask(task))
-      : atomicWrite(
-          root,
-          join(root, 'tasks', `${id}.json`),
-          serializeTask(task),
-          true,
-        );
+  const write = (task: TaskRecord) => writeTaskRecord(root, task);
   if (
     (resolution.kind === 'duplicate' || resolution.kind === 'superseded') &&
     (resolution.ref === null || !hasTask(root, resolution.ref))
@@ -524,8 +495,7 @@ export function editTask(
   options: Pick<TaskStoreOptions, 'refuse'> = {},
 ): TaskRecord {
   const record = getTask(root, id);
-  const pending = pendingTaskFiles(root).has(id) || editGoesPending(root, id);
-  if (!pending && !existsSync(join(root, 'tasks', `${id}.json`)))
+  if (locateTask(root, id).where === 'archived')
     throw new TaskDataError([
       `tasks/${id}.json: task is archived and read-only; create a new task instead`,
     ]);
@@ -576,15 +546,7 @@ export function editTask(
       ? (options.refuse?.(updated, loadTaskIndex(root)) ?? [])
       : [];
   if (refusal.length > 0) throw new TaskDataError(refusal);
-  // A record waiting on the pending ref is rewritten there, so publish ships the edit.
-  if (pending) addPendingTask(root, id, serializeTask(updated));
-  else
-    atomicWrite(
-      root,
-      join(root, 'tasks', `${id}.json`),
-      serializeTask(updated),
-      true,
-    );
+  writeTaskRecord(root, updated);
   return updated;
 }
 
@@ -606,7 +568,7 @@ export function changeDependency(
     ]);
   if (id === dependency)
     throw new TaskDataError([`tasks/${id}.json: task cannot depend on itself`]);
-  if (!existsSync(join(root, 'tasks', `${id}.json`)))
+  if (locateTask(root, id).where === 'archived')
     throw new TaskDataError([
       `tasks/${id}.json: task is archived and read-only; create a new task instead`,
     ]);
@@ -621,12 +583,7 @@ export function changeDependency(
   } else after = record.after.filter((candidate) => candidate !== dependency);
 
   const updated: TaskRecord = { ...record, after };
-  atomicWrite(
-    root,
-    join(root, 'tasks', `${id}.json`),
-    serializeTask(updated),
-    true,
-  );
+  writeTaskRecord(root, updated);
   return updated;
 }
 

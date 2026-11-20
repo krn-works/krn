@@ -149,6 +149,12 @@ for (const [verb, args] of [
       );
       removePendingTasks(f.main, ['T-2']);
       f.ok(f.main, 'dep', 'add', 'T-1', '--after', 'T-2');
+      // The dependency on a published record also waits on the pending ref; land it in place.
+      writeFileSync(
+        join(f.main, 'tasks/T-1.json'),
+        `${f.git(f.main, 'show', `${PENDING_REF}:tasks/T-1.json`)}\n`,
+      );
+      removePendingTasks(f.main, ['T-1']);
       f.git(f.main, 'add', '.');
       f.git(f.main, 'commit', '-qm', 'dependency');
       f.git(f.lane, 'merge', '--ff-only', 'main');
