@@ -378,3 +378,12 @@ test('an expanding commit body keeps the literal subject, and inherited property
     );
   }
 });
+
+test('a quoted command or exec word still runs the command it wraps', () => {
+  for (const wrapper of ["'command'", '"exec"', "'timeout' 5"])
+    assert.deepEqual(
+      targets(`${wrapper} git branch -D lane`),
+      [{ kind: 'branch', name: 'lane' }],
+      wrapper,
+    );
+});

@@ -646,14 +646,14 @@ export function resolveCommand(words: readonly Word[]): Resolved | undefined {
     const read =
       name === 'env'
         ? options(argv, ENV_SHORT, ENV_LONG)
-        : name === 'command' && !argv[0]?.quoted
+        : name === 'command'
           ? options(argv, COMMAND_SHORT)
-          : name === 'exec' && !argv[0]?.quoted
+          : name === 'exec'
             ? options(argv, EXEC_SHORT)
             : { at: 0, chdirs: [] };
     if (read === undefined) return undefined;
     const runner = Object.hasOwn(RUNNERS, name) ? RUNNERS[name] : undefined;
-    if (runner && !argv[0]?.quoted) {
+    if (runner) {
       const run = options(argv, runner.short, runner.long);
       if (run === undefined || run.at + runner.operands >= argv.length)
         return undefined;
