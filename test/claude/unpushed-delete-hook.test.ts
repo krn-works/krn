@@ -237,3 +237,26 @@ test('a lane tip with a stale open record does not override a closed archive ent
     await f.cleanup();
   }
 });
+
+test('a branch delete in the repository --git-dir names is judged there', async () => {
+  const f = await fixture();
+  try {
+    git(f.repo, ['switch', '-q', '-c', 'side']);
+    await writeFile(
+      join(f.repo, 'tasks', 't-fix1234.json'),
+      JSON.stringify({ id: 't-fix1234', status: 'open', body: [] }),
+    );
+    git(f.repo, ['add', '.']);
+    git(f.repo, ['commit', '--quiet', '-m', 'feat(x): y\n\nTicket: t-fix1234']);
+    git(f.repo, ['switch', '-q', 'main']);
+    const other = join(f.repo, '..', 'other.git');
+    git(f.repo, ['init', '-q', '--bare', other]);
+    git(f.repo, ['push', '-q', other, 'main:refs/heads/side']);
+    const check = (command: string) =>
+      decide({ cwd: f.repo, tool_input: { command } });
+    assert.notEqual(check('git branch -D side'), undefined);
+    assert.equal(check(`git --git-dir="${other}" branch -D side`), undefined);
+  } finally {
+    await f.cleanup();
+  }
+});

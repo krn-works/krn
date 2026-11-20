@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { hookStdin } from '../harness/claude.ts';
 import { SLOT_HELD_ENV } from '../repo/host-gate.ts';
-import { executableText, shellWord } from '../repo/shell-text.ts';
-import { commands } from './shell-reader.ts';
+import { shellWord } from '../repo/shell-text.ts';
+import { commands, commandsOf } from './shell-reader.ts';
 
 /** Repositories (by directory name) whose commands are never gated. */
 export const DEFAULT_EXCLUDE = ['wilq-seo'];
@@ -104,7 +104,10 @@ function program(words: readonly string[]): string {
 
 /** The programs of `command` as text; quoted text and heredoc bodies are data, not commands. */
 function programs(command: string): string[] {
-  return commands(executableText(command)).map(program);
+  // A quoted word is data (`-m "npm test"`, `--grep "dev"`): it stands as `""`, never as a program or flag.
+  return commandsOf(command).map(({ words }) =>
+    program(words.map((word) => (word.quoted ? '""' : word.text))),
+  );
 }
 
 /** True when one of the programs of `command` keeps running (a dev server, a watcher): a slot around it is never released. */

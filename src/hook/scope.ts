@@ -313,8 +313,7 @@ function sedFiles(args: readonly Word[]): Word[] {
 }
 
 /**
- * Write targets a command's words show: tee and sed -i operands wherever the program sits in the
- * command; rm, mv and cp operands, git -C directories and git add/checkout --/commit paths when the
+ * Write targets a command's words show when its program heads it: tee and sed -i operands; rm, mv and cp operands, git -C directories and git add/checkout --/commit paths when the
  * program heads it. Anything else is unknown and allowed. `at` resolves a git -C chain to its base.
  */
 function commandTargets(
@@ -323,10 +322,8 @@ function commandTargets(
   at: (dirs: readonly Word[]) => string,
 ): { word: Word; base?: string }[] {
   const found: { word: Word; base?: string }[] = [];
-  const after = (program: string) => {
-    const index = argv.findIndex((word) => programName(word) === program);
-    return index < 0 ? undefined : argv.slice(index + 1);
-  };
+  const after = (program: string) =>
+    programName(argv[0]) === program ? argv.slice(1) : undefined;
   const tee = after('tee');
   if (tee) for (const word of operands(tee)) found.push({ word });
   if (redirectsOnly) return found;
@@ -338,7 +335,8 @@ function commandTargets(
     for (const word of operands(rest)) found.push({ word });
   else if (name === 'cp') {
     // `cp -t DIR SRC...` writes DIR/<name of each SRC>; otherwise the last operand is the target.
-    const flag = rest.findIndex((word) =>
+    const dash = rest.findIndex((word) => word.text === '--');
+    const flag = (dash < 0 ? rest : rest.slice(0, dash)).findIndex((word) =>
       /^(?:-t|--target-directory(?:=|$))/u.test(word.text),
     );
     const text = rest[flag]?.text ?? '';

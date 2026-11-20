@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { decide as commitFormat } from '../../src/hook/commit-format.ts';
-import { decide as scope } from '../../src/hook/scope.ts';
+import { isHeavy } from '../../src/hook/heavy-command.ts';
+import { bashTargets, decide as scope } from '../../src/hook/scope.ts';
 import {
   commands,
   commandsOf,
@@ -258,8 +259,44 @@ test('each reproduced review case is decided right by its hook', () => {
     targets("git branch -D 'lane x' && git -C . worktree remove w"),
     [
       { kind: 'branch', name: 'lane x' },
-      { kind: 'worktree', name: 'w' },
+      { kind: 'worktree', name: 'w', repository: ['-C', '.'] },
     ],
   );
   assert.deepEqual(targets('echo "git branch -D x"'), []);
+});
+
+// The fourth review round (head 0e3d491): each reproduction at its hook.
+test('a heredoc, time -p, ANSI-C escapes, descriptors, -- and data words are read as the shell runs them', () => {
+  assert.equal(isHeavy('cat <<EOF\nhello\nEOF\nnpm test'), true);
+  assert.equal(isHeavy('time -p npm test'), true);
+  assert.equal(isHeavy('git commit -m "npm test"'), false);
+  const commit = (command: string) =>
+    commitFormat({ tool_name: 'Bash', tool_input: { command } });
+  assert.equal(
+    commit(String.raw`git commit -m $'fix(hook)\x3a preserve the subject'`),
+    undefined,
+  );
+  assert.deepEqual(commands(String.raw`echo $'\x41\101\u00e9'`), [
+    ['echo', 'AAé'],
+  ]);
+  assert.equal(
+    commit(`(git commit -m "$(cat 3<<'EOF'\nbad\nEOF\n)") < message.txt`),
+    undefined,
+  );
+  assert.deepEqual(
+    bashTargets('cp -R -- -t /outside/input ./output', '/lane'),
+    ['/lane/output'],
+  );
+  assert.deepEqual(
+    bashTargets("printf '%s\\n' tee /dev/null /outside/example", '/lane', true),
+    [],
+  );
+  assert.deepEqual(targets('printf "%s\\n" /usr/bin/git branch -D lane'), []);
+  assert.deepEqual(targets('git --git-dir=/o.git -C r branch -D lane'), [
+    {
+      kind: 'branch',
+      name: 'lane',
+      repository: ['--git-dir=/o.git', '-C', 'r'],
+    },
+  ]);
 });
