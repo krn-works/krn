@@ -29,7 +29,7 @@ Task records are written at eleven sites with no owner: `createTask` (`src/task/
 
 ### Defects
 
-Named by behaviour, because the audit and the reproduction files number them differently. Each reproduction fails on its assertion on base `bb545b1`.
+Named by behaviour, because the audit and the reproduction files number them differently. Each reproduction is an untracked file that fails on its assertion on base `bb545b1`; it becomes a tracked lifecycle case in the step that fixes it.
 
 | Defect | Audit | Reproduction |
 |---|---|---|
@@ -47,9 +47,9 @@ Out of scope, each its own task: the Stop loop breaker never trips because the r
 
 ### 1. One lane manifest
 
-- **Where.** `.krn/runs/lanes/<laneId>.json` in the main checkout, an ignored path the `r-state-paths` record allows, so it outlives the worktree. A `STORES` entry in `scripts/boundaries.ts` names `src/lane/manifest.ts` its only writer. Prune deletes `retired` manifests after 7 days.
+- **Where.** `.krn/runs/lanes/<laneId>.json` in the main checkout, an ignored path the `r-state-paths` record allows, so it outlives the worktree. A `STORES` entry in `scripts/boundaries.ts` names `src/lane/manifest.ts` its only writer. `krn prune` (`src/cli/prune.ts`), which ages run directories by owner, keeps live manifests and deletes `retired` ones after 7 days.
 - **Identity.** `laneId` is `<slug>-<6 random base36>`. A reused branch, slug or task gets a new `laneId`; no reader takes an earlier lane's manifest or ship record for this one. One live (not `retired`) manifest per worktree path.
-- **Shape**, parsed once with a zod schema: `{ laneId, slug, branch?, worktree?, base, task?, targets: string[], actor, createdAt, agents: string[], phase }`. `targets` holds the `lane-target:` paths of the task body or `KRN_LANE_TARGET`, read once at start. `phase` is a discriminated union: `reserved`, `started`, `shipping { pid, head, pr? }`, `shipped { pr, head }`, `parked { reason }`, `merged { sha, head }`, `retired { at, reason }`.
+- **Shape**, parsed once with a zod schema: `{ laneId, slug, branch?, worktree?, base, task?, targets: string[], actor, createdAt, agents: string[], phase }`. `targets` holds the `lane-target:` paths of the task body or `KRN_LANE_TARGET`, read once at start. `phase` is a discriminated union: `reserved`, `started`, `shipping { pid, head, pr? }`, `shipped { pr, head }` (no live ship process), `parked { reason }`, `merged { sha, head }`, `retired { at, reason }`.
 - **Transitions**, one exhaustive switch; any other edge throws (exit 70):
 
 | From | To | Writer |
@@ -58,16 +58,17 @@ Out of scope, each its own task: the Stop loop breaker never trips because the r
 | (none) or `reserved` | `started` | `krn lane start` (`--lane <laneId>` when reserved) |
 | `reserved` | `retired` | the worker's Stop when its start never succeeded; prune after the grace period |
 | `started` | `shipping` | `krn pr ship`; refused, with nothing written, while another `shipping` pid is alive |
-| `shipping` | `shipped` | ship, once the PR is open with auto-merge |
-| `shipping` | `shipped` or `started` | ship on exit 74, 75, 76, 77, 84 or 85, or any reader that finds `pid` dead: `shipped` when `pr` is set and the PR is open, else `started` |
-| `shipped` | `shipping` | `krn pr ship --force` |
+| `shipping` | `shipping` with `pr` | ship, once the PR is open with auto-merge; ship stays `shipping` while it waits for the merge, so drop keeps its live-ship guard |
+| `shipping` | `merged` | ship on its merge verdict |
+| `shipping` | `shipped` or `started` | ship on any other exit (74, 75, 76, 77, 84, 85), or any reader that finds `pid` dead: `shipped` when `pr` is set and the PR is open, else `started` |
+| `shipped` | `shipping` | any `krn pr ship` rerun (after a fix, or `--force` after a rebase) |
 | `shipped` | `started` | a reader whose classifier (ADR 0027) sees the PR closed unmerged |
-| `shipped` | `merged` | ship, or the first reader that sees the PR merged |
+| `shipped` | `merged` | the first reader that sees the PR merged |
 | `started` | `parked` | lane run |
 | `parked` | `started` | lane run, lane start reuse |
 | any but `retired` | `retired` | drop, prune, settle (t-91n0383 slices 5, 6) |
 
-- **Transactional** means: one writer module; each write takes an exclusive lock file (`O_EXCL`; stale once its owner pid is gone), reads the manifest, **validates** the transition and every precondition (budget, capacity, claim, live pid) before any side effect, then **mutates** with a recorded rollback for each side effect (worktree, branch, claim, pending record), writes a temporary file and renames it. A refused verb leaves every store byte-identical. No caller writes the file.
+- **Transactional** means: one writer module; each write takes the same abstract-socket mutex `claims.ts` uses for claim mutations (ADR 0015: no lock files), reads the manifest, **validates** the transition and every precondition (budget, capacity, claim, live pid) before any side effect, then **mutates** with a recorded rollback for each side effect (worktree, branch, claim, pending record), writes a temporary file and renames it. A refused verb leaves every store byte-identical. No caller writes the file.
 
 ### 2. How a process finds its lane
 
@@ -75,8 +76,8 @@ One function, `laneOfSession(payload, env, cwd)` in `src/lane/manifest.ts`, retu
 
 1. **Environment.** `KRN_LANE_ID`, which `krn lane run` sets for its child next to `KRN_LANE` and `KRN_TASK` (`src/cli/lane-run/environment.ts`).
 2. **Agent binding.** Payload `agent_type: krn-lane` with an `agent_id` that a manifest's `agents` holds. In-session subagents inherit the lead's environment, so they cannot carry `KRN_LANE_ID`; a PreToolUse payload carries `agent_id` but no transcript path (`test/claude/fixtures/pretooluse-bash-lead-subagent.jsonl`). The binding is written when a subagent runs `krn lane start --lane <laneId>`: the PreToolUse Bash hook splits the command with the hooks' shell command parser (`commandTargets` in `src/hook/scope.ts`), and appends the `agent_id` through the writer. `krn lane brief` reserves the `laneId` and prints the exact start command, so the id exists before the subagent does. A start command the parser does not recognise leaves the worker unbound, and the refusal quotes the command.
-3. **Checkout.** For `krn` verbs, which get no hook payload (an in-session subagent's `krn task close` or `krn pr ship`): the live manifest whose `worktree` equals the enclosing worktree root exactly.
-4. **Legacy.** A `krn-lane` agent whose cwd is an existing worktree under `.krn/worktrees/` with a claim and no manifest was started before the manifest writer was released; today's rules judge it. This branch is deleted with the evidence fallback (step 7). A path that does not exist is never legacy.
+3. **Argument, then checkout.** For `krn` verbs, which get no hook payload: the lane their argument names (`--worktree <path>`, `--lane <laneId>`, or a lane slug as in `krn lane drop <slug>`), else the live manifest whose `worktree` equals the enclosing worktree root exactly (an in-session subagent's `krn task close` or `krn pr ship` run inside its worktree).
+4. **Legacy.** While any existing worktree under `.krn/worktrees/` has no manifest (a lane started before the manifest writer was released), an unbound `krn-lane` agent is judged by today's rules. Payload `cwd` cannot name the worktree (the PreToolUse capture carries `"."`), so the rule keys on the worktrees on disk, not on the agent. It ends by itself once those lanes are pruned, and the branch is deleted with the evidence fallback (step 7).
 5. Otherwise a `krn-lane` agent is `unbound-worker` and anything else is `lead`.
 
 Policy, fail closed for workers:
@@ -84,7 +85,7 @@ Policy, fail closed for workers:
 - **scope** refuses every write from an `unbound-worker`; from a bound lane, every write outside its manifest `worktree` and `targets`, and every write under `tasks/` (`krn task` is the writer, see 3).
 - **Stop** judges a bound lane on its manifest: `merged` with `head` equal to the lane tip, or commits on its branch with the change proof. A manifest still `reserved` has nothing to judge; Stop retires it and lets the worker report. An `unbound-worker` that made a mutating tool call is refused; one that only read may stop. Deciding "made a mutating call" stays a transcript read, the one left, owned by `src/harness` under `test/rules/transcript-readers.test.ts`.
 - The lead session is not judged as a lane, as today (`judgeStop` returns early without a worker).
-- Hooks run from `.krn/product-release`, refreshed after each merge in the product checkout (`refreshAfterMerge`, `src/ci/ship.ts:945`). The legacy branch keeps lanes alive across that refresh, so no release gate is needed.
+- Hooks run from `.krn/product-release`, refreshed after each merge in the product checkout (`refreshAfterMerge`, `src/ci/ship.ts:945`). The legacy branch keeps lanes started before that refresh writable until they are pruned, so no release gate is needed.
 
 ### 3. One task record writer
 
@@ -92,7 +93,7 @@ Policy, fail closed for workers:
 
 - `locateTask(root, id)` returns `{ where: 'pending' | 'tree' | 'archived' | 'absent', record? }` with one precedence: pending ref, then `tasks/`, then the archive.
 - `writeTaskRecord(root, record)` writes where `locateTask` found it (a pending edit stays pending, a published record stays in the tree, an archived one is refused with exit 65); a new record goes to the pending ref on the main checkout and to `tasks/` in a lane worktree.
-- `laneOnlyRecords(main, worktree)` returns the task record versions present in a lane worktree's tree or index that `locateTask` on the main checkout and `origin/<base>` do not hold. A staged deletion holds no version.
+- `laneOnlyRecords(main, branch)` returns the task record versions present in a lane's worktree tree or index, or on its branch tip when the worktree is gone, that `locateTask` on the main checkout and `origin/<base>` do not hold. A staged deletion holds no version. The unpushed-delete hook today reads `tasks/<id>.json` only from the main checkout and fails open when the record lives only on the branch (`src/hook/unpushed-delete.ts:135-145`).
 
 The eleven sites become calls of these or private helpers of `storage.ts`, and every `krn task` verb behaves the same on a pending, worktree-only and published record. `krn lane drop` and the unpushed-delete hook both ask `laneOnlyRecords`, and a `merged` lane bypasses the check.
 
@@ -114,7 +115,7 @@ t-9egpjj4 (Stop zero-commit), t-1zptswy (scope worktree) and t-48b8v1f (subshell
 
 Each step is one PR under about 400 changed lines, test-first: its first commit adds the lifecycle cases it turns green, and its body cites their red run on base. A store moves only after the open PRs that touch it merge (#1546 hooks, #1551 ship).
 
-1. **Lifecycle suite and manifest writer.** `test/lane/lifecycle.test.ts`: one real-git fixture (bare origin, clone, real `krn` verbs in process, no stubbed transport, no prior-lane state) walks create, edit, dep, brief, start, scope, stop, ship and drop. GitHub is replaced only where it is the receiver, by a fake built from verbatim captures (KRN-12). A refusal-invariance case snapshots every store before and after each refused verb. Lands with `src/lane/manifest.ts`, the `STORES` entry, `krn lane brief` and `krn lane start` writing `reserved` and `started`, and start validating before `forgetShip`.
+1. **Lifecycle suite and manifest writer**, two PRs: 1a the writer, its transitions and the `STORES` entry; 1b the suite. `test/lane/lifecycle.test.ts`: one real-git fixture (bare origin, clone, real `krn` verbs in process, no stubbed transport, no prior-lane state) walks create, edit, dep, brief, start, scope, stop, ship and drop. GitHub is replaced only where it is the receiver, by a fake built from verbatim captures (KRN-12). A refusal-invariance case snapshots every store before and after each refused verb. Lands with `src/lane/manifest.ts`, the `STORES` entry, `krn lane brief` and `krn lane start` writing `reserved` and `started`, and start validating before `forgetShip`.
 2. **Task storage owner**, two PRs. 2a: `locateTask` and `writeTaskRecord`, the eleven sites behind them, and a verb-by-storage matrix (every `krn task` verb on pending, worktree-only and published records). 2b: `laneOnlyRecords` for drop and unpushed-delete.
 3. **Hook binding.** `laneOfSession`, the binding write in the PreToolUse Bash hook, scope on it.
 4. **Stop and claims on the manifest.** `recordedShip`, `laneRecords`, `laneWorktreeIn`, `claimedWorktree` and `ownerCheckout` read the manifest; the manifest writer claims and releases through `claims.ts`. Their transcript and raw claim reads are deleted.
