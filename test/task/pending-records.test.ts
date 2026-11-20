@@ -157,6 +157,31 @@ test('a lane start takes its pending record into the checkout and off the ref', 
   assert.equal(takePendingTask(f.main, id), false);
 });
 
+test('a lane start takes the pending edit of a published record over its clean copy', (t) => {
+  const f = fixture(t);
+  const edit = f.task(f.main, 'edit', 't-exist01', '--append-body', 'Edited.');
+  assert.equal(edit.status, 0, edit.stderr);
+  assert.equal(takePendingTask(f.main, 't-exist01'), true);
+  assert.match(
+    readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8'),
+    /Edited\./u,
+  );
+  assert.equal(pendingTaskFiles(f.main).size, 0);
+});
+
+test('a lane start refuses a pending edit over an uncommitted edit of the same record', (t) => {
+  const f = fixture(t);
+  const edit = f.task(f.main, 'edit', 't-exist01', '--append-body', 'Edited.');
+  assert.equal(edit.status, 0, edit.stderr);
+  const file = join(f.main, 'tasks', 't-exist01.json');
+  writeFileSync(file, readFileSync(file, 'utf8').replace('Existing', 'Local'));
+  assert.throws(
+    () => takePendingTask(f.main, 't-exist01'),
+    /uncommitted edit and another one waits/u,
+  );
+  assert.ok(pendingTaskFiles(f.main).has('t-exist01'));
+});
+
 test('without an origin base the record is written in place as before', (t) => {
   const f = fixture(t, false);
   const id = f.create(f.main, 'No origin');

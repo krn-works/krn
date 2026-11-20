@@ -1,5 +1,5 @@
 import { type SpawnSyncReturns, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { isTaskId, parseTaskDocument } from './record.ts';
@@ -236,7 +236,22 @@ export function takePendingTask(root: string, id: string): boolean {
   const contents = pendingTaskFiles(root).get(id);
   if (contents === undefined) return false;
   mkdirSync(join(root, 'tasks'), { recursive: true });
-  writeFileSync(join(root, 'tasks', `${id}.json`), contents, { flag: 'wx' });
+  const file = join(root, 'tasks', `${id}.json`);
+  // A pending edit of a published record replaces the checkout's clean copy; a local edit stays.
+  if (existsSync(file)) {
+    const path = `tasks/${id}.json`;
+    const clean =
+      git(root, ['ls-files', '--error-unmatch', '--', path]).status === 0 &&
+      git(root, ['diff', '--quiet', 'HEAD', '--', path]).status === 0;
+    if (!clean && !readFileSync(file).equals(contents))
+      throw Object.assign(
+        new Error(
+          `tasks/${id}.json has an uncommitted edit and another one waits on ${PENDING_REF}; keep one of them, then start the lane again`,
+        ),
+        { exitCode: 65 },
+      );
+    writeFileSync(file, contents);
+  } else writeFileSync(file, contents, { flag: 'wx' });
   removePendingTasks(root, [id]);
   return true;
 }
