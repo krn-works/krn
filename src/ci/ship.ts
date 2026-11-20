@@ -712,6 +712,30 @@ ${synced}`;
         '.[0].number // empty',
       ])
     ).trim();
+  // An edit of the title or body is an `edited` event that starts a new CI run, so a PR
+  // that already shows exactly this title and body (no normalisation: a skipped needed edit costs a red ship, an extra one a CI run) is left alone; an unreadable answer edits.
+  const publishedAlready = async (number: number): Promise<boolean> => {
+    try {
+      const shown = JSON.parse(
+        await gh([
+          'pr',
+          'view',
+          String(number),
+          '--repo',
+          repo,
+          '--json',
+          'title,body',
+        ]),
+      ) as { title?: unknown; body?: unknown };
+      return (
+        shown.title === title &&
+        typeof shown.body === 'string' &&
+        shown.body === readBody(publishedBody)
+      );
+    } catch {
+      return false;
+    }
+  };
   const existing = await openPr();
   let pr = existing === '' ? NaN : Number(existing);
   if (Number.isNaN(pr)) {
@@ -753,7 +777,7 @@ ${synced}`;
           { exitCode: 70 },
         );
     }
-  } else {
+  } else if (!(await publishedAlready(pr))) {
     await gh([
       'pr',
       'edit',

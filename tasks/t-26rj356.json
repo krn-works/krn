@@ -1,0 +1,18 @@
+{
+  "id": "t-26rj356",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship edits the PR only when title/body differ; CI edited event no longer cancels the run in progress; tests red first then green"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "A repeated ship leaves an unchanged PR body alone and a body edit does not cancel the Check run",
+  "after": [],
+  "body": [
+    "Evidence: PR #1551 2026-11-20: each krn pr ship call re-edited the PR body; the 'edited' pull_request event started a new CI run that cancelled the run ship was watching (runs 44780963518, 44780966351 cancelled by 44781928074), so ship exited 74 on cancelled runs.\nOutcome: krn pr ship edits the PR body only when its text changed, and a body edit does not start or cancel the required Check run (workflow trigger or concurrency group excludes body-only edits).\nProof: a ship test from a verbatim gh capture shows no pr edit call when the body is unchanged; the workflow file test asserts the edited trigger is filtered or absent.\nFiles: src/ci/ship.ts, .github/workflows/, test/ci/ship.test.ts"
+  ],
+  "kind": "defect",
+  "area": "ci"
+}
