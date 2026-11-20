@@ -34,9 +34,10 @@ export function forgetShip(main: string, branch: string): () => void {
   try {
     before = readFileSync(path);
   } catch {
-    // No record: nothing to forget and nothing to put back.
-    return () => undefined;
+    // Missing or unreadable: still forgotten, with nothing to put back.
   }
   rmSync(path, { force: true });
-  return () => writeFileSync(path, before);
+  return () => {
+    if (before !== undefined) writeFileSync(path, before);
+  };
 }

@@ -681,6 +681,7 @@ export async function startLane(
   checkLaneCapacity(slug, deps.capacity);
   // The branch name is free (checked above): a ship record under it is an earlier lane's.
   const restoreShip = forgetShip(main, slug);
+  let copied = false;
   // Shipped lanes leave their worktree and branch behind: free them now that the start is admitted.
   pruneMergedLanes(main, base);
   // A record of an earlier lane at this path outlived its worktree: it no longer names a live lane.
@@ -705,8 +706,7 @@ export async function startLane(
     let claimed = false;
     try {
       if (task !== undefined) {
-        const copied =
-          carried !== undefined && carryTaskRecord(carried, path, task);
+        copied = carried !== undefined && carryTaskRecord(carried, path, task);
         // A further lane of the same actor shares the claim it already holds: the claim stays held once.
         const held = inspectClaim(main, task);
         if (held.state !== 'live' || held.claim?.actor !== actor) {
@@ -716,10 +716,6 @@ export async function startLane(
             reason: reason ?? `lane ${slug}`,
           });
           claimed = true;
-        }
-        if (copied && carried !== undefined) {
-          if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
-          else rmSync(carried.file);
         }
       }
       // A task-records publish holds no agent session, so it is no lane and records none.
@@ -741,10 +737,16 @@ export async function startLane(
           { kind: 'started' },
         );
     } catch (error) {
+      // The record left the checkout only once the lane holds it: until here the checkout keeps its copy.
       if (claimed && task !== undefined) await releaseClaim(main, task);
       git(main, ['worktree', 'remove', '--force', path]);
       git(main, ['branch', '-D', slug]);
       throw error;
+    }
+    // The lane holds the record now: the checkout copy goes only after every step that could still fail.
+    if (copied && carried !== undefined && task !== undefined) {
+      if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
+      else rmSync(carried.file);
     }
     return { path: realpathSync(path), slug };
   } catch (error) {

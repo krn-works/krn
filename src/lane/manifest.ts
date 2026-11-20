@@ -172,7 +172,11 @@ export function liveManifestOfWorktree(
 }
 
 function stage(path: string, manifest: LaneManifest): string {
-  const temporary = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  // A short name beside the manifest: a long slug must not push it past the file name limit.
+  const temporary = join(
+    dirname(path),
+    `.${process.pid}-${randomBytes(4).toString('hex')}.tmp`,
+  );
   const fd = openSync(temporary, 'wx', 0o644);
   try {
     writeFileSync(fd, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -250,7 +254,8 @@ export function transition(
     throw new LaneManifestError(
       `lane manifest: ${id} cannot move from ${current.phase.kind} to ${next.phase.kind}`,
     );
-  const marker = `${path}.${createHash('sha256').update(seen).digest('hex').slice(0, 16)}.lock`;
+  const digest = createHash('sha256').update(seen).digest('hex');
+  const marker = join(dirname(path), `.${digest.slice(0, 32)}.lock`);
   try {
     writeFileSync(marker, String(process.pid), { flag: 'wx' });
   } catch (error) {

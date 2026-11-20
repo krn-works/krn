@@ -168,8 +168,8 @@ test('a writer whose read went stale is refused with exit 75 and the newer bytes
   const digest = createHash('sha256')
     .update(readFileSync(path))
     .digest('hex')
-    .slice(0, 16);
-  writeFileSync(`${path}.${digest}.lock`, '1');
+    .slice(0, 32);
+  writeFileSync(join(main, laneManifestDir, `.${digest}.lock`), '1');
   const before = readFileSync(path);
   assert.throws(
     () => transition(main, lane.laneId, phases.shipping),
