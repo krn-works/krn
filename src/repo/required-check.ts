@@ -120,13 +120,22 @@ const rulesSchema = z.array(
 );
 
 /**
- * The required check names from GitHub Actions in the answers of `gh api repos/<repo>/branches/<branch>`
- * (classic protection) and `gh api repos/<repo>/rules/branches/<branch>` (rulesets).
+ * The required check names a ruleset or branch protection pins to GitHub Actions (`gh api repos/<repo>/branches/<branch>`
+ * and `gh api repos/<repo>/rules/branches/<branch>`). A ruleset entry with no App requirement is not among them: it
+ * does not establish that Actions produces the check.
  */
 export function requiredContexts(
   branchBody: string,
   rulesBody = '[]',
 ): string[] {
+  return [...contextsOf(branchBody, rulesBody, false)];
+}
+
+function contextsOf(
+  branchBody: string,
+  rulesBody: string,
+  unpinned: boolean,
+): Set<string> {
   const contexts = new Set<string>();
   for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
     ?.required_status_checks?.checks ?? [])
@@ -138,18 +147,35 @@ export function requiredContexts(
   for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
     for (const check of rule.parameters?.required_status_checks ?? [])
       if (
-        (check.integration_id == null ||
-          check.integration_id === REQUIRED_CHECK_APP_ID) &&
+        (check.integration_id === REQUIRED_CHECK_APP_ID ||
+          (unpinned && check.integration_id == null)) &&
         isRequiredCheckName(check.context)
       )
         contexts.add(check.context);
-  return [...contexts];
+  return contexts;
+}
+
+/**
+ * The contexts a merge gate judges. `required`: the pinned aggregates, or, when none is pinned, the aggregate names a
+ * ruleset requires from any source. `optional`: names a ruleset requires from any source beside pinned ones; the gate
+ * judges such a name only once the Actions App has a run of it, because another App's run of it never satisfies the
+ * gate (`selectRequiredCheck` reads the Actions App's own run only).
+ */
+export function gateContexts(
+  branchBody: string,
+  rulesBody = '[]',
+): { required: string[]; optional: string[] } {
+  const pinned = requiredContexts(branchBody, rulesBody);
+  const any = [...contextsOf(branchBody, rulesBody, true)];
+  return pinned.length > 0
+    ? { required: pinned, optional: any.filter((c) => !pinned.includes(c)) }
+    : { required: any, optional: [] };
 }
 
 /** The one required context a repository names, else the plain `Check`: what a delivery gate judges. */
 export function requiredContext(branchBody: string, rulesBody = '[]'): string {
   try {
-    const [only] = requiredContexts(branchBody, rulesBody);
+    const [only] = gateContexts(branchBody, rulesBody).required;
     return only ?? REQUIRED_CHECK_NAME;
   } catch {
     return REQUIRED_CHECK_NAME;
