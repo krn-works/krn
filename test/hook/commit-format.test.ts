@@ -91,3 +91,7 @@ test('env -S supplies the command, so later git words are data', () => {
   assert.equal(decide(bash("env -S 'printf %s' git commit -m wip")), undefined);
   assert.notEqual(decide(bash('env git commit -S -m wip')), undefined);
 });
+
+test('env --help does not run the command named after it', () => {
+  assert.equal(decide(bash('env --help git commit -m wip')), undefined);
+});

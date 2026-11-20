@@ -607,3 +607,10 @@ test('a quoted cd into a worktree whose name has parentheses still writes that w
   assert.equal(call(`cd '${wt}' && echo ok > src/a.ts`), undefined);
   assert.notEqual(call(`cd '${base}' && echo no > src/a.ts`), undefined);
 });
+
+test('a copy from a tracker path with escaped parentheses does not write the tracker', () => {
+  assert.equal(
+    decide(bash(String.raw`cp tasks/input\(old\) src/output`), worker('src/')),
+    undefined,
+  );
+});
