@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { stopHook } from '../../src/hook/stop.ts';
 
 function checkout(): string {
@@ -70,8 +77,14 @@ test('a refusal is saved under .krn/runs/stop-check so the lane and the lead can
   );
 });
 
-test('a failing test command refused identically is stuck although each refusal prints a new log path', () => {
+/** Four Stops in a row on a branch whose test command fails with `command`; the exit codes of each Stop. */
+function failingStops(t: TestContext, command: string): number[] {
   const dir = mkdtempSync(join(tmpdir(), 'stop-loop-fail-'));
+  const state = mkdtempSync(join(tmpdir(), 'stop-loop-state-'));
+  t.after(() => {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(state, { recursive: true, force: true });
+  });
   const git = (...args: string[]) =>
     assert.equal(spawnSync('git', ['-C', dir, ...args]).status, 0);
   git('init', '-q', '-b', 'main');
@@ -79,7 +92,7 @@ test('a failing test command refused identically is stuck although each refusal 
   git('config', 'user.name', 'a');
   writeFileSync(
     join(dir, 'krn.json'),
-    `${JSON.stringify({ base: 'main', test: 'echo FAIL test_a.py; exit 1' })}\n`,
+    `${JSON.stringify({ base: 'main', test: command })}\n`,
   );
   writeFileSync(join(dir, 'a.py'), 'x = 1\n');
   git('add', '.');
@@ -88,8 +101,11 @@ test('a failing test command refused identically is stuck although each refusal 
   writeFileSync(join(dir, 'a.py'), 'x = 2\n');
   git('add', '.');
   git('commit', '-q', '-m', 'change');
+  mkdirSync(join(dir, '.krn/runs/stop-check'), { recursive: true });
+  writeFileSync(join(dir, '.krn/runs/stop-check/diagnostics'), '');
   const env = {
     ...process.env,
+    XDG_STATE_HOME: state,
     CLAUDE_PROJECT_DIR: dir,
     KRN_SESSION_CLASS: 'lane',
     KRN_LANE: 'work',
@@ -104,5 +120,22 @@ test('a failing test command refused identically is stuck although each refusal 
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
     codes.push(stopHook(payload, env, 'work').code);
   }
-  assert.deepEqual(codes, [2, 2, 2, 0]);
+  return codes;
+}
+
+test('a failing test command refused identically is stuck although each refusal names a new log file', (t) => {
+  assert.deepEqual(
+    failingStops(t, 'echo FAIL test_a.py; exit 1'),
+    [2, 2, 2, 0],
+  );
+});
+
+test('test output that differs between runs keeps the stop blocked, even when it looks like a log note', (t) => {
+  assert.deepEqual(
+    failingStops(
+      t,
+      'echo FAIL test_a.py; n=$(wc -l < .krn/runs/stop-check/diagnostics); echo "Unexpected text (full log: diagnostic-$n)"; echo attempt >> .krn/runs/stop-check/diagnostics; exit 1',
+    ),
+    [2, 2, 2, 2],
+  );
 });

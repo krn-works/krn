@@ -5,16 +5,6 @@ import { join } from 'node:path';
 /** Identical no-edit Stop refusals in a row after which the stop is allowed. */
 export const STOP_LOOP_LIMIT = 3;
 
-/** The note a refusal carries about where a run's full output was saved; its path differs on every run. */
-export function failureLogNote(logPath: string): string {
-  return `(full log: ${logPath})`;
-}
-
-/** A refusal without the per-run log path: the stable content the loop identity is taken from. */
-export function stableRefusal(refusal: string): string {
-  return refusal.replace(/\(full log: [^)\n]*\)/gu, '(full log)');
-}
-
 interface LoopState {
   fingerprint: string;
   count: number;
@@ -35,7 +25,7 @@ export function stuckInStopLoop(
   if (typeof session !== 'string' || !/^[\w-]+$/u.test(session)) return false;
   const file = join(dir, '.krn', 'runs', 'stop-loop', `${session}.json`);
   const fingerprint = createHash('sha256')
-    .update(stableRefusal(refusal))
+    .update(refusal)
     .update(tree)
     .digest('hex');
   let previous: LoopState | undefined;

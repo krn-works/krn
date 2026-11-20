@@ -65,7 +65,7 @@ import {
   outcomeRefusal,
 } from './outcome-judge.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
-import { failureLogNote, stuckInStopLoop } from './stop-loop.ts';
+import { stuckInStopLoop } from './stop-loop.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
@@ -280,6 +280,21 @@ export interface Outcome {
   slotTimeout?: string;
   /** Test files that failed, then passed on the one rerun. */
   flaky?: string[];
+  /** Where the failing run's full output was saved; kept out of `reason`, which the stop-loop identity hashes. */
+  logPath?: string;
+}
+
+/** A Stop refusal: the stable `reason` the loop key hashes, and the per-run log path shown beside it. */
+export interface Refusal {
+  reason: string;
+  logPath?: string;
+}
+
+/** The refusal as the worker reads it. */
+export function renderRefusal(refusal: Refusal): string {
+  return refusal.logPath
+    ? `${refusal.reason}\nFull log: ${refusal.logPath}`
+    : refusal.reason;
 }
 
 /** The file a failing key names; `<run>::` keys name none. */
@@ -1386,7 +1401,7 @@ function inspectTests(
   const logged = headOutput ? saveFailureLog(root, headOutput) : undefined;
   const output =
     headOutput && logged
-      ? `\nFailure output ${failureLogNote(logged)}:\n${failureExcerpt(headOutput)}`
+      ? `\nFailure output:\n${failureExcerpt(headOutput)}`
       : '';
   // No test was named: the run broke before any test, so nothing can have "passed at the base".
   if (fresh.every((key) => NAMELESS.test(key))) {
@@ -1399,12 +1414,14 @@ function inspectTests(
     return {
       ok: false,
       ignored: failing.length - fresh.length,
+      ...(logged ? { logPath: logged } : {}),
       reason: `the test command failed before naming any test (${fresh.map((key) => key.slice(7)).join(', ')})${ran}:${output}\n${why}, then commit, or end with a line \`BLOCKER: <what stops you>\`.`,
     };
   }
   return {
     ok: false,
     ignored: failing.length - fresh.length,
+    ...(logged ? { logPath: logged } : {}),
     reason: `${fresh.length} related test(s) fail that passed at the base (pre-existing failures were ignored)${ran}:\n${listed}${more}${output}\nFix them and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
   };
 }
@@ -2042,8 +2059,17 @@ export function stopCheckout(
   return { start, root: ownerCheckout(start) };
 }
 
-/** The refusal reason for a Stop payload, or undefined when the session may end. */
+/** The refusal text for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
+  ...args: Parameters<typeof judgeRefusal>
+): string | undefined {
+  const refusal = judgeRefusal(...args);
+  if (refusal === undefined) return undefined;
+  return typeof refusal === 'string' ? refusal : renderRefusal(refusal);
+}
+
+/** The refusal for a Stop payload (a plain string, or a structured one carrying a log path), or undefined when the session may end. */
+export function judgeRefusal(
   payload: unknown,
   env: NodeJS.ProcessEnv = process.env,
   run: Runner = runTests,
@@ -2053,7 +2079,7 @@ export function judgeStop(
   outcomeJudge: JudgeCall = claudeJudge,
   headOf: (root: string, pr: number) => string | undefined = prHeadBranch,
   mergedPrOf: (root: string, branch: string) => boolean = ghMergedPr,
-): string | undefined {
+): string | Refusal | undefined {
   const fields = payload as {
     cwd?: unknown;
     last_assistant_message?: unknown;
@@ -2124,7 +2150,10 @@ export function judgeStop(
     if (error || !base(root, contract)) return undefined;
   }
   const shipped = subagent ? `\n${SHIPPED_HINT}` : '';
-  return `Stop refused: ${outcome.reason}${shipped}`;
+  return {
+    reason: `Stop refused: ${outcome.reason}${shipped}`,
+    ...(outcome.logPath ? { logPath: outcome.logPath } : {}),
+  };
 }
 
 /** A lane subagent refused at the end is told how a merged ship ends it (t-310mwdm). */
@@ -2140,7 +2169,7 @@ export function stopHook(
   input: string,
   env: NodeJS.ProcessEnv,
   branch: string,
-  judge: typeof judgeStop = judgeStop,
+  judge: typeof judgeRefusal = judgeRefusal,
 ): { code: 0 | 2; stderr: string } {
   let payload: unknown = {};
   try {
@@ -2150,8 +2179,11 @@ export function stopHook(
     if (!(error instanceof SyntaxError)) throw error;
   }
   try {
-    const refusal = judge(payload, env, runTests, branch);
-    if (refusal === undefined) return { code: 0, stderr: '' };
+    const judged = judge(payload, env, runTests, branch);
+    if (judged === undefined) return { code: 0, stderr: '' };
+    const structured: Refusal =
+      typeof judged === 'string' ? { reason: judged } : judged;
+    const refusal = renderRefusal(structured);
     // The same refusal on an unchanged tree three times in a row can never be met: allow the stop.
     const fields = payload as { session_id?: unknown } | null;
     const cwd = stopCheckout(payload, env).root;
@@ -2163,7 +2195,7 @@ export function stopHook(
     ]
       .map((command) => git(cwd, command.split(' ')).stdout)
       .join('\n');
-    if (stuckInStopLoop(cwd, fields?.session_id, refusal, tree))
+    if (stuckInStopLoop(cwd, fields?.session_id, structured.reason, tree))
       return {
         code: 0,
         stderr: `Stop allowed: stop-loop, the same refusal three times with no edit between:\n${refusal}\n`,

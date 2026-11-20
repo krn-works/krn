@@ -2673,7 +2673,7 @@ test('a failing test command refusal carries a bounded excerpt and the full log 
     const red = inspect(dir, () => [], shell, optOut);
     assert.equal(red.ok, false);
     assert.match(red.reason, /tests\/calc\.test\.ts :: adds/u);
-    const log = /full log: (\S+\.log)\)/u.exec(red.reason)?.[1] ?? '';
+    const log = red.logPath ?? '';
     assert.ok(
       log.startsWith(join(dir, '.krn', 'runs', 'stop-check')),
       `log path ${log}`,
@@ -2706,7 +2706,7 @@ test('a real failing command refusal quotes its output and names the log', () =>
     const red = inspect(dir, () => [], undefined, optOut);
     assert.equal(red.ok, false);
     assert.match(red.reason, /FAILED t\.test\.ts::adds - boom/u);
-    assert.match(red.reason, /\.krn\/runs\/stop-check\/\S+\.log/u);
+    assert.match(red.logPath ?? '', /\.krn\/runs\/stop-check\/\S+\.log/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
