@@ -376,6 +376,11 @@ export function testEdits(root: string, from: string): TestEdits {
     // A rename moves a test: it is kept, and only lines it gains count for skips.
     const renamed = kind?.startsWith('R') === true && second !== undefined;
     const path = renamed ? second : first;
+    // A test renamed to a name no runner collects is a deletion in disguise.
+    if (renamed && first && path && isTestFile(first) && !isTestFile(path)) {
+      edits.deleted.push(first);
+      continue;
+    }
     if (!kind || !path || !isTestFile(path)) continue;
     if (kind === 'D') {
       if (!deletionExplained(root, from, path)) edits.deleted.push(path);
@@ -619,8 +624,10 @@ export function failuresIn(output: string, status: number | string): string[] {
         break;
       }
     }
-  if (found.size === 0 && status !== 0) found.add(`<run>::exit ${status}`);
-  if (status !== 0 && MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
+  // A run that exits 0 passed: ERROR or FAIL words in its log lines name no failing test.
+  if (status === 0) return [];
+  if (found.size === 0) found.add(`<run>::exit ${status}`);
+  if (MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
   return [...found].sort();
 }
 
@@ -1391,12 +1398,25 @@ function inspectTests(
  * (t-0bct43k, debf26c), so a miss fetches the base once and checks again. The line may sit in a
  * list bullet, a quote or backticks (t-310mwdm: lanes pasted it quoted and were refused).
  */
-export function shippedMerge(root: string, message: unknown): boolean {
+export function shippedMerge(
+  root: string,
+  message: unknown,
+  tree = root,
+): boolean {
   if (typeof message !== 'string') return false;
   const sha = /^[\s>*`-]*verdict: merged ([0-9a-f]{7,40})\b/mu.exec(
     message,
   )?.[1];
-  return sha !== undefined && onBase(root, sha);
+  if (sha === undefined) return false;
+  // A squash merge is no ancestor of the lane tip: a commit the lane tree already holds is its fork point or
+  // earlier work, so a lane with no commit of its own cannot end by citing it.
+  if (
+    existsSync(tree) &&
+    laneTreeOf(tree) !== undefined &&
+    git(tree, ['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
+  )
+    return false;
+  return onBase(root, sha);
 }
 
 /** The head branch of a pull request, or undefined when gh cannot say (a check that cannot look never blocks). */
@@ -2039,7 +2059,7 @@ export function judgeStop(
     (pr) => headOf(root, pr),
   );
   if (foreign !== undefined) return foreign;
-  if (subagent && shippedMerge(root, fields?.last_assistant_message))
+  if (subagent && shippedMerge(root, fields?.last_assistant_message, start))
     return undefined;
   if (recordedShip(root, env, branch, payload)) return undefined;
   // A removed lane worktree whose branch merged needs no ship record: ship may have been detached or its record lost.

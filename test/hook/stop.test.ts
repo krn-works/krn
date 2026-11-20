@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -35,7 +36,9 @@ import {
   shippedMerge,
   statesBlocker,
   stopHook,
+  testEdits,
   testFirstOn,
+  testTampering,
   withinPackage,
 } from '../../src/hook/stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
@@ -3045,4 +3048,78 @@ test('an expired task claim does not name the session lane', () => {
   } finally {
     rmSync(main, { recursive: true, force: true });
   }
+});
+
+const headOf = (cwd: string) =>
+  spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd,
+    encoding: 'utf8',
+  }).stdout.trim();
+
+test('a lane with no commit of its own cannot end by citing the base commit as its merge', () => {
+  const main = realpathSync(mkdtempSync(join(tmpdir(), 'krn-stop-zero-')));
+  try {
+    sh(main, 'init', '-q', '-b', 'main');
+    sh(main, 'config', 'user.email', 'a@b.c');
+    sh(main, 'config', 'user.name', 'a');
+    writeFileSync(join(main, 'package.json'), '{}\n');
+    writeFileSync(join(main, 'a.txt'), 'base\n');
+    sh(main, 'add', '.');
+    sh(main, 'commit', '-qm', 'base');
+    const baseSha = headOf(main);
+    const lane = join(main, '.krn', 'worktrees', 'feat-x');
+    mkdirSync(join(main, '.krn', 'worktrees'), { recursive: true });
+    sh(main, 'worktree', 'add', '-q', '-b', 'feat-x', lane);
+    const refusal = judgeStop(
+      {
+        cwd: lane,
+        agent_type: 'krn-lane',
+        agent_id: 'sub-1',
+        last_assistant_message: `verdict: merged ${baseSha}`,
+      },
+      { CLAUDE_PROJECT_DIR: main },
+      () => [],
+      'main',
+    );
+    assert.notEqual(refusal, undefined);
+  } finally {
+    rmSync(main, { recursive: true, force: true });
+  }
+});
+
+test('testEdits reports a test renamed to a name no runner collects as deleted', () => {
+  const repo = realpathSync(mkdtempSync(join(tmpdir(), 'krn-stop-rename-')));
+  try {
+    sh(repo, 'init', '-q', '-b', 'main');
+    sh(repo, 'config', 'user.email', 'a@b.c');
+    sh(repo, 'config', 'user.name', 'a');
+    mkdirSync(join(repo, 'src'));
+    mkdirSync(join(repo, 'test'));
+    writeFileSync(join(repo, 'src', 'a.ts'), 'export const a = 1;\n');
+    writeFileSync(
+      join(repo, 'test', 'a.test.ts'),
+      "import { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    sh(repo, 'add', '.');
+    sh(repo, 'commit', '-qm', 'base');
+    const from = headOf(repo);
+    sh(repo, 'checkout', '-q', '-b', 'work');
+    sh(repo, 'mv', 'test/a.test.ts', 'test/a.disabled.ts');
+    sh(repo, 'commit', '-qm', 'disable test via rename');
+    const edits = testEdits(repo, from);
+    assert.deepEqual(edits.deleted, ['test/a.test.ts']);
+    assert.notEqual(testTampering(edits, ''), undefined);
+    sh(repo, 'mv', 'test/a.disabled.ts', 'test/b.test.ts');
+    sh(repo, 'commit', '-qm', 'rename to another test');
+    assert.deepEqual(testEdits(repo, from).deleted, []);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('failuresIn reports no failure for a run that exits 0 whatever its log lines say', () => {
+  const stdout =
+    'ERROR retrying transient connection refused\nFAIL_SAFE mode enabled\n5 passed in 0.12s\n';
+  assert.deepEqual(failuresIn(stdout, 0), []);
+  assert.deepEqual(failuresIn(stdout, 1), ['retrying']);
 });
