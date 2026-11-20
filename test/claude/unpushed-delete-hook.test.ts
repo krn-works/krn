@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { decide } from '../../src/hook/unpushed-delete.ts';
-import { archiveClosedTasks } from '../../src/task/archive.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
+import { archiveClosedTasks } from '../../src/task/storage.ts';
 
 const script = fileURLToPath(
   new URL('../../src/dispatch/main.ts', import.meta.url),
