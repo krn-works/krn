@@ -496,6 +496,13 @@ test('ship edits the PR when its body differs only by a trailing nonbreaking spa
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
 });
 
+test('ship edits the PR when its body differs only by a trailing space on the last line', async () => {
+  const current = JSON.stringify({ body: `${weakensBody.trimEnd()} `, title });
+  const r = receiver({ pulls: [auto, merged], existing: '7\n', current });
+  await shipCommand([...args, '--force'], r);
+  assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
+});
+
 test('a near-empty body is refused with exit 65 naming every missing part, before any git or gh call', async () => {
   const empty = join(mkdtempSync(join(tmpdir(), 'ship-empty-')), 'body.md');
   writeFileSync(

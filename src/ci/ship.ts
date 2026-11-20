@@ -720,9 +720,9 @@ ${synced}`;
           'title,body',
         ]),
       ) as { title?: unknown; body?: unknown };
-      // Only line endings and trailing ASCII blanks are ignored: any other character is a real difference.
+      // Only line endings and the final newlines are ignored: any other character, a blank included, can change a body rule's verdict.
       const text = (value: string) =>
-        value.replace(/\r\n/gu, '\n').replace(/[ \t\n]+$/u, '');
+        value.replace(/\r\n/gu, '\n').replace(/\n+$/u, '');
       return (
         shown.title === title &&
         typeof shown.body === 'string' &&
