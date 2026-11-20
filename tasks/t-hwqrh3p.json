@@ -1,7 +1,11 @@
 {
   "id": "t-hwqrh3p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rows record afterSuite/baseSuite; regressed true/false proven by test/evals/replay-regression.test.ts; report regression per arm and C-A existed (#1490)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Replay grades regressions: the repo's existing suite runs at the base and after each rep",

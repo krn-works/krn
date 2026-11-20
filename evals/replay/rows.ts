@@ -39,6 +39,10 @@ export interface Row {
   reprompted?: boolean;
   /** The session's passing change broke a test that passed at the base commit; absent while no grader measures it. */
   regressed?: boolean;
+  /** Exit of the unit repo's own suite on the changed tree (hidden file removed); -1 when its install failed. Set only for a passing rep. */
+  afterSuite?: number;
+  /** Exit of the same suite on a fresh base checkout; run only when `afterSuite` was red, so absent when it was green. */
+  baseSuite?: number;
   /** The last ~40 lines of the grader's output (screening.ts TAIL_LINES), so every verdict is auditable. */
   gradeTail?: string;
 }
