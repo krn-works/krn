@@ -26,7 +26,7 @@ Run the changed behavior's tests and real receiver proof yourself, and ask for a
 
 A session is the lead only when the operator or its brief names that role or invokes `delivery-lead`. Any other session works and commits in the checkout it was started in: it creates no worktree, branch or task, claims nothing, and skips the lead skills.
 
-The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `delivery-lead` for the no-gates loop, `delivery-retro` when a slice ends, `architecture` when designing or reviewing module structure, `typescript` when writing or reviewing TypeScript, and `delivery-handoff` to start the next slice in a fresh session.
+The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `delivery-lead` for the no-gates loop, `delivery-retro` when a slice ends, `architecture` when designing or reviewing module structure, `standards` before writing or reviewing code, and `delivery-handoff` to start the next slice in a fresh session.
 
 `bin/krn pr ship` merges once the `Check` passes; the `main integrity` ruleset allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.
 
@@ -57,7 +57,7 @@ Keep the minimal set of true, current docs. Delete outdated docs; Git history is
 
 ## Delivery skills in this repository
 
-The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository adds the following on top of them; the project skills `delivery-lead`, `delivery-handoff` and `delivery-retro` carry the same additions until this repository installs the universal set.
+The universal skills (`delivery-lead`, `delivery-handoff`, `delivery-retro`, `architecture` under `src/adopt/skills`) name only commands any adopted repository has. This repository installs `delivery-lead`, `delivery-handoff`, `delivery-retro` and `standards` unchanged (`test/adopt/drift.test.ts`), so the following additions live only here; `.agents/skills/architecture` is still a hand-kept KRN variant that the installer does not write.
 
 - **Handoff:** the capsule is written only with `krn state set` and `krn state accept` and checked with `krn state check --root .`; `krn state handoff` generates `handoff.md` beside it. `node scripts/claude/handoff-requests.ts <handoff path>` checks that it names every open operator task, and `node scripts/claude/operator-inbox.ts open` lists prompts without a disposition. The next session starts with `node scripts/claude/successor-launch.ts --name "<slice purpose>" --model claude-opus-5-5 --effort medium --prompt "<prompt>"` and retires its predecessor with `--retire`.
 - **Retro:** `krn state retro --task <id>` prints the skeleton; rules go through `spec/rules.json`.

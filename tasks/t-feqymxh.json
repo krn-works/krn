@@ -1,0 +1,25 @@
+{
+  "id": "t-feqymxh",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0025 and its four fixes ship in #1532"
+  },
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "Instruction surface: rule copies agree with KRN-11 and skill pointers resolve (ADR 0025)",
+  "after": [],
+  "body": [
+    "ADR 0025 (proposed) maps the agent instruction surface and fixes the copies that contradicted KRN-11.\nOutcome: node --test test/rules/lane-close-rule.test.ts test/adopt/drift.test.ts passes with 0 failures.\nProof: the lane-close-rule and drift tests, plus the green Check on the PR.\nFiles: .agents/records.json, src/task/cli.ts, docs/program/repository-workflow.md, .agents/skills/architecture/SKILL.md, docs/adr/0025-agent-instruction-surface.md"
+  ],
+  "acceptance": [
+    {
+      "verify": "node --test test/rules/lane-close-rule.test.ts test/adopt/drift.test.ts",
+      "passes": true,
+      "exit": 0
+    }
+  ],
+  "kind": "defect",
+  "area": "docs"
+}
