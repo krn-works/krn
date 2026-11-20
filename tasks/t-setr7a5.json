@@ -1,0 +1,14 @@
+{
+  "id": "t-setr7a5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "decide(lane): one lane manifest and one task writer replace six guessed state stores",
+  "after": [],
+  "body": [
+    "Evidence: cross-model audit 2026-11-20 churn table: src/ci/ship.ts 41, src/hook/stop.ts 34, src/cli/lane.ts 31, src/cli/lane-run.ts 23 fix( touches in 14 days; defects D3, D4, D7, D8 share one class: every verb and hook guesses lane and task state from six stores (.krn/task-claims/, .krn/runs/shipped/, .krn/tmp/ship.pid, .krn/tmp/*.parked, refs/krn/pending-tasks, transcript and cwd scraping in stop.ts and scope.ts).\nDecision needed (lead, ADR first): one transactional lane manifest (laneId, worktree, branch, task, phase, shipSha, shipHead, shipPid) passed to hooks by KRN_LANE_ID, one writeTaskRecord() owning pending-ref vs worktree storage, and one real-git lifecycle test (create, edit, dep, start, scope, stop, ship, drop) with no stubbed transport or prior-lane state.\nOutcome: an ADR records the store design; the lifecycle suite runs in CI; hooks read the manifest instead of transcripts.\nProof: 14-day fix( touches across stop.ts, scope.ts, lane*.ts and src/task/ fall at least 40% from the 88 baseline within two 14-day windows after migration (node scripts/fix-churn.ts --report)."
+  ],
+  "kind": "debt",
+  "area": "lane"
+}
