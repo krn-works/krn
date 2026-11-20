@@ -284,6 +284,10 @@
       ],
       "test": "test/ci/ship.test.ts"
     },
+    "src/ci/review.ts": {
+      "receivers": ["git", "sh"],
+      "real": "test/ci/review.test.ts"
+    },
     "src/ci/ship-live.ts": {
       "receivers": ["node"],
       "real": "test/cli/lane-status.test.ts"

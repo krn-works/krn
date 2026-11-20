@@ -22,7 +22,7 @@ When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/de
 
 ## Roles and delivery
 
-Run the changed behavior's tests and real receiver proof yourself, and ask for an independent review when the change is risky.
+Run the changed behavior's tests and real receiver proof yourself. A risky change gets its independent review from `krn pr ship`: a tier 2 diff is read by the krn.json `review` command in fresh context beside the `Check`, and a finding it reproduces blocks the merge.
 
 A session is the lead only when the operator or its brief names that role or invokes `delivery-lead`. Any other session works and commits in the checkout it was started in: it creates no worktree, branch or task, claims nothing, and skips the lead skills.
 
@@ -32,7 +32,7 @@ The lead follows the project skills in `.agents/skills` (also exposed to Claude 
 
 - **Lead:** follows [lead rules](lead-rules.md) and owns the outcome loop. Do not treat a task update or worker handoff as acceptance.
 - **Worker:** a lane is a subagent of the lead session in its own worktree (`krn lane start`); it ships its own PR.
-- **Judge:** an optional review of an exact head SHA, in fresh context; findings are JSON for `krn findings validate`; only the judge, never the finder, sets `confirmed`.
+- **Judge:** a review of an exact head SHA in fresh context, run by `krn pr ship` for a tier 2 diff and optional otherwise; findings are JSON for `krn findings validate`; only the judge, never the finder, sets `confirmed`.
 
 Use one writer per outcome at a time and transfer the writer role explicitly before a mutating handoff. Parallel implementation uses isolated worktrees and returns through one integrator; independent read-only work may run in parallel. Reuse recorded authority for the same outcome's commit, push, PR, and merge without repeating per-step prompts.
 

@@ -3,7 +3,9 @@ import { completeCloseExposure } from '../brain/close-exposure.ts';
 import { type Runner, run } from '../ci/command.ts';
 import { shipCommand, shipUsage } from '../ci/ship.ts';
 import { detachedShipArgs, startDetachedShip } from '../ci/ship-live.ts';
+import { frameClass, gateManifest } from '../outcome/gate-manifest.ts';
 import {
+  baseContractReview,
   contractBase,
   contractDeployAcknowledged,
   contractTracker,
@@ -61,6 +63,14 @@ export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
   completeClose: completeCloseExposure,
   releaseClaim: (main, worktree, task) => {
     releaseClosedClaims(main, worktree, task);
+  },
+  reviewCommand: baseContractReview,
+  inGateFrame: (cwd) => {
+    const manifest = gateManifest(cwd);
+    return (path) => {
+      const kind = frameClass(path, manifest);
+      return kind === 'runner' || kind === 'validators';
+    };
   },
   deployRefusal: (cwd, base) => {
     const files = deployWorkflows(cwd, base);
