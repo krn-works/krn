@@ -1,4 +1,4 @@
-# 25. Ship reads one GitHub PR state model
+# 27. Ship reads one GitHub PR state model
 
 Date: 2026-11-19
 
