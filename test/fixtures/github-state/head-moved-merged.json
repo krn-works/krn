@@ -1,0 +1,25 @@
+{
+  "state": "head-moved",
+  "about": "PR #1131 merged, but at another head than the one this ship pushed (#1360): somebody else merged it.",
+  "expected": {
+    "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "context": "Check",
+    "mergeRequested": false
+  },
+  "from": {
+    "view": {
+      "capture": "pr-1131-merged-view",
+      "varied": []
+    }
+  },
+  "snapshot": {
+    "view": {
+      "headRefOid": "211ffa184a97429853b53a6de11d13553b19bf17",
+      "mergeCommit": {
+        "oid": "add3abc8a898d2289824da10a37b523ebbbfbe6a"
+      },
+      "mergeable": "UNKNOWN",
+      "state": "MERGED"
+    }
+  }
+}

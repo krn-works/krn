@@ -262,6 +262,51 @@
         "file": "check-runs-1449-rerun-attempts.stdout.json",
         "sha256": "89fa9ee6083de5f8607550e31e1f18fa04303cb25d9e46791b9b8319e4fd029f"
       }
+    },
+    {
+      "name": "check-runs-1530-check-running",
+      "command": "gh api 'repos/krn-works/krn/commits/c360c062a013cb57f34b07dd8db666ab24578bce/check-runs?filter=all&per_page=100' --jq CHECK_FACT_FILTER  # gh 2.89.0, 2026-11-19; PR #1530 head while its aggregate Check was in progress",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-1530-check-running.stdout.json",
+        "sha256": "5c46defef13648d933c5ad8b4effe85c94fab84bc32eeda6e33eca4d2f9c02ca"
+      }
+    },
+    {
+      "name": "run-list-1530-in-progress",
+      "command": "gh run list --repo krn-works/krn --commit c360c062a013cb57f34b07dd8db666ab24578bce --json status,databaseId,createdAt,startedAt,event,workflowName  # gh 2.89.0, 2026-11-19; PR #1530 head while its CI run was in progress",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-list-1530-in-progress.stdout.json",
+        "sha256": "653288a81eb898595971324aa9e16a779fe171e8a3cf74b3b96d5fae5247ec46"
+      }
+    },
+    {
+      "name": "check-runs-1529-red",
+      "command": "gh api 'repos/krn-works/krn/commits/38645865834c1c2ad8627e709d7e2881ce3bfdc8/check-runs?filter=all&per_page=100' --jq CHECK_FACT_FILTER  # gh 2.89.0, 2026-11-19; PR #1529 head whose aggregate Check concluded failure",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-1529-red.stdout.json",
+        "sha256": "f257918e2aae6aba82be5f13360a1e9c66e760a682c02368b983be99fc8fe420"
+      }
+    },
+    {
+      "name": "check-runs-1422-unchecked-commit",
+      "command": "gh api 'repos/krn-works/krn/commits/326b408bcec97d4791105905276383fc0777039d/check-runs?filter=all&per_page=100' --jq CHECK_FACT_FILTER  # gh 2.89.0, 2026-11-19; first commit of PR #1422, pushed with a later head, so no check ran on it",
+      "exitCode": 0,
+      "stdout": {
+        "file": "check-runs-1422-unchecked-commit.stdout.json",
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "run-list-1422-unchecked-commit",
+      "command": "gh run list --repo krn-works/krn --commit 326b408bcec97d4791105905276383fc0777039d --json status,databaseId,createdAt,startedAt,event,workflowName  # gh 2.89.0, 2026-11-19; first commit of PR #1422: no workflow run",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-list-1422-unchecked-commit.stdout.json",
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
     }
   ]
 }
