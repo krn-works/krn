@@ -12,7 +12,10 @@ contrasts: C-A, C-B
 alpha: 0.05
 mde-pp: 16
 power: 0.8
-sessions: 630
+sessions: 840
+aa-arm: A' (a second copy of A), 3 reps on the same units, outside the contrasts and their Holm family
+cost-prices: input 2, output 10, cache-read 0.1, cache-write-5m 2.5, cache-write-1h 4
+cost-sensitivity: input 2, output 10, cache-read 2, cache-write-5m 2, cache-write-1h 2
 
 - Arms: A plain clone; B in-force records as a static CLAUDE.md, token-matched; C KRN (`evals/replay/arms.ts`).
 - Primary: pass rate per unit (mean over its 3 reps), paired difference C minus control per unit, standard error clustered on the unit (`pairedDifference` in `evals/d23/analysis.ts`), normal approximation, two-sided.
@@ -21,8 +24,31 @@ sessions: 630
 - Arm C includes Remember: units of one repo run in commit-date order, graded failures of earlier units propose evidence-gated records served only to later units of that repo; at most 3 records per retrieval moment behind a precision gate; Stop runs executable checks only (ADR 0021 point 10).
 - Reported beside pass rate: cost per resolved task and regression rate per arm.
 - Co-primary cost: paired log ratio of per-unit geometric-mean session cost, C over control, with its clustered SE, and USD per resolved task per arm (total USD over passing rows divided by passes). C injects no more tokens than B.
-- Budget: about 630 sessions at about 0.60 USD each, about 375 USD notional, the operator grant of 2026-11-17 ("budżet S8 klepnięty, jedź pełny przebieg"), which supersedes the 115 USD figure of the ADR.
+- Cost is counted by token type (ADR 0021 point 12): each row's tokens are input, output, cache read, and 5-minute and 1-hour cache writes, summed over every model the session names. They are priced by the `cost-prices` vector (Claude Sonnet 5.5 list, USD per million tokens) whatever model the row realized. The cost verdict is repeated at `cost-sensitivity`, which prices every cached token at the input price; a verdict that differs between the two is reported as cache-dependent. The reported `total_cost_usd` is descriptive only. A re-prompted attempt takes its last session's report, because a resumed session reports from its start.
+- Budget: about 630 sessions for A, B and C at about 0.60 USD each, about 375 USD notional, the operator grant of 2026-11-17 ("budżet S8 klepnięty, jedź pełny przebieg"), which supersedes the 115 USD figure of the ADR. The A' arm adds about 210 sessions, about 126 USD, under the grant of 2026-11-19; the operator confirms the 840-session total before the freeze.
 - Report: `node evals/replay/run.ts --prereg evals/replay/abc.prereg.md --report [--rows <file>]`.
+
+## Noise and integrity
+
+Rules fixed before the freeze (ADR 0021 point 12):
+
+- **Interleaving.** For each unit and rep, A, B, C and A' run back to back in an order drawn from a seeded shuffle of (unit, rep).
+- **Three-state verdict.** Each contrast reads better (Holm-adjusted p below alpha, C better), worse (Holm-adjusted p below alpha, C worse) or not shown, with its 95% CI.
+- **Intervals, not ranks.** Arms are never ordered by point estimate.
+- **A/A arm.** A' is arm A's configuration under its own id.
+  - A'−A reports the flip rate (share of unit-reps whose pass differs) and the paired difference with its CI, for pass rate and for cost.
+  - A'−A is the run's noise floor and stays outside the Holm family.
+  - If A'−A is shown at alpha, the run is flagged miscalibrated and every confirmatory contrast is reported as not shown.
+- **Infra errors.**
+  - An infra error is an API error status, an auth or network failure, a harness crash, or a stop at the account usage limit.
+  - An attempt that ends in one is rerun once in the same window. A second infra error excludes that unit-rep from every arm, so pairing is kept.
+  - The report prints exclusions per arm. Past 10% excluded unit-reps the run is inconclusive.
+  - A session stopped at its own time or dollar cap is not an infra error; it is graded as it stands.
+- **Grader integrity.**
+  - Hidden tests enter only after the session ends.
+  - A rep is graded from a clean checkout of the base commit plus its diff, outside the agent's write scope.
+  - A diff that modifies or deletes an existing test file or CI configuration is unresolved. Adding new test files is allowed.
+- **Strata.** Beside the unit-clustered pooled estimate, the report prints each contrast per repo with at least 2 units. A contrast whose sign differs in more than half of those repos is flagged heterogeneous.
 
 ## Units
 

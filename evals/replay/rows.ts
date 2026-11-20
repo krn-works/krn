@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { ArmId } from './arms.ts';
 import type { Verdict } from './attempt.ts';
+import type { TokenCounts } from './token-cost.ts';
 
 export interface Row {
   unit: string;
@@ -12,6 +13,8 @@ export interface Row {
   pass: boolean | null;
   /** USD for the session; null when the session reported none (unknown, never 0) and for a dry row. */
   cost: number | null;
+  /** Tokens by type the attempt's sessions spent (ADR 0021 point 12); null when unreported, absent on older rows. */
+  tokens?: TokenCounts | null;
   harness: string;
   /** The model the session realized (its usage keys, sorted and joined); null when unreported, absent on older rows. */
   model?: string | null;

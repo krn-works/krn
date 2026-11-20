@@ -64,6 +64,7 @@ import {
   sessionCommand,
   settingsPath,
 } from './session-args.ts';
+import type { TokenCounts } from './token-cost.ts';
 
 /** One session turn of an attempt: the first prompt, or the gate's re-prompt resuming the session it names. */
 export interface SessionTurn {
@@ -279,6 +280,8 @@ export function spentSince(
 /** What one gated attempt yields for its row: its spend, realized model and the facts its streams show. */
 export interface AttemptFields {
   cost: number | null;
+  /** Tokens by type over the attempt (ADR 0021 point 12); null when no session reported them (Codex rows today). */
+  tokens: TokenCounts | null;
   model: string | null;
   durationMs: number;
   toolCalls: number;
@@ -292,7 +295,7 @@ export interface AttemptFields {
 /**
  * One attempt under the verify-before-end gate (attempt.ts) every arm meets: the session runs; when it ended by itself
  * without a passing last test run, it is resumed once with the refusal, inside the attempt's remaining time and dollars.
- * Codex reports cumulative spend from its rollouts; Claude reports each run's own, so its turns add up.
+ * Codex's rollout and a resumed Claude session both report spend from the session's start, so the last report counts.
  */
 export async function gatedAttempt(
   harness: Harness,
@@ -326,13 +329,12 @@ export async function gatedAttempt(
   }
   const last = sessions.at(-1) as DrivenSession;
   const lastFacts = facts.at(-1) as StreamFacts;
-  const costs = sessions.map((s) => s.result.cost);
+  // Both harnesses report a resumed session's spend and tokens from its start, so the last report covers the attempt.
   const cost =
-    harness === 'codex'
-      ? (costs.findLast((c) => c !== undefined) ?? null)
-      : costs.every((c) => c === undefined)
-        ? null
-        : costs.reduce<number>((a, c) => a + (c ?? 0), 0);
+    sessions.map((s) => s.result.cost).findLast((c) => c !== undefined) ?? null;
+  const tokens =
+    sessions.map((s) => s.result.tokens).findLast((t) => t !== undefined) ??
+    null;
   // The attempt ran when its first session ran: a re-prompt that hit a usage limit does not erase the first session.
   const ran = sessionRan(first);
   const wallMs = now() - t0;
@@ -342,6 +344,7 @@ export async function gatedAttempt(
     ran,
     fields: {
       cost,
+      tokens,
       model:
         [...new Set(sessions.flatMap((s) => s.result.model ?? []))]
           .sort()

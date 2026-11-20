@@ -1,7 +1,11 @@
 {
   "id": "t-1dfwa0h",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0021 point 12 + prereg cost-prices/cost-sensitivity/aa-arm and Noise and integrity rules; rows carry tokens by type priced by evals/replay/token-cost.ts; re-prompted Claude attempts no longer double-count cost; rule code in t-fcd2sbc t-bgvm2kn t-y6q2zc6 t-4y086t4"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "S8 preregistration counts cost by token type and controls noise and grader access",
