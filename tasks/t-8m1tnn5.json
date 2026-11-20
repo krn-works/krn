@@ -1,7 +1,11 @@
 {
   "id": "t-8m1tnn5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "session records its pgid under .krn/runs/<lane>/session.pgid; prepare kills that group when a member works in the worktree and waits until gone; covers real lane sessions (same driveSession)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "A resumed lane kills the cut session's process group before reusing its worktree",

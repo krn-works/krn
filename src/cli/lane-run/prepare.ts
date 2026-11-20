@@ -30,6 +30,7 @@ import type { LaneRequest } from './args.ts';
 import { baseSuiteFailure } from './base-run.ts';
 import { isBootstrapTask, isGreenBaseTask } from './bootstrap.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
+import { reapCutSession } from './cut-session.ts';
 import { parkedAt, parkedFile } from './delivery.ts';
 import { laneDependencies, sessionEnvironment } from './environment.ts';
 import {
@@ -163,6 +164,8 @@ export async function prepareLane(
 
   const existing = join(main, '.krn', 'worktrees', lane);
   const reused = existsSync(existing);
+  // A run cut before its session ended can leave that session writing in this worktree: end it before reuse.
+  if (reused) await reapCutSession(main, lane, existing);
   const holder = actor ?? `lane-${lane}`;
   // Only a commit the runner itself handed to ship (after a session passed its gates) resumes without a session:
   // a task closed by a killed or BLOCKER-ended session is unchecked work (t-zbbqmhr).

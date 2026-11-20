@@ -4,6 +4,7 @@ import type { SessionResult } from '../../../evals/replay/session-result.ts';
 import { headlessArgs, laneBinary } from '../../harness/claude.ts';
 import { contractLaneBudget } from '../../repo/contract.ts';
 import { mainCheckoutPlaceholders } from '../../state/sandbox-placeholders.ts';
+import { sessionGroupFile } from './cut-session.ts';
 import {
   fallbackModel,
   laneAdvisorModel,
@@ -40,6 +41,7 @@ export async function runSession(lane: PreparedLane): Promise<SessionOutcome> {
         : {}),
     }),
     cwd: worktree,
+    groupFile: sessionGroupFile(main, lane.lane),
     env: environment,
     timeoutMs,
     claude,

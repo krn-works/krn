@@ -3,6 +3,10 @@
 // sessions through it. Asynchronous: an in-process egress proxy (evals/units/egress.ts) must keep serving while the
 // session runs.
 import { spawn } from 'node:child_process';
+import {
+  forgetSessionGroup,
+  recordSessionGroup,
+} from '../../src/cli/lane-run/cut-session.ts';
 import { parseSessionResult, type SessionResult } from './session-result.ts';
 
 /** Kill every process the session left in its own process group (a Bash child can outlive claude). */
@@ -24,6 +28,8 @@ export interface HeadlessSession {
   timeoutMs: number;
   /** The claude binary the session names, for the not-found detail. */
   claude: string;
+  /** A file that holds the session's process group while it runs; a run cut before the session ends leaves it. */
+  groupFile?: string;
   /** Text written to the session's stdin; none closes it empty. */
   stdin?: string;
   /** Reads a session that ran to its end; the default reads a `claude -p` JSON result. */
@@ -75,6 +81,8 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
       // Its own process group, so the timeout kills the session's children with it.
       detached: true,
     });
+    if (s.groupFile !== undefined && child.pid !== undefined)
+      recordSessionGroup(s.groupFile, child.pid);
     const now = s.now ?? Date.now;
     const deadline = now() + s.timeoutMs;
     let closed = false;
@@ -131,6 +139,7 @@ export function driveSession(s: HeadlessSession): Promise<DrivenSession> {
       if (drain) clearTimeout(drain);
       if (poll) clearInterval(poll);
       killGroup(child.pid);
+      if (s.groupFile !== undefined) forgetSessionGroup(s.groupFile);
       const result = resultOf(s, { stdout, stderr, timedOut, error });
       resolve({
         result: capped
