@@ -85,7 +85,10 @@ test('a running session records its process group and a finished one forgets it'
   const file = sessionGroupFile(main, 'lane-x');
   const done = driveSession({
     command: 'sh',
-    argv: ['-c', `cat ${file}; echo`],
+    argv: [
+      '-c',
+      `n=0; while [ ! -s ${file} ] && [ $n -lt 100 ]; do n=$((n+1)); sleep 0.05; done; cat ${file}`,
+    ],
     cwd: worktree,
     env: process.env,
     timeoutMs: 10_000,
