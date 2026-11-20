@@ -1,0 +1,18 @@
+{
+  "id": "t-dqc1wm0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "CI Fix churn step, KRN-15, lead rules and skills; redesign tasks t-7bntdj9 t-z8gnzyt t-ytj078w t-zdp1yw1"
+  },
+  "created": "2026-11-19",
+  "priority": 0,
+  "title": "A repeated fix of the same module or task is refused until its root cause and redesign are named",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-19 (weekly PR review thread): \"we must make the repo better and the instructions and everything to avoid such things\", after the review found modules absorbing fixes one edge case at a time. Evidence (origin/main, 2026-11-01..19): src/ci/ship.ts 40 fix commits, src/hook/stop.ts 32, src/cli/lane.ts 29, src/cli/lane-run.ts 23, scripts/fast-check.ts 17; t-1p7dmw9 took 8 fix PRs after its feature merged, t-djnrw3t 7, t-yabrgsa 6. No rule or check notices a repeated fix: KRN-14 asks for one regression test per defect, the architecture skill says to skip bug fixes, and the retro looks at one slice only.\nFiles: scripts/fix-churn.ts, test/ci/fix-churn.test.ts, .github/workflows/ci.yml, .agents/standards.json, spec/rules.json, AGENTS.md, docs/program/lead-rules.md, .claude/skills/architecture/SKILL.md, .claude/skills/delivery-retro/SKILL.md, src/outcome/gate-manifest.ts\nOutcome: CI refuses a fix(...) PR that touches a source file with 4 or more fix commits on the base in the last 14 days, or whose task already took 2 fix commits after its feature, unless the body has a `Root cause:` line and a `Redesign: <open task id | this PR>` line; the refusal lists the earlier fix subjects. `node scripts/fix-churn.ts --report` prints the hot files and fix-chained tasks. Rule KRN-15 and the lead rules say the third fix of the same module is a redesign, not another edge case.\nProof: node --test test/ci/fix-churn.test.ts passes: a fix touching a hot file without the lines fails, with them passes, a feat passes, a cold file passes, and a fix-chained task fails."
+  ],
+  "kind": "gate",
+  "area": "ci"
+}

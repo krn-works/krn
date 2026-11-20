@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Judge or design module structure in any language, including sets of .ts modules: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use for structure reviews, refactors and seam decisions, with the measured depth check first; skip for bug fixes and edits that keep the interface.
+description: Judge or design module structure in any language, including sets of .ts modules: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use for structure reviews, refactors and seam decisions, with the measured depth check first; skip for a one-off bug fix and edits that keep the interface, not for another fix of a module fixed repeatedly.
 ---
 
 # Architecture
@@ -19,6 +19,10 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 - **Leverage**: what callers gain from depth. **Locality**: what maintainers gain: change, bugs, and checks concentrate in one place.
 
 **Deletion test**: imagine deleting the module. Complexity vanishes: it was a pass-through. It reappears in N callers: it earned its keep. "Concentrates" is the signal to deepen. **The interface is the test surface**: if tests need to reach past it, the module has the wrong shape.
+
+## Repeated fixes
+
+A module that keeps taking fixes for different cases has a wrong model. Read the earlier fixes, name the class they share, and give that state or format one owner with each case as a fixture, or ship the narrow fix with a redesign task. CI asks this from 6 fix tasks in 14 days (`node scripts/fix-churn.ts --report`, KRN-15).
 
 ## Process
 

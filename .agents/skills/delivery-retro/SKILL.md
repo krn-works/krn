@@ -17,6 +17,7 @@ If the slice hit a workaround or a tool refusal, write each (with evidence paths
 ## Find candidates
 
 - **Automated checks:** an error a check could have caught earlier. Extend the cheapest check (a lint rule, a test, a CI step). This is the preferred outcome.
+- **Fix chains:** a repeat fix of one task or file gets a real-receiver case or a redesign task, not another edge-case rule.
 - **Reviewer rules:** a review finding no deterministic check can catch. Add it to the repository rules in `AGENTS.md`.
 - **Steering files:** instructions that changed nothing, duplicate an owner or contradict a decision record. Delete or move them.
 - **Navigation:** time lost finding an owner. Add a pointer in `AGENTS.md`.

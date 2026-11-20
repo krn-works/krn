@@ -7,6 +7,7 @@ import { dirname, relative, resolve } from 'node:path';
 const ENTRY_POINTS = [
   'scripts/test-suite.mjs',
   'scripts/weak-tests.mjs',
+  'scripts/fix-churn.ts',
   'scripts/ci-changes.mjs',
 ];
 const RUNNER_PATHS = ['package.json'];

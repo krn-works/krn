@@ -77,7 +77,7 @@ export function render(selected: readonly Rule[], worker = false): string {
     ...(worker
       ? []
       : [
-          'This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict), commit; CI runs the rest.',
+          'This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict: `fast PASS:` or `fast FAIL (...):`; run it as a background shell and wait for its exit, never an until/while sleep loop on its log), commit; CI runs the rest.',
           '',
         ]),
     ...(worker

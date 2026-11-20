@@ -1,0 +1,16 @@
+{
+  "id": "t-7bntdj9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-19",
+  "priority": 1,
+  "title": "Ship and verify read one GitHub PR state model instead of one branch per surprise",
+  "after": [
+    "t-dqc1wm0"
+  ],
+  "body": [
+    "Source: fix-churn review 2026-11-19 (t-dqc1wm0). src/ci/ship.ts took 40 fix commits from 2026-11-01 to 11-19, each one GitHub state met for the first time: a queued Check (#1236), a null check rollup (#1188), a merge reported in progress (#1271), a failed attempt superseded by a rerun (#1455), the newest Check (#1171), the Check selected by name and App (#1354), a red-by-design reusable-workflow Check (#1514, #1517), and four separate gh retry fixes in one day (#1182, #1189, #1197, #1295). Root cause: ship has no model of the PR, check and merge states; each caller reads raw gh output and adds one branch per surprise.\nFiles: src/ci/ship.ts, src/ci/wait.ts, src/repo/required-check.ts, a new src/ci/github-state.ts, test/ci/ship.test.ts, test/fixtures/\nOutcome: one module owns the gh calls ship and verify make (one retry policy for every idempotent call) and maps a PR head to one state of a closed set (no-check, queued, running, superseded, green, red, merging, merged, closed, conflict); ship and verify branch only on that state. Every state has a verbatim gh capture under test/fixtures that the state test reads. The scattered retry and rollup branches in ship.ts are deleted.\nProof: node --test test/ci/github-state.test.ts passes with one captured fixture per state; node scripts/architecture/depth.ts shows src/ci/ship.ts with fewer lines than before; `node scripts/fix-churn.ts --report` no longer lists src/ci/ship.ts 14 days after the merge."
+  ],
+  "kind": "debt",
+  "area": "ci"
+}

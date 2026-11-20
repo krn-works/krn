@@ -99,6 +99,18 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node scripts/pr-body-check.ts
 
+      # History floor: a fix(...) PR touching a source file the base fixed for
+      # 6+ tasks in 14 days, or whose task already took 2 fixes after its
+      # feature, names `Root cause:` and `Redesign:` in its body.
+      - name: Fix churn
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/fix-churn.ts "$BASE" "$HEAD"
+
       # A pull request whose commits carry `Ticket: <id>` must close that task;
       # work that leaves it open carries `Refs: <id>` (ADR 0015).
       - name: Task records

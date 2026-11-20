@@ -227,6 +227,44 @@
     "supersedes": []
   },
   {
+    "id": "s-ci-fix-churn",
+    "type": "standard",
+    "area": "ci",
+    "layer": "krn-delivery",
+    "text": "A fix PR of a hot file or fix-chained task has `Root cause:` and `Redesign:` body lines. CI runs `node scripts/fix-churn.ts`; `--report` lists hot files and fix chains.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": [],
+      "paths": ["src/**", "scripts/**", "bin/**"],
+      "terms": [
+        "fix",
+        "churn",
+        "edge",
+        "case",
+        "root",
+        "cause",
+        "redesign",
+        "repeated"
+      ]
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node scripts/ci-check-wired.ts 'node scripts/fix-churn.ts'"
+    },
+    "provenance": {
+      "origin": "CI workflow and package.json scripts",
+      "evidence": ["scripts/fix-churn.ts"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-19",
+    "valid_from": "2026-11-19",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-ci-task-records",
     "type": "standard",
     "area": "ci",
