@@ -11,6 +11,7 @@ If accepted:
 - Completes the rule-source fold of [ADR 0024](0024-one-tracked-plan-and-three-rule-sources.md).
 - Moves KRN's own edit moment of [ADR 0020](0020-retrieval-moments-and-token-budgets.md) to native path-scoped rules.
 - Leaves the shipped pack and the S8 proof of [ADR 0021](0021-proof-methodology.md) in place until S8 reports.
+- Overlaps ADR 0025 (agent instruction surface), which reaches the same root cause, copied rule text, from the instruction side and keeps records that cite a rule. Accepting this ADR supersedes ADR 0025's packet-filter step, because the own stores it filters are deleted.
 
 ## Context
 
