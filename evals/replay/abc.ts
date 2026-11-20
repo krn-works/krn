@@ -2,6 +2,7 @@
 // cost as co-primary, "not shown" a published result. Pure functions over rows and the frozen preregistration.
 import { type Observation, pairedDifference } from '../d23/analysis.ts';
 import type { ArmId } from './arms.ts';
+import { type Interval, rowCost, usdPerResolvedCi } from './cost-stats.ts';
 import type { Row } from './rows.ts';
 
 export interface Prereg {
@@ -76,7 +77,7 @@ const observation = (r: Row): Observation => ({
   correct: r.pass === true,
   scopeClean: true,
   refusal: false,
-  costUsd: r.cost ?? Number.NaN,
+  costUsd: rowCost(r) ?? Number.NaN,
 });
 
 export interface Contrast {
@@ -91,6 +92,10 @@ export interface Contrast {
   /** Paired log of the geometric-mean cost ratio, treatment over control, per unit. */
   logCostRatio: number;
   logCostSe: number;
+  /** 95% CI of the log ratio, clustered by unit over reps. */
+  logCostCi: Interval;
+  /** Units both arms have a cost for: the pair the log ratio is over. */
+  costUnits: number;
   /** Holm-adjusted over the contrasts; the primary cost claim is shown when it is below alpha and C is cheaper. */
   costAdjustedP: number;
   costShown: boolean;
@@ -115,6 +120,8 @@ export interface AbcReport {
   contrasts: Contrast[];
   /** Total USD over passing rows per arm, null with no pass. */
   usdPerResolved: Record<ArmId, number | null>;
+  /** 95% bootstrap CI of USD per resolved task, seeded and clustered by unit; null with no pass. */
+  usdCi: Record<ArmId, Interval | null>;
   /** Frozen-unit rows per arm whose cost is unknown (null); their spend is missing from the dollars, not zero. */
   unknownCost: Record<ArmId, number>;
   regression: Regression;
@@ -146,6 +153,8 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       shown: adjustedP < prereg.alpha && d.diff > 0,
       logCostRatio: cost.diff,
       logCostSe: cost.se,
+      logCostCi: { low: cost.ciLow, high: cost.ciHigh },
+      costUnits: cost.units,
       costAdjustedP: costAdjusted[i] as number,
       costShown:
         cost.units > 1 &&
@@ -161,14 +170,19 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       ? null
       : spent
           .filter((r) => r.arm === arm)
-          .reduce((s, r) => s + (r.cost ?? 0), 0) / passes;
+          .reduce((s, r) => s + (rowCost(r) ?? 0), 0) / passes;
   };
   const unknown = (arm: ArmId): number =>
-    spent.filter((r) => r.arm === arm && r.cost === null).length;
+    spent.filter((r) => r.arm === arm && rowCost(r) === undefined).length;
   return {
     graded: graded.length,
     contrasts,
     usdPerResolved: { A: usd('A'), B: usd('B'), C: usd('C') },
+    usdCi: {
+      A: usdPerResolvedCi(spent, graded, 'A'),
+      B: usdPerResolvedCi(spent, graded, 'B'),
+      C: usdPerResolvedCi(spent, graded, 'C'),
+    },
     unknownCost: { A: unknown('A'), B: unknown('B'), C: unknown('C') },
     regression: regression(graded, prereg),
   };
@@ -224,6 +238,11 @@ export function matrixProblems(rows: Row[], prereg: Prereg): string[] {
     if (!Number.isInteger(r.rep) || r.rep < 1 || r.rep > prereg.reps)
       problems.push(
         `${r.unit} ${r.arm} rep ${r.rep} outside 1..${prereg.reps}`,
+      );
+    const cost = rowCost(r);
+    if (!(cost !== undefined && cost > 0))
+      problems.push(
+        `no total_cost_usd for ${r.unit} ${r.arm} rep ${r.rep} (cost ${cost})`,
       );
     const k = `${r.unit} ${r.arm} ${r.rep}`;
     cells.set(k, [...(cells.get(k) ?? []), r]);
@@ -289,7 +308,7 @@ const rate = (x: { rate: number; rows: number } | undefined) =>
 export function reportLines(r: AbcReport, prereg: Prereg): string[] {
   const lines = r.contrasts.map(
     (c) =>
-      `verdict: cost ${c.name} ratio ${Math.exp(c.logCostRatio).toFixed(2)} (log ${c.logCostRatio.toFixed(3)}, clustered SE ${c.logCostSe.toFixed(3)}), Holm p ${c.costAdjustedP.toFixed(4)}, ${c.costShown ? 'shown' : 'not shown'} (alpha ${prereg.alpha})`,
+      `verdict: cost ${c.name} ratio ${Math.exp(c.logCostRatio).toFixed(2)} (log ${c.logCostRatio.toFixed(3)}, 95% CI [${Math.exp(c.logCostCi.low).toFixed(2)}, ${Math.exp(c.logCostCi.high).toFixed(2)}], clustered SE ${c.logCostSe.toFixed(3)}, n ${c.costUnits} units), Holm p ${c.costAdjustedP.toFixed(4)}, ${c.costShown ? 'shown' : 'not shown'} (alpha ${prereg.alpha})`,
   );
   const g = r.regression.contrast;
   lines.push(
@@ -305,6 +324,12 @@ export function reportLines(r: AbcReport, prereg: Prereg): string[] {
   lines.push(
     `cost: USD per resolved task A ${money(u.A)}, B ${money(u.B)}, C ${money(u.C)}`,
   );
+  for (const arm of ['A', 'B', 'C'] as ArmId[]) {
+    const ci = r.usdCi[arm];
+    lines.push(
+      `cost: USD per resolved ${arm} ${money(u[arm])} 95% CI ${ci === null ? 'n/a' : `[${money(ci.low)}, ${money(ci.high)}]`} (bootstrap over units, seeded)`,
+    );
+  }
   const k = r.unknownCost;
   if (k.A + k.B + k.C > 0)
     lines.push(
