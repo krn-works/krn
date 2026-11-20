@@ -376,6 +376,11 @@ export function testEdits(root: string, from: string): TestEdits {
     // A rename moves a test: it is kept, and only lines it gains count for skips.
     const renamed = kind?.startsWith('R') === true && second !== undefined;
     const path = renamed ? second : first;
+    // A test renamed to a name no runner collects is a deletion in disguise.
+    if (renamed && first && path && isTestFile(first) && !isTestFile(path)) {
+      if (!deletionExplained(root, from, first)) edits.deleted.push(first);
+      continue;
+    }
     if (!kind || !path || !isTestFile(path)) continue;
     if (kind === 'D') {
       if (!deletionExplained(root, from, path)) edits.deleted.push(path);
@@ -596,13 +601,26 @@ function spawnTests(root: string, tests: string[]): string[] | CommandResult {
 
 // One failing test per match, by runner: pytest summary, unittest, go, cargo, jest/vitest file lines.
 const FAILURE_LINES: readonly RegExp[] = [
-  /^(?:FAILED|ERROR) (\S+)/mu,
+  /^(?:FAILED|ERROR) ([^\s(]\S*)/mu,
   /^(?:FAIL|ERROR): \S+ \(([^)]+)\)/mu,
   /^\s*--- FAIL: (\S+)/mu,
   /^FAIL\s+(\S+)\s/mu,
   /^test (\S+) \.\.\. FAILED/mu,
   /^\s*FAIL\s+(\S+)/mu,
 ];
+
+// Summary lines runners print only when tests failed: unittest, pytest, go, cargo, vitest, jest, mocha, node:test.
+const RUNNER_FAILED =
+  /^FAILED \((?:failures|errors)=\d|^=+ .*\b\d+ (?:failed|error)|^FAIL\t|^test result: FAILED\.|^\s*(?:Test Files|Tests|Test Suites):?\s+[1-9]\d* failed|^\s*[1-9]\d* failing$|^ℹ fail [1-9]/mu;
+
+/**
+ * The shell the Stop hook runs a test command in: bash under pipefail (dash, the `sh` of Debian and
+ * Ubuntu, lacks it), so a logging pipeline (`npm test | tee log`) exits with the runner's failure
+ * whatever runner it wraps.
+ */
+export function testShell(command: string): [string, string[]] {
+  return ['bash', ['-o', 'pipefail', '-c', `${command} 2>&1`]];
+}
 
 const MISSING_KEY = '<run>::missing dependency';
 const MISSING_DEPENDENCY =
@@ -619,8 +637,15 @@ export function failuresIn(output: string, status: number | string): string[] {
         break;
       }
     }
-  if (found.size === 0 && status !== 0) found.add(`<run>::exit ${status}`);
-  if (status !== 0 && MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
+  // A run that exits 0 passed unless a runner's own failure summary says otherwise (a logging pipeline masks the exit).
+  if (status === 0) {
+    if (!RUNNER_FAILED.test(output)) return [];
+    // A failure summary naming no test still fails the run.
+    if (found.size === 0) found.add('<run>::failure summary');
+    return [...found].sort();
+  }
+  if (found.size === 0) found.add(`<run>::exit ${status}`);
+  if (MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
   return [...found].sort();
 }
 
@@ -636,7 +661,7 @@ function spawnCommand(
   command: string,
 ): ReturnType<CommandRunner> {
   if (!existsSync(root)) return [missingRootKey(root)];
-  const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
+  const run = spawnSync(...testShell(command), {
     cwd: root,
     encoding: 'utf8',
     env: { ...receiverEnv(root), NODE_TEST_CONTEXT: undefined },
@@ -1391,12 +1416,25 @@ function inspectTests(
  * (t-0bct43k, debf26c), so a miss fetches the base once and checks again. The line may sit in a
  * list bullet, a quote or backticks (t-310mwdm: lanes pasted it quoted and were refused).
  */
-export function shippedMerge(root: string, message: unknown): boolean {
+export function shippedMerge(
+  root: string,
+  message: unknown,
+  tree = root,
+): boolean {
   if (typeof message !== 'string') return false;
   const sha = /^[\s>*`-]*verdict: merged ([0-9a-f]{7,40})\b/mu.exec(
     message,
   )?.[1];
-  return sha !== undefined && onBase(root, sha);
+  if (sha === undefined) return false;
+  // A squash merge is no ancestor of the lane tip: a commit the lane tree already holds is its fork point or
+  // earlier work, so a lane with no commit of its own cannot end by citing it.
+  if (
+    existsSync(tree) &&
+    laneTreeOf(tree) !== undefined &&
+    git(tree, ['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
+  )
+    return false;
+  return onBase(root, sha);
 }
 
 /** The head branch of a pull request, or undefined when gh cannot say (a check that cannot look never blocks). */
@@ -2039,7 +2077,7 @@ export function judgeStop(
     (pr) => headOf(root, pr),
   );
   if (foreign !== undefined) return foreign;
-  if (subagent && shippedMerge(root, fields?.last_assistant_message))
+  if (subagent && shippedMerge(root, fields?.last_assistant_message, start))
     return undefined;
   if (recordedShip(root, env, branch, payload)) return undefined;
   // A removed lane worktree whose branch merged needs no ship record: ship may have been detached or its record lost.
