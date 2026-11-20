@@ -1,0 +1,14 @@
+{
+  "id": "t-memgx6r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "The Stop loop breaker trips on repeated test-failure refusals that differ only in their log path",
+  "after": [],
+  "body": [
+    "Evidence: audit 2026-11-20 D3: saveFailureLog embeds ${Date.now()}-${process.pid}.log into the refusal text that stop-loop hashes (src/hook/stop.ts saveFailureLog, src/hook/stop-loop.ts), so four identical refusals count 1 and STOP_LOOP_LIMIT=3 never trips; test/hook/stop-loop-limit.test.ts stubs the refusal text.\nOutcome: the stop-loop key ignores the log path; repeated identical test-failure refusals trip the breaker.\nProof: a regression test through the real judgeStop refusal text trips the breaker on the fourth identical refusal."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

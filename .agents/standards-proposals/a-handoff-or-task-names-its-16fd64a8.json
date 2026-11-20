@@ -1,0 +1,6 @@
+{
+  "text": "A handoff or task names its acceptance reproductions by behaviour and by a tracked path; untracked scratch reproductions and audit-local defect numbers drift apart and send the successor to the wrong case.",
+  "kind": "prose",
+  "evidence": ["docs/adr/0029-lane-manifest-and-task-writer.md"],
+  "recorded_at": "2026-11-20"
+}

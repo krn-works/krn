@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Proposed. Step 1 lands with this ADR. t-91n0383 (one owner for lane state) carries the rest, and the ADR 0022 amendment it requires adopts or supersedes this one; the Stop hook readers (src/hook/stop.ts), a `STORES` entry for the ship record in scripts/boundaries.ts and the matrix test are still open there.
+Proposed; migration steps 2 to 5 amended by [ADR 0029](0029-lane-manifest-and-task-writer.md). Step 1 lands with this ADR. t-91n0383 (one owner for lane state) carries the rest, and the ADR 0022 amendment it requires adopts or supersedes this one; the Stop hook readers (src/hook/stop.ts), a `STORES` entry for the ship record in scripts/boundaries.ts and the matrix test are still open there.
 
 ## Context
 
