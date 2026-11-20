@@ -720,7 +720,9 @@ ${synced}`;
           'title,body',
         ]),
       ) as { title?: unknown; body?: unknown };
-      const text = (value: string) => value.replace(/\r\n/gu, '\n').trimEnd();
+      // Only line endings and trailing ASCII blanks are ignored: any other character is a real difference.
+      const text = (value: string) =>
+        value.replace(/\r\n/gu, '\n').replace(/[ \t\n]+$/u, '');
       return (
         shown.title === title &&
         typeof shown.body === 'string' &&
