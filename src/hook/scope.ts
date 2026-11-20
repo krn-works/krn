@@ -224,7 +224,20 @@ export function bashTargets(
   const text = maskQuotes(stripHeredocs(command.replace(/\\\n/gu, ' ')));
   const found: string[] = [];
   let dir = cwd;
-  for (const segment of text.split(/&&|\|\||[;\n]|(?<![>&])&(?![>&])/u)) {
+  // A subshell or command substitution runs in a copy of the directory: its `cd` ends at the `)`.
+  const outer: string[] = [];
+  for (const segment of text.split(
+    /(&&|\|\||[;\n]|(?<![>&])&(?![>&])|[()])/u,
+  )) {
+    if (segment === '(') {
+      outer.push(dir);
+      continue;
+    }
+    if (segment === ')') {
+      dir = outer.pop() ?? dir;
+      continue;
+    }
+    if (/^(?:&&|\|\||[;\n&])$/u.test(segment)) continue;
     const cd = /^\s*(?:cd|pushd)\s+(?:--\s+)?([^\s|]+)\s*$/u.exec(segment);
     if (cd) {
       const to = expandHome(cd[1] as string, home);

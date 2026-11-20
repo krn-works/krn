@@ -1,0 +1,18 @@
+{
+  "id": "t-1kn5yb8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "d3, d5, d16 reproductions moved to test/hook/scope.test.ts, test/hook/commit-format.test.ts, test/claude/unpushed-delete-hook.test.ts; red on 5a85fb8, green with fix"
+  },
+  "created": "2026-11-20",
+  "priority": 1,
+  "title": "fix(hook): the scope, unpushed-delete and commit-format hooks refuse a subshell cd, a lane holding the only task copy and an env-wrapped command",
+  "after": [],
+  "body": [
+    "Cross-model audit (2026-11-20) defects, each with a red reproduction under /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini (all 16 re-run red on 5a85fb8):\n- d3: /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini/d3-scope-subshell-cd.test.ts\n- d5: /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini/d5-unpushed-delete-lane-task.test.ts\n- d16: /mnt/storage/coding/krn/active/krn/.krn/tmp/gemini/d16-commit-format-env-bypass.test.ts\nAcceptance: each reproduction becomes a regression test at the lowest layer (KRN-14) in the tracked test tree, red before the fix and green after; one PR for the sector.\nProof: each listed reproduction, moved into the tracked test tree, passes with the fix and fails by assertion on the base source."
+  ],
+  "kind": "defect",
+  "area": "hook"
+}

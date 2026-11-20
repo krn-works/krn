@@ -172,3 +172,29 @@ test('settings run the unpushed delete hook before every Bash call', async () =>
   const text = await readFile(settings, 'utf8');
   assert.match(text, /src\/dispatch\/main\.ts\\" pre-tool/u);
 });
+
+test('the hook refuses removing a lane that holds the only copy of an open task', async () => {
+  const f = await fixture();
+  try {
+    const lane = join(f.repo, '.krn', 'worktrees', 'only-copy');
+    git(f.repo, ['worktree', 'add', '--quiet', '-b', 'only-copy', lane]);
+    await mkdir(join(lane, 'tasks'), { recursive: true });
+    await writeFile(
+      join(lane, 'tasks', 't-def5678.json'),
+      JSON.stringify({ id: 't-def5678', status: 'open', body: [] }),
+    );
+    await writeFile(join(lane, 'impl.ts'), 'export const x = 1;\n');
+    git(lane, ['add', '.']);
+    git(lane, [
+      'commit',
+      '--quiet',
+      '-m',
+      'feat(x): impl (t-def5678)\n\nTicket: t-def5678',
+    ]);
+    const refused = hook(f.repo, `git worktree remove --force ${lane}`);
+    assert.equal(refused.status, 2, refused.stderr);
+    assert.match(refused.stderr, /t-def5678/u);
+  } finally {
+    await f.cleanup();
+  }
+});

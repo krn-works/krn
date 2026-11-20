@@ -109,11 +109,26 @@ export function commands(command: string): string[][] {
 
 const dynamicWord = (word: string): boolean => word.startsWith('\u0000');
 
-/** The words after the program name, past `VAR=value` prefixes; undefined when the program differs. */
+/** The words after the program name, past `VAR=value` prefixes and an `env` wrapper; undefined when the program differs. */
 function argsOf(words: string[], program: string): string[] | undefined {
   let i = 0;
-  while (i < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(words[i] ?? ''))
+  const skipAssignments = () => {
+    while (i < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(words[i] ?? ''))
+      i++;
+  };
+  skipAssignments();
+  // `env [-i] [-u NAME] [VAR=value] cmd` runs cmd: look through the wrapper.
+  if (words[i] === 'env' || (words[i] ?? '').endsWith('/env')) {
     i++;
+    while ((words[i] ?? '').startsWith('-') && words[i] !== '--') {
+      i += ['-u', '--unset', '-C', '--chdir', '-S', '--split-string'].includes(
+        words[i] ?? '',
+      )
+        ? 2
+        : 1;
+    }
+    skipAssignments();
+  }
   const name = words[i] ?? '';
   if (name !== program && !name.endsWith(`/${program}`)) return undefined;
   return words.slice(i + 1);

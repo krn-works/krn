@@ -1,0 +1,18 @@
+{
+  "id": "t-31efhps",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "refactor(hook): the Bash hooks read a command through one shell reader",
+  "after": [],
+  "body": [
+    "src/hook/scope.ts, commit-format.ts and unpushed-delete.ts each re-parse a Bash command with their own regexes and miss shell grouping, wrappers (env, subshell, command substitution) and multi-source state.\nOutcome: the three hooks import one shell command reader and no hook keeps its own tokenizer; node --test over test/hook exits 0.\nProof: the existing hook tests plus one reader test pass against the shared module."
+  ],
+  "kind": "debt",
+  "area": "hook",
+  "from": {
+    "kind": "task",
+    "ref": "t-1kn5yb8"
+  }
+}
