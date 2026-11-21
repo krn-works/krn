@@ -266,7 +266,7 @@ export function gatesBlock(repo: string, asOf: string): string | undefined {
     return undefined;
   }
   if (ids.length === 0) return undefined;
-  const head = `Before Stop, run '${REVIEW_COMMAND}': it prints file:line for each violation in your diff.\nGates run at Stop (check them with '${GATES_COMMAND}'; names ${SERVE_POLICY}): `;
+  const head = `Standards with a check ('${GATES_COMMAND}' runs them; ${SERVE_POLICY}): `;
   const kept: string[] = [];
   for (const id of ids) {
     const next = `${head}${[...kept, id].join(', ')}`;

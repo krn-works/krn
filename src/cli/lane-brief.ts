@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { clauseSection, isBugBody } from '../brain/acceptance-clauses.ts';
 import { firstTestSection } from '../brain/first-test.ts';
 import { callSiteSweep, precedentSection } from '../brain/precedent.ts';
@@ -13,19 +11,16 @@ import {
 import { armOn, findContract } from '../repo/contract.ts';
 
 /**
- * What a worker is told about the tracker: the repository, not the task record or the history, is
- * the truth, so a record or an earlier commit that says the work is done never outranks a red test.
+ * What a worker is told: the engineering it owes, not the gates around it. The CI Check on the PR
+ * decides; the repository, not a task record or an earlier commit, is the truth.
  */
 const SHARED_RULES = `Worker rules:
-- Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
-- For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
-- When the task names an input or output format (for example "unified diffs", "newline-separated lists", "JSON"), write at least one test whose input is the plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced: your reader must accept every form the wording allows, including the shortest and plainest one.
-- A red test outranks tracker state and scope: if a named red test fails without a change to a file outside Scope, edit that file and name it in your final reply. Otherwise stay inside Scope: never edit .agents/, .claude/, AGENTS.md, CLAUDE.md or tasks/ for style, docs or tidiness, and revert such an edit before you commit.
-- Your final reply states every claim about an external system (a remote repository, a service, a receiver, a CI run) together with the exact command you ran and its exit code; a claim without them is treated as unverified. Name the credential or token scope the command used, and run the real receiver, not a stand-in.
-- Assumptions: list every name, behavior or format you had to choose because the task body left it unstated (file names, flags, edge cases, defaults), one per line, and pass the list with \`--assumptions <text>\` to \`krn pr body\`, which puts it in the PR body; write 'none' only when the body fixed everything.
-- When you write the PR body with \`krn pr body\`, pass \`--lane\`: it adds the line the ledger counts as lane authorship.`;
-
-const STOP_SCRIPT = 'src/hook/stop.ts';
+- Make the smallest change that does what the task asks. Delete before you add; reuse the module that already owns the concern instead of writing a parallel one; leave no export without a caller.
+- Test behaviour through its public interface at the lowest layer that reproduces it. A defect fix carries the regression test that fails without it; a deletion or a refactor that keeps behaviour needs no new test, and no test ever asserts that something is absent.
+- When the task names an input or output format (for example "unified diffs", "newline-separated lists", "JSON"), test it with the plainest hand-written example of that format, never only input your own code produced.
+- A red test outranks tracker state and scope: if a named red test fails without a change outside Scope, edit that file and say so. Otherwise stay inside Scope and leave .agents/, .claude/, AGENTS.md, CLAUDE.md and tasks/ alone.
+- Back every claim about an external system (a remote, a service, a CI run) with the command you ran and its exit code.
+- Pass the choices the task left open to \`krn pr body --lane --assumptions <text>\` ('none' when it fixed everything).`;
 
 /**
  * The worker rules for this repository: the closing check names the Stop script where the
@@ -41,26 +36,22 @@ export function workerRules(
   return testFirst ? `${rules}\n- ${TEST_FIRST_RULE}` : rules;
 }
 
-/** On by default (KRN_TEST_FIRST=0 drops it): the Stop hook enforces it. */
+/** On where the contract enables the red-first arm (KRN_TEST_FIRST=0 drops it). */
 export const TEST_FIRST_RULE =
-  'Test first: prove red at base. Before you change source, commit or at least write a test that fails against the base source and shows the defect or missing behavior; a changed test that fails at the base and passes on your commit is the proof CI reads. Characterization mode: when the task only adds tests for behaviour that already works and you change no source, a diff of test files alone passes when the new tests pass at the base and on your commit; any source change still needs a test that is red at the base.';
+  'Test first: prove red at base. Before you change source, commit or at least write a test that fails against the base source and shows the defect or missing behavior; the PR then shows a changed test that fails at the base and passes on your commit. Characterization mode: when the task only adds tests for behaviour that already works and you change no source, a diff of test files alone passes when the new tests pass at the base and on your commit; any source change still needs a test that is red at the base.';
 
 function baseWorkerRules(repo: string): string {
-  if (existsSync(join(repo, STOP_SCRIPT)))
-    return `${SHARED_RULES}\n- Before you end, run 'bin/krn hook stop --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). It exits 1 when the check is red; ending a session is never refused, and the CI Check is the gate.`;
   const contract = findContract(repo)?.contract;
-  if (contract === undefined)
-    return `${SHARED_RULES}\n- Before you end, run the repository's tests and fix what they report; when you cannot make them pass, end with a final line 'BLOCKER: <what stops you>'.`;
-  const fast =
-    contract.fast === undefined || contract.fast === contract.test
-      ? ''
-      : `'${contract.fast}' while you work, then `;
-  return `${SHARED_RULES}\n- Before you end, run ${fast}the full test command '${contract.test}' and fix what it reports; changes target branch '${contract.base}'. When you cannot make the tests pass, end with a final line 'BLOCKER: <what stops you>'.`;
+  const check =
+    contract === undefined
+      ? "the repository's tests"
+      : `'${contract.fast ?? contract.test}'`;
+  return `${SHARED_RULES}\n- Before you ship, run ${check} once and fix what it reports; changes target branch '${contract?.base ?? 'main'}' and the CI Check on the PR runs the rest. If you cannot finish, push your branch and say in your final reply what blocks you.`;
 }
 
 /** The closure line for a named task: the lane closes its own record in its own PR, so the Ticket trailer passes the CI task check. */
 export function closureRule(task: string): string {
-  return `- Task record: this PR completes ${task}. Use the trailer \`Ticket: ${task}\` and, from inside your worktree, run \`bin/krn task close ${task} --as done --note <what you proved>\` so the closed record ships in your PR (CI rejects Ticket on an open task). If the task stays open, use \`Refs: ${task}\` and do not close it. Edit no other tracker file.`;
+  return `- Task record: this PR completes ${task}. Use the trailer \`Ticket: ${task}\` and, from inside your worktree, run \`bin/krn task close ${task} --as done --note <what you proved>\` so the closed record ships in your PR. If the task stays open, use \`Refs: ${task}\` and do not close it. Edit no other tracker file.`;
 }
 
 /** The scratch rule for a named task: logs and drafts live in the worktree's own .krn/tmp, so no path leaves the worktree. */

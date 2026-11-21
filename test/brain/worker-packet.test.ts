@@ -351,14 +351,17 @@ test('the lane brief carries the gates block, and the frozen carrier does not', 
       false,
       undefined,
       false,
-    ).includes('Gates run at Stop'),
+    ).includes('Standards with a check'),
   );
 });
 
-test('the gates block orders the standards review before Stop', () => {
+test('the gates block names the command that runs the standards checks', () => {
   const block = gatesBlock(repo, '2026-11-15');
   assert.ok(block !== undefined);
-  assert.ok(block.startsWith("Before Stop, run 'krn standards review'"), block);
+  assert.ok(
+    block.startsWith("Standards with a check ('krn standards check'"),
+    block,
+  );
 });
 
 test('a captured worker brief writes one exposure row with its task, served and withheld ids, and effect counts it', (t) => {
