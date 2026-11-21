@@ -1,7 +1,11 @@
 {
   "id": "t-48b8v1f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Dropped 2026-11-21 by operator order: CI Check is the only gate; tasks that add, tighten or patch a refusal are not done (see .krn/runs/prune/gates.md)"
+  },
   "created": "2026-11-20",
   "priority": 0,
   "title": "Lane write guard misses a cd inside a subshell and lets a lane write into the main checkout",

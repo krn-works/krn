@@ -1,7 +1,11 @@
 {
   "id": "t-d4h4pcs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Dropped 2026-11-21 by operator order: CI Check is the only gate; tasks that add, tighten or patch a refusal are not done (see .krn/runs/prune/gates.md)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Every worker session is refused /tmp scratch, writes outside its worktree and plan.md edits",

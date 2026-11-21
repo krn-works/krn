@@ -1,7 +1,11 @@
 {
   "id": "t-h5ssdnk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Dropped 2026-11-21 by operator order: CI Check is the only gate; tasks that add, tighten or patch a refusal are not done (see .krn/runs/prune/gates.md)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "Agents cannot skip git hooks or force-push without lease, and commits run biome on staged files",
