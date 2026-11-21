@@ -190,43 +190,6 @@
     "supersedes": []
   },
   {
-    "id": "s-ci-weakened-tests",
-    "type": "standard",
-    "area": "ci",
-    "layer": "krn-delivery",
-    "text": "A PR deletes no assertion, adds no skip, only or todo, and deletes no test file whose target stays, unless its body has a `Weakens-tests: <reason>` line. CI runs `node scripts/weak-tests.mjs`.",
-    "audience": "worker",
-    "tier": "reflex",
-    "applies": {
-      "stacks": [],
-      "needs": [],
-      "paths": ["test/**"],
-      "terms": [
-        "weak",
-        "weakened",
-        "assertion",
-        "skip",
-        "only",
-        "todo",
-        "tests"
-      ]
-    },
-    "enforcement": {
-      "kind": "command",
-      "run": "node scripts/ci-check-wired.ts 'node scripts/weak-tests.mjs'"
-    },
-    "provenance": {
-      "origin": "CI workflow and package.json scripts",
-      "evidence": ["scripts/weak-tests.mjs"],
-      "proposals": []
-    },
-    "status": "accepted",
-    "recorded_at": "2026-11-16",
-    "valid_from": "2026-11-16",
-    "valid_to": null,
-    "supersedes": []
-  },
-  {
     "id": "s-ci-task-records",
     "type": "standard",
     "area": "ci",

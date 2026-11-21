@@ -1,10 +1,4 @@
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { shipCommand } from '../ci/ship.ts';
@@ -24,7 +18,6 @@ export const laneNotesSchema = z
   .object({
     task: z.string().optional(),
     assumptions: z.string().optional(),
-    weakensTests: z.string().optional(),
     verified: z.string().optional(),
   })
   .strict();
@@ -37,7 +30,7 @@ function readNotes(worktree: string): LaneNotes {
     return laneNotesSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
   } catch (error) {
     throw new CliUsageError(
-      `${file} is not valid lane notes (${error instanceof Error ? error.message : String(error)}); write {"assumptions","weakensTests","verified"} strings or delete the file`,
+      `${file} is not valid lane notes (${error instanceof Error ? error.message : String(error)}); write {"assumptions","verified"} strings or delete the file`,
     );
   }
 }
@@ -82,7 +75,7 @@ function trailerOf(
 }
 
 export const laneFinishUsage =
-  'krn lane finish SLUG [--root DIR] [--repo OWNER/REPO] [--force]  ship the pushed lane branch SLUG from its worktree: the title is the HEAD commit subject, the task and Ticket/Refs come from its trailer, and assumptions, Weakens-tests and verification come from .krn/tmp/lane-notes.json in the worktree when present; builds the body like `krn pr body --lane` and ships like `krn pr ship`';
+  'krn lane finish SLUG [--root DIR] [--repo OWNER/REPO] [--force]  ship the pushed lane branch SLUG from its worktree: the title is the HEAD commit subject, the task and Ticket/Refs come from its trailer, and assumptions and verification come from .krn/tmp/lane-notes.json in the worktree when present; builds the body like `krn pr body --lane` and ships like `krn pr ship`';
 
 export async function finishLane(
   rest: string[],
@@ -134,8 +127,6 @@ export async function finishLane(
   if (notes.verified) bodyArgs.push('--verified', notes.verified);
   if (notes.assumptions) bodyArgs.push('--assumptions', notes.assumptions);
   prBodyCommand([...bodyArgs, '--out', bodyFile]);
-  if (notes.weakensTests)
-    appendFileSync(bodyFile, `\nWeakens-tests: ${notes.weakensTests.trim()}\n`);
   const shipArgs = [
     '--title',
     title,

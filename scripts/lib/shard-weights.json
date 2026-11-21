@@ -26,7 +26,6 @@
     "test/ci/review.test.ts": 3.3,
     "test/ci/test-exit-flush.test.mjs": 1.5,
     "test/ci/test-summary-policy.test.mjs": 0.5,
-    "test/ci/weak-tests.test.ts": 0.4,
     "test/claude/capture-fixture.test.ts": 0.1,
     "test/claude/cc-clearing-watch.test.ts": 1,
     "test/claude/context-gauge.test.ts": 1.9,

@@ -230,7 +230,7 @@ function repoWithChange(): { dir: string; git: (...a: string[]) => void } {
 }
 
 const script = join(import.meta.dirname, '../scripts/fast-check.ts');
-// PR_BODY may carry a Weakens-tests override from the caller; the child must not inherit it.
+// PR_BODY may come from the caller; the child must not inherit it.
 // NODE_TEST_CONTEXT would turn the child's own node --test runs into silent subtests that exit 0.
 const { PR_BODY: _body, NODE_TEST_CONTEXT: _context, ...fastEnv } = process.env;
 const runFast = (cwd: string) =>

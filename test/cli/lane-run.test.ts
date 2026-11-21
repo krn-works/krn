@@ -1421,14 +1421,6 @@ test('redCheckOf reads the run and head of a red Check ship failure and nothing 
 });
 
 test('redCheckFinding names the failing step and its first finding in real ci logs captures', () => {
-  const weak = redCheckFinding(
-    ciLogsCapture('logs-weak-tests-43501009193.txt'),
-  );
-  assert.equal(weak.job, 'Lint: failure; failed step 6 Weakened tests');
-  assert.match(
-    weak.finding,
-    /^weak-tests: test\/brain\/worker-packet\.test\.ts: net 5 assertion\(s\) removed/u,
-  );
   const shard = redCheckFinding(
     ciLogsCapture('logs-test-shard-43501061076.txt'),
   );
@@ -1462,7 +1454,7 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
     mint: async () => undefined,
     ciLogs: async (run: string) => {
       logRuns.push(run);
-      return ciLogsCapture('logs-weak-tests-43501009193.txt');
+      return ciLogsCapture('logs-test-shard-43501061076.txt');
     },
   };
   const efforts = join(base, 'efforts.txt');
@@ -1499,11 +1491,11 @@ test('a rerun after a red Check briefs the failure, exits 74 without a new commi
     assert.match(text, /^The previous attempt of this lane FAILED CI/u);
     assert.match(
       text,
-      /Failing job and step: Lint: failure; failed step 6 Weakened tests/u,
+      /Failing job and step: Test \(11\/13\): failure; failed step 4 Run test shard/u,
     );
     assert.match(
       text,
-      /First finding: weak-tests: test\/brain\/worker-packet\.test\.ts: net 5 assertion\(s\) removed/u,
+      /First finding: failing tests: test\/portability\/fixtures\.test\.ts \(2 failed\)/u,
     );
     assert.equal(shipCalls, 1);
 

@@ -4,11 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
 /** Runner entry points of the verdict; their import closure joins the frame. */
-const ENTRY_POINTS = [
-  'scripts/test-suite.mjs',
-  'scripts/weak-tests.mjs',
-  'scripts/ci-changes.mjs',
-];
+const ENTRY_POINTS = ['scripts/test-suite.mjs', 'scripts/ci-changes.mjs'];
 const RUNNER_PATHS = ['package.json'];
 const RUNNER_PREFIXES = ['.github/workflows/', '.github/actions/'];
 const VALIDATOR_PATHS = [

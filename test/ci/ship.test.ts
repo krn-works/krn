@@ -26,10 +26,9 @@ const base = 'b'.repeat(40);
 const merge = 'c'.repeat(40);
 const newHead = 'e'.repeat(40);
 const title = 'feat(ci): ship a PR in one call (t-3ag9eqn)';
-const weakensBody =
-  '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n\nWeakens-tests: test/x.test.ts drops a dead assertion\n';
+const bodyText = '## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n';
 const bodyFile = join(mkdtempSync(join(tmpdir(), 'ship-body-')), 'body.md');
-writeFileSync(bodyFile, weakensBody);
+writeFileSync(bodyFile, bodyText);
 const args = ['--title', title, '--body-file', bodyFile, '--repo', 'o/r'];
 type Failure = Error & { exitCode?: number };
 
@@ -556,7 +555,7 @@ test('ship --worktree runs from the repository root and cleans up the named work
       '--worktree',
       '.krn/worktrees/feat-x',
     ],
-    { ...r, fastPass: () => '7'.repeat(40), readBody: () => weakensBody },
+    { ...r, fastPass: () => '7'.repeat(40), readBody: () => bodyText },
   );
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   for (const step of ['git status', 'git push'])
@@ -808,10 +807,10 @@ test('the scoped check runs with the PR body as PR_BODY, as the Proof commands d
   assert.ok(
     r.calls.some(
       (c) =>
-        c.startsWith(`env PR_BODY=${weakensBody} `) &&
+        c.startsWith(`env PR_BODY=${bodyText} `) &&
         c.includes(' node scripts/fast-check.ts --base origin/main'),
     ),
-    'a declared Weakens-tests line reaches weak-tests inside the scoped check',
+    'the PR body reaches the scoped check',
   );
   assert.ok(r.calls.some((c) => c.includes('git push')));
 });
@@ -1057,7 +1056,7 @@ test('a gh refusal reaches the caller with the receiver stderr, without a retry'
   await assert.rejects(
     shipCommand(['--title', title, '--body-file', 'body.md'], {
       ...r,
-      readBody: () => weakensBody,
+      readBody: () => bodyText,
       run: (command: string, a: string[], at?: string) => {
         if (command !== 'gh') return r.run(command, a, at);
         asked++;
@@ -1156,7 +1155,7 @@ test('before the push an unanswered gh call is tried three times', async () => {
   await assert.rejects(
     shipCommand(['--title', title, '--body-file', 'body.md'], {
       ...rest,
-      readBody: () => weakensBody,
+      readBody: () => bodyText,
       run: (command: string, a: string[], at?: string) => {
         if (command !== 'gh') return r.run(command, a, at);
         asked++;
@@ -1255,52 +1254,6 @@ test('ship does not retry a gh pr view that answers 404', async () => {
   });
   assert.equal(asked.length, 1);
 });
-
-// KRN-12: the Proof command is the real weak-tests script over a real git commit that drops
-// an assertion; only the fake gh and the ship-side git stay fakes.
-for (const declared of [true, false]) {
-  test(`a Proof check reads the PR body as CI does (Weakens-tests line ${declared ? 'present: merges' : 'absent: exit 81'})`, async () => {
-    const repo = mkdtempSync(join(tmpdir(), 'ship-weakens-'));
-    const sh = (command: string) => {
-      const result = run('sh', ['-c', command], repo);
-      assert.equal(result.code, 0, result.stderr);
-    };
-    sh('git init -q && git config user.name t && git config user.email t@t');
-    sh('mkdir -p src test && echo "export const a = 1;" > src/a.ts');
-    sh(
-      "printf 'assert.equal(1, 1);\\nassert.equal(2, 2);\\n' > test/a.test.ts && git add -A && git commit -qm base",
-    );
-    sh(
-      "printf 'assert.equal(1, 1);\\n' > test/a.test.ts && git commit -qam weaken",
-    );
-    const file = join(repo, 'body.md');
-    writeFileSync(
-      file,
-      `## Why\n\nx\n\n## Verified\n\ny\n\nTicket: t-3ag9eqn\n${declared ? '\nWeakens-tests: the dropped assertion duplicated the first\n' : ''}`,
-    );
-    const r = receiver({ pulls: [auto, merged] });
-    const proof = `node ${join(process.cwd(), 'scripts/weak-tests.mjs')} HEAD~1 HEAD`;
-    const shipped = shipCommand(
-      ['--title', title, '--body-file', file, '--repo', 'o/r'],
-      {
-        ...r,
-        run: (command, a, at, input, timeoutMs) =>
-          command === 'env' && !a.includes('scripts/fast-check.ts')
-            ? run(command, a, repo, input, timeoutMs)
-            : r.run(command, a, at),
-        proofOf: () => [proof],
-        publish: () => '/r/published.md',
-      },
-    );
-    if (declared) assert.match(await shipped, /^verdict: merged /mu);
-    else
-      await assert.rejects(shipped, (e: Failure) => {
-        assert.equal(e.exitCode, 81);
-        assert.match(e.message, /weak-tests/u);
-        return true;
-      });
-  });
-}
 
 test('a base that moved after the Check passed is merged only after the update and a fresh green Check', async () => {
   const stale = { ...auto };

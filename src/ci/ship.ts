@@ -519,8 +519,8 @@ ${synced}`;
   const tree = hasFile(cwd, scopedCheck)
     ? runner('git', ['rev-parse', 'HEAD^{tree}'], cwd).stdout.trim()
     : '';
-  // PR_BODY as CI sets it: a check that reads the body (weak-tests' Weakens-tests line) sees
-  // the same text before the push as on the PR, in the scoped check and in every Proof command.
+  // PR_BODY as CI sets it: a check that reads the body sees the same text before the
+  // push as on the PR, in the scoped check and in every Proof command.
   let bodyText: string | undefined;
   const prBody = (): string => {
     bodyText ??= readBody(body);
