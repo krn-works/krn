@@ -27,6 +27,8 @@ test('no source outside src/harness reads transcript files', async () => {
     'hook/session-standards.ts',
     'hook/session-start.ts',
     'hook/stop.ts',
+    // Lanes with no manifest only (ADR 0029 step 7 deletes it).
+    'lane/legacy.ts',
     'memory/identifier-index.ts',
     'memory/operator-inbox-store.ts',
     'successor/operator-inbox.ts',
