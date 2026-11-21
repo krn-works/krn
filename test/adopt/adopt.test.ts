@@ -333,7 +333,7 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   assert.doesNotMatch(workflow, /project-ci\.yml/u);
   assert.equal(existsSync(join(root, 'tasks')), false);
   const stop = stopAsLane(root);
-  assert.equal(stop.status, 2, stop.stderr);
+  assert.equal(stop.status, 0, stop.stderr);
   assert.match(stop.stderr, /Stop refused/u);
 });
 
@@ -367,7 +367,7 @@ test('adopt on an npm repository detects its runner, seeds the tracker on reques
   assert.equal(read.contract.related, 'npx vitest run {files}');
   assert.equal(read.contract.tracker, 'krn');
   assert.equal(seededTasks(root).length, 1);
-  assert.equal(stopAsLane(root).status, 2);
+  assert.equal(stopAsLane(root).status, 0);
 
   writeFileSync(join(root, 'krn.json'), '{"test":"make check"}\n');
   const again = adoptArgs(root, '--tracker');
