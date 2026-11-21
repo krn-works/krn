@@ -2234,7 +2234,7 @@ export function main() {
         ? `stop SKIPPED (slot): ${outcome.slotTimeout}\n`
         : outcome.ok
           ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${outcome.flaky?.length ? ` (flaky, passed on rerun: ${outcome.flaky.join(', ')})` : ''}${changedTests}\n`
-          : `stop FAIL: ${outcome.reason}\n`,
+          : `stop FAIL: ${renderRefusal(outcome)}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;
     return;
