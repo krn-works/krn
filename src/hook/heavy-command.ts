@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { hookStdin } from '../harness/claude.ts';
 import { SLOT_HELD_ENV } from '../repo/host-gate.ts';
 import { executableText, shellWord } from '../repo/shell-text.ts';
-import { commands } from './shell-commands.ts';
+import { commands } from './shell-reader.ts';
 
 /** Repositories (by directory name) whose commands are never gated. */
 export const DEFAULT_EXCLUDE = ['wilq-seo'];

@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { retireLane } from '../lane/manifest.ts';
 import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
+import { gitLockError } from '../repo/gh.ts';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { repositoryOfRemote } from '../repo/remote.ts';
 import {
@@ -16,7 +17,6 @@ import {
   selectRequiredCheck,
   supersededByRerun,
 } from '../repo/required-check.ts';
-import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
 import { titleProblem } from './commit-title.ts';
