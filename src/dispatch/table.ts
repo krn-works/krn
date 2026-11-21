@@ -32,7 +32,6 @@ const gauge = {
 } satisfies Route;
 const stop = {
   name: 'stop',
-  failClosed: true,
   load: () => import('../hook/stop.ts'),
 } satisfies Route;
 

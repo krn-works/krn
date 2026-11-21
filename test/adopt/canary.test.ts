@@ -65,7 +65,7 @@ test('canary passes on a node:test repository whose Stop gate works and leaves t
   git(root, 'commit', '-qm', 'adopt');
   const run = krn(root, '--verify');
   assert.equal(run.status, 0, run.stdout + run.stderr);
-  assert.match(run.stdout, /canary pass: .*exit 2.*exit 0/u);
+  assert.match(run.stdout, /canary pass: .*exit 1.*exit 0/u);
   const status = spawnSync('git', ['status', '--porcelain'], {
     cwd: root,
     encoding: 'utf8',

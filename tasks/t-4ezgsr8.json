@@ -1,0 +1,18 @@
+{
+  "id": "t-4ezgsr8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop and SubagentStop exit 0 and only report; outcome judge, stop-loop and the refusal-only lane readers deleted; adopt canary calls hook stop --check; fast PASS"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "Stop is advisory: it reports, never refuses; the Haiku outcome judge is deleted",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/gates.md (2026-11-21 gate audit): no refusal caught a defect present on main; operator 2026-11-21 'zamiast robić bramki realna inżynieria' (memory no-gates-just-code: CI Check is the only gate).\nOutcome: Stop/SubagentStop never block a session end; outcome-judge and the Haiku judge are deleted (~474 lines); stop.ts shrinks after its shared lane readers move to src/lane (report net lines).\nProof: the named command prints the stated count; npm run fast PASS; CI Check green.\nFiles: see .krn/runs/prune/gates.md row"
+  ],
+  "kind": "debt",
+  "area": "hook"
+}

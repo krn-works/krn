@@ -70,7 +70,7 @@ const session = (root: string, id: string) =>
     cwd: root,
   });
 
-test('an adopted fresh repository serves the brain standards at session start, teaches a seeded violation at Stop and shows both in standards effect', () => {
+test('an adopted fresh repository serves the brain standards at session start, reports a seeded violation at Stop and shows both in standards effect', () => {
   const root = adopted();
   try {
     const bare = run(
@@ -203,7 +203,7 @@ test('an adopted fresh repository serves the brain standards at session start, t
         KRN_ACCEPTANCE_CLAUSES: '0',
       },
     );
-    assert.equal(stop.status, 2, stop.stderr);
+    assert.equal(stop.status, 0, stop.stderr);
     assert.match(stop.stderr, /s-no-todo-markers \(floor\)/u);
     assert.match(stop.stderr, /why: A marker records work nobody owns\./u);
 

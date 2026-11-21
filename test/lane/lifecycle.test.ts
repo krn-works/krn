@@ -280,7 +280,7 @@ test('one lane walks every verb and each changes only its own stores', async (t)
     },
   );
 
-  await t.test('stop refuses a lane with no commit', async () => {
+  await t.test('stop reports a lane with no commit and exits 0', async () => {
     let result: ReturnType<typeof stopHook> | undefined;
     const touched = await verb(() => {
       result = stopHook(
@@ -289,7 +289,7 @@ test('one lane walks every verb and each changes only its own stores', async (t)
         slug,
       );
     });
-    assert.equal(result?.code, 2);
+    assert.equal(result?.code, 0);
     assert.match(result?.stderr ?? '', /no commit on this branch yet/u);
     assert.deepEqual(touched, []);
   });
