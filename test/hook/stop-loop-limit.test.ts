@@ -113,7 +113,24 @@ function failingStops(t: TestContext, command: string): number[] {
     KRN_ACCEPTANCE_CLAUSES: '0',
     KRN_BASE_GREEN: '1',
     KRN_TEST_SLOT_HELD: '1',
+    // The host slot lock never decides this test (review finding on af280af).
+    KRN_FAST_SLOT_DIR: join(state, 'slots'),
   };
+  // runTests takes its slot from process.env, not from `env`: pin both so the host slot never decides this test.
+  const saved = {
+    held: process.env.KRN_TEST_SLOT_HELD,
+    dir: process.env.KRN_FAST_SLOT_DIR,
+  };
+  process.env.KRN_TEST_SLOT_HELD = '1';
+  process.env.KRN_FAST_SLOT_DIR = env.KRN_FAST_SLOT_DIR;
+  t.after(() => {
+    for (const [key, value] of [
+      ['KRN_TEST_SLOT_HELD', saved.held],
+      ['KRN_FAST_SLOT_DIR', saved.dir],
+    ] as const)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
   const payload = JSON.stringify({ session_id: 's1', cwd: dir });
   const codes: number[] = [];
   for (let i = 0; i < 4; i += 1) {

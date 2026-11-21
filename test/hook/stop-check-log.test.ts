@@ -40,6 +40,7 @@ test('stop --check reports the path of the full output it saved', (t) => {
     KRN_TEST_FIRST: '0',
     KRN_ACCEPTANCE_CLAUSES: '0',
     KRN_TEST_SLOT_HELD: '1',
+    KRN_FAST_SLOT_DIR: join(dir, '.krn/tmp/slots'),
   };
   let output = '';
   const write = (chunk: string) => {
