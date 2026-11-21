@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, posix, resolve, sep } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   BOUNDARY_WORDS,
@@ -48,17 +48,11 @@ export { withinPackage };
 
 import { statesBlocker } from '../brain/proof-line.ts';
 import {
-  claimedBranches,
   claimedWorktree,
-  editedLaneWorktrees,
-  laneTreeOf,
   laneWorktree,
-  onBase,
   ownerCheckout,
-  recordedShip,
   sessionTask,
 } from '../lane/session.ts';
-import { ghApiSync } from '../repo/gh.ts';
 import { receiverEnv } from '../repo/receiver-env.ts';
 import { SlotTimeoutError, withSlotSync } from '../repo/slot-lock.ts';
 import { SLOT_HELD_ENV, testSlotOptions } from '../repo/test-slot.ts';
@@ -67,7 +61,7 @@ import {
   isSandboxPlaceholder,
 } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
-import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
+import { isLaneSubagent, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects

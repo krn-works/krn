@@ -25,7 +25,6 @@ test('no source outside src/harness reads transcript files', async () => {
     'context/restart.ts',
     'hook/session-standards.ts',
     'hook/session-start.ts',
-    'hook/stop.ts',
     // Lanes with no manifest only (ADR 0029 step 7 deletes it).
     'lane/legacy.ts',
     'memory/identifier-index.ts',
@@ -51,6 +50,4 @@ test('no source outside src/harness reads transcript files', async () => {
     payloadReaders.filter((file) => !hookPayloadReaders.has(file)),
     [],
   );
-  // stop.ts reads transcripts for the mutating-call and brief checks only; the lane is read from its manifest; the rule must see it.
-  assert.ok(payloadReaders.includes('hook/stop.ts'));
 });
