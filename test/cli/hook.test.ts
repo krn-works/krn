@@ -23,25 +23,11 @@ test('krn hook stop forwards --related to the Stop gate', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('krn hook scope refuses a worker write to tracker state outside its Scope', () => {
-  const payload = JSON.stringify({
-    tool_name: 'Write',
-    tool_input: { file_path: 'tasks/t-x.json' },
-  });
-  const refused = hook(['scope'], payload, {
-    KRN_ROLE: 'worker',
-    KRN_SCOPE: 'src/',
-  });
-  assert.equal(refused.status, 2);
-  assert.match(refused.stderr, /tasks\/t-x\.json is tracker state/u);
-  assert.equal(hook(['scope'], payload).status, 0);
-});
-
 test('krn hook with an unknown hook name exits 64 naming the hooks', () => {
   const result = hook(['nope'], '');
   assert.equal(result.status, 64);
   assert.match(
     result.stderr,
-    /krn hook <user-prompt\|session-start\|pre-tool\|post-tool\|model-switch\|stop\|subagent-stop\|session\|scope\|stash\|edit>/u,
+    /krn hook <user-prompt\|session-start\|pre-tool\|post-tool\|model-switch\|stop\|subagent-stop\|session\|scope\|edit>/u,
   );
 });

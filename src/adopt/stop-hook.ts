@@ -23,13 +23,12 @@ export const sessionCommand = guardCommand('session');
 /** The PreToolUse edit hook: the first edit of a file kind brings the records scoped to it. */
 export const editStandardsCommand = guardCommand('edit');
 
-/** The PreToolUse hooks with their matchers: the worker guards on tracker and main-checkout writes (scope) and stash-stack changes (stash), and the edit moment that brings the records scoped to the edited file's kind (edit). */
+/** The PreToolUse hooks with their matchers: the worker guard on main-checkout writes (scope), and the edit moment that brings the records scoped to the edited file's kind (edit). */
 export const preToolGuards: readonly { matcher: string; command: string }[] = [
   {
     matcher: 'Write|Edit|NotebookEdit|Bash',
     command: guardCommand('scope'),
   },
-  { matcher: 'Bash', command: guardCommand('stash') },
   { matcher: 'Edit|Write|MultiEdit|Bash', command: editStandardsCommand },
 ];
 

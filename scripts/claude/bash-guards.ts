@@ -1,9 +1,6 @@
 import { hookStdin } from '../../src/harness/claude.ts';
-import { decide as stashGuard } from '../../src/hook/stash.ts';
 import { decide as unpushedDelete } from '../../src/hook/unpushed-delete.ts';
-import { decide as pollGuard } from './ci-poll.ts';
 import { judge as pipedCheck } from './piped-check.ts';
-import { decide as waitLoop } from './wait-loop.ts';
 
 // One PreToolUse entry for Bash: the command guards run in one process instead of
 // several. Each guard stays its own module with its own tests and still runs standalone.
@@ -16,9 +13,6 @@ const refusals = [
     return verdict && 'refuse' in verdict ? verdict.refuse : undefined;
   },
   unpushedDelete,
-  pollGuard,
-  waitLoop,
-  stashGuard,
 ];
 
 export function main() {

@@ -169,7 +169,7 @@ test('the driver reports a missing claude as not started', async () => {
 
 // The verbatim guard `krn adopt` writes into .claude/settings.json for every Bash call (arm C's session log, 2026-11-19).
 const bashGuard =
-  "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN stash guard cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook stash";
+  "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN scope guard cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook scope";
 
 test('arm C session sandbox: the adopted hook guard finds a working krn', (t) => {
   // Without bubblewrap the sandbox half cannot run; the same guard is exercised on every host that can run the arm.

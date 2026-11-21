@@ -160,16 +160,11 @@ test('brief reserves, start starts, the hook binds the subagent, scope judges it
 
   const verdict = (tool: string, input: object) =>
     runHook({ ...call(agent, tool, input), cwd: worktree }, repo);
-  // D4a: the worktree allows source and refuses the tracker.
+  // D4a: the worktree allows source.
   assert.equal(
     verdict('Write', { file_path: join(worktree, 'src', 'x.ts') }).status,
     0,
   );
-  const tracker = verdict('Write', {
-    file_path: join(worktree, 'tasks', `${id}.json`),
-  });
-  assert.equal(tracker.status, 2);
-  assert.match(tracker.stderr, /tracker state.*krn task/su);
   // D4b: a foreign path and the main checkout are refused.
   for (const file of [
     join(repo, 'src', 'x.ts'),
