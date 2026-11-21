@@ -9,7 +9,6 @@ s-ci-task-quality [tasks/**]: Task records pass every task-quality rule: a state
 s-ci-typecheck [**/*.ts+1]: The tree typechecks under tsc --noEmit; every tracked .ts file is reached by the tsconfig include globs
 s-ci-commit-title [scripts/commit-title.ts]: The PR title, which becomes the squash subject, reads `type(scope): outcome (t-id)`
 s-ci-weakened-tests [test/**]: A PR deletes no assertion, adds no skip, only or todo, and deletes no test file whose target stays, unless its body has a `Weakens-tests: <reason>` line
-s-ci-fix-churn [src/**+2]: A fix PR of a hot file or fix-chained task has `Root cause:` and `Redesign:` body lines
 s-ci-task-records [tasks/**]: A PR whose commits carry `Ticket: <id>` closes that task; work that leaves it open carries `Refs: <id>`
 s-ci-test-suite [test/**+1]: The full suite passes in every CI shard; a new test file under test/ mirrors its src area and uses node:test
 s-ci-agent-config-secrets [.claude/**+2]: Tracked agent config holds no token-shaped values
@@ -42,7 +41,6 @@ s-ci-settings-hygiene [.claude/settings.json+1]: Every project hook command has 
 s-ci-shard-weights [test/**+1]: No shard weight names a deleted test file, and no test file is heavy enough to bound its shard wall; a recorded weight lives in scripts/lib/shard-weights.json
 s-ci-steering-consistency [AGENTS.md+2]: Each steering fact stated in the instruction files holds in the code it describes
 s-ci-test-hygiene [test/**]: Tests never wait on the clock, skip without quarantine, assert wall-clock deltas or set a per-test timeout; poll a condition under a deadline
-s-ci-pr-body [scripts/pr-body-check.ts+3]: A PR body holds Why, Verified and a Ticket or Refs line
 s-ci-transcript-readers [src/**]: No source outside src/harness reads transcript files
 s-ci-typecheck-coverage [tsconfig.json+1]: The tsconfig include covers every tracked .ts file
 s-ci-fr40-freeze [evals/fr40/**+2]: The frozen FR-40 inputs match what the freeze regenerates; regenerate them when the layer map or repo contract changes

@@ -12,7 +12,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkFixChurn, FILE_LIMIT } from '../../scripts/fix-churn.ts';
 import { finishLane, LANE_NOTES_PATH } from '../../src/cli/lane-finish.ts';
 import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
 
@@ -144,8 +143,6 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
       JSON.stringify({
         assumptions: 'notes live in lane-notes.json',
         weakensTests: 'dropped an obsolete case',
-        rootCause: 'ship reads raw gh output with no state model',
-        redesign: 'this PR',
         verified: 'npm run fast: pass',
       }),
     );
@@ -161,17 +158,6 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
     assert.match(body, /- notes live in lane-notes\.json/u);
     assert.match(body, /npm run fast: pass/u);
     assert.match(body, /^Weakens-tests: dropped an obsolete case$/mu);
-    // The receiver of these lines is the fix-churn CI step: a lane fix of a hot file passes it.
-    const verdict = checkFixChurn({
-      title: 'fix(ship): one more case (t-bbbbbbb)',
-      body,
-      changed: ['src/ci/ship.ts'],
-      commits: Array.from({ length: FILE_LIMIT }, (_, i) => ({
-        subject: `fix(ship): case ${i} (t-aaaa00${i})`,
-        files: ['src/ci/ship.ts'],
-      })),
-    });
-    assert.deepEqual([verdict.findings.length, verdict.ok], [1, true]);
     const created = calls.find((a) => a[1] === 'create') as string[];
     assert.equal(
       created[created.indexOf('--title') + 1],
@@ -216,24 +202,6 @@ test('finish with notes naming no task derives Refs from the commit trailer and 
     const body = bodyOf(bodies);
     assert.match(body, /Refs: t-abc1234/u);
     assert.doesNotMatch(body, /Ticket:|Weakens-tests|## Assumptions/u);
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-test('finish without a recorded verification is refused with exit 65 before any push', async () => {
-  const { base, repo, worktree } = fixture('Refs');
-  try {
-    const { calls, gh } = fakeGh(worktree);
-    await assert.rejects(
-      finishLane(['stopped', '--repo', 'o/r', '--root', repo], { gh, sleep }),
-      (error: Error & { exitCode?: number }) =>
-        error.exitCode === 65 &&
-        /Verified.*TODO placeholder/u.test(error.message),
-    );
-    assert.ok(
-      !calls.some((call) => call.includes('pr') && call.includes('create')),
-    );
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

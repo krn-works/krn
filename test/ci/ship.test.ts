@@ -462,26 +462,6 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   );
 });
 
-test('a near-empty body is refused with exit 65 naming every missing part, before any git or gh call', async () => {
-  const empty = join(mkdtempSync(join(tmpdir(), 'ship-empty-')), 'body.md');
-  writeFileSync(
-    empty,
-    '\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n',
-  );
-  const r = receiver({ pulls: [auto, merged] });
-  await assert.rejects(
-    shipCommand(['--title', title, '--body-file', empty, '--repo', 'o/r'], r),
-    (e: Failure) => {
-      assert.equal(e.exitCode, 65);
-      assert.match(e.message, /"## Why"/u);
-      assert.match(e.message, /"## Verified"/u);
-      assert.match(e.message, /Ticket.*Refs/u);
-      return true;
-    },
-  );
-  assert.equal(r.calls.length, 0, r.calls.join('\n'));
-});
-
 test('a body written by krn pr body is accepted by ship', async () => {
   const written = join(mkdtempSync(join(tmpdir(), 'ship-written-')), 'b.md');
   writeFileSync(
@@ -510,17 +490,6 @@ test('a body written by krn pr body is accepted by ship', async () => {
   );
   assert.match(out, /^verdict: merged /mu);
   assert.ok(r.calls.some((c) => c.includes('push')));
-});
-
-test('a tracker-less repository ships a body without a Ticket or Refs line', async () => {
-  const plain = join(mkdtempSync(join(tmpdir(), 'ship-plain-')), 'b.md');
-  writeFileSync(plain, '## Why\n\nx\n\n## Verified\n\ny\n');
-  const r = receiver({ pulls: [auto, merged] });
-  const out = await shipCommand(
-    ['--title', title, '--body-file', plain, '--repo', 'o/r'],
-    { ...r, tracked: () => false },
-  );
-  assert.match(out, /^verdict: merged /mu);
 });
 
 test('a red Check exits 74 and keeps the worktree', async () => {

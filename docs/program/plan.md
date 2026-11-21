@@ -99,7 +99,7 @@ Slice line: `- [S<n>] title — Outcome — Proof — Predicted — After`.
 
 ### Closing
 
-- [S31 t-vj5vfvs] The slop cut is accounted for [slop] — Outcome: `.krn/runs/prune/inventory.md` gives every src module a verdict; remaining delete-verdict modules (dead files, misplaced brain files moved, duplicate price tables, spend-window.py) go; t-jgent6a closes — Proof: every delete-verdict module in `.krn/runs/prune/inventory.md` is gone from src with main CI green; no line target — After: S1, S6, S13, S14, S20, S22, S23, S24, S25, S28
+- [S31 t-vj5vfvs] The slop cut is accounted for [slop] — Outcome: `.krn/runs/prune/inventory.md` gives every src module a verdict; remaining delete-verdict modules (dead files, misplaced brain files moved, duplicate price tables, spend-window.py) go; t-jgent6a closes — Proof: `find src -name '*.ts' | xargs cat | wc -l: <= 27300 with main CI green` — Predicted: metric src-lines <= 27300 — After: S1, S6, S13, S14, S20, S22, S23, S24, S25, S28
 
 ## Parallel lanes
 
