@@ -10,7 +10,7 @@ import {
   isCodexModel,
 } from '../../src/harness/codex.ts';
 import { shellWords } from '../../src/repo/shell-text.ts';
-import type { ArmId } from './arms.ts';
+import type { RowArm } from './arms.ts';
 import { DENIED_TOOLS } from './live.ts';
 
 export const SESSION_MODEL = 'sonnet';
@@ -31,10 +31,10 @@ export interface SessionSpec {
 }
 
 /** The arm's settings file, kept beside the private Claude config; empty, so the checkout's own project settings decide. */
-export function settingsPath(arm: ArmId, env: NodeJS.ProcessEnv, wt: string) {
+export function settingsPath(arm: RowArm, env: NodeJS.ProcessEnv, wt: string) {
   return join(
     dirname(env.CLAUDE_CONFIG_DIR ?? wt),
-    `arm-${arm.toLowerCase()}.json`,
+    `arm-${arm.toLowerCase().replace("'", 'a')}.json`,
   );
 }
 

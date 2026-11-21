@@ -198,6 +198,29 @@ export interface AbcReport {
   /** The reported total_cost_usd per resolved task: a descriptive column, never a verdict input. */
   reportedUsdPerResolved: Record<ArmId, number | null>;
   regression: Regression;
+  /** The A/A noise floor A'-A, outside the Holm family; absent when no unit has graded rows for both A and A'. */
+  aa?: AaReport;
+}
+
+/** The A'-A noise floor (ADR 0021 point 12): arm A's configuration twice, so any difference is noise. */
+export interface AaReport {
+  /** Unit-reps graded under both A and A', and how many of them passed under one and failed under the other. */
+  pairs: number;
+  flips: number;
+  flipRate: number;
+  units: number;
+  /** Paired pass-rate difference A' minus A, percentage points, clustered on the unit. */
+  passPp: number;
+  passSePp: number;
+  passCiPp: Interval;
+  passP: number;
+  /** Paired log of the geometric-mean cost ratio A' over A, token-priced at `cost-prices`. */
+  logCostRatio: number;
+  logCostCi: Interval;
+  costUnits: number;
+  costP: number;
+  /** Either difference is shown at alpha (unadjusted p below alpha); the run is then miscalibrated. */
+  shown: boolean;
 }
 
 /** The cost figures of `graded` and `spent` rows priced at `prices`; the contrasts are Holm-adjusted within the vector. */
@@ -246,6 +269,51 @@ function costView(
   };
 }
 
+/** The A'-A flip rate, paired pass-rate difference and paired cost ratio; they are never Holm-adjusted. */
+function aaReport(graded: Row[], prereg: Prereg): AaReport | undefined {
+  const prices = prereg.prices ?? LIST_PRICES;
+  const passOf = (arm: string) =>
+    new Map(
+      graded
+        .filter((r) => r.arm === arm)
+        .map((r) => [`${r.unit}/${r.rep}`, r.pass === true]),
+    );
+  const a = passOf('A');
+  const replicate = passOf("A'");
+  const both = [...a.keys()].filter((k) => replicate.has(k));
+  if (both.length === 0) return undefined;
+  const flips = both.filter((k) => a.get(k) !== replicate.get(k)).length;
+  // Only unit-reps graded under both arms pair: an unmatched rep of one arm is not a difference.
+  const paired = new Set(both);
+  const obs = graded
+    .filter((r) => paired.has(`${r.unit}/${r.rep}`))
+    .map((r) => observation(r, prices));
+  const pass = pairedDifference(obs, "A'", 'A');
+  const cost = pairedDifference(
+    obs.filter((o) => o.costUsd > 0),
+    "A'",
+    'A',
+    (o) => Math.log(o.costUsd),
+  );
+  const alpha = prereg.alpha;
+  return {
+    pairs: both.length,
+    flips,
+    flipRate: flips / both.length,
+    units: pass.units,
+    passPp: pass.diff * 100,
+    passSePp: pass.se * 100,
+    passCiPp: { low: pass.ciLow * 100, high: pass.ciHigh * 100 },
+    passP: pass.p,
+    logCostRatio: cost.diff,
+    logCostCi: { low: cost.ciLow, high: cost.ciHigh },
+    costUnits: cost.units,
+    costP: cost.p,
+    shown:
+      (pass.units > 1 && pass.p < alpha) || (cost.units > 1 && cost.p < alpha),
+  };
+}
+
 /** Graded rows of frozen units only. A contrast is shown when its Holm-adjusted p is below alpha and C is better. */
 export function analyze(rows: Row[], prereg: Prereg): AbcReport {
   const frozen = new Set(prereg.units);
@@ -278,6 +346,15 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       cacheDependent: cost.costShown !== sens.costShown,
     };
   });
+  const aa = aaReport(graded, prereg);
+  // A run whose noise floor is itself shown cannot support a confirmatory claim: every contrast reads not shown.
+  if (aa?.shown)
+    for (const c of contrasts) {
+      c.shown = false;
+      c.costShown = false;
+      c.sensitivity = { ...c.sensitivity, costShown: false };
+      c.cacheDependent = false;
+    }
   const reported = (arm: ArmId): number | null => {
     const passes = graded.filter((r) => r.arm === arm && r.pass).length;
     const known = spent.filter((r) => r.arm === arm && r.cost != null);
@@ -299,6 +376,7 @@ export function analyze(rows: Row[], prereg: Prereg): AbcReport {
       C: reported('C'),
     },
     regression: regression(graded, prereg),
+    ...(aa === undefined ? {} : { aa }),
   };
 }
 
@@ -478,6 +556,30 @@ export function reportLines(r: AbcReport, prereg: Prereg): string[] {
   if (k.A + k.B + k.C > 0)
     lines.push(
       `cost: rows with unknown cost A ${k.A}, B ${k.B}, C ${k.C} (no tokens; their spend is missing from the dollars above)`,
+    );
+  lines.push(...noiseLines(r.aa, prereg));
+  return lines;
+}
+
+/** The A'-A section: the noise floor, outside the Holm family, and the miscalibrated flag when it is shown at alpha. */
+function noiseLines(aa: AaReport | undefined, prereg: Prereg): string[] {
+  if (aa === undefined)
+    return [
+      "noise: A'-A not measured (no unit-rep graded under both A and A')",
+    ];
+  const ratio = (x: number) => Math.exp(x).toFixed(2);
+  const costText =
+    aa.costUnits === 0
+      ? `noise: A'-A cost ratio n/a (no unit has a priced A and A' row), outside the Holm family`
+      : `noise: A'-A cost ratio ${ratio(aa.logCostRatio)} (log ${aa.logCostRatio.toFixed(3)}, 95% CI [${ratio(aa.logCostCi.low)}, ${ratio(aa.logCostCi.high)}], n ${aa.costUnits} units), p ${aa.costP.toFixed(4)}, outside the Holm family`;
+  const lines = [
+    `noise: A'-A flip rate ${(aa.flipRate * 100).toFixed(1)}% (${aa.flips} of ${aa.pairs} unit-reps differ in pass)`,
+    `noise: A'-A pass rate ${signed(aa.passPp)} pp, 95% CI [${signed(aa.passCiPp.low)}, ${signed(aa.passCiPp.high)}] pp, clustered SE ${aa.passSePp.toFixed(1)} pp (${aa.units} units), p ${aa.passP.toFixed(4)}, outside the Holm family`,
+    costText,
+  ];
+  if (aa.shown)
+    lines.push(
+      `verdict: miscalibrated: A'-A is shown at alpha ${prereg.alpha}; every confirmatory contrast is not shown`,
     );
   return lines;
 }
