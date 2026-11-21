@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Failure } from '../brain/standards.ts';
 import { filesUnder } from './skill-set.ts';
-import { GATE_KEYS, workflowGates } from './workflow-gates.ts';
+import { GATE_KEYS, workflowGates, workflowHead } from './workflow-gates.ts';
 
 export const INIT_STACKS = [
   'ts',
@@ -76,17 +76,7 @@ function json(value: unknown): string {
 
 function workflow(setup: string[], runs: string[]): string {
   return [
-    'name: CI',
-    '',
-    'on:',
-    '  push:',
-    `    branches: [${BASE}]`,
-    '  pull_request:',
-    '',
-    'permissions:',
-    '  contents: read',
-    '',
-    'jobs:',
+    ...workflowHead('CI', BASE),
     '  test:',
     '    runs-on: ubuntu-latest',
     '    steps:',
