@@ -166,7 +166,8 @@ test('a lane start takes the pending edit of a published record over its clean c
     readFileSync(join(f.main, 'tasks', 't-exist01.json'), 'utf8'),
     /Edited\./u,
   );
-  assert.equal(pendingTaskFiles(f.main).size, 0);
+  // The ref keeps its copy until the lane start marks it held.
+  assert.equal(pendingTaskFiles(f.main).size, 1);
 });
 
 test('a lane start refuses a pending edit over an uncommitted edit of the same record', (t) => {

@@ -1,0 +1,18 @@
+{
+  "id": "t-nkaq87k",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/cli/lane-start-held-record.test.ts: real-git lane start keeps the record visible to krn task list (exit 0), publish skips it, hold lapses on base change or lane removal; fast related tests pass"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "a task record published into a lane stays visible to main readers until it merges",
+  "after": [],
+  "body": [
+    "Evidence: 2026-11-21 `krn task list` in the main checkout exits non-zero with `pending tasks/t-1ntztra.json: unknown after task \"t-fcd2sbc\"` (also t-gkwtsx7). refs/krn/pending-tasks log: `99b39d7 published t-fcd2sbc` when lane arm-interleave started; the record now lives only in that lane worktree, while pending dependents still name it (src/task/store.ts:267). Same for t-p6fqmfb and t-bc3m6hf (published by lane start).\nOutcome: a pending record published into a lane stays visible to every main-checkout reader (list, show, ready, dependents) until origin/<base> carries it; `krn task list` exits 0 with a pending dependent of a lane-published task; `krn task publish` never ships a record a lane already carries.\nProof: real-git test: create A and B (after A) pending, `krn lane start --task A`, then `krn task list` exits 0 and shows A and B; after A's lane merges, the next write drops the pending copy.\nFiles: src/task/pending.ts, src/task/storage.ts, src/task/store.ts, src/cli/lane.ts (start publish step only), test/task/"
+  ],
+  "kind": "defect",
+  "area": "task"
+}

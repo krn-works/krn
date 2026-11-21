@@ -64,6 +64,7 @@ import {
   type CarriedRecord,
   carryTaskRecord,
   dropCarriedCopy,
+  holdTaskForLane,
   takePendingRecord,
 } from '../task/storage.ts';
 import { readTask, repositoryRoot } from '../task/store.ts';
@@ -765,6 +766,8 @@ export async function startLane(
     if (copied && carried !== undefined && task !== undefined) {
       if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
       else dropCarriedCopy(carried);
+      // The pending ref keeps its copy for main readers; it names the lane that now carries it.
+      if (taken !== undefined) holdTaskForLane(origin, task, slug);
     }
     return { path: realpathSync(path), slug };
   } catch (error) {
