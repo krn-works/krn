@@ -38,6 +38,7 @@ import {
   freeGb,
   envLimit as limit,
 } from '../repo/disk-budget.ts';
+import { gitLockError } from '../repo/gh.ts';
 import {
   type HostCapacity,
   hostGateDir,
@@ -48,7 +49,6 @@ import {
 } from '../repo/host-gate.ts';
 import { removeFinishedLane, worktreeUsers } from '../repo/lane-removal.ts';
 import { laneMergeVerdict, type MergeVerdict } from '../repo/merge-verdict.ts';
-import { gitLockError } from '../repo/shell-text.ts';
 import { forgetShip, shipRecordDir } from '../repo/ship-record.ts';
 import { slotHolders } from '../repo/slot-lock.ts';
 import {
