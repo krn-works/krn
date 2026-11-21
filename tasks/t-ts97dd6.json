@@ -1,0 +1,15 @@
+{
+  "id": "t-ts97dd6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "src/adopt shrinks to the 2,450 lines S28 promised",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/inventory.md (2026-11-21): src/adopt is 3,117 lines, S28 promised <= 2,450 (t-6rxzd3s closed without reaching it); adopt.ts 1,022 and verify.ts 1,015 lines with 15 exports for 4 callers.\nOutcome: find src/adopt -name '*.ts' | xargs cat | wc -l prints <= 2450 with npm run fast PASS and no adopt test removed without its behaviour removed.\nProof: the wc command above and npm run fast.\nFiles: src/adopt/",
+    "Lane 2026-11-21: duplicates folded (3,117 -> 3,105, branch origin/t-ts97dd6 3f5f605, fast PASS, not shipped: see the untracked-record defect). The remaining ~650 lines are features with tests, so the cut needs a usage decision per feature: init.ts remediateHost/syncLockfile/writeCi + gaps.ts (~200, ADR 0023 point 4 'fold or go'), canary adoption overlay (~90), first-turn.ts (115), deploy.ts (195), journal.ts rollback (107), go/rust/php/wp-plugin stacks in init.ts. Evidence of use (callers in adopted repos, ledger) decides each."
+  ],
+  "kind": "debt",
+  "area": "adopt"
+}
