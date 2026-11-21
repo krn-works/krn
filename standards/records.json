@@ -915,7 +915,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["src/hook/stash.ts#t-cbkxj6w"],
+      "evidence": [],
       "proposals": []
     },
     "status": "accepted",
@@ -960,7 +960,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["AGENTS.md#KRN-11", "src/hook/scope.ts#11 of 20 units"],
+      "evidence": ["AGENTS.md#KRN-11"],
       "proposals": []
     },
     "status": "accepted",

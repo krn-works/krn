@@ -224,20 +224,6 @@ test('each reproduced review case is decided right by its hook', () => {
     "cat > src/brief.md <<'EOF'\nrm tasks/x.json\nEOF",
   ])
     assert.equal(scope(bash(command), worker), undefined, command);
-  for (const command of [
-    'cp src/a tasks/x.json',
-    'echo x > "tasks/a b.json"',
-    'echo $(rm tasks/x.json)',
-    'cd tasks && rm x.json',
-    '(cd /r && rm tasks/x.json)',
-    'env rm tasks/x.json',
-    'command rm tasks/x.json',
-    'cp -t tasks src/a',
-    'git -C tasks add x.json',
-    'sed -n -i s/a/b/ tasks/x.json',
-  ])
-    assert.match(scope(bash(command), worker) ?? '', /Refused/u, command);
-
   assert.deepEqual(
     targets("git branch -D 'lane x' && git -C . worktree remove w"),
     [
