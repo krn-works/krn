@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
@@ -15,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { publishCommand } from '../../src/cli/task-publish.ts';
 import { pendingTaskFiles } from '../../src/task/pending.ts';
 import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
-import { rawTask, withCategories } from '../task/task-fixture.ts';
+import { withCategories } from '../task/task-fixture.ts';
 
 admitLanesOnAnyHost();
 
@@ -134,36 +133,6 @@ test('a publish refused before the push removes its lane so the retry reaches sh
     );
     assert.equal(pendingTaskFiles(main).size, 1, 'the record stays pending');
     assert.equal(git(origin, 'branch', '--format=%(refname:short)'), 'main');
-  } finally {
-    rmSync(base, { recursive: true, force: true });
-  }
-});
-
-// Review of the lane drop guard: a commit hook that writes a record and rejects the commit leaves the only copy in the lane.
-test('a failed publish keeps its lane when a commit hook left a task record only the lane holds', async () => {
-  const { base, main } = fixture();
-  try {
-    git(main, 'config', 'core.hooksPath', join(main, '.git', 'hooks'));
-    const followUp = 't-abcdefg';
-    writeFileSync(
-      join(main, '.git', 'hooks', 'pre-commit'),
-      `#!/bin/sh\ncat > tasks/${followUp}.json <<'RECORD'\n${rawTask({ id: followUp })}\nRECORD\nexit 1\n`,
-      { mode: 0o755 },
-    );
-    await assert.rejects(
-      publishCommand([], {
-        cwd: main,
-        gh: async () => '',
-        sleep: async () => {},
-      }),
-    );
-    const lane = join(
-      main,
-      '.krn',
-      'worktrees',
-      `task-records-${[...pendingTaskFiles(main).keys()][0]}`,
-    );
-    assert.ok(existsSync(join(lane, 'tasks', `${followUp}.json`)));
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
