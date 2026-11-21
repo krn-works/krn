@@ -91,7 +91,10 @@ test('KRN keeps its conventions in its own tracked file, not in the frozen FR-40
 });
 
 test('KRN states the biome rule with npm run fast and generated files in its lane packet', () => {
-  const frozen = readFileSync(join(repo, 'evals/fr40/records.json'), 'utf8');
+  const frozen = readFileSync(
+    join(repo, 'test/fixtures/conventions.json'),
+    'utf8',
+  );
   assert.ok(!frozen.includes('not only your own tests'));
   const packet = lanePacket(repo, `${brief} Run biome.`, '2026-11-11', 'lane');
   if (packet === null) throw new Error('no packet');

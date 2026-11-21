@@ -604,7 +604,7 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
     mkdirSync(join(dir, 'tasks'));
     mkdirSync(join(dir, '.krn'), { recursive: true });
     copyFileSync(
-      fileURLToPath(new URL('../../evals/fr40/records.json', import.meta.url)),
+      fileURLToPath(new URL('../fixtures/conventions.json', import.meta.url)),
       join(dir, '.krn', 'conventions.json'),
     );
     writeFileSync(

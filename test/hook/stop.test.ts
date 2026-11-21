@@ -201,14 +201,10 @@ test('KRN own contract keeps an unrelated source change to importers plus its gu
   const guards = [...tests.keys()].filter((p) => p.startsWith('test/rules/'));
   assert.ok(guards.length > 0);
   for (const each of guards) assert.ok(picked.includes(each), each);
-  assert.ok(picked.includes('test/evals/fr40-freeze.test.ts'));
   assert.ok(picked.includes('test/hook/stop.test.ts'));
   assert.ok(
     picked.every(
-      (p) =>
-        p.startsWith('test/rules/') ||
-        p === 'test/evals/fr40-freeze.test.ts' ||
-        tests.get(p)?.includes('hook/stop'),
+      (p) => p.startsWith('test/rules/') || tests.get(p)?.includes('hook/stop'),
     ),
   );
   assert.deepEqual(relatedTests([], tests, guard), []);

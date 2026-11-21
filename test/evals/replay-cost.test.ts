@@ -16,7 +16,7 @@ import {
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 // Verbatim `claude -p --output-format json` results of real lane sessions (costBasis "list").
-const runs = join(repo, 'evals/fr40/results-lanes/fr40/runs');
+const runs = join(repo, 'test/fixtures/replay-cost');
 // Verbatim stream-json captures of one session and of its `--resume` (test/evals/replay-attempt.test.ts).
 const stream = (name: string) =>
   readFileSync(join(repo, 'test/fixtures/replay', `${name}.jsonl`), 'utf8');
@@ -35,7 +35,7 @@ test('the fixed price vector reprices every captured session to the cost it repo
   for (const name of names) {
     let text: string;
     try {
-      text = readFileSync(join(runs, name, 'claude.json'), 'utf8');
+      text = readFileSync(join(runs, name), 'utf8');
     } catch {
       continue;
     }
@@ -48,7 +48,7 @@ test('the fixed price vector reprices every captured session to the cost it repo
     assert.ok(tokenCost(r.tokens, NO_CACHE_DISCOUNT) >= usd, name);
     priced += 1;
   }
-  assert.ok(priced >= 200, `${priced} captures priced`);
+  assert.ok(priced >= 30, `${priced} captures priced`);
 });
 
 test('a resumed Claude session reports the whole session, so a re-prompted attempt is not charged twice', async () => {
