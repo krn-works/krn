@@ -16,7 +16,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, sep } from 'node:path';
 import { z } from 'zod';
 
 /** Where manifests live, relative to the main checkout; the directory also holds lead files, which readers skip. */
@@ -232,15 +232,20 @@ export function createManifest(
   return manifest;
 }
 
+/** What a writer may fill in on an existing manifest besides its phase. */
+export type ManifestPatch = Partial<
+  Pick<LaneManifest, 'branch' | 'worktree' | 'targets' | 'agents'>
+>;
+
 /**
- * Moves lane `id` to phase `to`. The edge is validated against the table first; a refused edge writes nothing.
- * The writer that takes the marker named by the digest of the bytes it read is the only one that may replace
- * them (the expired-claim scheme of `src/task/claims.ts`); a writer that lost the race is refused with exit 75.
+ * Rewrites manifest `id` as `build` returns it. The writer that takes the marker named by the digest of the
+ * bytes it read is the only one that may replace them (the expired-claim scheme of `src/task/claims.ts`);
+ * a writer that lost the race is refused with exit 75.
  */
-export function transition(
+function rewrite(
   main: string,
   id: string,
-  to: LanePhase,
+  build: (current: LaneManifest) => LaneManifest,
 ): LaneManifest {
   const path = manifestPath(main, id);
   const seen = readBytes(path);
@@ -249,11 +254,7 @@ export function transition(
     throw new LaneManifestError(
       `lane manifest: no readable manifest for ${id}`,
     );
-  const next = laneManifest.parse({ ...current, phase: lanePhase.parse(to) });
-  if (!allowedTransition(current.phase, next.phase))
-    throw new LaneManifestError(
-      `lane manifest: ${id} cannot move from ${current.phase.kind} to ${next.phase.kind}`,
-    );
+  const next = laneManifest.parse(build(current));
   const digest = createHash('sha256').update(seen).digest('hex');
   const marker = join(dirname(path), `.${digest.slice(0, 32)}.lock`);
   try {
@@ -275,6 +276,114 @@ export function transition(
     rmSync(marker, { force: true });
   }
   return next;
+}
+
+/**
+ * Moves lane `id` to phase `to`, filling `patch` in with it (a reserved lane gains its branch and worktree when
+ * it starts). The edge is validated against the table first; a refused edge writes nothing.
+ */
+export function transition(
+  main: string,
+  id: string,
+  to: LanePhase,
+  patch: ManifestPatch = {},
+): LaneManifest {
+  return rewrite(main, id, (current) => {
+    const next = { ...current, ...patch, phase: lanePhase.parse(to) };
+    if (!allowedTransition(current.phase, next.phase))
+      throw new LaneManifestError(
+        `lane manifest: ${id} cannot move from ${current.phase.kind} to ${next.phase.kind}`,
+      );
+    return next;
+  });
+}
+
+/** Binds an in-session subagent to lane `id`; a lane that is retired takes no agent, and a repeated bind changes nothing. */
+export function bindAgent(
+  main: string,
+  id: string,
+  agentId: string,
+): LaneManifest {
+  return rewrite(main, id, (current) => {
+    if (current.phase.kind === 'retired')
+      throw new LaneManifestError(`lane manifest: ${id} is retired`);
+    return current.agents.includes(agentId)
+      ? current
+      : { ...current, agents: [...current.agents, agentId] };
+  });
+}
+
+/** What a hook payload says about its caller, as `laneOfSession` reads it. */
+export type SessionLane =
+  | { kind: 'lane'; manifest: LaneManifest }
+  | { kind: 'legacy-lane'; worktree: string }
+  | { kind: 'unbound-worker' }
+  | { kind: 'lead' };
+
+const WORKTREES = join('.krn', 'worktrees');
+
+/** The main checkout a session belongs to: the part before `.krn/worktrees/` when it runs in a worktree. */
+export function mainOfSession(dir: string): string {
+  const at = dir.indexOf(`${sep}${WORKTREES}${sep}`);
+  return at < 0 ? dir : dir.slice(0, at);
+}
+
+/** Worktree directories under `main` that no live manifest names: lanes started before manifests existed. */
+function manifestlessWorktrees(main: string): string[] {
+  let names: string[];
+  try {
+    names = readdirSync(join(main, WORKTREES), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(main, WORKTREES, entry.name));
+  } catch {
+    return [];
+  }
+  const named = new Set(
+    listManifests(main)
+      .filter((m) => m.phase.kind !== 'retired')
+      .flatMap((m) => (m.worktree === undefined ? [] : [m.worktree])),
+  );
+  return names.filter((dir) => {
+    try {
+      return !named.has(realpathSync(dir));
+    } catch {
+      return !named.has(dir);
+    }
+  });
+}
+
+/**
+ * The lane a hook caller belongs to (ADR 0029 decision 2), in this order: `KRN_LANE_ID` of the environment;
+ * a `krn-lane` agent a live manifest holds; the legacy rule while a worktree has no manifest; else an
+ * unbound `krn-lane` agent, or the lead. `cwd` is the project directory the hook runs in.
+ */
+export function laneOfSession(
+  payload: unknown,
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): SessionLane {
+  const main = mainOfSession(cwd);
+  const fields = payload as { agent_type?: unknown; agent_id?: unknown } | null;
+  const live = (m: LaneManifest | undefined) =>
+    m !== undefined && m.phase.kind !== 'retired' ? m : undefined;
+  const fromEnv =
+    env.KRN_LANE_ID === undefined
+      ? undefined
+      : live(readManifest(main, env.KRN_LANE_ID));
+  if (fromEnv !== undefined) return { kind: 'lane', manifest: fromEnv };
+  const subagent =
+    fields?.agent_type === 'krn-lane' && typeof fields.agent_id === 'string'
+      ? fields.agent_id
+      : undefined;
+  if (subagent === undefined) return { kind: 'lead' };
+  const bound = listManifests(main).find(
+    (m) => m.phase.kind !== 'retired' && m.agents.includes(subagent),
+  );
+  if (bound !== undefined) return { kind: 'lane', manifest: bound };
+  const legacy = manifestlessWorktrees(main)[0];
+  return legacy === undefined
+    ? { kind: 'unbound-worker' }
+    : { kind: 'legacy-lane', worktree: legacy };
 }
 
 /** Retires the live manifest of the gone worktree at `worktree`; throws when the manifest cannot be written. */

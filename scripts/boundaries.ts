@@ -25,7 +25,8 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   'cli-kit': [],
   task: ['cli-kit', 'fs', 'repo'],
   evals: [],
-  hook: ['brain', 'harness', 'repo', 'state', 'task'],
+  // Scope and the start-command binding ask the lane manifest which lane a caller belongs to (ADR 0029).
+  hook: ['brain', 'harness', 'lane', 'repo', 'state', 'task'],
   dispatch: ['context', 'harness', 'hook', 'root:scripts'],
   brain: ['cli-kit', 'harness', 'repo'],
   cli: [

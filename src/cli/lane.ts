@@ -16,8 +16,10 @@ import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
   createManifest,
   newLaneId,
+  readManifest,
   retireGoneLane,
   retireLane,
+  transition,
 } from '../lane/manifest.ts';
 import {
   type Lane,
@@ -72,17 +74,19 @@ import { checkOpenRedLimit, type OpenPr } from './lane-open-red.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
 
 export const laneUsage = [
-  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; any lane is refused with exit 75 while host load per core reaches KRN_LANE_LOAD_PER_CORE (default 1.25), available memory is below KRN_LANE_MIN_MB (default 2048) or the host heavy-job gate is full; prints the path and branch',
+  'krn lane start SLUG [--task ID] [--lane LANE_ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; any lane is refused with exit 75 while host load per core reaches KRN_LANE_LOAD_PER_CORE (default 1.25), available memory is below KRN_LANE_MIN_MB (default 2048) or the host heavy-job gate is full; prints the path and branch',
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session the worktree links the node_modules of the main checkout when git ignores the link (or the nested worktree resolves it), else the krn.json `install` command runs in it, and a failed install exits 71 with the claim released and no session started; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75, as does a start the host has no free capacity for; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   laneFinishUsage,
   'krn lane status [--root DIR]  one line per lane worktree: `live` (its `krn pr ship` runs, pid alive), `merged` (its ship merged on the base), `orphaned` (committed past the base, no pull request and no live ship: run `krn pr ship` or `krn lane finish`), `pr-open` (a pull request exists, no live ship), `empty` (no commit past the base) or `unknown` (gh cannot say)',
-  'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records, followed by the in-force worker standards of .agents/standards.json (inherited ones marked)',
+  'krn lane brief [--file PATH] [--task ID [--slug SLUG] [--actor NAME]] [--as-of YYYY-MM-DD] [--root DIR]  with --task, reserve the lane (a `reserved` manifest) and print its `bin/krn lane start SLUG --task ID --lane LANE_ID --actor NAME` line first (slug defaults to the task id, actor to `lane`); print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records, followed by the in-force worker standards of .agents/standards.json (inherited ones marked)',
 ].join('\n');
 
 function briefCommand(rest: string[]): void {
   let file: string | undefined;
   let task: string | undefined;
+  let slug: string | undefined;
+  let actor = 'lane';
   let asOf = new Date().toISOString().slice(0, 10);
   let root: string | undefined;
   const value = (index: number, name: string) =>
@@ -91,6 +95,8 @@ function briefCommand(rest: string[]): void {
     const arg = rest[index] as string;
     if (arg === '--file') file = value(index++, arg);
     else if (arg === '--task') task = value(index++, arg);
+    else if (arg === '--slug') slug = value(index++, arg);
+    else if (arg === '--actor') actor = value(index++, arg);
     else if (arg === '--as-of') asOf = value(index++, arg);
     else if (arg === '--root') root = value(index++, arg);
     else throw new CliUsageError(laneUsage);
@@ -106,14 +112,35 @@ function briefCommand(rest: string[]): void {
     );
   const repo = repositoryRoot(root ?? process.cwd());
   const built = laneBrief(repo, brief, asOf, task, task !== undefined);
-  if (task !== undefined)
-    recordBriefExposure(
-      mainCheckoutRoot(repo),
-      `brief-${Date.now()}`,
-      task,
-      built,
+  if (task === undefined) {
+    process.stdout.write(built.text);
+    return;
+  }
+  const main = mainCheckoutRoot(repo);
+  const lane = slug ?? task;
+  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(lane))
+    throw new CliUsageError(
+      `lane slug must be lowercase letters, digits, ".", "_" or "-": ${lane}`,
     );
-  process.stdout.write(built.text);
+  recordBriefExposure(main, `brief-${Date.now()}`, task, built);
+  // The lane id exists before the worker does: the worker's start command names it, which binds the worker to it.
+  const reserved = createManifest(
+    main,
+    {
+      laneId: newLaneId(lane),
+      slug: lane,
+      base: contractBase(repo),
+      task,
+      targets: laneTargets(repo, task),
+      actor,
+      createdAt: new Date().toISOString(),
+      agents: [],
+    },
+    { kind: 'reserved' },
+  );
+  process.stdout.write(
+    `Start: bin/krn lane start ${lane} --task ${task} --lane ${reserved.laneId} --actor ${actor}\n\n${built.text}`,
+  );
 }
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
@@ -591,6 +618,7 @@ export async function startLane(
   let actor = 'lead';
   let reason: string | undefined;
   let root: string | undefined;
+  let laneId: string | undefined;
   // KRN_SESSION_CLASS=lane marks a worker session, not a lane class: only the two lane classes count.
   const inherited = process.env.KRN_SESSION_CLASS;
   let sessionClass = inherited === 'non-delivery' ? inherited : 'delivery';
@@ -600,6 +628,7 @@ export async function startLane(
     const arg = rest[index] as string;
     if (arg === '--class') sessionClass = value(index++, arg);
     else if (arg === '--task') task = value(index++, arg);
+    else if (arg === '--lane') laneId = value(index++, arg);
     else if (arg === '--actor') actor = value(index++, arg);
     else if (arg === '--reason') reason = value(index++, arg);
     else if (arg === '--root') root = value(index++, arg);
@@ -619,6 +648,18 @@ export async function startLane(
   const origin = repositoryRoot(root ?? process.cwd());
   const main = mainCheckoutRoot(origin);
   const path = join(main, '.krn', 'worktrees', slug);
+  // `--lane` starts the lane `krn lane brief` reserved: it must be reserved, for this slug and task.
+  if (laneId !== undefined) {
+    const reserved = readManifest(main, laneId);
+    if (reserved === undefined || reserved.phase.kind !== 'reserved')
+      throw new CliUsageError(
+        `lane ${laneId} is not reserved: run \`krn lane brief --task ID\` for its start command`,
+      );
+    if (reserved.slug !== slug || reserved.task !== task)
+      throw new CliUsageError(
+        `lane ${laneId} was reserved for ${reserved.slug}${reserved.task === undefined ? '' : ` and ${reserved.task}`}`,
+      );
+  }
   if (existsSync(path))
     throw new CliUsageError(`lane ${slug} already exists at ${path}`);
   if (gitOk(main, ['show-ref', '--verify', '--quiet', `refs/heads/${slug}`]))
@@ -689,7 +730,14 @@ export async function startLane(
         }
       }
       // A task-records publish holds no agent session, so it is no lane and records none.
-      if (!slug.startsWith(taskRecordsPrefix))
+      if (laneId !== undefined)
+        transition(
+          main,
+          laneId,
+          { kind: 'started' },
+          { branch: slug, worktree: realpathSync(path), targets },
+        );
+      else if (!slug.startsWith(taskRecordsPrefix))
         createManifest(
           main,
           {

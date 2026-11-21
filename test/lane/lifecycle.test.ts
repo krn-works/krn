@@ -4,7 +4,6 @@
 // After each verb every store is snapshotted and exactly the stores it should change are named.
 //
 // Not asserted yet, because main gets them wrong; the ADR step named adds each case:
-// - D4a/D4b: a `krn-lane` subagent writes `tasks/<id>.json` in its worktree or a foreign path (step 3).
 // - D3: a worker with no commit stops on another lane's ship record or merged sha (step 4).
 // - D7: `krn lane drop` refuses a lane whose only task change is a staged deletion (step 2b).
 // - D8: dep on a published record with a pending edit; a start whose task depends on a pending record (2a).
@@ -27,6 +26,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../../src/ci/ship.ts';
 import { dropLane, startLane } from '../../src/cli/lane.ts';
+import { bindOnLaneStart } from '../../src/hook/lane-binding.ts';
 import { decide } from '../../src/hook/scope.ts';
 import { stopHook } from '../../src/hook/stop.ts';
 import { listManifests } from '../../src/lane/manifest.ts';
@@ -242,19 +242,43 @@ test('one lane walks every verb and each changes only its own stores', async (t)
   });
   const hookEnv = { CLAUDE_PROJECT_DIR: repo };
 
-  await t.test('scope allows the worktree, refuses main tasks/', async () => {
-    const touched = await verb(() => {
-      assert.equal(
-        decide(write(join(worktree, 'src', 'x.ts')), hookEnv),
-        undefined,
-      );
-      assert.match(
-        decide(write(join(repo, 'tasks', `${id}.json`)), hookEnv) ?? '',
-        /^Refused: .* is in the main checkout, which a lane never writes/u,
-      );
-    });
-    assert.deepEqual(touched, []);
-  });
+  await t.test(
+    'scope binds the subagent on its start command, allows the worktree and refuses tasks/ and foreign paths (D4a, D4b)',
+    async () => {
+      const touched = await verb(() => {
+        const [manifest] = listManifests(repo);
+        const laneId = manifest?.laneId as string;
+        assert.equal(
+          decide(write(join(worktree, 'src', 'x.ts')), hookEnv)?.slice(0, 8),
+          'Refused:',
+          'a subagent no manifest holds is unbound',
+        );
+        bindOnLaneStart(
+          {
+            ...write(''),
+            tool_name: 'Bash',
+            tool_input: {
+              command: `bin/krn lane start ${slug} --lane ${laneId}`,
+            },
+          },
+          repo,
+        );
+        assert.equal(
+          decide(write(join(worktree, 'src', 'x.ts')), hookEnv),
+          undefined,
+        );
+        for (const file of [
+          join(worktree, 'tasks', `${id}.json`),
+          join(repo, 'tasks', `${id}.json`),
+          join(repo, 'src', 'x.ts'),
+          '/etc/krn-foreign',
+        ])
+          assert.match(decide(write(file), hookEnv) ?? '', /^Refused:/u, file);
+      });
+      // Binding appends the agent to the manifest, which the snapshot counts as a manifest change.
+      assert.deepEqual(touched, ['manifests']);
+    },
+  );
 
   await t.test('stop refuses a lane with no commit', async () => {
     let result: ReturnType<typeof stopHook> | undefined;

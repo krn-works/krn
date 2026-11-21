@@ -11,7 +11,9 @@ import {
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
+import { type LaneManifest, laneOfSession } from '../lane/manifest.ts';
 import { TASKS_DIR } from '../task/paths.ts';
+import { bindOnLaneStart } from './lane-binding.ts';
 import {
   gitCall,
   programName,
@@ -533,6 +535,63 @@ export function foreignTarget(
   ]);
 }
 
+/** The refusal of a `krn-lane` agent that no lane manifest holds: it writes nothing, and the refusal quotes its call. */
+function unboundRefusal(
+  targets: readonly string[],
+  tool: unknown,
+  input: Record<string, unknown>,
+): Verdict {
+  if (targets.length === 0) return {};
+  const quoted =
+    typeof input.command === 'string'
+      ? `\`${input.command}\``
+      : `${String(tool)} of ${targets.join(', ')}`;
+  return {
+    refusal: `Refused: this krn-lane agent is bound to no lane, so it writes nothing (${quoted}). Nothing in this call ran. Run the \`bin/krn lane start <slug> --task <id> --lane <laneId> --actor <name>\` line of your brief exactly as printed; a form the hook cannot read leaves you unbound (src/hook/scope.ts).`,
+  };
+}
+
+/**
+ * A bound lane writes only inside its manifest worktree and \`targets\` (and the places every lane may write),
+ * and never under tasks/: \`krn task\` is the one writer of the tracker (ADR 0029 decisions 2 and 3).
+ */
+function judgeBound(
+  manifest: LaneManifest,
+  targets: readonly string[],
+  env: NodeJS.ProcessEnv,
+  input: Record<string, unknown>,
+  cwd: string,
+): Verdict {
+  const worktree = manifest.worktree;
+  if (targets.length === 0) return {};
+  if (worktree === undefined)
+    return {
+      refusal: `Refused: lane ${manifest.laneId} is ${manifest.phase.kind} and has no worktree yet, so it writes nothing. Nothing in this call ran. Run its \`krn lane start\` line first (src/hook/scope.ts).`,
+    };
+  const admitted = manifest.targets.map((entry) => resolve(entry));
+  const foreign = foreignTarget(worktree, targets, env, admitted);
+  if (foreign !== undefined)
+    return {
+      refusal: `Refused: ${foreign} is outside lane ${manifest.laneId} (worktree ${worktree}). Nothing in this call ran. Write under your worktree; a foreign repository needs a \`lane-target: <path>\` line in the brief (src/hook/scope.ts).`,
+    };
+  const record = targets.find(
+    (target) =>
+      inside(worktree, target) && under(guarded, relative(worktree, target)),
+  );
+  if (record !== undefined)
+    return {
+      refusal: `Refused: ${relative(worktree, record)} is tracker state, and \`krn task\` is its one writer (lane ${manifest.laneId}). Nothing in this call ran. Use \`krn task close\` from your worktree (src/hook/scope.ts).`,
+    };
+  if (typeof input.command === 'string') {
+    const stray = strayRedirect(input.command, cwd, worktree, env, admitted);
+    if (stray !== undefined)
+      return {
+        refusal: `Refused: ${stray} is outside this lane's worktree (${worktree}). Nothing in this call ran. Scratch rule: write logs and drafts under ${join(worktree, '.krn', 'tmp')} (src/hook/scope.ts).`,
+      };
+  }
+  return {};
+}
+
 /** The refusal text, or undefined when the call is allowed. */
 export function decide(
   payload: unknown,
@@ -559,9 +618,14 @@ export function judge(
       (typeof fields.cwd === 'string' ? fields.cwd : process.cwd()),
     process.cwd(),
   );
+  const session =
+    isLaneSubagent(payload) || env.KRN_LANE_ID !== undefined
+      ? laneOfSession(payload, env, root)
+      : undefined;
   const who = worker(env, root, branch, payload);
-  if (!who) return {};
-  if (who.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
+  if (!who && session?.kind !== 'lane' && session?.kind !== 'unbound-worker')
+    return {};
+  if (who?.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
   const cwd = typeof fields.cwd === 'string' ? resolve(fields.cwd) : root;
   const input = fields.tool_input;
   // Judged where each write lands, never by its spelling.
@@ -579,6 +643,11 @@ export function judge(
         ...bashTargets(input.command, landing(cwd, sep), false, env.HOME),
       );
   } else return {};
+  if (session?.kind === 'lane')
+    return judgeBound(session.manifest, targets, env, input, cwd);
+  if (session?.kind === 'unbound-worker')
+    return unboundRefusal(targets, fields.tool_name, input);
+  if (who === undefined) return {};
   const escaped = targets.find((target) => outsideOwnWorktree(root, target));
   const admitted = laneTargets(env, root, branch);
   const foreign = foreignTarget(root, targets, env, admitted);
@@ -653,6 +722,7 @@ export function main() {
         encoding: 'utf8',
       }).stdout
     : '';
+  bindOnLaneStart(payload, hookProjectDir());
   const { refusal, note } = judge(payload, process.env, branch);
   if (refusal !== undefined) {
     process.stderr.write(`${refusal}\n`);
