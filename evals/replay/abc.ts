@@ -283,7 +283,11 @@ function aaReport(graded: Row[], prereg: Prereg): AaReport | undefined {
   const both = [...a.keys()].filter((k) => replicate.has(k));
   if (both.length === 0) return undefined;
   const flips = both.filter((k) => a.get(k) !== replicate.get(k)).length;
-  const obs = graded.map((r) => observation(r, prices));
+  // Only unit-reps graded under both arms pair: an unmatched rep of one arm is not a difference.
+  const paired = new Set(both);
+  const obs = graded
+    .filter((r) => paired.has(`${r.unit}/${r.rep}`))
+    .map((r) => observation(r, prices));
   const pass = pairedDifference(obs, "A'", 'A');
   const cost = pairedDifference(
     obs.filter((o) => o.costUsd > 0),
@@ -564,10 +568,14 @@ function noiseLines(aa: AaReport | undefined, prereg: Prereg): string[] {
       "noise: A'-A not measured (no unit-rep graded under both A and A')",
     ];
   const ratio = (x: number) => Math.exp(x).toFixed(2);
+  const costText =
+    aa.costUnits === 0
+      ? `noise: A'-A cost ratio n/a (no unit has a priced A and A' row), outside the Holm family`
+      : `noise: A'-A cost ratio ${ratio(aa.logCostRatio)} (log ${aa.logCostRatio.toFixed(3)}, 95% CI [${ratio(aa.logCostCi.low)}, ${ratio(aa.logCostCi.high)}], n ${aa.costUnits} units), p ${aa.costP.toFixed(4)}, outside the Holm family`;
   const lines = [
     `noise: A'-A flip rate ${(aa.flipRate * 100).toFixed(1)}% (${aa.flips} of ${aa.pairs} unit-reps differ in pass)`,
     `noise: A'-A pass rate ${signed(aa.passPp)} pp, 95% CI [${signed(aa.passCiPp.low)}, ${signed(aa.passCiPp.high)}] pp, clustered SE ${aa.passSePp.toFixed(1)} pp (${aa.units} units), p ${aa.passP.toFixed(4)}, outside the Holm family`,
-    `noise: A'-A cost ratio ${ratio(aa.logCostRatio)} (log ${aa.logCostRatio.toFixed(3)}, 95% CI [${ratio(aa.logCostCi.low)}, ${ratio(aa.logCostCi.high)}], n ${aa.costUnits} units), p ${aa.costP.toFixed(4)}, outside the Holm family`,
+    costText,
   ];
   if (aa.shown)
     lines.push(

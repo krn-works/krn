@@ -266,3 +266,15 @@ test('the budget is checked before each unit: rows written so far stay, the run 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("the live B and C command refuses arm A' like arm A", () => {
+  for (const arms of ['A', "A'"]) {
+    const run = spawnSync(
+      'node',
+      ['evals/replay/run.ts', '--arms', arms, '--units', '0'],
+      { cwd: repo, encoding: 'utf8' },
+    );
+    assert.equal(run.status, 69, run.stderr);
+    assert.match(run.stderr, /run under --prereg/);
+  }
+});

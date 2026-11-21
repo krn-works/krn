@@ -414,3 +414,31 @@ test("A'-A shown at alpha flags the run miscalibrated and reads every contrast a
     ),
   );
 });
+
+test("A'-A pairs only unit-reps graded under both arms and prints no cost ratio without priced pairs", () => {
+  const same = withReplicate(0).filter((r) => r.arm !== "A'");
+  const rows: Row[] = [
+    ...frozen.units.flatMap((u, i) =>
+      reps(u, "A'", [0, 0, 1, 1][i] as number, 1),
+    ),
+    ...same,
+    // an A rep with no A' partner, passing where its unit's A' reps all fail
+    {
+      unit: 't-1',
+      arm: 'A',
+      rep: 4,
+      pass: true,
+      cost: 1,
+      tokens: inputOnly(1),
+      harness: 'h',
+    },
+  ];
+  const r = analyze(rows, frozen);
+  assert.equal(r.aa?.pairs, 12);
+  assert.equal(r.aa?.shown, false);
+  const unpriced = rows.map((x) => ({ ...x, tokens: null }));
+  const line = reportLines(analyze(unpriced, frozen), frozen).find((l) =>
+    l.startsWith("noise: A'-A cost ratio"),
+  );
+  assert.match(line as string, /cost ratio n\/a/);
+});

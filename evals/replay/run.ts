@@ -278,8 +278,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   if (!dry) {
     // Arm A's rows come from --prereg (matrix.ts) or --screen; this path runs arms B and C.
-    if (arms.some((a) => a.id === 'A')) {
-      console.error('--arms rows run arms B and C; arm A runs under --prereg');
+    if (arms.some((a) => a.id === 'A' || a.id === "A'")) {
+      console.error(
+        "--arms rows run arms B and C; arms A and A' run under --prereg",
+      );
       process.exit(69);
     }
     const byId = new Map(loadUnits(unitsDir).map((u) => [u.unit.id, u]));
