@@ -197,7 +197,7 @@ test('a hook importing a file outside the overlay roots pulls it and its own imp
 
 const productRoot = fileURLToPath(new URL('../..', import.meta.url));
 
-test('a replay clone with the harness laid over its parent refuses Stop with exit 2 while a related test is red', () => {
+test('a replay clone with the harness laid over its parent reports a red related test at Stop and never blocks the end', () => {
   const dir = mkdtempSync(join(tmpdir(), 'd23-stop-'));
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
@@ -254,9 +254,9 @@ test('a replay clone with the harness laid over its parent refuses Stop with exi
           KRN_SCOPE: 'Scope: src/',
         },
       });
-    const refused = stop('done');
-    assert.equal(refused.status, 2, refused.stderr);
-    assert.match(refused.stderr, /red|fail/iu);
+    const reported = stop('done');
+    assert.equal(reported.status, 0, reported.stderr);
+    assert.match(reported.stderr, /red|fail/iu);
     put('src/calc.ts', 'export const calc = () => 1;\n');
     git('commit', '-qam', 'fix calc');
     git('commit', '--allow-empty', '-qm', 'second');
