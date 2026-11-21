@@ -18,8 +18,9 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: ['harness', 'repo', 'task'],
   state: [],
   ci: ['repo', 'lane'],
-  // The lane lifecycle reader (ADR 0028); Stop imports it once it asks lane state instead of inferring it.
-  lane: ['repo'],
+  // The lane lifecycle reader (ADR 0028) and the lane's own session reads (ADR 0029 step 4); a lane with no manifest
+  // is found through its task claim, read through src/task/claims.ts.
+  lane: ['repo', 'task'],
   adopt: ['brain', 'harness', 'task', 'repo'],
   repo: [],
   'cli-kit': [],
