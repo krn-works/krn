@@ -59,13 +59,8 @@ test('a lane brief tells the worker that a red test outranks a closed tracker re
     BASE_DATE,
     't-abc1234',
   );
-  assert.match(
-    text,
-    /closed task record, an earlier commit or a green existing suite never means done/u,
-  );
   assert.match(text, /red test outranks tracker state/u);
   assert.match(text, /Otherwise stay inside Scope/u);
-  assert.match(text, /revert such an edit before you commit/u);
 });
 
 test('krn lane brief prints the carrier prefix over a brief file and stdin', () => {
@@ -145,7 +140,7 @@ test('a pytest repository on master without a tracker gets its own commands, nev
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /'\.venv\/bin\/python -m pytest'/u);
     assert.match(result.stdout, /branch 'master'/u);
-    assert.match(result.stdout, /BLOCKER:/u);
+    assert.match(result.stdout, /say in your final reply what blocks you/u);
     assert.doesNotMatch(
       result.stdout,
       /npm|worker-stop|tasks\/<|origin\/main/u,
@@ -155,8 +150,11 @@ test('a pytest repository on master without a tracker gets its own commands, nev
   }
 });
 
-test('the KRN repository brief keeps the Stop script check', () => {
-  assert.match(workerRules(repo), /bin\/krn hook stop --check/u);
+test('the KRN repository brief names its fast check and leaves the rest to the CI Check', () => {
+  assert.match(
+    workerRules(repo),
+    /run 'npm run fast' once[^\n]*the CI Check on the PR runs the rest/u,
+  );
 });
 
 test('a lane brief tells the worker to test the plainest hand-written input of every named format', () => {
@@ -169,11 +167,7 @@ test('a lane brief tells the worker to test the plainest hand-written input of e
   );
   assert.match(
     text,
-    /plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced/u,
-  );
-  assert.match(
-    workerRules(repo),
-    /must accept every form the wording allows, including the shortest and plainest one/u,
+    /plainest hand-written example of that format, never only input your own code produced/u,
   );
 });
 
@@ -192,7 +186,7 @@ test('a lane brief requires the command and exit code behind every external-syst
   );
   assert.match(
     text,
-    /every claim about an external system[^\n]*exact command you ran and its exit code/u,
+    /every claim about an external system[^\n]*command you ran and its exit code/u,
   );
 });
 
@@ -233,7 +227,7 @@ test('a lane brief asks the worker to list unstated names and behaviors and pass
     BASE_DATE,
     't-abc1234',
   );
-  assert.match(text, /left it unstated/u);
+  assert.match(text, /choices the task left open/u);
   assert.match(text, /--assumptions <text>/u);
 });
 

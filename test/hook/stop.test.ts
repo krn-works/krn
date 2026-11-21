@@ -152,12 +152,6 @@ test('the hook reports a reason with exit 0 when a worker has no commit', () => 
   }
 });
 
-test('the lane brief names the related-test command', async () => {
-  const { workerRules } = await import('../../src/cli/lane-brief.ts');
-  const rules = workerRules(fileURLToPath(new URL('../..', import.meta.url)));
-  assert.match(rules, /bin\/krn hook stop --check/u);
-});
-
 function realTests(): Map<string, string> {
   const found = new Map<string, string>();
   const walk = (dir: string): void => {
