@@ -1,7 +1,11 @@
 {
   "id": "t-kj7an2b",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Dropped 2026-11-21 by operator order: CI Check is the only gate; tasks that add, tighten or patch a refusal are not done (see .krn/runs/prune/gates.md)"
+  },
   "created": "2026-11-19",
   "priority": 0,
   "title": "A check piped into a filter or masked with || true is refused for every check command",
