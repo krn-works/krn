@@ -18,8 +18,9 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: ['harness', 'repo', 'task'],
   state: [],
   ci: ['repo', 'lane'],
-  // The lane lifecycle reader (ADR 0028); Stop imports it once it asks lane state instead of inferring it.
-  lane: ['repo'],
+  // The lane lifecycle reader (ADR 0028) and the lane's own session reads (ADR 0029 step 4); a lane with no manifest
+  // is found through its task claim, read through src/task/claims.ts.
+  lane: ['repo', 'task'],
   adopt: ['brain', 'harness', 'task', 'repo'],
   repo: [],
   'cli-kit': [],
@@ -216,6 +217,8 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/cli/doctor-claims.ts',
     // The one reader of lane state (ADR 0028): ship records, the lane tip and the merge on the base.
     'src/lane/state.ts',
+    // Stop's lane readers: the base a ship merged on, and the worktree and tip they judge.
+    'src/lane/session.ts',
     'src/repo/lane-removal.ts',
     'src/repo/test-slot.ts',
     // Reads the root's origin to scope the App token of a gh read to that repository.

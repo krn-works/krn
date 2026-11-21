@@ -10,7 +10,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { judgeStop, laneTreeOf } from '../../src/hook/stop.ts';
+import { judgeStop } from '../../src/hook/stop.ts';
+import { laneTreeOf } from '../../src/lane/session.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
 
 function git(cwd: string, ...args: string[]): string {

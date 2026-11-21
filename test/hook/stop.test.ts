@@ -28,7 +28,6 @@ import {
   inspect,
   judgeStop,
   linkPackageModules,
-  recordedShip,
   redTestsAtBase,
   relatedTests,
   runTests,
@@ -41,6 +40,7 @@ import {
   testTampering,
   withinPackage,
 } from '../../src/hook/stop.ts';
+import { recordedShip } from '../../src/lane/session.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
 import { recordShip } from '../../src/repo/ship-record.ts';
 import { serializeClaim } from '../../src/task/claims.ts';

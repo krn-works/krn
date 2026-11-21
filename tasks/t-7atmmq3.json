@@ -1,0 +1,18 @@
+{
+  "id": "t-7atmmq3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-21",
+  "priority": 1,
+  "title": "Manifest writer claims and releases through claims.ts; judgeStop covers manifest lanes",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 step 4 left two clauses of t-p6fqmfb (PR #1575) open: the manifest writer does not itself claim and release through src/task/claims.ts (lane.ts claims, then transitions; drop releases in the drop path owned by lane t-5sptxvr), and Stop has no judgeStop-level test for a manifest lane.\nOutcome: the manifest writer transitions and claims or releases in one step through src/task/claims.ts (async claimTask against sync transition); test/hook has a judgeStop case with a bound krn-lane agent payload, cwd at the main checkout, no agent_transcript_path and the claim file removed: started-unshipped refused, shipped-and-dropped passes, a manifestless lane keeps today's verdict.\nProof: those judgeStop cases pass; grep for raw claim reads in src/lane prints none outside legacy.ts."
+  ],
+  "kind": "debt",
+  "area": "lane",
+  "from": {
+    "kind": "task",
+    "ref": "t-p6fqmfb"
+  }
+}

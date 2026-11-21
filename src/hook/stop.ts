@@ -47,17 +47,25 @@ import {
 export { withinPackage };
 
 import { statesBlocker } from '../brain/proof-line.ts';
+import {
+  claimedBranches,
+  claimedWorktree,
+  editedLaneWorktrees,
+  laneTreeOf,
+  laneWorktree,
+  onBase,
+  ownerCheckout,
+  recordedShip,
+  sessionTask,
+} from '../lane/session.ts';
 import { ghApiSync } from '../repo/gh.ts';
-import { laneMergeVerdict } from '../repo/merge-verdict.ts';
 import { receiverEnv } from '../repo/receiver-env.ts';
-import { shipRecordDir } from '../repo/ship-record.ts';
 import { SlotTimeoutError, withSlotSync } from '../repo/slot-lock.ts';
 import { SLOT_HELD_ENV, testSlotOptions } from '../repo/test-slot.ts';
 import {
   clearSandboxPlaceholders,
   isSandboxPlaceholder,
 } from '../state/sandbox-placeholders.ts';
-import { inspectClaim, type TaskClaim } from '../task/claims.ts';
 import { isTaskPath } from '../task/paths.ts';
 import {
   claudeJudge,
@@ -1473,126 +1481,6 @@ export function foreignPr(
   return undefined;
 }
 
-function onBase(root: string, sha: string): boolean {
-  const named = loadContract(root).contract?.base ?? 'main';
-  const merged = () =>
-    [`origin/${named}`, named].some(
-      (ref) =>
-        git(root, ['merge-base', '--is-ancestor', sha, ref]).status === 0,
-    );
-  if (merged()) return true;
-  const fetched = spawnSync('git', ['fetch', '-q', 'origin', named], {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  return fetched.status === 0 && merged();
-}
-
-const laneMarker = `${sep}.krn${sep}worktrees${sep}`;
-
-/**
- * The lane worktree a path lies in, as `<owner>/.krn/worktrees/<name>`. An existing path belongs to its nearest
- * enclosing checkout only: a repository created under another lane's `.krn/tmp` (a test temp dir) is its own main.
- * A path that is gone is a lane tree only when it is exactly `<owner>/.krn/worktrees/<name>`.
- */
-export function laneTreeOf(
-  path: string,
-): { owner: string; name: string } | undefined {
-  let top = path;
-  if (existsSync(path)) {
-    while (!existsSync(join(top, '.git'))) {
-      const up = dirname(top);
-      if (up === top) return undefined;
-      top = up;
-    }
-    if (!statSync(join(top, '.git')).isFile()) return undefined;
-  }
-  const at = top.lastIndexOf(laneMarker);
-  if (at < 0) return undefined;
-  const rest = top.slice(at + laneMarker.length).split(sep);
-  const name = rest[0];
-  if (!existsSync(path) && rest.length !== 1) return undefined;
-  return name ? { owner: top.slice(0, at), name } : undefined;
-}
-
-/**
- * Where `krn pr ship` recorded a merged ship for this session's lane, whose branch and worktree it then
- * removed. The last message need not repeat the verdict: lanes ended "the branch was deleted after merge"
- * and were refused. The record counts when its merge commit is on the base and the hook runs in a removed
- * worktree, the main checkout, or a kept lane worktree whose branch and tip are the recorded ones. It is
- * found by branch, worktree directory name or the session's KRN_TASK.
- */
-export function recordedShip(
-  root: string,
-  env: NodeJS.ProcessEnv,
-  branch = '',
-  payload: unknown = undefined,
-): boolean {
-  const named = loadContract(root).contract?.base ?? 'main';
-  const current = branch.trim();
-  // On a lane branch the record counts only for a kept worktree whose tip is still the shipped head:
-  // a lane agent's ship keeps worktree and branch for the next lane start to prune (t-hswt15n).
-  const onLane = current !== '' && current !== named;
-  let main: string | undefined;
-  if (existsSync(root)) {
-    const common = git(root, [
-      'rev-parse',
-      '--path-format=absolute',
-      '--git-common-dir',
-    ]);
-    if (common.status === 0) main = dirname(common.stdout);
-  }
-  const tree = laneTreeOf(root);
-  if (main === undefined && tree) main = tree.owner;
-  if (main === undefined) return false;
-  const lane = tree?.name ?? '';
-  // A lane worktree still on disk counts only while its tip is the shipped head: later work there is unshipped.
-  const kept = lane !== '' && existsSync(join(root, '.git'));
-  const tip =
-    kept || onLane ? git(root, ['rev-parse', 'HEAD']).stdout.trim() : '';
-  const dir = join(main, shipRecordDir);
-  let names: string[];
-  try {
-    names = readdirSync(dir);
-  } catch {
-    return false;
-  }
-  const claimed = claimedBranches(main, env, payload);
-  for (const name of names) {
-    try {
-      const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
-        branch?: unknown;
-        task?: unknown;
-        sha?: unknown;
-        head?: unknown;
-      };
-      if (onLane && record.branch !== current) continue;
-      const ours =
-        (lane !== '' && record.branch === lane) ||
-        (typeof record.branch === 'string' &&
-          claimed.includes(record.branch)) ||
-        (env.KRN_TASK !== undefined && record.task === env.KRN_TASK);
-      if (
-        ours &&
-        typeof record.sha === 'string' &&
-        laneMergeVerdict({
-          record: {
-            sha: record.sha,
-            ...(typeof record.head === 'string' ? { head: record.head } : {}),
-          },
-          head: kept || onLane ? tip : undefined,
-          merged: (sha) => onBase(main, sha),
-        }) === 'merged'
-      )
-        return true;
-    } catch {
-      /* An unreadable record proves nothing. */
-    }
-  }
-  return false;
-}
-
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
 /** The record id a blocker line starts with (`<id> (<tier>): ...`). */
 const standardKey = (line: string): string => line.split(' (')[0] ?? line;
@@ -1632,7 +1520,7 @@ function logChecks(
     if (refused.length === 0 && rest.length === 0) return;
     const exposure = exposureOf({
       run,
-      task: sessionTaskIds(env, payload)[0],
+      task: sessionTask(root, env, payload),
       channel: 'stop',
       served: rest,
       withheld,
@@ -1772,214 +1660,6 @@ function ghMergedPr(root: string, branch: string): boolean {
 }
 
 /**
- * A krn-lane subagent shares the lead's session cwd, so the payload cwd may sit in the lead's worktree
- * or the main checkout. Its own worktree is the one under `<main>/.krn/worktrees` that its transcript last
- * edited a file in, else the worktree of the first live task claim its transcript names.
- * Returns the payload cwd when the transcript shows neither.
- */
-export function laneWorktree(
-  cwd: string,
-  payload: unknown,
-  projectDir?: string,
-): string {
-  const path = (payload as { agent_transcript_path?: unknown } | null)
-    ?.agent_transcript_path;
-  if (typeof path !== 'string') return cwd;
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch {
-    return cwd;
-  }
-  // The session cwd may sit in another repository (the lead cd-ed away); the project dir names the lane's.
-  for (const dir of [cwd, projectDir]) {
-    if (dir === undefined || !existsSync(dir)) continue;
-    const common = git(dir, [
-      'rev-parse',
-      '--path-format=absolute',
-      '--git-common-dir',
-    ]);
-    if (common.status !== 0) continue;
-    const found = laneWorktreeIn(dirname(common.stdout), text);
-    if (found !== undefined) return found;
-  }
-  return cwd;
-}
-
-/** The claim of a task unless the claim reader (src/task) finds it expired; a file it cannot fully parse still names its lane. */
-function heldClaim(main: string, id: string): Partial<TaskClaim> | undefined {
-  const inspected = inspectClaim(main, id);
-  return inspected.state === 'expired' ? undefined : inspected.claim;
-}
-
-function laneWorktreeIn(main: string, text: string): string | undefined {
-  const marker = join(main, '.krn', 'worktrees') + sep;
-  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  const edited = [
-    ...text.matchAll(
-      new RegExp(
-        `"(?:file_path|notebook_path)"\\s*:\\s*"${escaped}([^/"]+)`,
-        'gu',
-      ),
-    ),
-  ].at(-1)?.[1];
-  if (edited !== undefined && existsSync(join(marker, edited)))
-    return join(marker, edited);
-  for (const id of text.match(/(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/gu) ??
-    []) {
-    try {
-      const claim = heldClaim(main, id);
-      if (typeof claim?.worktree === 'string' && existsSync(claim.worktree))
-        return claim.worktree;
-    } catch {
-      /* No claim for this id. */
-    }
-  }
-  return undefined;
-}
-
-/**
- * `krn pr ship` removes a merged lane's worktree, so a lane may stop with its cwd gone (t-vs35jd7, #1137:
- * Stop crashed spawning tests there). A missing `<main>/.krn/worktrees/<name>` is judged at `<main>`.
- */
-export function ownerCheckout(root: string): string {
-  if (existsSync(root)) return root;
-  const owner = laneTreeOf(root)?.owner;
-  return owner !== undefined && existsSync(owner) ? owner : root;
-}
-
-/** The task ids a session names: KRN_TASK and the ids in its transcript (a lane subagent's own transcript first). */
-function sessionTaskIds(env: NodeJS.ProcessEnv, payload: unknown): string[] {
-  const ids = new Set<string>();
-  if (env.KRN_TASK) ids.add(env.KRN_TASK);
-  const fields = payload as {
-    transcript_path?: unknown;
-    agent_transcript_path?: unknown;
-  } | null;
-  // A lane subagent's own transcript names its tasks; the lead's transcript names every lane's.
-  const own = fields?.agent_transcript_path;
-  for (const path of typeof own === 'string'
-    ? [own]
-    : [fields?.transcript_path]) {
-    if (typeof path !== 'string') continue;
-    try {
-      for (const id of readFileSync(path, 'utf8').match(
-        /(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/gu,
-      ) ?? [])
-        ids.add(id);
-    } catch {
-      /* No transcript to read. */
-    }
-  }
-  return [...ids];
-}
-
-/** What the repository recorded about a lane a session started: a live claim, or the ship record of a released one. */
-export type LaneRecord = { branch: string; worktree?: string; sha?: string };
-
-/**
- * The one resolution of "which branch and worktree is this session's lane": the live task claims and the
- * ship records (once the claim is released) of the task ids the session names, found from the main checkout.
- */
-export function laneRecords(
-  root: string,
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-): LaneRecord[] {
-  const common = git(root, [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-common-dir',
-  ]);
-  if (common.status !== 0) return [];
-  const main = dirname(common.stdout);
-  const ids = sessionTaskIds(env, payload);
-  const records: LaneRecord[] = [];
-  for (const id of ids) {
-    try {
-      const claim = heldClaim(main, id);
-      if (typeof claim?.branch === 'string' && claim.branch !== '')
-        records.push({
-          branch: claim.branch,
-          ...(typeof claim.worktree === 'string' && claim.worktree !== ''
-            ? { worktree: claim.worktree }
-            : {}),
-        });
-    } catch {
-      /* No claim for this id. */
-    }
-  }
-  const dir = join(main, shipRecordDir);
-  let names: string[] = [];
-  try {
-    names = readdirSync(dir);
-  } catch {
-    /* No ship records. */
-  }
-  for (const name of names) {
-    try {
-      const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
-        branch?: unknown;
-        task?: unknown;
-        sha?: unknown;
-      };
-      if (
-        typeof record.branch === 'string' &&
-        record.branch !== '' &&
-        typeof record.task === 'string' &&
-        ids.includes(record.task)
-      )
-        records.push({
-          branch: record.branch,
-          ...(typeof record.sha === 'string' ? { sha: record.sha } : {}),
-        });
-    } catch {
-      /* An unreadable record proves nothing. */
-    }
-  }
-  return records;
-}
-
-/** The branches of the lanes a session started, claimed or shipped. */
-export function claimedBranches(
-  root: string,
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-): string[] {
-  return [...new Set(laneRecords(root, env, payload).map((r) => r.branch))];
-}
-
-/** The worktrees under `<main>/.krn/worktrees` that a lane subagent's transcript edited a file in. */
-function editedWorktrees(cwd: string, payload: unknown): string[] {
-  const path = (payload as { agent_transcript_path?: unknown } | null)
-    ?.agent_transcript_path;
-  if (typeof path !== 'string') return [];
-  const common = git(cwd, [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-common-dir',
-  ]);
-  if (common.status !== 0) return [];
-  const marker = join(dirname(common.stdout), '.krn', 'worktrees') + sep;
-  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  try {
-    const names = [
-      ...readFileSync(path, 'utf8').matchAll(
-        new RegExp(
-          `"(?:file_path|notebook_path)"\\s*:\\s*"${escaped}([^/"]+)`,
-          'gu',
-        ),
-      ),
-    ].map((match) => match[1] as string);
-    return [...new Set(names)]
-      .filter((name) => existsSync(join(marker, name)))
-      .map((name) => join(marker, name));
-  } catch {
-    return [];
-  }
-}
-
-/**
  * Every branch a session's report may name as its own. A lane subagent shares the lead's cwd, so its
  * evidence is its claims, ship records and the worktrees its transcript edited; the cwd names count only
  * when that evidence is empty, so a report is never judged against the lead's or another lane's branch.
@@ -1994,7 +1674,7 @@ export function ownBranches(
   const evidence = [
     ...claimedBranches(root, env, payload),
     ...(subagent
-      ? editedWorktrees(root, payload).map((tree) => {
+      ? editedLaneWorktrees(root, env, payload).map((tree) => {
           const at = git(tree, ['branch', '--show-current']).stdout.trim();
           return at !== '' ? at : (tree.split(sep).at(-1) as string);
         })
@@ -2003,22 +1683,6 @@ export function ownBranches(
   const names =
     subagent && evidence.length > 0 ? evidence : [...evidence, ...cwdNames];
   return [...new Set(names.filter((name) => name !== ''))];
-}
-
-/**
- * A shell that returned to the main checkout (the cwd resets after each Bash call) is judged at the worktree
- * of the lane claim the session holds; a session already inside a lane worktree keeps its own.
- */
-export function claimedWorktree(
-  start: string,
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-): string {
-  if (laneTreeOf(start) || !existsSync(start)) return start;
-  const tree = laneRecords(start, env, payload).find(
-    (record) => record.worktree !== undefined && existsSync(record.worktree),
-  )?.worktree;
-  return tree ?? start;
 }
 
 /**

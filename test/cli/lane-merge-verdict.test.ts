@@ -17,7 +17,7 @@ import {
   pruneMergedLanes,
 } from '../../src/cli/lane.ts';
 import { laneState } from '../../src/cli/lane-status.ts';
-import { recordedShip } from '../../src/hook/stop.ts';
+import { recordedShip } from '../../src/lane/session.ts';
 import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
 
 admitLanesOnAnyHost();
