@@ -1,0 +1,18 @@
+{
+  "id": "t-5d2jazx",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship merges on Check; the reviewer verdict is a post-merge krn-review comment, never exit 84/85"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "krn pr ship merges on a green Check; reviewer findings are an advisory PR comment",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/gates.md (2026-11-21 gate audit): no refusal caught a defect present on main; operator 2026-11-21 'zamiast robić bramki realna inżynieria' (memory no-gates-just-code: CI Check is the only gate).\nOutcome: krn pr ship never exits 84/85; a reproduced finding is posted as a comment and auto-merge proceeds on Check; blocking code and its tests deleted (~976 lines per audit; report net lines).\nProof: the named command prints the stated count; npm run fast PASS; CI Check green.\nFiles: see .krn/runs/prune/gates.md row"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}

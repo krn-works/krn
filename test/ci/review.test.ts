@@ -203,7 +203,7 @@ test('a reproduced over-refusal is posted and does not block, while a reproduced
     comments[0] ?? '',
     /\*\*reproduced over-refusal, not blocking\*\* the deny hook refuses/u,
   );
-  // A reviewer that nulls or mistypes the kind still gets a verdict (not exit 85), and it blocks.
+  // A reviewer that nulls or mistypes the kind still gets a verdict (not silent), and it blocks.
   for (const kind of [
     'bypass',
     'wrong-pass',
