@@ -8,7 +8,6 @@ import {
   statSync,
 } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { z } from 'zod';
 import { recordBriefExposure } from '../brain/worker-packet.ts';
 import { liveShipPid } from '../ci/ship-live.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
@@ -67,7 +66,7 @@ import {
   holdTaskForLane,
   takePendingRecord,
 } from '../task/storage.ts';
-import { readTask, repositoryRoot } from '../task/store.ts';
+import { listClaims, readTask, repositoryRoot } from '../task/store.ts';
 import { gitWith } from './git-with.ts';
 import { laneBrief } from './lane-brief.ts';
 import { finishLane, laneFinishUsage } from './lane-finish.ts';
@@ -431,28 +430,11 @@ export async function laneCommand(args: string[]): Promise<void> {
   process.stdout.write(`${started.path}\n${started.slug}\n`);
 }
 
-/** A task claim file under .krn/task-claims, written by `krn task claim`. */
-export const claimFileSchema = z
-  .object({ worktree: z.unknown() })
-  .describe('task claim file');
-
 /** The ids of the claims held from `worktree`. */
 function claimsFrom(main: string, worktree: string): string[] {
-  const dir = join(main, '.krn', 'task-claims');
-  if (!existsSync(dir)) return [];
-  const ids: string[] = [];
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.json')) continue;
-    try {
-      const claim = claimFileSchema.parse(
-        JSON.parse(readFileSync(join(dir, name), 'utf8')),
-      );
-      if (claim.worktree === worktree) ids.push(name.slice(0, -5));
-    } catch {
-      /* A corrupt claim belongs to no lane. */
-    }
-  }
-  return ids;
+  return listClaims(main)
+    .filter(({ claim }) => claim.worktree === worktree)
+    .map(({ id }) => id);
 }
 
 /** Task records in the worktree that are uncommitted there and absent from the main checkout. */

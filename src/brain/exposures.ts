@@ -3,15 +3,10 @@
 // derives per-record served-vs-withheld numbers from it. The same records score plan predictions:
 // a task's `Predicted:` line is judged against a lane's proof line or the outside rows (`krn ledger --predictions`).
 import { execFileSync } from 'node:child_process';
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-} from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { assertFormat } from '../repo/formats.ts';
+import { listTaskFields } from '../task/store.ts';
 import { metricReader } from './metrics.ts';
 
 /** Where the log lives, relative to the main checkout. */
@@ -544,25 +539,12 @@ export function scoreTasks(
 }
 
 export function readTaskTexts(root: string): Task[] {
-  const dir = join(root, 'tasks');
-  if (!existsSync(dir)) return [];
-  const tasks: Task[] = [];
-  for (const name of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
-    try {
-      const t = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
-        id?: unknown;
-        status?: unknown;
-        body?: unknown;
-      };
-      tasks.push({
-        id: String(t.id ?? name),
-        status: String(t.status ?? ''),
-        text: Array.isArray(t.body) ? t.body.join('\n') : '',
-      });
-    } catch {
-      // an unreadable record is `krn task check`'s finding
-    }
-  }
+  // An unreadable record is `krn task check`'s finding.
+  const tasks: Task[] = listTaskFields(root).map(({ id, fields: t }) => ({
+    id: String(t.id ?? `${id}.json`),
+    status: String(t.status ?? ''),
+    text: Array.isArray(t.body) ? t.body.join('\n') : '',
+  }));
   return tasks.sort((a, b) => a.id.localeCompare(b.id));
 }
 

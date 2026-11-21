@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import { ARCHIVE_DIR } from './archive.ts';
+import { claimFile, claimsDirectory, TASKS_DIR, taskFile } from './paths.ts';
 import { isPendingId } from './pending.ts';
 import {
   createTaskId,
@@ -313,6 +314,81 @@ export function listTasks(
  */
 export function readTask(root: string, id: TaskId): TaskRecord | undefined {
   return locateTask(root, id).record;
+}
+
+/** The fields of one task file or claim file, as a reader of a few fields sees them. */
+export type TaskFields = Record<string, unknown>;
+
+function readFields(path: string): TaskFields | undefined {
+  try {
+    const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as TaskFields)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function jsonStems(directory: string): string[] {
+  try {
+    return readdirSync(directory)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** The raw text of `tasks/<id>.json` under `root`, undefined when the file is absent or unreadable. */
+export function readTaskText(root: string, id: string): string | undefined {
+  try {
+    return readFileSync(join(root, taskFile(id)), 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `tasks/<id>.json` under `root` without validation: undefined when absent, torn or not an object.
+ * For readers that use a field or two and must not fail on a record `krn task check` reports.
+ */
+export function readTaskFields(
+  root: string,
+  id: string,
+): TaskFields | undefined {
+  return readFields(join(root, taskFile(id)));
+}
+
+/** Every readable `tasks/*.json` under `root`, by file stem. */
+export function listTaskFields(
+  root: string,
+): { id: string; fields: TaskFields }[] {
+  const found: { id: string; fields: TaskFields }[] = [];
+  for (const id of jsonStems(join(root, TASKS_DIR))) {
+    const fields = readTaskFields(root, id);
+    if (fields !== undefined) found.push({ id, fields });
+  }
+  return found;
+}
+
+/** The claim file of task `id` in the main checkout `main`, undefined when absent, torn or not an object. */
+export function readClaim(main: string, id: string): TaskFields | undefined {
+  return readFields(claimFile(main, id));
+}
+
+/** Every readable claim file in the main checkout `main`, by task id, with the file path. */
+export function listClaims(
+  main: string,
+): { id: string; path: string; claim: TaskFields }[] {
+  const found: { id: string; path: string; claim: TaskFields }[] = [];
+  for (const id of jsonStems(claimsDirectory(main))) {
+    const claim = readClaim(main, id);
+    if (claim !== undefined)
+      found.push({ id, path: claimFile(main, id), claim });
+  }
+  return found;
 }
 
 /**

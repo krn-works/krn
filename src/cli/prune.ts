@@ -2,14 +2,7 @@
 // Three classes, each measured before removal: merged lane worktrees under .krn/worktrees, scratch/ directories of
 // finished runs under .krn/runs, and (only with --days) runs older than N days; retired lane manifests go after 7 days. The .krn layout (src/state/layout.ts)
 // owns which run owners are kept forever; --days never overrides it, and a KEEP file keeps any run.
-import {
-  existsSync,
-  lstatSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, lstatSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
@@ -22,6 +15,7 @@ import {
 } from '../repo/lane-removal.ts';
 import { newest, RUN_CATEGORIES, size } from '../state/layout.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
+import { listClaims } from '../task/store.ts';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -87,24 +81,10 @@ function laneWorktrees(main: string): Worktree[] {
 
 /** Branches named by a live task claim: their lane is still being worked even with no commit yet. */
 function claimedBranches(main: string): Set<string> {
-  const dir = join(main, '.krn', 'task-claims');
   const branches = new Set<string>();
-  if (!existsSync(dir)) return branches;
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.json')) continue;
-    try {
-      const claim: unknown = JSON.parse(readFileSync(join(dir, name), 'utf8'));
-      if (
-        typeof claim === 'object' &&
-        claim !== null &&
-        'branch' in claim &&
-        typeof claim.branch === 'string'
-      )
-        branches.add(claim.branch);
-    } catch {
-      /* A torn claim names no branch. */
-    }
-  }
+  // A torn claim names no branch.
+  for (const { claim } of listClaims(main))
+    if (typeof claim.branch === 'string') branches.add(claim.branch);
   return branches;
 }
 

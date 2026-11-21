@@ -1,8 +1,8 @@
 // The task keys retrieval: a session or lane packet asks for the standards of one claimed task,
 // by its title, Outcome, Files, stack, area and touched paths (ADR 0020), or asks for nothing.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
+import { listClaims, readTaskFields } from '../task/store.ts';
 
 /** What identifies a task for retrieval. */
 export type TaskKey = {
@@ -15,17 +15,6 @@ export type TaskKey = {
 
 const FIELD = /^(Outcome|Files):[ \t]*(.*)$/gmu;
 
-const readJson = (path: string): Record<string, unknown> | undefined => {
-  try {
-    const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    return typeof value === 'object' && value !== null
-      ? (value as Record<string, unknown>)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 const words = (value: unknown): string[] =>
   typeof value === 'string'
     ? [value]
@@ -35,7 +24,7 @@ const words = (value: unknown): string[] =>
 
 /** The retrieval key of task `id` read from `<root>/tasks/<id>.json`, undefined when the record is absent or closed. */
 export function taskKey(root: string, id: string): TaskKey | undefined {
-  const record = readJson(join(root, 'tasks', `${id}.json`));
+  const record = readTaskFields(root, id);
   if (record === undefined || record.status === 'closed') return undefined;
   const body = words(record.body).join('\n');
   const fields = new Map<string, string>();
@@ -84,13 +73,9 @@ export function claimedTask(
   main: string,
   branch: string,
 ): TaskKey | undefined {
-  const directory = join(main, '.krn', 'task-claims');
-  if (!existsSync(directory)) return undefined;
   const here = resolve(project);
-  for (const name of readdirSync(directory).sort()) {
-    if (!name.endsWith('.json')) continue;
-    const claim = readJson(join(directory, name));
-    if (claim === undefined || typeof claim.id !== 'string') continue;
+  for (const { claim } of listClaims(main)) {
+    if (typeof claim.id !== 'string') continue;
     const worktree =
       typeof claim.worktree === 'string' ? resolve(claim.worktree) : '';
     const mine =

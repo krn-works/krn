@@ -11,6 +11,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { readArchive } from './archive.ts';
+import { claimFile, claimsDirectory } from './paths.ts';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -142,7 +143,7 @@ export function releaseClosedClaims(
 ): string[] {
   let names: string[];
   try {
-    names = readdirSync(join(mainRoot, '.krn', 'task-claims'));
+    names = readdirSync(claimsDirectory(mainRoot));
   } catch {
     return [];
   }
@@ -377,7 +378,7 @@ function takeoverMarker(path: string, expired: Buffer): string {
 }
 
 function removeTakeoverMarkers(mainRoot: string, id: TaskId): void {
-  const directory = join(mainRoot, '.krn', 'task-claims');
+  const directory = claimsDirectory(mainRoot);
   let names: string[];
   try {
     names = readdirSync(directory);
@@ -770,7 +771,7 @@ export function mainCheckoutRoot(root: string): string {
 }
 
 function claimPath(mainRoot: string, id: TaskId): string {
-  return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
+  return claimFile(mainRoot, id);
 }
 
 function heldClaimError(inspection: ClaimInspection): TaskCommandError {

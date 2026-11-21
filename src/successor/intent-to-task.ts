@@ -1,6 +1,6 @@
 // Prompt to task measure.
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import {
@@ -10,6 +10,7 @@ import {
   isHarnessText,
   oneLine,
 } from '../memory/operator-inbox-store.ts';
+import { listTaskFields } from '../task/store.ts';
 
 // Read-only measurement: of the operator prompts in a window, how many became a task, how many of
 // those tasks closed done, and how long from the prompt to the first merge. The join is the
@@ -194,21 +195,17 @@ const taskRecord = z.looseObject({
 });
 
 function readTasks(root: string): Map<string, TaskState> {
-  const directory = join(root, 'tasks');
   const tasks = new Map<string, TaskState>();
-  for (const name of readdirSync(directory)) {
-    if (!/^t-[a-z0-9]{7}\.json$/u.test(name)) continue;
-    try {
-      const task = taskRecord.parse(
-        JSON.parse(readFileSync(join(directory, name), 'utf8')),
-      );
-      tasks.set(name.slice(0, -'.json'.length), {
-        open: task.status === 'open',
-        done: task.status === 'closed' && task.resolution?.kind === 'done',
-      });
-    } catch {
-      /* an unreadable record is not a task */
-    }
+  for (const { id, fields } of listTaskFields(root)) {
+    if (!/^t-[a-z0-9]{7}$/u.test(id)) continue;
+    const task = taskRecord.safeParse(fields);
+    // An unreadable record is not a task.
+    if (!task.success) continue;
+    tasks.set(id, {
+      open: task.data.status === 'open',
+      done:
+        task.data.status === 'closed' && task.data.resolution?.kind === 'done',
+    });
   }
   return tasks;
 }
