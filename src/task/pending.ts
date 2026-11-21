@@ -79,22 +79,83 @@ export function pendingApplies(root: string): boolean {
   return isMainCheckout(root) && baseRef(root) !== undefined;
 }
 
+/** The lane that carries a pending record, and the base's blob of it when the hold began. */
+export interface LaneHold {
+  readonly branch: string;
+  readonly baseBlob: string;
+}
+
 interface Entry {
   readonly name: string;
   readonly blob: string;
+  /** The blob holding the hold marker, when a lane carries the record. */
+  readonly heldBlob?: string;
+}
+
+function holdOf(root: string, entry: Entry): LaneHold | undefined {
+  if (entry.heldBlob === undefined) return undefined;
+  const run = git(root, ['cat-file', 'blob', entry.heldBlob]);
+  if (run.status !== 0) return undefined;
+  const [branch = '', baseBlob = ''] = run.stdout.toString().split('\n');
+  return branch === '' ? undefined : { branch, baseBlob };
 }
 
 function refEntries(root: string): Entry[] {
-  const run = git(root, ['ls-tree', '-z', `${PENDING_REF}^{tree}`, 'tasks/']);
+  const run = git(root, ['ls-tree', '-rz', `${PENDING_REF}^{tree}`]);
   if (run.status !== 0) return [];
-  const entries: Entry[] = [];
+  const entries = new Map<string, Entry>();
+  const held = new Map<string, string>();
   for (const line of run.stdout.toString().split('\0')) {
     // Any valid task id: a narrower pattern left a pending close invisible to every read.
-    const match = /^100644 blob ([0-9a-f]+)\ttasks\/([^/]+)\.json$/u.exec(line);
-    if (match !== null && isTaskId(match[2]))
-      entries.push({ blob: match[1] as string, name: `${match[2]}.json` });
+    const match =
+      /^100644 blob ([0-9a-f]+)\t(tasks|held)\/([^/]+)\.json$/u.exec(line);
+    if (match === null || !isTaskId(match[3])) continue;
+    if (match[2] === 'tasks')
+      entries.set(match[3], {
+        blob: match[1] as string,
+        name: `${match[3]}.json`,
+      });
+    else held.set(match[3], match[1] as string);
   }
-  return entries;
+  return [...entries].map(([id, entry]) => {
+    const heldBlob = held.get(id);
+    return heldBlob === undefined ? entry : { ...entry, heldBlob };
+  });
+}
+
+/** Whether a ref or a remote-tracking ref of origin still names `branch`. */
+function branchExists(root: string, branch: string): boolean {
+  return ['refs/heads', 'refs/remotes/origin'].some(
+    (prefix) =>
+      git(root, ['rev-parse', '--verify', '--quiet', `${prefix}/${branch}`])
+        .status === 0,
+  );
+}
+
+/** The base's blob of `tasks/<name>`, or empty when the base does not carry it. */
+function baseBlobOf(root: string, base: string | undefined, name: string) {
+  if (base === undefined) return '';
+  const run = git(root, [
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `${base}:tasks/${name}`,
+  ]);
+  return run.status === 0 ? run.stdout.toString().trim() : '';
+}
+
+/** Whether the base changed the record since a lane began holding it: the base's copy answers then. */
+function baseMovedOn(root: string, base: string | undefined, entry: Entry) {
+  const hold = holdOf(root, entry);
+  return (
+    hold !== undefined && baseBlobOf(root, base, entry.name) !== hold.baseBlob
+  );
+}
+
+/** Whether the hold's lane still exists; a vanished lane leaves a plain pending record. */
+function laneAlive(root: string, entry: Entry) {
+  const hold = holdOf(root, entry);
+  return hold !== undefined && branchExists(root, hold.branch);
 }
 
 /** Every blob the base history holds for `tasks/<name>`: the record as published, then as changed. */
@@ -150,6 +211,9 @@ function stillPending(
   entry: Entry,
   stamp: string | undefined,
 ): boolean {
+  // The lane's copy is the only one in a worktree: the ref's copy answers main readers meanwhile.
+  if (baseMovedOn(root, base, entry)) return false;
+  if (laneAlive(root, entry)) return true;
   const onBase =
     base !== undefined &&
     git(root, ['cat-file', '-e', `${base}:tasks/${entry.name}`]).status === 0;
@@ -194,7 +258,50 @@ function liveEntries(root: string): Entry[] {
   if (entries.length === 0) return entries;
   const base = baseRef(root);
   const stamp = stampedBase(root);
-  return entries.filter((entry) => stillPending(root, base, entry, stamp));
+  return entries
+    .filter((entry) => stillPending(root, base, entry, stamp))
+    .map((entry) => (laneAlive(root, entry) ? entry : unheld(entry)));
+}
+
+function unheld({ heldBlob: _, ...entry }: Entry): Entry {
+  return entry;
+}
+
+/** The lane holding pending record `id`, if any. */
+export function pendingHold(root: string, id: string): LaneHold | undefined {
+  const entry = liveEntries(root).find((e) => e.name === `${id}.json`);
+  return entry === undefined ? undefined : holdOf(root, entry);
+}
+
+/**
+ * Marks pending record `id` as carried by `branch`: main readers keep seeing the ref's copy, and
+ * publish skips it, until the base changes the record or the branch is gone.
+ */
+export function holdPendingTask(root: string, id: string, branch: string) {
+  const name = `${id}.json`;
+  // The checkout holds a transient copy while the lane start runs, so the raw entries are used.
+  const entries = refEntries(root);
+  const entry = entries.find((e) => e.name === name);
+  if (entry === undefined) return;
+  const base = baseRef(root);
+  const marker = gitText(
+    root,
+    ['hash-object', '-w', '--stdin'],
+    `${branch}\n${baseBlobOf(root, base, name)}\n`,
+  );
+  writeEntries(
+    root,
+    entries.map((e) => (e === entry ? { ...e, heldBlob: marker } : e)),
+    `held ${id} by ${branch}`,
+  );
+}
+
+/** Pending records no lane carries: the ones `krn task publish` ships. */
+export function publishableTaskFiles(root: string): Map<string, Buffer> {
+  const files = pendingTaskFiles(root);
+  for (const id of [...files.keys()])
+    if (pendingHold(root, id) !== undefined) files.delete(id);
+  return files;
 }
 
 /** Pending records of the main checkout by id; empty in a linked worktree. */
@@ -225,6 +332,18 @@ function stampLines(root: string): string[] {
 }
 
 function writeEntries(root: string, entries: Entry[], message: string): void {
+  const heldTree = (): string | undefined => {
+    const held = entries.filter((entry) => entry.heldBlob !== undefined);
+    return held.length === 0
+      ? undefined
+      : gitText(
+          root,
+          ['mktree', '-z'],
+          held
+            .map((entry) => `100644 blob ${entry.heldBlob}\t${entry.name}\0`)
+            .join(''),
+        );
+  };
   const parent = git(root, [
     'rev-parse',
     '--verify',
@@ -239,7 +358,12 @@ function writeEntries(root: string, entries: Entry[], message: string): void {
       .map((entry) => `100644 blob ${entry.blob}\t${entry.name}\0`)
       .join(''),
   );
-  const tree = gitText(root, ['mktree'], `040000 tree ${tasksTree}\ttasks\n`);
+  const held = heldTree();
+  const tree = gitText(
+    root,
+    ['mktree'],
+    `${held === undefined ? '' : `040000 tree ${held}\theld\n`}040000 tree ${tasksTree}\ttasks\n`,
+  );
   const commit = gitText(root, [
     'commit-tree',
     tree,
@@ -275,8 +399,8 @@ export function removePendingTasks(root: string, ids: readonly string[]) {
 }
 
 /**
- * Moves the pending record of `id` into the main checkout's `tasks/` (untracked), so a lane start
- * carries it like any record created there; returns whether one moved.
+ * Copies the pending record of `id` into the main checkout's `tasks/` (untracked), so a lane start
+ * carries it like any record created there; returns whether one was copied. The ref keeps its copy.
  */
 export function takePendingTask(root: string, id: string): boolean {
   const contents = pendingTaskFiles(root).get(id);
@@ -298,7 +422,7 @@ export function takePendingTask(root: string, id: string): boolean {
       );
     writeFileSync(file, contents);
   } else writeFileSync(file, contents, { flag: 'wx' });
-  removePendingTasks(root, [id]);
+  // The ref keeps its copy: the lane start marks it held once the lane carries the record.
   return true;
 }
 

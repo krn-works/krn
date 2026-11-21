@@ -19,8 +19,11 @@ import {
   addPendingTask,
   commitPendingRecords,
   editGoesPending,
+  holdPendingTask,
+  type LaneHold,
   type PublishCommit,
   pendingApplies,
+  pendingHold,
   pendingTaskFiles,
   removePendingTasks,
   takePendingTask,
@@ -40,6 +43,8 @@ export type TaskLocation = 'pending' | 'tree' | 'archived' | 'absent';
 export interface LocatedTask {
   where: TaskLocation;
   record?: TaskRecord;
+  /** The lane carrying a pending record: edits belong in that worktree, not on the ref. */
+  heldBy?: LaneHold;
 }
 
 /**
@@ -50,8 +55,14 @@ export function locateTask(root: string, id: TaskId): LocatedTask {
   const pending = pendingTaskFiles(root).get(id);
   if (pending !== undefined) {
     const parsed = parseTaskDocument(pending);
-    if (parsed.record !== undefined && parsed.id === id)
-      return { where: 'pending', record: parsed.record };
+    if (parsed.record !== undefined && parsed.id === id) {
+      const heldBy = pendingHold(root, id);
+      return {
+        where: 'pending',
+        record: parsed.record,
+        ...(heldBy === undefined ? {} : { heldBy }),
+      };
+    }
   }
   const path = join(root, 'tasks', `${id}.json`);
   if (existsSync(path)) {
@@ -91,7 +102,14 @@ function writesPending(root: string, id: TaskId, where: TaskLocation) {
  * checkout and to `tasks/` in a lane worktree.
  */
 export function writeTaskRecord(root: string, record: TaskRecord): void {
-  const { where } = locateTask(root, record.id);
+  const { where, heldBy } = locateTask(root, record.id);
+  if (heldBy !== undefined)
+    throw Object.assign(
+      new Error(
+        `${record.id} is carried by lane ${heldBy.branch}; change it in that worktree`,
+      ),
+      { exitCode: 65 },
+    );
   if (where === 'archived')
     throw new TaskDataError([
       `tasks/${record.id}.json: task is archived and read-only; create a new task instead`,
@@ -123,15 +141,16 @@ export function createTaskRecord(
 }
 
 /**
- * Moves the pending record of `id` into the checkout's `tasks/`; `restore` puts the ref and the
- * checkout back as they were. Undefined when nothing is pending for `id`.
+ * Copies the pending record of `id` into the checkout's `tasks/` for a lane start to carry; the
+ * pending ref keeps its copy. `restore` puts the checkout back as it was. Undefined when nothing
+ * is pending for `id` or a lane already carries it.
  */
 export function takePendingRecord(
   root: string,
   id: TaskId,
 ): { restore: () => void } | undefined {
-  const contents = pendingTaskFiles(root).get(id);
-  if (contents === undefined) return undefined;
+  if (!pendingTaskFiles(root).has(id) || pendingHold(root, id) !== undefined)
+    return undefined;
   const file = join(root, 'tasks', `${id}.json`);
   const before = existsSync(file) ? readFileSync(file) : undefined;
   takePendingTask(root, id);
@@ -139,9 +158,13 @@ export function takePendingRecord(
     restore: () => {
       if (before === undefined) rmSync(file, { force: true });
       else writeFileSync(file, before);
-      addPendingTask(root, id, contents.toString());
     },
   };
+}
+
+/** Records that `branch` carries pending record `id`: main readers keep it, publish skips it. */
+export function holdTaskForLane(root: string, id: TaskId, branch: string) {
+  holdPendingTask(root, id, branch);
 }
 
 /** Commits the pending records into `worktree` as one commit; the ref keeps them until `settlePublished`. */

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { shipCommand } from '../ci/ship.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
-import { branchOnOrigin, pendingTaskFiles } from '../task/pending.ts';
+import { branchOnOrigin, publishableTaskFiles } from '../task/pending.ts';
 import { publishPendingRecords, settlePublished } from '../task/storage.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { dropLane, startLane } from './lane.ts';
@@ -35,7 +35,7 @@ export async function publishCommand(
   if (args.some((arg) => arg !== '--dry-run'))
     throw new CliUsageError(publishUsage);
   const main = mainCheckoutRoot(repositoryRoot(runtime.cwd));
-  const files = pendingTaskFiles(main);
+  const files = publishableTaskFiles(main);
   if (files.size === 0) return 'publish: no pending task records\n';
   const ids = [...files.keys()].sort();
   if (dryRun) return `publish --dry-run: ${ids.join(' ')}\n`;

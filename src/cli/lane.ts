@@ -64,6 +64,7 @@ import {
   type CarriedRecord,
   carryTaskRecord,
   dropCarriedCopy,
+  holdTaskForLane,
   takePendingRecord,
 } from '../task/storage.ts';
 import { readTask, repositoryRoot } from '../task/store.ts';
@@ -729,6 +730,10 @@ export async function startLane(
           claimed = true;
         }
       }
+      // The pending ref keeps its copy for main readers and names the lane that carries it; a
+      // failed start removes the branch, which ends the hold.
+      if (taken !== undefined && task !== undefined)
+        holdTaskForLane(origin, task, slug);
       // A task-records publish holds no agent session, so it is no lane and records none.
       if (laneId !== undefined)
         transition(

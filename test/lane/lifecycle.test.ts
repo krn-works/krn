@@ -226,9 +226,10 @@ test('one lane walks every verb and each changes only its own stores', async (t)
       ) as { title: string; after: string[] };
       assert.equal(carried.title, 'Edited');
       assert.deepEqual(carried.after, [dependency]);
+      // The ref keeps the record for main readers and marks the lane that carries it.
       assert.deepEqual(
         Object.keys(before).filter((key) => key.startsWith('pending/')),
-        [],
+        [`pending/held/${id}.json`, `pending/tasks/${id}.json`],
       );
     },
   );
