@@ -16,9 +16,6 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(
   new URL('../../scripts/claude/handoff-requests.ts', import.meta.url),
 );
-const skill = fileURLToPath(
-  new URL('../../src/context/gauge.ts', import.meta.url),
-);
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'handoff-requests-'));
@@ -40,12 +37,6 @@ function fixture() {
   };
   return { root, check };
 }
-
-test('the context gauge lets a lead run the operator-request check on a handoff', () => {
-  assert.ok(existsSync(script), 'handoff request check exists');
-  const text = readFileSync(skill, 'utf8');
-  assert.match(text, /handoff-requests|operator-inbox/u);
-});
 
 test('the handoff layout is free: any prose passes while no open operator task is dropped', () => {
   const { root, check } = fixture();

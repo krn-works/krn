@@ -21,7 +21,7 @@ const budget = JSON.parse(readFileSync(budgetFile, 'utf8')) as {
 };
 
 function surfaces(): string[] {
-  const found = ['AGENTS.md'];
+  const found = ['AGENTS.md', '.agents/hardening.md'];
   for (const entry of readdirSync(join(root, 'docs/program')))
     if (entry.endsWith('.md')) found.push(`docs/program/${entry}`);
   const skills = join(root, '.agents/skills');
