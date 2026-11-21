@@ -10,7 +10,7 @@ Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed 
 
 ## Measure first
 
-Start from `krn state retro --sessions 20` (recurring causes, each with a transcript or PR pointer), then list the task's commits, wall time, PRs, CI reruns and interventions.
+Start from the ranked causes recurring across recent transcripts and review comments, if the repository prints them, then list the task's commits, wall time, PRs, CI reruns and interventions.
 
 If the slice hit a workaround or a tool refusal, write each (with evidence paths) to `.krn/tmp/friction.md` and run the repository's critique script on it, if any. Each finding gets a task or a disposition.
 
