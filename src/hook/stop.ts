@@ -67,21 +67,15 @@ import {
   isSandboxPlaceholder,
 } from '../state/sandbox-placeholders.ts';
 import { isTaskPath } from '../task/paths.ts';
-import {
-  claudeJudge,
-  type JudgeCall,
-  outcomeRefusal,
-} from './outcome-judge.ts';
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
-import { stuckInStopLoop } from './stop-loop.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
 //   krn hook stop --red        prints the changed test files that fail against the base (the lane proof line's red-first)
 //   krn hook stop --check      runs them; exit 0 only with a commit and green tests
 // D23 arm K ended 7 of 20 n100 runs without a commit (four in under 40 s), and a scoped test list given to the
-// agent measured +5 pp at lower cost. A worker session (KRN_SESSION_CLASS=lane or KRN_ROLE=worker) is refused
-// the end of its turn while its branch has no commit past the base or the selected tests are red.
+// agent measured +5 pp at lower cost. A worker session (KRN_SESSION_CLASS=lane or KRN_ROLE=worker) gets a report
+// at the end of its turn while its branch has no commit past the base or the selected tests are red.
 // The repo contract (src/repo/contract.ts, krn.json or detected) names the base, the related-test command, the
 // full test command and the guard tests, so the check runs in any stack:
 // - selection: tests importing a changed file (JS import graph), tests naming its path, tests whose name matches
@@ -92,7 +86,7 @@ import { stuckInStopLoop } from './stop-loop.ts';
 //   are read from pytest, unittest, go, cargo and jest/vitest output, else keyed by the exit status.
 // A worker whose clone has no base ref, or whose krn.json is invalid, is refused once, naming the cause.
 // One explicit escape: a final message with a line starting `BLOCKER:` that states the blocker.
-// The lead sets neither variable, so it is never held here. A crash refuses (exit 2), never allows.
+// The lead sets neither variable, so it is never held here. Nothing here blocks the end of a session: findings print on stderr and the hook exits 0.
 
 /** One failure line of the node test runner's JSON reporter. */
 export function failureLine(
@@ -1417,70 +1411,6 @@ function inspectTests(
   };
 }
 
-/**
- * A lane whose ship merged has no branch left: ship removed its worktree, so the payload cwd is the
- * main checkout on the base. Its last message names the merge (`verdict: merged <sha>`); the end is
- * accepted when that commit is on the base. The main checkout may not have fetched the merge yet
- * (t-0bct43k, debf26c), so a miss fetches the base once and checks again. The line may sit in a
- * list bullet, a quote or backticks (t-310mwdm: lanes pasted it quoted and were refused).
- */
-export function shippedMerge(
-  root: string,
-  message: unknown,
-  tree = root,
-): boolean {
-  if (typeof message !== 'string') return false;
-  const sha = /^[\s>*`-]*verdict: merged ([0-9a-f]{7,40})\b/mu.exec(
-    message,
-  )?.[1];
-  if (sha === undefined) return false;
-  // A squash merge is no ancestor of the lane tip: a commit the lane tree already holds is its fork point or
-  // earlier work, so a lane with no commit of its own cannot end by citing it.
-  if (
-    existsSync(tree) &&
-    laneTreeOf(tree) !== undefined &&
-    git(tree, ['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
-  )
-    return false;
-  return onBase(root, sha);
-}
-
-/** The head branch of a pull request, or undefined when gh cannot say (a check that cannot look never blocks). */
-export function prHeadBranch(root: string, pr: number): string | undefined {
-  const viewed = ghApiSync(root, `repos/{owner}/{repo}/pulls/${pr}`);
-  if (viewed.status !== 0) return undefined;
-  try {
-    const head = (JSON.parse(viewed.stdout) as { head?: { ref?: unknown } })
-      .head?.ref;
-    return typeof head === 'string' && head !== '' ? head : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * A lane reports its own PR only (t-rajd6vr: a lane ended "#1183 merged 5858a69", another lane's PR, while
- * its own #1186 was open). Every `#<n>` on a line of the final message that says merged or carries `pr:` is
- * looked up; a PR whose head branch is not one of the lane's branches is refused, naming both.
- */
-export function foreignPr(
-  message: unknown,
-  own: readonly string[],
-  headOf: (pr: number) => string | undefined,
-): string | undefined {
-  if (typeof message !== 'string' || own.length === 0) return undefined;
-  for (const line of message.split('\n')) {
-    if (!/\bmerged\b|^[\s>*`-]*pr:/iu.test(line)) continue;
-    for (const match of line.matchAll(/#(\d{1,7})\b/gu)) {
-      const pr = Number(match[1]);
-      const head = headOf(pr);
-      if (head !== undefined && !own.includes(head))
-        return `Stop refused: your report names PR #${pr}, whose head branch is ${head}, not your lane branch ${own[0]}. Report only the PR your own branch carries (\`gh pr list --head ${own[0]}\`) and the verdict line from your own \`krn pr ship\` output or a log under your worktree, or end with a line \`BLOCKER: <what stops you>\`.`;
-    }
-  }
-  return undefined;
-}
-
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
 /** The record id a blocker line starts with (`<id> (<tier>): ...`). */
 const standardKey = (line: string): string => line.split(' (')[0] ?? line;
@@ -1538,154 +1468,6 @@ function logChecks(
 }
 
 /**
- * Whether a subagent's own transcript shows no edit and no lane claim: it only read, so the commit
- * requirement has nothing to check and refusing its end would lose its report. An unreadable or
- * missing transcript is not read-only.
- */
-export function readOnlySession(payload: unknown): boolean {
-  const path = (payload as { agent_transcript_path?: unknown } | null)
-    ?.agent_transcript_path;
-  if (typeof path !== 'string') return false;
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch {
-    return false;
-  }
-  const claims =
-    /\bkrn lane start\b|\bkrn task claim\b|\bgit (?:commit|add|push)\b|\bkrn pr (?:ship|body)\b|\.krn\/task-claims\//u;
-  for (const line of text.split('\n')) {
-    let entry: unknown;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    // A bare `input` naming a file is a recorded file write of an unnamed tool.
-    const bare = (entry as { input?: { file_path?: unknown } } | null)?.input;
-    if (typeof bare?.file_path === 'string') return false;
-    const content = (entry as { message?: { content?: unknown } } | null)
-      ?.message?.content;
-    if (!Array.isArray(content)) continue;
-    for (const part of content as {
-      type?: unknown;
-      name?: unknown;
-      input?: { command?: unknown };
-    }[]) {
-      if (part?.type !== 'tool_use') continue;
-      if (
-        typeof part.name === 'string' &&
-        /^(?:Edit|Write|MultiEdit|NotebookEdit)$/u.test(part.name)
-      )
-        return false;
-      const command = part.input?.command;
-      if (typeof command === 'string' && claims.test(command)) return false;
-    }
-  }
-  return true;
-}
-
-/**
- * A lane brief that marks itself non-delivery (a line `Delivery: none` in the first user message of the
- * agent's own transcript, or KRN_DELIVERY=none) produces a report, not a commit: its end needs no commit,
- * PR or test run. Only the brief itself counts; later tool output and pages the agent read never do.
- */
-export function nonDeliveryBrief(
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-): boolean {
-  if (env.KRN_DELIVERY === 'none') return true;
-  const path = (payload as { agent_transcript_path?: unknown } | null)
-    ?.agent_transcript_path;
-  if (typeof path !== 'string') return false;
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch {
-    return false;
-  }
-  for (const line of text.split('\n')) {
-    let entry: {
-      type?: unknown;
-      message?: { role?: unknown; content?: unknown };
-    };
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (entry?.type !== 'user' && entry?.message?.role !== 'user') continue;
-    const content = entry.message?.content;
-    const brief = Array.isArray(content)
-      ? content
-          .map((part: { text?: unknown }) =>
-            typeof part?.text === 'string' ? part.text : '',
-          )
-          .join('\n')
-      : typeof content === 'string'
-        ? content
-        : '';
-    return /^[\s>*`-]*Delivery:\s*none\b/imu.test(brief);
-  }
-  return false;
-}
-
-/**
- * Whether the lane named by a removed worktree directory has a merged pull request on the base. A squash
- * merge leaves the branch tip no ancestor of the base and `krn pr ship` deletes the branch, so the merged
- * pull request of the head branch is the evidence. Only a worktree that is gone is judged here; a live one
- * is judged on its own commits.
- */
-export function mergedLaneBranch(
-  root: string,
-  lane: string,
-  mergedPr: (root: string, branch: string) => boolean = ghMergedPr,
-): boolean {
-  return lane !== '' && mergedPr(root, lane);
-}
-
-function ghMergedPr(root: string, branch: string): boolean {
-  const listed = ghApiSync(
-    root,
-    `repos/{owner}/{repo}/pulls?state=closed&head={owner}:${encodeURIComponent(branch)}&per_page=5`,
-  );
-  if (listed.status !== 0) return false;
-  try {
-    return (JSON.parse(listed.stdout) as { merged_at?: unknown }[]).some(
-      (pr) => typeof pr.merged_at === 'string',
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Every branch a session's report may name as its own. A lane subagent shares the lead's cwd, so its
- * evidence is its claims, ship records and the worktrees its transcript edited; the cwd names count only
- * when that evidence is empty, so a report is never judged against the lead's or another lane's branch.
- */
-export function ownBranches(
-  root: string,
-  env: NodeJS.ProcessEnv,
-  payload: unknown,
-  cwdNames: readonly string[],
-  subagent: boolean,
-): string[] {
-  const evidence = [
-    ...claimedBranches(root, env, payload),
-    ...(subagent
-      ? editedLaneWorktrees(root, env, payload).map((tree) => {
-          const at = git(tree, ['branch', '--show-current']).stdout.trim();
-          return at !== '' ? at : (tree.split(sep).at(-1) as string);
-        })
-      : []),
-  ];
-  const names =
-    subagent && evidence.length > 0 ? evidence : [...evidence, ...cwdNames];
-  return [...new Set(names.filter((name) => name !== ''))];
-}
-
-/**
  * The checkout a Stop is judged in: the lane worktree of a krn-lane subagent (it shares the lead's
  * CLAUDE_PROJECT_DIR, its own checkout is the payload cwd), else the project dir, then the worktree of
  * a lane claim; a removed lane worktree is judged at its main checkout. judgeStop and stopHook both use it.
@@ -1714,53 +1496,27 @@ export function judgeStop(
   branch = '',
   shell: CommandRunner = runCommand,
   standards: StandardsRunner = standardsBlockers,
-  outcomeJudge: JudgeCall = claudeJudge,
-  headOf: (root: string, pr: number) => string | undefined = prHeadBranch,
-  mergedPrOf: (root: string, branch: string) => boolean = ghMergedPr,
 ): string | undefined {
   const fields = payload as {
     cwd?: unknown;
     last_assistant_message?: unknown;
     stop_hook_active?: unknown;
   } | null;
-  const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
-  const { start, root } = stopCheckout(payload, env);
-  const who = worker(env, root, branch, payload);
-  if (!who) return undefined;
-  if (nonDeliveryBrief(env, payload)) return undefined;
-  if (subagent && readOnlySession(payload)) return undefined;
-  if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
+  const { root } = stopCheckout(payload, env);
+  if (!worker(env, root, branch, payload)) return undefined;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
-  const lane = laneTreeOf(start)?.name;
-  const current = existsSync(start)
-    ? git(start, ['branch', '--show-current']).stdout.trim()
-    : '';
-  const foreign = foreignPr(
-    fields?.last_assistant_message,
-    ownBranches(root, env, payload, [lane ?? '', current, branch], subagent),
-    (pr) => headOf(root, pr),
-  );
-  if (foreign !== undefined) return foreign;
-  if (subagent && shippedMerge(root, fields?.last_assistant_message, start))
-    return undefined;
-  if (recordedShip(root, env, branch, payload)) return undefined;
-  // A removed lane worktree whose branch merged needs no ship record: ship may have been detached or its record lost.
-  if (!existsSync(start) && lane && mergedLaneBranch(root, lane, mergedPrOf))
-    return undefined;
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
     // The adopt canary proves the test gate on a fresh repository, which may not meet its reflex standards yet.
     if (env.KRN_LANE === 'canary') return undefined;
-    const settled = () =>
-      outcomeRefusal(root, env, payload, taskBody(root, env), outcomeJudge);
     const asOf = new Date().toISOString().slice(0, 10);
     // An empty sandbox placeholder (package.json, .npmrc, .env.*) is not the change; a check must not read it.
     clearSandboxPlaceholders(root);
     const failing = standards(root, asOf);
     if (failing.length === 0) {
       logChecks(root, payload, [], env);
-      return settled();
+      return undefined;
     }
     // A standard already red at the merge base is not this branch's doing: it is reported, never blocking.
     const from = base(root, loadContract(root).contract);
@@ -1771,7 +1527,7 @@ export function judgeStop(
       : new Set<string>();
     const blockers = failing.filter((line) => !red.has(standardKey(line)));
     logChecks(root, payload, blockers, env);
-    if (blockers.length === 0) return settled();
+    if (blockers.length === 0) return undefined;
     const inherited = failing.length - blockers.length;
     const preExisting =
       inherited > 0
@@ -1787,25 +1543,19 @@ export function judgeStop(
     const { contract, error } = loadContract(root);
     if (error || !base(root, contract)) return undefined;
   }
-  const shipped = subagent ? `\n${SHIPPED_HINT}` : '';
-  return `Stop refused: ${outcome.reason}${shipped}`;
+  return `Stop refused: ${outcome.reason}`;
 }
 
-/** A lane subagent refused at the end is told how a merged ship ends it (t-310mwdm). */
-export const SHIPPED_HINT =
-  'If `krn pr ship` merged your PR, end with its exact line `verdict: merged <sha>`.';
-
 /**
- * The Stop hook on raw stdin: exit 2 with the refusal on stderr, or 0. A crash refuses (Claude Code reads
- * any exit but 2 as non-blocking, so a crash that exited 1 would let the worker stop unchecked), except on
- * a continued stop, so a check that always crashes cannot hold a session forever.
+ * The Stop hook on raw stdin: always exit 0. A finding is printed on stderr as advice; the CI Check is the
+ * gate, so neither a finding nor a crash holds a session.
  */
 export function stopHook(
   input: string,
   env: NodeJS.ProcessEnv,
   branch: string,
   judge: typeof judgeStop = judgeStop,
-): { code: 0 | 2; stderr: string } {
+): { code: 0; stderr: string } {
   let payload: unknown = {};
   try {
     payload = JSON.parse(input);
@@ -1814,32 +1564,14 @@ export function stopHook(
     if (!(error instanceof SyntaxError)) throw error;
   }
   try {
-    const refusal = judge(payload, env, runTests, branch);
-    if (refusal === undefined) return { code: 0, stderr: '' };
-    // The same refusal on an unchanged tree three times in a row can never be met: allow the stop.
-    const fields = payload as { session_id?: unknown } | null;
-    const cwd = stopCheckout(payload, env).root;
-    saveRefusal(cwd, refusal);
-    const tree = [
-      'rev-parse HEAD',
-      'status --porcelain -- . :!.krn',
-      'diff HEAD',
-    ]
-      .map((command) => git(cwd, command.split(' ')).stdout)
-      .join('\n');
-    if (stuckInStopLoop(cwd, fields?.session_id, refusal, tree))
-      return {
-        code: 0,
-        stderr: `Stop allowed: stop-loop, the same refusal three times with no edit between:\n${refusal}\n`,
-      };
-    return { code: 2, stderr: `${refusal}\n` };
+    const finding = judge(payload, env, runTests, branch);
+    if (finding === undefined) return { code: 0, stderr: '' };
+    saveRefusal(stopCheckout(payload, env).root, finding);
+    return { code: 0, stderr: `${finding}\n` };
   } catch (error) {
-    const message = `Stop check crashed: ${(error as Error)?.stack ?? String(error)}`;
-    if ((payload as { stop_hook_active?: unknown })?.stop_hook_active === true)
-      return { code: 0, stderr: `${message}\n` };
     return {
-      code: 2,
-      stderr: `Stop refused: ${message}\nRun \`krn hook stop --check\`, or end with a line \`BLOCKER: <what stops you>\`.\n`,
+      code: 0,
+      stderr: `Stop check crashed: ${(error as Error)?.stack ?? String(error)}\n`,
     };
   }
 }

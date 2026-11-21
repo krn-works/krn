@@ -36,7 +36,7 @@ test('adopt on a testless repository exits 0, keeps the adoption set and records
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(
     run.stdout,
-    /canary bootstrap: .*vacuous.*Stop gate refused it \(exit 2\)/u,
+    /canary bootstrap: .*vacuous.*Stop gate refused it \(exit 1\)/u,
   );
   assert.doesNotMatch(run.stderr, /everything adopt wrote was removed/u);
   assert.ok(existsSync(join(root, 'krn.json')));

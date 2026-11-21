@@ -575,14 +575,14 @@ function stop(tree: string, baseGreen = false) {
   } as const;
   const result = spawnSync(
     process.execPath,
-    [productCli, 'hook', 'stop'],
+    [productCli, 'hook', 'stop', '--check'],
     limits,
   );
   if (timedOut(result)) throw new CanaryTimeout();
   return { status: result.status, stderr: result.stderr };
 }
 
-/** Breaks one test in a temporary worktree of the base, requires the Stop gate to refuse it (exit 2), then to pass the clean tree. */
+/** Breaks one test in a temporary worktree of the base, requires the Stop check to fail it (exit 1), then to pass the clean tree. */
 export function runCanary(
   root: string,
   timeoutMs: number = Number(process.env.KRN_CANARY_TIMEOUT_MS) ||
@@ -639,14 +639,14 @@ function canary(root: string): CanaryResult {
   // A vacuous contract carries a command that fails on purpose: the gate must refuse it until one real test exists.
   if (contract.vacuous === true) {
     const gate = stop(root);
-    if (gate.status !== 2)
+    if (gate.status !== 1)
       return fail(
-        `the Stop gate did not refuse the vacuous contract: expected exit 2, got ${gate.status}. ${gate.stderr.slice(-300)}`,
+        `the Stop gate did not refuse the vacuous contract: expected exit 1, got ${gate.status}. ${gate.stderr.slice(-300)}`,
       );
     return {
       outcome: 'bootstrap',
       message:
-        'bootstrap state: the contract is vacuous and the Stop gate refused it (exit 2); the first admitted task adds one real test and a test command',
+        'bootstrap state: the contract is vacuous and the Stop gate refused it (exit 1); the first admitted task adds one real test and a test command',
     };
   }
   const ranked = testFiles(root, contract);
@@ -744,7 +744,7 @@ function canary(root: string): CanaryResult {
       gitIn(tree, 'commit', '-qm', 'canary: break one test', '--', file);
       last = stop(tree, wholeOnly);
       tried.push(file);
-      if (last.status === 2) {
+      if (last.status === 1) {
         refusedFile = file;
         break;
       }
@@ -752,7 +752,7 @@ function canary(root: string): CanaryResult {
     }
     if (refusedFile === undefined)
       return fail(
-        `the Stop gate did not refuse a broken test (${tried.join(', ')}): expected exit 2, got ${last?.status}. ${last?.stderr.slice(-300)}`,
+        `the Stop gate did not refuse a broken test (${tried.join(', ')}): expected exit 1, got ${last?.status}. ${last?.stderr.slice(-300)}`,
       );
     const file = refusedFile;
 
@@ -760,7 +760,7 @@ function canary(root: string): CanaryResult {
     if (wholeOnly)
       return {
         outcome: 'pass',
-        message: `the Stop gate refused a broken ${file} (exit 2); the clean tree passed one run of the test command (${contract.test}), which stands in for the gate's clean-tree step`,
+        message: `the Stop gate refused a broken ${file} (exit 1); the clean tree passed one run of the test command (${contract.test}), which stands in for the gate's clean-tree step`,
       };
     // The restored commit touches the same test file with a blank line, so the gate selects that test's related
     // subset; an empty commit selects nothing and the gate would run the whole (possibly unfinishable) test command.
@@ -791,7 +791,7 @@ function canary(root: string): CanaryResult {
       );
     return {
       outcome: 'pass',
-      message: `the Stop gate refused a broken ${file} (exit 2) and passed the restored tree (exit 0)`,
+      message: `the Stop gate refused a broken ${file} (exit 1) and passed the restored tree (exit 0)`,
     };
   } finally {
     // Cleanup ignores the deadline: a timed-out canary still removes its worktree.

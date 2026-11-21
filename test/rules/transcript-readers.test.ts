@@ -23,7 +23,6 @@ test('no source outside src/harness reads transcript files', async () => {
     'context/gauge.ts',
     'context/replay.ts',
     'context/restart.ts',
-    'hook/outcome-judge.ts',
     'hook/session-standards.ts',
     'hook/session-start.ts',
     'hook/stop.ts',
