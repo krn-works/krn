@@ -56,7 +56,7 @@ test('each path falls in one class', () => {
     ['tsconfig.json', 'validators'],
     ['mise.toml', 'validators'],
     ['scripts/boundaries.ts', 'validators'],
-    ['src/ci/commit-title.ts', 'validators'],
+    ['src/repo/commit-title.ts', 'validators'],
     ['src/task/check.ts', 'taskCheck'],
     ['src/cli/main.ts', 'taskCheck'],
     ['test/cli.test.ts', 'tests'],

@@ -136,8 +136,7 @@ test('specifiers finds every module form with its line', () => {
   );
 });
 
-test('the repository obeys its layer map and core imports nothing', () => {
-  assert.deepEqual(LAYERS.core, []);
+test('the repository obeys its layer map', () => {
   assert.deepEqual(check(repo), []);
 });
 
@@ -162,7 +161,6 @@ test('the repository obeys the binary allowlist, and a new gh spawn outside it f
 
 test('the layer map names no removed area or unused edge', () => {
   assert.equal('hosts' in LAYERS, false);
-  assert.deepEqual(LAYERS.evals, []);
   assert.equal(LAYERS.brain?.includes('cli'), false);
   assert.equal(LAYERS.brain?.includes('evals/fr40/tasks.ts'), false);
 });

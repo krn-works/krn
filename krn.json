@@ -5,7 +5,7 @@
   "fast": "npm run fast",
   "lint": "npm run lint",
   "typecheck": "npm run check",
-  "guard": "test/rules/ test/evals/fr40-freeze.test.ts",
+  "guard": "test/rules/",
   "review": "mkdir -p .krn/tmp && git show origin/main:scripts/review-diff.ts > .krn/tmp/review-diff.ts && node .krn/tmp/review-diff.ts",
   "conventions": ".agents/records.json",
   "tracker": "krn",

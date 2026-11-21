@@ -1,4 +1,4 @@
-import { titleProblem } from '../src/ci/commit-title.ts';
+import { titleProblem } from '../src/repo/commit-title.ts';
 
 export { titleProblem };
 

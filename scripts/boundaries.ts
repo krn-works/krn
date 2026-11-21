@@ -1,4 +1,4 @@
-// Import-boundary check for src/ (KRN-05). The layer map below is the single definition of "core" and its neighbours.
+// Import-boundary check for src/ (KRN-05). The layer map below is the single definition of which area may import which.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,10 +6,9 @@ import { fileURLToPath } from 'node:url';
 /**
  * Allowed imports per src area (src/<dir>). An entry is another area name, a top-level directory as
  * `root:<dir>`, or an exact repo-relative file.
- * Core imports nothing. Mutual pairs (cli/task) are accepted couplings, not a rule.
+ * Mutual pairs (cli/task) are accepted couplings, not a rule.
  */
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
-  core: [],
   memory: ['harness'],
   context: ['harness', 'hook', 'memory', 'state'],
   successor: ['harness', 'memory', 'task', 'repo'],
@@ -25,7 +24,6 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   repo: [],
   'cli-kit': [],
   task: ['cli-kit', 'fs', 'repo'],
-  evals: [],
   // Scope and the start-command binding ask the lane manifest which lane a caller belongs to (ADR 0029).
   hook: ['brain', 'harness', 'lane', 'repo', 'state', 'task'],
   dispatch: ['context', 'harness', 'hook', 'root:scripts'],
@@ -37,7 +35,6 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
     'brain',
     'ci',
     'context',
-    'core',
     'dispatch',
     'outcome',
     'repo',
@@ -52,7 +49,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
 
 /**
  * Product is what an adopted repository runs; workshop is the operator's own delivery tooling (ADR 0017).
- * Product never imports workshop. `cli` is the verbs over both and `ci`/`evals`/`core` sit
+ * Product never imports workshop. `cli` is the verbs over both and `ci` sits
  * outside the split until their ADR moves them. An exception is a `file -> workshop area` edge present
  * when the rule landed; the list may only shrink.
  */

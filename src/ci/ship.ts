@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { retireLane } from '../lane/manifest.ts';
 import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
+import { titleProblem } from '../repo/commit-title.ts';
 import { gitLockError } from '../repo/gh.ts';
 import { removeFinishedLane } from '../repo/lane-removal.ts';
 import { repositoryOfRemote } from '../repo/remote.ts';
@@ -19,7 +20,6 @@ import {
 } from '../repo/required-check.ts';
 import { recordShip } from '../repo/ship-record.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
-import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
 import { type ReviewHandle, startReview } from './review.ts';
 import { clearShipLive, markShipLive } from './ship-live.ts';

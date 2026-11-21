@@ -1,25 +1,16 @@
 // fast-covers: src/repo/contract.ts
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { laneBrief } from '../../evals/fr40/lanes.ts';
-import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
 import { clauseSection } from '../../src/brain/acceptance-clauses.ts';
-import { BUDGET } from '../../src/brain/packet.ts';
 import { gatesBlock } from '../../src/brain/worker-packet.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 
-// KRN-12: the receiver is the FR-40 lane runner; its arm-B prompt is the measured carrier.
+const BASE_DATE = '2026-11-08';
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
@@ -30,27 +21,6 @@ function lane(cwd: string, args: string[], input?: string) {
     input,
   });
 }
-
-test('the lane brief of every frozen unit equals the lane runner arm-B prompt', (t) => {
-  // The live record file rewords frozen records on purpose; the frozen carrier is checked without it.
-  const frozen = mkdtempSync(join(tmpdir(), 'krn-lane-frozen-'));
-  t.after(() => rmSync(frozen, { recursive: true, force: true }));
-  mkdirSync(join(frozen, '.krn'), { recursive: true });
-  copyFileSync(
-    join(repo, 'evals/fr40/records.json'),
-    join(frozen, '.krn/conventions.json'),
-  );
-  const units = generate();
-  assert.ok(units.length > 0);
-  for (const unit of units) {
-    const brief = `${unit.prompt.trim()}\n`;
-    assert.equal(
-      laneBriefText(frozen, brief, BASE_DATE, unit.id, false, BUDGET, false),
-      `${laneBrief(unit, 'B').prompt.trimEnd()}\n\n${workerRules(frozen)}\n`,
-      unit.id,
-    );
-  }
-});
 
 test('a lane brief tells the worker that a red test outranks a closed tracker record', () => {
   const text = laneBriefText(
@@ -64,9 +34,7 @@ test('a lane brief tells the worker that a red test outranks a closed tracker re
 });
 
 test('krn lane brief prints the carrier prefix over a brief file and stdin', () => {
-  const unit = generate()[0];
-  assert.ok(unit !== undefined);
-  const brief = `${unit.prompt.trim()}\n`;
+  const brief = 'Task t-abc1234: Add a signup form.\n';
   const dir = mkdtempSync(join(tmpdir(), 'krn-lane-brief-'));
   try {
     const file = join(dir, 'brief.md');

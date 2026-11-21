@@ -12,7 +12,7 @@ const VALIDATOR_PATHS = [
   '.gitignore',
   'mise.toml',
   'scripts/commit-title.ts',
-  'src/ci/commit-title.ts',
+  'src/repo/commit-title.ts',
   'scripts/boundaries.ts',
 ];
 const VALIDATOR_PATTERNS = [/^tsconfig[^/]*\.json$/u];
