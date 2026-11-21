@@ -16,7 +16,9 @@ export const taskMergeFields = 'number,title,body,mergeCommit';
 /** True when the PR's squash subject or its trailers name the task. */
 function namesTask(row: z.infer<typeof mergedRow>, task: string): boolean {
   if (row.title.trimEnd().endsWith(`(${task})`)) return true;
-  return parseTickets(row.body ?? '').some((line) => line.ids.includes(task));
+  return parseTickets(`${row.title}\n\n${row.body ?? ''}`).some((line) =>
+    line.ids.includes(task),
+  );
 }
 
 /**

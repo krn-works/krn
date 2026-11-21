@@ -19,7 +19,7 @@ export function ticketCommitTitle(
 ): string | undefined {
   for (const entry of log.split('\x1e')) {
     const [subject, body] = entry.trim().split('\x1f');
-    const tickets = parseTickets(body ?? '')
+    const tickets = parseTickets(`${subject ?? ''}\n\n${body ?? ''}`)
       .filter((line) => line.key === trailer)
       .flatMap((line) => line.ids);
     if (subject && tickets.includes(task))
