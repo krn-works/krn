@@ -25,8 +25,6 @@ export const laneNotesSchema = z
     task: z.string().optional(),
     assumptions: z.string().optional(),
     weakensTests: z.string().optional(),
-    rootCause: z.string().optional(),
-    redesign: z.string().optional(),
     verified: z.string().optional(),
   })
   .strict();
@@ -39,7 +37,7 @@ function readNotes(worktree: string): LaneNotes {
     return laneNotesSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
   } catch (error) {
     throw new CliUsageError(
-      `${file} is not valid lane notes (${error instanceof Error ? error.message : String(error)}); write {"assumptions","weakensTests","rootCause","redesign","verified"} strings or delete the file`,
+      `${file} is not valid lane notes (${error instanceof Error ? error.message : String(error)}); write {"assumptions","weakensTests","verified"} strings or delete the file`,
     );
   }
 }
@@ -84,7 +82,7 @@ function trailerOf(
 }
 
 export const laneFinishUsage =
-  'krn lane finish SLUG [--root DIR] [--repo OWNER/REPO] [--force]  ship the pushed lane branch SLUG from its worktree: the title is the HEAD commit subject, the task and Ticket/Refs come from its trailer, and assumptions, Weakens-tests, Root cause, Redesign and verification come from .krn/tmp/lane-notes.json in the worktree when present; builds the body like `krn pr body --lane` and ships like `krn pr ship`';
+  'krn lane finish SLUG [--root DIR] [--repo OWNER/REPO] [--force]  ship the pushed lane branch SLUG from its worktree: the title is the HEAD commit subject, the task and Ticket/Refs come from its trailer, and assumptions, Weakens-tests and verification come from .krn/tmp/lane-notes.json in the worktree when present; builds the body like `krn pr body --lane` and ships like `krn pr ship`';
 
 export async function finishLane(
   rest: string[],
@@ -138,11 +136,6 @@ export async function finishLane(
   prBodyCommand([...bodyArgs, '--out', bodyFile]);
   if (notes.weakensTests)
     appendFileSync(bodyFile, `\nWeakens-tests: ${notes.weakensTests.trim()}\n`);
-  // A fix of a hot file or fix-chained task needs both lines in the body (KRN-15, scripts/fix-churn.ts).
-  if (notes.rootCause)
-    appendFileSync(bodyFile, `\nRoot cause: ${notes.rootCause.trim()}\n`);
-  if (notes.redesign)
-    appendFileSync(bodyFile, `Redesign: ${notes.redesign.trim()}\n`);
   const shipArgs = [
     '--title',
     title,

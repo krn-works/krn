@@ -22,7 +22,7 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 
 ## Repeated fixes
 
-A module that keeps taking fixes for different cases has a wrong model. Read the earlier fixes, name the class they share, and give that state or format one owner with each case as a fixture, or ship the narrow fix with a redesign task. CI asks this from 6 fix tasks in 14 days (`node scripts/fix-churn.ts --report`, KRN-15).
+A module that keeps taking fixes for different cases has a wrong model. Read the earlier fixes, name the class they share, and give that state or format one owner with each case as a fixture, or ship the narrow fix with a redesign task.
 
 ## Process
 

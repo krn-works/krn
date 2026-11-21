@@ -11,5 +11,4 @@ This file is already loaded as CLAUDE.md; do not read it again. Small change: ed
 - **KRN-12** When code is integrated or forwarded, the author MUST test every integration or forward against its real receiver or a verbatim capture of its output
 - **KRN-13** When the lead works in this repository, the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, run independent slices as parallel worktree lanes with background agents up to the lane budget (`KRN_LANE_MAX_LIVE`), start an unrelated task in a fresh session once context is above 350k, and hand off at the context-gauge advisory with `delivery-handoff`
 - **KRN-14** When a defect is fixed, the author MUST add its regression test at the lowest layer that reproduces it
-- **KRN-15** When a module or task takes another fix, the author MUST name the defect class its earlier fixes share and its redesign in `Root cause:` and `Redesign:` PR body lines (`node scripts/fix-churn.ts --report`)
 <!-- krn-agent-workflow:end -->

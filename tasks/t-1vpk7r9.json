@@ -1,0 +1,18 @@
+{
+  "id": "t-1vpk7r9",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fix-churn, pr-body-rule, their CI steps, tests and KRN-15 deleted; ship no longer checks the body"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "the Fix churn lint and the PR body rules are deleted",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/gates.md (2026-11-21 gate audit): no refusal caught a defect present on main; operator 2026-11-21 'zamiast robić bramki realna inżynieria' (memory no-gates-just-code: CI Check is the only gate).\nOutcome: CI has no Fix churn or PR-body-rule step; scripts/fix-churn.ts and src/ci/pr-body-rule.ts with tests are deleted (~416 + 168 lines); KRN-15 is removed from spec/rules.json and AGENTS.md re-rendered.\nProof: the named command prints the stated count; npm run fast PASS; CI Check green.\nFiles: see .krn/runs/prune/gates.md row"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}
