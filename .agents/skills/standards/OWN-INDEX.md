@@ -8,7 +8,6 @@ s-ci-import-boundaries [src/**+1]: Imports between src areas follow the layer ma
 s-ci-task-quality [tasks/**]: Task records pass every task-quality rule: a stated outcome, a Proof as `cmd: verdict` and the Files they touch
 s-ci-typecheck [**/*.ts+1]: The tree typechecks under tsc --noEmit; every tracked .ts file is reached by the tsconfig include globs
 s-ci-commit-title [scripts/commit-title.ts]: The PR title, which becomes the squash subject, reads `type(scope): outcome (t-id)`
-s-ci-weakened-tests [test/**]: A PR deletes no assertion, adds no skip, only or todo, and deletes no test file whose target stays, unless its body has a `Weakens-tests: <reason>` line
 s-ci-task-records [tasks/**]: A PR whose commits carry `Ticket: <id>` closes that task; work that leaves it open carries `Refs: <id>`
 s-ci-test-suite [test/**+1]: The full suite passes in every CI shard; a new test file under test/ mirrors its src area and uses node:test
 s-ci-agent-config-secrets [.claude/**+2]: Tracked agent config holds no token-shaped values

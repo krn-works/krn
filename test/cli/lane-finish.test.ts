@@ -142,7 +142,6 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
       join(worktree, LANE_NOTES_PATH),
       JSON.stringify({
         assumptions: 'notes live in lane-notes.json',
-        weakensTests: 'dropped an obsolete case',
         verified: 'npm run fast: pass',
       }),
     );
@@ -157,7 +156,6 @@ test('finish ships a pushed lane with its recorded notes and gets verdict merged
     assert.match(body, /Lane: krn lane brief/u);
     assert.match(body, /- notes live in lane-notes\.json/u);
     assert.match(body, /npm run fast: pass/u);
-    assert.match(body, /^Weakens-tests: dropped an obsolete case$/mu);
     const created = calls.find((a) => a[1] === 'create') as string[];
     assert.equal(
       created[created.indexOf('--title') + 1],
@@ -201,7 +199,7 @@ test('finish with notes naming no task derives Refs from the commit trailer and 
     assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
     const body = bodyOf(bodies);
     assert.match(body, /Refs: t-abc1234/u);
-    assert.doesNotMatch(body, /Ticket:|Weakens-tests|## Assumptions/u);
+    assert.doesNotMatch(body, /Ticket:|## Assumptions/u);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

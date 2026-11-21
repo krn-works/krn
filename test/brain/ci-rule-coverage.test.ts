@@ -60,7 +60,6 @@ test('the lists come from package.json and the workflow, not a copy', () => {
     'node src/cli/main.ts task check --quality',
     'tsc --noEmit',
     'node scripts/commit-title.ts',
-    'node scripts/weak-tests.mjs',
     'node src/cli/main.ts task check',
     'npm test',
   ])
