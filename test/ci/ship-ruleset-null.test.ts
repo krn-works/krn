@@ -95,7 +95,6 @@ test('D2: shipCommand honors required context ci / Check when another ruleset ch
         time += ms;
       },
       now: () => time,
-      hasFile: () => false,
       readBody: () => body,
     },
   );

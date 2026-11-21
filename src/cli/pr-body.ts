@@ -5,7 +5,6 @@ import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ADVISOR_ARM_PREFIX } from '../outcome/lane-advisor.ts';
 import { EFFORT_PREFIX } from '../outcome/lane-effort.ts';
 import { LANE_MARKER } from '../outcome/lane-marker.ts';
-import { titleTaskId } from '../outcome/task-id.ts';
 import { contractBase, contractTracker } from '../repo/contract.ts';
 import { taskLookupRoot } from '../task/claims.ts';
 import { isTaskId, type TaskRecord } from '../task/record.ts';
@@ -94,37 +93,6 @@ export function proofCommands(task: TaskRecord): string[] {
     );
   const verdicts = runnable.filter((span) => proofShell(span) !== span);
   return (verdicts.length > 0 ? verdicts : runnable).map(proofShell);
-}
-
-/** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
-export function proofOfTitle(cwd: string, title: string): string[] {
-  const id = titleTaskId(title);
-  if (id === undefined || !isTaskId(id)) return [];
-  const root = repositoryRoot(cwd);
-  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
-  return task === undefined || !delivers(task) ? [] : proofCommands(task);
-}
-
-/**
- * False for a task the PR closes without delivering it (duplicate, dropped, superseded): its
- * Proof and its defect regression test belong to the task that did the work, so a closing PR
- * that carries only the record must not have to run or add them.
- */
-function delivers(task: TaskRecord): boolean {
-  return (
-    task.status !== 'closed' ||
-    task.resolution === null ||
-    task.resolution.kind === 'done'
-  );
-}
-
-/** The kind of the task a PR title names (`... (t-id)`), read from the worktree; none when the title, record or kind is absent. */
-export function kindOfTitle(cwd: string, title: string): string | undefined {
-  const id = titleTaskId(title);
-  if (id === undefined || !isTaskId(id)) return undefined;
-  const root = repositoryRoot(cwd);
-  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
-  return task === undefined || !delivers(task) ? undefined : task.kind;
 }
 
 export function renderPrBody(input: BodyInput): string {

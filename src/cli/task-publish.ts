@@ -58,8 +58,6 @@ export async function publishCommand(
       {
         ...cliShipRuntime,
         cwd: main,
-        proofOf: () => [],
-        kindOf: () => undefined,
         ...runtime,
       },
     );

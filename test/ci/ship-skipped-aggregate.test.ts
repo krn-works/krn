@@ -102,7 +102,6 @@ test('ship does not request merge when the unrestricted required Check was skipp
         time += ms;
       },
       now: () => time,
-      hasFile: () => false,
       readBody: () => body,
     },
   ).catch((error: unknown) => {

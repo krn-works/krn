@@ -103,7 +103,6 @@ test('ship does not request merge while a second required aggregate has failed',
         time += ms;
       },
       now: () => time,
-      hasFile: () => false,
       readBody: () => body,
     }),
   );

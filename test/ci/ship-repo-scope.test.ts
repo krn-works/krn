@@ -95,7 +95,6 @@ test('D1: shipCommand scopes every gh api call with KRN_APP_REPOSITORY for --rep
       cwd: wt,
       run,
       sleep: async () => {},
-      hasFile: () => false,
       readBody: () => body,
     },
   );
