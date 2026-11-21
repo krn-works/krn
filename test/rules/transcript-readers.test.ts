@@ -48,6 +48,6 @@ test('no source outside src/harness reads transcript files', async () => {
     payloadReaders.filter((file) => !hookPayloadReaders.has(file)),
     [],
   );
-  // stop.ts reads transcripts in five places; the rule must see it.
+  // stop.ts reads transcripts for the mutating-call and brief checks only; the lane is read from its manifest; the rule must see it.
   assert.ok(payloadReaders.includes('hook/stop.ts'));
 });

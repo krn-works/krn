@@ -135,3 +135,21 @@ test('a lane with no manifest keeps the legacy verdicts: its claim and its ship 
   });
   assert.equal(recordedShip(tree, env, 'old-lane'), true);
 });
+
+test('a session finds its own lane, not a sibling lane of the same task', async (t) => {
+  const { repo } = startFixture(t);
+  const first = await startOwn(repo, 'first');
+  const second = await startLane([
+    'second',
+    '--task',
+    id,
+    '--actor',
+    'lane-y',
+    '--root',
+    repo,
+  ]);
+  const env = { KRN_LANE_ID: first.manifest.laneId, KRN_TASK: id };
+  assert.deepEqual(claimedBranches(repo, env, undefined), ['first']);
+  assert.equal(claimedWorktree(repo, env, undefined), first.path);
+  assert.notEqual(first.path, second.path);
+});

@@ -88,7 +88,7 @@ function mainOf(root: string): string | undefined {
 /**
  * The manifests of the lane a session belongs to, retired ones included (a shipped lane's worktree is gone
  * and its manifest retired, but Stop still judges its ship): the manifest `KRN_LANE_ID` names, the ones that
- * hold the subagent's `agent_id`, and those of the session's `KRN_TASK`.
+ * hold the subagent's `agent_id`, else those of the session's `KRN_TASK`; the first of the three that names a lane wins.
  */
 export function sessionManifests(
   main: string,
@@ -100,12 +100,16 @@ export function sessionManifests(
     fields?.agent_type === 'krn-lane' && typeof fields.agent_id === 'string'
       ? fields.agent_id
       : undefined;
-  return listManifests(main).filter(
-    (m) =>
-      m.laneId === env.KRN_LANE_ID ||
-      (agent !== undefined && m.agents.includes(agent)) ||
-      (env.KRN_TASK !== undefined && m.task === env.KRN_TASK),
-  );
+  // The first source that names a lane wins, in laneOfSession's order: a sibling lane of the same task is not ours.
+  const all = listManifests(main);
+  const byId = all.filter((m) => m.laneId === env.KRN_LANE_ID);
+  if (byId.length > 0) return byId;
+  const byAgent =
+    agent === undefined ? [] : all.filter((m) => m.agents.includes(agent));
+  if (byAgent.length > 0) return byAgent;
+  return env.KRN_TASK === undefined
+    ? []
+    : all.filter((m) => m.task === env.KRN_TASK);
 }
 
 /** What the repository recorded about a lane a session started: its manifest, or the ship record of a merged one. */
@@ -308,19 +312,6 @@ export function recordedShip(
     kept || onLane ? git(root, ['rev-parse', 'HEAD']).stdout.trim() : '';
   const head = kept || onLane ? tip : undefined;
   const claimed = claimedBranches(main, env, payload);
-  // A manifest the lane reached `merged` in is the ship's own verdict, no record file needed.
-  for (const m of sessionManifests(main, env, payload)) {
-    if (
-      m.phase.kind === 'merged' &&
-      (!onLane || m.branch === current) &&
-      laneMergeVerdict({
-        record: { sha: m.phase.sha, head: m.phase.head },
-        head,
-        merged: (sha) => onBase(main, sha),
-      }) === 'merged'
-    )
-      return true;
-  }
   const dir = join(main, shipRecordDir);
   let names: string[];
   try {
