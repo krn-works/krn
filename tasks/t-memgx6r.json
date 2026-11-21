@@ -1,7 +1,11 @@
 {
   "id": "t-memgx6r",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stuckInStopLoop keys on the refusal without the per-run log path; regression test through real stopHook trips on the 4th identical failing-test refusal"
+  },
   "created": "2026-11-20",
   "priority": 1,
   "title": "The Stop loop breaker trips on repeated test-failure refusals that differ only in their log path",
