@@ -1001,7 +1001,7 @@
       "needs": [],
       "paths": [
         "AGENTS.md",
-        "docs/program/repository-workflow.md",
+        ".agents/skills/delivery-lead/SKILL.md",
         ".agents/skills/delivery-lead/**"
       ],
       "terms": ["session", "role", "lead", "worktree"]

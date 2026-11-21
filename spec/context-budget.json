@@ -4,7 +4,7 @@
 
     ".agents/skills/delivery-handoff/SKILL.md": 4995,
 
-    ".agents/skills/delivery-lead/SKILL.md": 6260,
+    ".agents/skills/delivery-lead/SKILL.md": 10300,
 
     ".agents/skills/delivery-lead/lanes.md": 3707,
 
@@ -20,16 +20,10 @@
 
     "AGENTS.md": 2400,
 
+    ".agents/hardening.md": 3183,
+
     "docs/program/fable-plan-brief.md": 1845,
 
-    "docs/program/hardening-checklist.md": 3183,
-
-    "docs/program/lead-rules.md": 7027,
-
-    "docs/program/plan.md": 18000,
-
-    "docs/program/repository-workflow.md": 8975,
-
-    "docs/program/standards-enforcement.md": 2400
+    "docs/program/plan.md": 18000
   }
 }

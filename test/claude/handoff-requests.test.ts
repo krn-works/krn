@@ -1,13 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -15,9 +8,6 @@ import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/handoff-requests.ts', import.meta.url),
-);
-const skill = fileURLToPath(
-  new URL('../../docs/program/repository-workflow.md', import.meta.url),
 );
 
 function fixture() {
@@ -40,12 +30,6 @@ function fixture() {
   };
   return { root, check };
 }
-
-test('the repository handoff rule runs the operator-request check on every handoff', () => {
-  assert.ok(existsSync(script), 'handoff request check exists');
-  const text = readFileSync(skill, 'utf8');
-  assert.match(text, /node scripts\/claude\/handoff-requests\.ts /u);
-});
 
 test('the handoff layout is free: any prose passes while no open operator task is dropped', () => {
   const { root, check } = fixture();

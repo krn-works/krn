@@ -149,9 +149,9 @@ test('fast check runs tests that reference a removed file by import, path or uni
 
 test('fast check runs tests that name a changed non-code file by repository path', () => {
   const refs = new Map([
-    ['test/workflow.test.ts', "read('docs/program/repository-workflow.md');"],
+    ['test/workflow.test.ts', "read('docs/program/plan.md');"],
   ]);
-  assert.deepEqual(selectTests(['docs/program/repository-workflow.md'], refs), [
+  assert.deepEqual(selectTests(['docs/program/plan.md'], refs), [
     'test/workflow.test.ts',
   ]);
 });

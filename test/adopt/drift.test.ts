@@ -248,27 +248,6 @@ test('this repository has no adoption drift in the skills the installer writes',
   assert.ok(drift.kept.includes('.agents/skills/delivery-lead/lanes.md'));
 });
 
-// repository-workflow.md once said every universal skill is installed here unchanged, while
-// .agents/skills/architecture is a hand-kept KRN variant the installer never writes.
-test('repository-workflow names exactly the skills the installer writes here', () => {
-  const repo = fileURLToPath(new URL('../..', import.meta.url));
-  const owned = adoptionDrift(repo)
-    .kept.map(
-      (file) => /^\.agents\/skills\/([^/]+)\/SKILL\.md$/u.exec(file)?.[1],
-    )
-    .filter((name) => name !== undefined)
-    .sort();
-  const doc = readFileSync(
-    join(repo, 'docs/program/repository-workflow.md'),
-    'utf8',
-  );
-  const claim = /This repository installs (.+?) unchanged/u.exec(doc)?.[1];
-  assert.ok(claim, 'repository-workflow.md states which skills are installed');
-  const named = [...claim.matchAll(/`([a-z-]+)`/gu)].map((m) => m[1]).sort();
-  assert.deepEqual(named, owned);
-  assert.ok(!owned.includes('architecture'));
-});
-
 // The agent-text check reads the skills under the Claude config directory and the window from its settings.
 function withAgentText(text: string, file = 'AGENTS.md') {
   const root = adopted();
