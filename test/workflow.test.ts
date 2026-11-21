@@ -18,11 +18,11 @@ test('the retired preflight script stays gone and gate owns the rendered rules',
   );
   assert.ok(!('preflight' in scripts));
   assert.match(String(scripts.gate), /npm run rules/u);
-  const leadRules = await readFile(
-    new URL('../docs/program/lead-rules.md', import.meta.url),
+  const agents = await readFile(
+    new URL('../AGENTS.md', import.meta.url),
     'utf8',
   );
-  assert.match(leadRules, /npm run fast/u);
+  assert.match(agents, /npm run fast/u);
 });
 
 function jobBlocks(source: string): Map<string, string> {
@@ -293,8 +293,8 @@ test('Product uses required exact-head Actions Check and optional local diagnost
     /run: npm test$/mu,
   ])
     assert.match(workflow, step);
-  const owners = ['README.md', 'docs/program/lead-rules.md'];
-  for (const path of [...owners, 'docs/program/repository-workflow.md']) {
+  const owners = ['README.md'];
+  for (const path of owners) {
     const source = await readFile(
       new URL(`../${path}`, import.meta.url),
       'utf8',

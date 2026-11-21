@@ -93,7 +93,7 @@
     "audience": "worker",
     "text": "No tracked file is a credential file or holds a private key or provider token.",
     "why": "A secret in git history leaks to every clone and stays there after the file is deleted.",
-    "evidence": ["docs/program/hardening-checklist.md#secrets"],
+    "evidence": [".agents/hardening.md#secrets"],
     "enforcement": {
       "kind": "command",
       "run": "! git ls-files | grep -vE '\\.env\\.(example|sample|template|dist)$' | grep -qE '(^|/)(\\.env(\\.[^/]*)?|id_rsa|id_ecdsa|id_ed25519|[^/]*\\.pem|[^/]*\\.p12|\\.netrc|\\.git-credentials)$' && ! git grep -qIE -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'AKIA[0-9A-Z]{16}' -e 'gh[pousr]_[A-Za-z0-9]{36}' -e 'xox[abp]-[0-9A-Za-z-]{20,}'"
@@ -301,7 +301,7 @@
     "audience": "worker",
     "text": "Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr.",
     "why": "Callers and agents branch on exit codes; an unstated one makes a failure look like success or the wrong failure.",
-    "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+    "evidence": [".agents/hardening.md#exit-codes"],
     "enforcement": {
       "kind": "advisory"
     },
@@ -321,7 +321,7 @@
     "audience": "worker",
     "text": "Values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded.",
     "why": "A secret written to a log or a record leaks to everyone who can read it later.",
-    "evidence": ["docs/program/hardening-checklist.md#secrets"],
+    "evidence": [".agents/hardening.md#secrets"],
     "enforcement": {
       "kind": "advisory"
     },

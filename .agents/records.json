@@ -146,7 +146,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "AGENTS.md KRN-08; docs/program/repository-workflow.md",
+      "origin": "AGENTS.md KRN-08; .agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },
@@ -278,7 +278,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },
@@ -447,7 +447,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md; global contract",
+      "origin": ".agents/skills/delivery-lead/SKILL.md; global contract",
       "evidence": [],
       "proposals": []
     },
@@ -495,7 +495,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },
@@ -536,7 +536,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md; CLAUDE.md; evals/fr40/results-lanes.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md; CLAUDE.md; evals/fr40/results-lanes.md",
       "evidence": [],
       "proposals": []
     },
@@ -576,7 +576,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },
@@ -617,7 +617,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },
@@ -657,7 +657,7 @@
       "kind": "advisory"
     },
     "provenance": {
-      "origin": "docs/program/repository-workflow.md",
+      "origin": ".agents/skills/delivery-lead/SKILL.md",
       "evidence": [],
       "proposals": []
     },

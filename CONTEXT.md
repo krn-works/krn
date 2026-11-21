@@ -16,7 +16,7 @@ The [plan](docs/program/plan.md) holds direction, not task status or additional 
 
 ## Durable state
 
-- Accepted decisions live in [ADRs](docs/adr/README.md); repository workflow rules live in [repository workflow](docs/program/repository-workflow.md).
+- Accepted decisions live in [ADRs](docs/adr/README.md); delivery rules live in the `delivery-lead` skill (`.agents/skills/delivery-lead`).
 - A delivery-loop continuation capsule lives at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; `krn state check` and `krn state resume` validate and resume it; Product `krn state` owns both.
 - Merging is not a KRN command: an unknown command exits 64 and is never forwarded (KRN-06); merges happen through GitHub auto-merge.
 - Capsules and traces support continuation and evidence. They do not replace task status, acceptance, or ADRs.
@@ -24,5 +24,4 @@ The [plan](docs/program/plan.md) holds direction, not task status or additional 
 ## Working links
 
 - [Plan](docs/program/plan.md)
-- [Lead rules](docs/program/lead-rules.md)
 - [ADR index](docs/adr/README.md)

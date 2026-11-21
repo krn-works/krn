@@ -5,13 +5,9 @@
       "statement": "A lane is a subagent of the lead session, never a session of its own",
       "surfaces": [
         {
-          "path": "docs/program/lead-rules.md",
+          "path": ".agents/skills/delivery-lead/SKILL.md",
           "must": "A lane is a subagent of the lead session",
           "forbid": "A lane is one lead session"
-        },
-        {
-          "path": "docs/program/repository-workflow.md",
-          "must": "a lane is a subagent of the lead session"
         }
       ]
     },
@@ -20,12 +16,8 @@
       "statement": "krn lane start claims the lane's task; a lane closes only its own task",
       "surfaces": [
         {
-          "path": "docs/program/repository-workflow.md",
-          "must": "(`krn lane start`)"
-        },
-        {
-          "path": "docs/program/lead-rules.md",
-          "must": "through `bin/krn lane start`"
+          "path": ".agents/skills/delivery-lead/SKILL.md",
+          "must": "`krn lane start <slug> --task <id>"
         }
       ]
     },
@@ -33,16 +25,6 @@
       "id": "merge-command",
       "statement": "Merging goes through bin/krn pr ship, never gh pr merge",
       "surfaces": [
-        {
-          "path": "docs/program/repository-workflow.md",
-          "must": "bin/krn pr ship",
-          "forbid": "gh pr merge"
-        },
-        {
-          "path": "docs/program/lead-rules.md",
-          "must": "bin/krn pr ship",
-          "forbid": "gh pr merge"
-        },
         {
           "path": ".agents/skills/delivery-lead/SKILL.md",
           "must": "krn pr ship",
@@ -60,8 +42,8 @@
       "statement": "npm run fast runs once before commit",
       "surfaces": [
         {
-          "path": "docs/program/lead-rules.md",
-          "must": "`npm run fast` once"
+          "path": "AGENTS.md",
+          "must": "run `npm run fast` once"
         }
       ]
     },
@@ -70,8 +52,8 @@
       "statement": "With lanes running the lead stops new lanes, drains, then hands off",
       "surfaces": [
         {
-          "path": "docs/program/lead-rules.md",
-          "must": "stops launching new lanes, drains the running ones, then hands off",
+          "path": ".agents/skills/delivery-lead/SKILL.md",
+          "must": "stops launching new ones, drains the running ones, then hands off",
           "forbid": "hands off only when no background agent is running"
         }
       ]
@@ -81,8 +63,8 @@
       "statement": "Unattended, a decision is parked as a decide task and the successor is launched; never ask",
       "surfaces": [
         {
-          "path": "docs/program/lead-rules.md",
-          "must": "park the decision as a decide task (`krn task create`) and launch the successor"
+          "path": ".agents/skills/delivery-lead/SKILL.md",
+          "must": "Unattended: park the decision as a task (`krn task create`) and start the successor"
         }
       ]
     }

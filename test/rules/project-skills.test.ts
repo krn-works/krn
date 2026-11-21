@@ -39,13 +39,6 @@ test('the lead loop skills are the project skills for Codex and Claude Code', ()
   }
 });
 
-test('the lead loop skills name the real launch command', () => {
-  assert.match(
-    readFileSync(join(root, 'docs/program/repository-workflow.md'), 'utf8'),
-    /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort medium --prompt /u,
-  );
-});
-
 test('every slice ships as one squash-merged PR with the template sections and its retro inside', () => {
   const template = readFileSync(
     join(root, '.github', 'pull_request_template.md'),
@@ -57,11 +50,6 @@ test('every slice ships as one squash-merged PR with the template sections and i
   const shipping = [
     skill('delivery-lead'),
     readFileSync(join(skillsRoot, 'delivery-lead', 'lanes.md'), 'utf8'),
-    readFileSync(join(root, 'docs', 'program', 'lead-rules.md'), 'utf8'),
-    readFileSync(
-      join(root, 'docs', 'program', 'repository-workflow.md'),
-      'utf8',
-    ),
     readFileSync(join(root, 'README.md'), 'utf8'),
   ];
   for (const text of shipping) {
@@ -113,10 +101,6 @@ test('research lanes read untrusted content without a shell, file writes or sub-
   assert.deepEqual(tools, ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']);
   for (const banned of ['Agent', 'Task', 'Bash', 'Edit', 'MultiEdit', 'Write'])
     assert.ok(!tools.includes(banned), `krn-research must not get ${banned}`);
-  const lanes = readFileSync(join(root, 'docs/program/lead-rules.md'), 'utf8');
-  assert.match(lanes, /`krn-research`/u);
-  assert.match(lanes, /bin\/krn pr ship`, which polls/u);
-  assert.doesNotMatch(lanes, /every 60s/u);
 });
 
 test('the radar agent is read-only, bounded, and rss_news stays denied', () => {

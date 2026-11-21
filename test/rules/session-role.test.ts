@@ -6,11 +6,11 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const workflow = readFileSync(
-  new URL('../../docs/program/repository-workflow.md', import.meta.url),
+  new URL('../../.agents/skills/delivery-lead/SKILL.md', import.meta.url),
   'utf8',
 );
 
-test('the lead role is tied to the delivery-lead skill in one workflow paragraph', () => {
+test('the lead role is tied to the delivery-lead skill in one skill paragraph', () => {
   const paragraph = workflow
     .split('\n\n')
     .find((block) => block.includes('`delivery-lead`') && /lead/u.test(block));

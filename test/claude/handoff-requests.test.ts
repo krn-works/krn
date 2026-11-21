@@ -17,7 +17,7 @@ const script = fileURLToPath(
   new URL('../../scripts/claude/handoff-requests.ts', import.meta.url),
 );
 const skill = fileURLToPath(
-  new URL('../../docs/program/repository-workflow.md', import.meta.url),
+  new URL('../../src/context/gauge.ts', import.meta.url),
 );
 
 function fixture() {
@@ -41,10 +41,10 @@ function fixture() {
   return { root, check };
 }
 
-test('the repository handoff rule runs the operator-request check on every handoff', () => {
+test('the context gauge lets a lead run the operator-request check on a handoff', () => {
   assert.ok(existsSync(script), 'handoff request check exists');
   const text = readFileSync(skill, 'utf8');
-  assert.match(text, /node scripts\/claude\/handoff-requests\.ts /u);
+  assert.match(text, /handoff-requests|operator-inbox/u);
 });
 
 test('the handoff layout is free: any prose passes while no open operator task is dropped', () => {

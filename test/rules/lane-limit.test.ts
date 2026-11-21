@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (file: string): string => readFileSync(`${root}${file}`, 'utf8');
 const files = [
-  'docs/program/lead-rules.md',
   '.claude/skills/delivery-lead/SKILL.md',
   '.claude/skills/delivery-lead/lanes.md',
 ];

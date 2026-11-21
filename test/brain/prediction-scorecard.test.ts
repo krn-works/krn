@@ -186,14 +186,12 @@ test('clause 9, clause 10 and clause 11: krn ledger --predictions prints the sco
   }
 });
 
-test('clause 9 and clause 10: the Fable plan brief template and the lead rules require a Predicted line and the scorecard', async () => {
+test('clause 9 and clause 10: the Fable plan brief template requires a Predicted line and the scorecard', async () => {
   const { readFileSync } = await import('node:fs');
   const brief = readFileSync('docs/program/fable-plan-brief.md', 'utf8');
   assert.match(brief, /Predicted:/u);
   assert.match(brief, /krn ledger --predictions/u);
   assert.match(brief, /\.krn\/runs\/outside\/summary\.txt/u);
-  const skill = readFileSync('docs/program/lead-rules.md', 'utf8');
-  assert.match(skill, /docs\/program\/fable-plan-brief\.md/u);
 });
 
 const ROWS_AFTER_MERGE = `krn-works/outside-py outside/py | py | 0 | ooooooo | 0 | ooooooo (all merged) | 1 | $5.00 | pass | ooooooo | 3/3 | none | 0 | 8

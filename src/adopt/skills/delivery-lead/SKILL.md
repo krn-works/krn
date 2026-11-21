@@ -30,13 +30,34 @@ Your context window is the scarcest resource: accuracy drops as inputs grow and 
 
 ## Parallel lanes
 
-One lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/delivery-lead/lanes.md` and follow it exactly", then the task id, the evidence paths and a measurable target. Write the brief to a file under `.krn/` and send the output of `krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the repository's standards packet. A lane runs the pinned krn-lane model; a `lane-model: opus` line in the brief is the only way to run it on Opus. Lanes ship their own pull requests; the lead reads verdicts, folds findings into the next briefs, and with lanes running stops launching new ones, drains the running ones, then hands off.
+A lane is a subagent of the lead session that owns one outcome: its own claimed task, worktree and pull request; it never writes another lane's outcome, branch or pull request. One lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/delivery-lead/lanes.md` and follow it exactly", then the task id, the evidence paths and a measurable target. Write the brief to a file under `.krn/` and send the output of `krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the repository's standards packet. A lane runs the pinned krn-lane model; a `lane-model: opus` line in the brief is the only way to run it on Opus. Lanes ship their own pull requests; the lead reads verdicts, folds findings into the next briefs, and with lanes running stops launching new ones, drains the running ones, then hands off. Before claiming, list open claims and open pull requests and pick a task whose paths do not overlap another lane's open pull request; overlapping work waits for that merge, then rebases only on a conflict and pushes with `--force-with-lease`. A merge stopped by an `index.lock` held by another lane is transient: retry.
 
 ## Traps
 
 - **Decisions.** A task must not contradict a recorded decision record; amend the record first and cite the grant that covers it.
 - **Exit codes.** Never pipe a check into a filter or follow it with `|| true`: redirect it to a log, read the exit code, then read the log.
 - **`pkill -f`.** Its pattern matches its own shell and other lanes' processes; stop processes by PID or port.
+- **Sources.** Conflicts resolve in this order: the current user instruction; current code and passing tests; an accepted decision record or repository rule; `AGENTS.md`; this skill; plans and run evidence. An instruction contradicted by code and passing tests is stale. A proposal changes no accepted decision; record an unresolved one as `krn task create`; a plan orders slices and creates no task, acceptance or authority.
+- **Evidence.** Start with the cheapest signal that could disprove a claim and compare a failure with the base before blaming the change. Rerun a lane's cited command before accepting it; a successful command alone is not acceptance.
+- **Remote state.** A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the pull request `headRefOid`) before any retry, rebase or rewrite.
+- **Red only in CI.** Reproduce it in the runner shape before a fix round: the tree bind-mounted at `/home/runner/work/<repo>/<repo>` in a user namespace (`unshare -rm`) with `CI=true`.
+- **Validator briefs.** A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof also asserts an accepted record.
+- **Cost claims.** Cite a `krn ledger` window (`--window <from> <to>` or `--last <n>`, from the main checkout; a linked worktree exits 64) with its pull request count; dollars per pull request from one slice or one day is not evidence.
+- **Shell.** The Bash tool runs each command inside `eval ... ||`, so `set -e` does not stop it: chain state-changing steps with `&&` or an explicit `|| exit`. Run cleanup with absolute paths from the main checkout, never from inside a worktree it removes.
+- **Classifier denial.** When the auto-mode classifier denies a granted step, never work around it: put the exact `! <command>` line in the handoff and continue with work that needs no such step.
+- **Long runs.** Above about 100k context, run anything longer than about 30 minutes as a detached process writing under `.krn/runs/`, not as a session subagent, so a handoff neither waits on it nor kills it.
+- **Skill overrides.** A user-level `skillOverrides` entry disables a project skill of the same name; when a skill does not load, check `~/.claude/settings.json` first.
+- **Grants.** Send no message to an external service, and take no host, production, install, hook-trust or other irreversible action, without its own grant.
+- **Lessons.** Put a lesson where the executor reads it: a mechanical check first, `AGENTS.md` second; memory holds only user preferences and decisions. Turn a regression into expected behavior, not a lint that pins technique. Fix a flaky test; a single recorded retry is allowed only for untouched files while a fix is pending. Use private temp directories, condition waits with deadlines and no wall-clock assertions. A backup is made, verified and deleted in the same step. Delete outdated docs: Git history is the archive.
+- **Terminal pull request.** Retire each owned branch and worktree at merge (`krn pr ship --drop` does it), or keep one with a named owner, consumer and removal trigger; never delete another owner's ref or worktree. A risky change gets an independent review from `krn pr ship`: a tier 2 diff is read by the `review` command of `krn.json` in fresh context beside the `Check`, and a finding it reproduces blocks the merge.
+
+## Role
+
+A session is the lead only when the user or its brief names that role or invokes `delivery-lead`. Any other session works and commits in the checkout it started in: no worktree, branch or task, no claim, and it skips the lead skills.
+
+## Open traps
+
+none
 
 ## Talking to the user
 

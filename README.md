@@ -26,5 +26,4 @@ The in-repository `krn task` tracker owns task status through committed `tasks/<
 
 - [Current boundaries and terminology](CONTEXT.md)
 - [Plan](docs/program/plan.md)
-- [Lead rules](docs/program/lead-rules.md)
 - [ADR index](docs/adr/README.md)

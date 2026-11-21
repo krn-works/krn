@@ -258,7 +258,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#secrets"],
+      "evidence": [".agents/hardening.md#secrets"],
       "proposals": []
     },
     "status": "accepted",
@@ -823,7 +823,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+      "evidence": [".agents/hardening.md#exit-codes"],
       "proposals": []
     },
     "status": "accepted",
@@ -869,7 +869,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#secrets"],
+      "evidence": [".agents/hardening.md#secrets"],
       "proposals": []
     },
     "status": "accepted",
@@ -1051,8 +1051,7 @@
     "provenance": {
       "origin": "krn pack",
       "evidence": [
-        "spec/rules.json#KRN-08",
-        "docs/program/repository-workflow.md#.krn/runs/<owner>/"
+        "spec/rules.json#KRN-08"
       ],
       "proposals": []
     },
@@ -2398,7 +2397,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#secrets"],
+      "evidence": [".agents/hardening.md#secrets"],
       "proposals": []
     },
     "status": "accepted",
@@ -2625,7 +2624,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+      "evidence": [".agents/hardening.md#exit-codes"],
       "proposals": []
     },
     "status": "accepted",
@@ -2718,7 +2717,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+      "evidence": [".agents/hardening.md#exit-codes"],
       "proposals": []
     },
     "status": "accepted",
@@ -2763,7 +2762,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#malformed"],
+      "evidence": [".agents/hardening.md#malformed"],
       "proposals": []
     },
     "status": "accepted",
@@ -2808,7 +2807,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#trust"],
+      "evidence": [".agents/hardening.md#trust"],
       "proposals": []
     },
     "status": "accepted",
@@ -2853,7 +2852,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/hardening-checklist.md#trust"],
+      "evidence": [".agents/hardening.md#trust"],
       "proposals": []
     },
     "status": "accepted",
@@ -2904,7 +2903,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/repository-workflow.md"],
+      "evidence": [".agents/skills/delivery-lead/SKILL.md"],
       "proposals": []
     },
     "status": "accepted",
@@ -2949,7 +2948,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": ["docs/program/repository-workflow.md"],
+      "evidence": [".agents/skills/delivery-lead/SKILL.md"],
       "proposals": []
     },
     "status": "accepted",
@@ -2994,10 +2993,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3042,10 +3038,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3096,10 +3089,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3143,10 +3133,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3191,10 +3178,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3239,10 +3223,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3287,10 +3268,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3335,10 +3313,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3389,10 +3364,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3437,10 +3409,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3485,10 +3454,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3533,10 +3499,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3587,10 +3550,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3635,10 +3595,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3683,10 +3640,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3731,10 +3685,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3779,10 +3730,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
@@ -3827,10 +3775,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "docs/program/hardening-checklist.md",
-        "src/repo/contract.ts#detectStack"
-      ],
+      "evidence": [".agents/hardening.md", "src/repo/contract.ts#detectStack"],
       "proposals": []
     },
     "status": "accepted",
