@@ -41,9 +41,9 @@ const bash = (command: string) => ({
 });
 
 test('one pre-tool process refuses a Bash call a guard route refuses', () => {
-  const result = hook('pre-tool', bash('git stash'));
+  const result = hook('pre-tool', bash('pkill -f x.sh'));
   assert.equal(result.status, 2, result.stderr);
-  assert.match(result.stderr, /git stash/u);
+  assert.match(result.stderr, /pgrep -f/u);
 });
 
 test('one pre-tool process rewrites a piped check and stays silent for a plain call', () => {
@@ -73,7 +73,7 @@ test('the timing log names the routes that matched the tool and nothing else', (
   assert.equal(rows.length, 2);
   assert.deepEqual(
     rows[0].routes.map((route: { name: string }) => route.name),
-    ['bash-guards', 'commit-format', 'gauge', 'scope', 'edit-standards'],
+    ['bash-guards', 'gauge', 'scope', 'edit-standards'],
   );
   assert.deepEqual(
     rows[1].routes.map((route: { name: string }) => route.name),
@@ -144,7 +144,7 @@ test('outputs of several routes merge into one hook output', () => {
 });
 
 test('a refused PreToolUse payload is refused again after a SessionStart resume or compact', () => {
-  const refused = bash('git stash');
+  const refused = bash('pkill -f x.sh');
   assert.equal(hook('pre-tool', refused).status, 2);
   for (const source of ['resume', 'compact']) {
     const start = hook('session-start', {
@@ -154,7 +154,7 @@ test('a refused PreToolUse payload is refused again after a SessionStart resume 
     assert.equal(start.status, 0, start.stderr);
     const again = hook('pre-tool', refused);
     assert.equal(again.status, 2, `${source}: ${again.stderr}`);
-    assert.match(again.stderr, /git stash/u);
+    assert.match(again.stderr, /pgrep -f/u);
   }
 });
 
@@ -191,12 +191,12 @@ function hookAsync(
 
 test('parallel PreToolUse payloads get one decision each: the refused call does not drop the allowed one', async () => {
   const [refused, allowed, rewritten] = await Promise.all([
-    hookAsync('pre-tool', bash('git stash')),
+    hookAsync('pre-tool', bash('pkill -f x.sh')),
     hookAsync('pre-tool', bash('ls')),
     hookAsync('pre-tool', bash('npm test | tail -5')),
   ]);
   assert.equal(refused.status, 2, refused.stderr);
-  assert.match(refused.stderr, /git stash/u);
+  assert.match(refused.stderr, /pgrep -f/u);
   assert.equal(allowed.status, 0, allowed.stderr);
   assert.equal(allowed.stdout, '');
   assert.equal(rewritten.status, 0, rewritten.stderr);

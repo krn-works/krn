@@ -18,8 +18,7 @@ const run = (command: string) =>
 
 test('the combined Bash guard refuses what each separate guard refuses', () => {
   for (const [command, name] of [
-    ['git stash', 'git stash'],
-    ['gh run watch 123', 'polls CI'],
+    ['pkill -f x.sh', 'pgrep -f'],
     ['npm test | tail -5 || true', 'swallows its failure'],
   ] as const) {
     const result = run(command);
@@ -41,7 +40,7 @@ test('the combined Bash guard rewrites a piped check and allows other commands',
 });
 
 test('a refusal wins over the piped check rewrite', () => {
-  const result = run('npm test | tail -5; git stash');
+  const result = run('npm test | tail -5; pkill -f x.sh');
   assert.equal(result.status, 2);
   assert.equal(result.stdout, '');
 });

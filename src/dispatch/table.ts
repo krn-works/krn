@@ -62,11 +62,6 @@ export const events = {
         load: () => import('../../scripts/claude/bash-guards.ts'),
       },
       {
-        name: 'commit-format',
-        tools: 'Bash',
-        load: () => import('../hook/commit-format.ts'),
-      },
-      {
         ...gauge,
         tools:
           'Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
@@ -110,11 +105,6 @@ export const legacyRoutes: Readonly<Record<string, Route>> = {
     name: 'scope',
     failClosed: true,
     load: () => import('../hook/scope.ts'),
-  },
-  stash: {
-    name: 'stash',
-    failClosed: true,
-    load: () => import('../hook/stash.ts'),
   },
   edit: { name: 'edit', load: () => import('../hook/edit-standards.ts') },
 };

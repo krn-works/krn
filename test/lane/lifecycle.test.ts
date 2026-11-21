@@ -244,7 +244,7 @@ test('one lane walks every verb and each changes only its own stores', async (t)
   const hookEnv = { CLAUDE_PROJECT_DIR: repo };
 
   await t.test(
-    'scope binds the subagent on its start command, allows the worktree and refuses tasks/ and foreign paths (D4a, D4b)',
+    'scope binds the subagent on its start command, allows the worktree and refuses foreign paths (D4a, D4b)',
     async () => {
       const touched = await verb(() => {
         const [manifest] = listManifests(repo);
@@ -269,7 +269,6 @@ test('one lane walks every verb and each changes only its own stores', async (t)
           undefined,
         );
         for (const file of [
-          join(worktree, 'tasks', `${id}.json`),
           join(repo, 'tasks', `${id}.json`),
           join(repo, 'src', 'x.ts'),
           '/etc/krn-foreign',

@@ -1,0 +1,18 @@
+{
+  "id": "t-stphjm1",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "commit-format, stash, ci-poll, wait-loop and tracker-write refusals deleted with their tests; bash-guards now refuses piped-check and unpushed-delete only; npm run fast PASS"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "PreToolUse hooks refuse only secrets, heavy commands and unpushed deletes",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/gates.md (2026-11-21 gate audit): no refusal caught a defect present on main; operator 2026-11-21 'zamiast robić bramki realna inżynieria' (memory no-gates-just-code: CI Check is the only gate).\nOutcome: commit-format, stash, ci-poll/wait-loop and tracker-write refusals are deleted with their tests (~293+103+127+75 lines); CI Commit title step stays; remaining PreToolUse refusals are exactly secrets, heavy-command, unpushed-delete.\nProof: the named command prints the stated count; npm run fast PASS; CI Check green.\nFiles: see .krn/runs/prune/gates.md row"
+  ],
+  "kind": "debt",
+  "area": "hook"
+}

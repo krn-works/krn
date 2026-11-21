@@ -12,7 +12,6 @@ import {
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { type LaneManifest, laneOfSession } from '../lane/manifest.ts';
-import { TASKS_DIR } from '../task/paths.ts';
 import { bindOnLaneStart } from './lane-binding.ts';
 import {
   gitCall,
@@ -22,10 +21,8 @@ import {
   type Word,
 } from './shell-reader.ts';
 
-// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker
-// unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
-// tracker state). D23 arm K, running as the lead, edited tasks/ and harness files outside Scope
-// in 11 of 20 units.
+// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session writes inside its lane;
+// a harness file outside Scope is allowed and reported.
 // A session is a worker when `krn lane run` started it (KRN_SESSION_CLASS=lane) or the launcher set
 // KRN_ROLE=worker. The lead sets neither, so it is never refused here.
 // Scope comes from KRN_SCOPE (the brief's `Scope:` line or a comma list), else from the Scope line of
@@ -34,8 +31,6 @@ import {
 // while its environment is the lead's. Without a resolvable scope it has an empty one.
 // A lane session whose scope cannot be resolved is allowed (nothing to compare with); a KRN_ROLE=worker
 // session without a scope has an empty one.
-// Tracker state is the lead's alone: a worker edit outside Scope is refused.
-export const guarded = [`${TASKS_DIR}/`];
 // Harness files outside Scope are allowed and reported: a red test that needs one must not stay red,
 // and a refusal there left finished work uncommitted in D23 (units 470 and 547).
 export const harness: readonly string[] = harnessPaths;
@@ -574,14 +569,6 @@ function judgeBound(
     return {
       refusal: `Refused: ${foreign} is outside lane ${manifest.laneId} (worktree ${worktree}). Nothing in this call ran. Write under your worktree; a foreign repository needs a \`lane-target: <path>\` line in the brief (src/hook/scope.ts).`,
     };
-  const record = targets.find(
-    (target) =>
-      inside(worktree, target) && under(guarded, relative(worktree, target)),
-  );
-  if (record !== undefined)
-    return {
-      refusal: `Refused: ${relative(worktree, record)} is tracker state, and \`krn task\` is its one writer (lane ${manifest.laneId}). Nothing in this call ran. Use \`krn task close\` from your worktree (src/hook/scope.ts).`,
-    };
   if (typeof input.command === 'string') {
     const stray = strayRedirect(input.command, cwd, worktree, env, admitted);
     if (stray !== undefined)
@@ -692,14 +679,7 @@ export function judge(
   for (const target of targets) {
     const path = relative(root, target);
     if (path.startsWith('..') || covers(who.scope, path)) continue;
-    if (under(harness, path)) {
-      notes.push(path);
-      continue;
-    }
-    if (!under(guarded, path)) continue;
-    return {
-      refusal: `Refused: ${path} is tracker state that only the lead changes, and the brief's Scope does not name it (${who.scope.join(', ') || 'no scope'}). Nothing in this call ran. Leave it unchanged and report the need in your final reply (src/hook/scope.ts).`,
-    };
+    if (under(harness, path)) notes.push(path);
   }
   return notes.length === 0
     ? {}

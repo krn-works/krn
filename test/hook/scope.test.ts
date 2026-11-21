@@ -32,19 +32,7 @@ const worker = (scope: string) => ({
   KRN_SCOPE: scope,
 });
 
-test('a worker edit of tasks/x.json is denied, and allowed when Scope names tasks/', () => {
-  const edit = write(`${root}/tasks/x.json`);
-  assert.match(decide(edit, worker('src/')) ?? '', /^Refused: tasks\/x\.json/u);
-  assert.equal(decide(edit, worker('Scope: src/, tasks/.')), undefined);
-});
-
-test('tracker paths are denied to a worker; harness files are allowed and reported; other files are allowed', () => {
-  for (const path of ['tasks/t-1.json'])
-    assert.match(
-      decide(write(`${root}/${path}`), worker('src/')) ?? '',
-      /Refused/u,
-      path,
-    );
+test('harness files are allowed and reported; other files are allowed', () => {
   // A red test that needs a harness file must not stay red: the write runs and is named.
   for (const path of [
     '.agents/skills/delivery-lead/SKILL.md',
@@ -66,34 +54,6 @@ test('tracker paths are denied to a worker; harness files are allowed and report
   assert.equal(decide(write('/elsewhere/tasks/x.json'), worker('')), undefined);
 });
 
-test('NotebookEdit and visible Bash writes are held to the same scope', () => {
-  const env = worker('src/');
-  assert.match(
-    decide(
-      {
-        tool_name: 'NotebookEdit',
-        cwd: root,
-        tool_input: { notebook_path: 'tasks/n.ipynb' },
-      },
-      env,
-    ) ?? '',
-    /Refused/u,
-  );
-  for (const command of [
-    'echo x > tasks/t-1.json',
-    'cat a | tee tasks/t-2.json',
-    "sed -i 's/a/b/' tasks/t-3.json",
-  ])
-    assert.match(decide(bash(command), env) ?? '', /Refused/u, command);
-  for (const command of [
-    'cat tasks/x.json',
-    'echo x > src/a.txt',
-    'ls > /dev/null',
-    'npm test 2>&1',
-  ])
-    assert.equal(decide(bash(command), env), undefined, command);
-});
-
 test('the lead session, with neither marker, is never refused', () => {
   assert.equal(
     decide(write(`${root}/tasks/x.json`), { CLAUDE_PROJECT_DIR: root }),
@@ -113,10 +73,6 @@ test('a lane session takes its Scope from the task record named by the branch, a
     assert.equal(
       decide(write(`${dir}/.agents/a.md`), env, 't-abc1234'),
       undefined,
-    );
-    assert.match(
-      decide(write(`${dir}/tasks/t-1.json`), env, 't-abc1234') ?? '',
-      /Refused/u,
     );
     const goal = { ...env, KRN_LANE: 'slug' };
     assert.equal(decide(write(`${dir}/AGENTS.md`), goal, 'slug'), undefined);
@@ -145,41 +101,6 @@ test('parseScope reads a Scope line or a comma list', () => {
   assert.deepEqual(parseScope('Scope: the 27 files of `spike-h-c1.patch`.'), [
     'spike-h-c1.patch',
   ]);
-});
-
-test('the hook process exits 2 with the reason for a refused worker call', () => {
-  const run = (env: Record<string, string>) =>
-    spawnSync('node', [hook], {
-      input: JSON.stringify(write(`${root}/tasks/x.json`)),
-      encoding: 'utf8',
-      env: { ...process.env, ...env, CLAUDE_PROJECT_DIR: root },
-    });
-  const denied = run({ KRN_ROLE: 'worker', KRN_SCOPE: 'src/' });
-  assert.equal(denied.status, 2);
-  assert.match(denied.stderr, /Refused: tasks\/x\.json/u);
-  assert.equal(run({ KRN_ROLE: 'worker', KRN_SCOPE: 'tasks/' }).status, 0);
-});
-
-test('KRN_TASK scopes a lane whose slug carries no task id', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'worker-scope-'));
-  try {
-    mkdirSync(join(dir, 'tasks'));
-    writeFileSync(
-      join(dir, 'tasks/t-abc1234.json'),
-      JSON.stringify({ body: ['Scope: src/.'] }),
-    );
-    const env = {
-      CLAUDE_PROJECT_DIR: dir,
-      KRN_SESSION_CLASS: 'lane',
-      KRN_TASK: 't-abc1234',
-    };
-    assert.match(
-      decide(write(`${dir}/tasks/t-1.json`), env, 'fix-x') ?? '',
-      /Refused/u,
-    );
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 });
 
 test('a lane session may not write the main checkout outside its worktree and .krn/runs', () => {

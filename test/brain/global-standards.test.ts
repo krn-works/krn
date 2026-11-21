@@ -15,7 +15,6 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   COMMIT_CONVENTION,
-  commitHookCommand,
   GATE_LINK,
   GLOBAL_BUDGET_BYTES,
   GLOBAL_FILE,
@@ -129,7 +128,7 @@ test('the file states the commit, PR and merge convention once', () => {
   assert.doesNotMatch(text, /Commit subjects since the repository adopted/u);
 });
 
-test('the commit-format and heavy-command hooks join the user Claude and Codex hooks, other entries kept', () => {
+test('the heavy-command hook joins the user Claude and Codex hooks, other entries kept', () => {
   const home = freshHome();
   mkdirSync(join(home, '.codex'));
   const other = {
@@ -146,7 +145,6 @@ test('the commit-format and heavy-command hooks join the user Claude and Codex h
     JSON.stringify(other, null, 2),
   );
   assert.equal(run(home).status, 0);
-  const command = commitHookCommand(product);
   for (const [file, codex] of [
     [join(home, '.claude', 'settings.json'), false],
     [join(home, '.codex', 'hooks.json'), true],
@@ -156,7 +154,6 @@ test('the commit-format and heavy-command hooks join the user Claude and Codex h
       (entry: { hooks: Array<{ command: string }> }) =>
         entry.hooks.map((hook) => hook.command),
     );
-    assert.ok(commands.includes(command), file);
     assert.ok(commands.includes(heavyHookCommand(product, codex)), file);
     assert.ok(!commands.includes(heavyHookCommand(product, !codex)), file);
   }
@@ -166,22 +163,13 @@ test('the commit-format and heavy-command hooks join the user Claude and Codex h
   assert.equal(claude.model, 'x');
   assert.equal(claude.hooks.PreToolUse[0].hooks[0].command, 'mine');
   assert.equal(claude.hooks.Stop[0].hooks[0].command, 'stop-mine');
-  assert.equal(claude.hooks.PreToolUse.length, 3);
-  // The installed command is the real entry: it refuses a plain subject.
-  const refused = spawnSync('sh', ['-c', command], {
-    input: JSON.stringify({
-      tool_name: 'Bash',
-      tool_input: { command: 'git commit -m "Update stuff"' },
-    }),
-    encoding: 'utf8',
-  });
-  assert.equal(refused.status, 2);
+  assert.equal(claude.hooks.PreToolUse.length, 2);
   assert.equal(run(home, '--check').status, 0);
   run(home);
   assert.equal(
     JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))
       .hooks.PreToolUse.length,
-    3,
+    2,
   );
 });
 
