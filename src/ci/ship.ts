@@ -34,7 +34,7 @@ import {
 } from './test-failures.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 70 a push refused, or any other failure the message names (a gh call GitHub answered with an error, a PR url missing), 69 the Check never started within 300s of the push or branch update, 65 the body file lacks `## Why`, `## Verified` or a Ticket/Refs line, or the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 84 a pre-merge review finding reproduced (a tier 2 diff: src/hook, src/ci, .github, src/cli/lane*, the gate frame, or more than 150 changed lines outside tests, docs and records; the reviewer is krn.json `review` of the base, run beside the Check in a scratch worktree; a finding blocks only when its reproduce command fails on the head and passes on the merge base; the verdict is a PR comment and .krn/runs/review/<patch-id>.json), 85 the configured reviewer gave no verdict within KRN_REVIEW_TIMEOUT_S (default 1200), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 70 a push refused, or any other failure the message names (a gh call GitHub answered with an error, a PR url missing), 69 the Check never started within 300s of the push or branch update, 65 the body file lacks `## Why`, `## Verified` or a Ticket/Refs line, or the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title; a tier 2 diff (src/hook, src/ci, .github, src/cli/lane*, the gate frame, or more than 150 changed lines outside tests, docs and records) is read by krn.json `review` of the base beside the Check in a scratch worktree; its verdict is advisory, never an exit code: a merged ship posts it as a krn-review PR comment and keeps it in .krn/runs/review/<patch-id>.json';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -768,7 +768,8 @@ ${synced}`;
   }
   const head = git(['rev-parse', 'HEAD']);
   const lines = [`pr: #${pr} ${repo} ${head}`];
-  // A risky diff is read by a fresh reviewer beside the Check wait; mergeCurrent joins its verdict.
+  // A risky diff is read by a fresh reviewer beside the Check wait. Its verdict is advisory: the
+  // Check alone decides the merge, and a merged ship joins the run once to post its comment.
   const timeoutS = Number(process.env.KRN_REVIEW_TIMEOUT_S);
   const review: ReviewHandle = (runtime.startReview ?? startReview)({
     main,
@@ -800,23 +801,6 @@ ${synced}`;
   // Auto-merge fires on the first green Check, whatever the base did meanwhile, so ship merges
   // explicitly: only a head that contains the current base tip, pinned by --match-head-commit.
   const mergeCurrent = async (at: string): Promise<string | undefined> => {
-    // The verdict comes first: a block never rebases or pushes, and the merged head is the reviewed patch.
-    const judged = await review.verdict(at);
-    if (!lines.includes(judged.line)) lines.push(judged.line);
-    if (judged.kind === 'block')
-      throw Object.assign(
-        new Error(
-          `${lines.join('\n')}\nverdict: review blocked: a reviewer finding reproduced on ${at}; read the krn-review comment on PR #${pr}, fix it with the reproduction (kept under .krn/runs/review/) as its regression test, and ship again`,
-        ),
-        { exitCode: 84 },
-      );
-    if (judged.kind === 'silent')
-      throw Object.assign(
-        new Error(
-          `${lines.join('\n')}\nverdict: review silent: the reviewer gave no verdict for ${at}; rerun the ship (KRN_REVIEW_TIMEOUT_S raises the wait)`,
-        ),
-        { exitCode: 85 },
-      );
     await fetchTarget();
     const onto = `origin/${target}`;
     const contains = runner(
@@ -980,6 +964,10 @@ ${synced}`;
       sleep: wait,
       now: runtime.now ?? Date.now,
     });
+    if (outcome.merged !== undefined) {
+      const judged = await review.verdict(head);
+      lines.push(judged.line);
+    }
   } finally {
     review.dispose();
   }

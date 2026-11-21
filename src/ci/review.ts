@@ -1,5 +1,5 @@
-// Review before merge: a fresh-context reviewer reads a risky diff while the Check runs, and ship
-// merges only on its verdict for the same patch. The verdict lives outside the tree, so HEAD never moves.
+// Advisory review: a fresh-context reviewer reads a risky diff while the Check runs, and a merged
+// ship posts its verdict as a PR comment; the Check alone decides the merge. The verdict lives outside the tree, so HEAD never moves.
 import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { Runner } from './command.ts';
 
-/** 0: nothing to review; 1: small code, not reviewed; 2: risky or large, the verdict gates the merge. */
+/** 0: nothing to review; 1: small code, not reviewed; 2: risky or large, reviewed with an advisory verdict. */
 export type ReviewTier = 0 | 1 | 2;
 
 /** Changed lines outside tests, docs and records above which any diff is tier 2. */

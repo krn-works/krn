@@ -46,7 +46,7 @@ test('the prompt names the range and the share, and asks for a reproduce command
   assert.doesNotMatch(text, /intent of the author|the author wants/iu);
 });
 
-test('the reviewer krn.json takes from the base is a tracked script: a broken path would stop every tier 2 ship with exit 85', () => {
+test('the reviewer krn.json takes from the base is a tracked script: a broken path would silence every tier 2 review', () => {
   const root = join(import.meta.dirname, '..', '..');
   const contract: unknown = JSON.parse(
     readFileSync(join(root, 'krn.json'), 'utf8'),
