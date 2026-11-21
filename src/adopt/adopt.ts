@@ -27,7 +27,6 @@ import {
   detectBase,
   detectSubpackage,
   findContract,
-  type RepoContract,
   subpackageCandidates,
 } from '../repo/contract.ts';
 import { createTask, loadTaskIndex } from '../task/store.ts';
@@ -54,7 +53,13 @@ import {
   sessionCommand,
   stopCommand,
 } from './stop-hook.ts';
-import { onlyMissing, readWorkflows, workflowGates } from './workflow-gates.ts';
+import {
+  onlyMissing,
+  readContract,
+  readWorkflows,
+  workflowGates,
+  workflowHead,
+} from './workflow-gates.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -111,13 +116,11 @@ function quoted(value: string): string {
   return JSON.stringify(value);
 }
 
-export function renderWorkflow(
+function renderWorkflow(
   options: AdoptOptions & { ref: string },
   name = 'CI',
   base = 'main',
 ): string {
-  if (!/^[0-9a-f]{40}$/u.test(options.ref))
-    throw new Error('--ref must be a full 40-character commit sha');
   const inputs = (
     [
       ['install', options.install],
@@ -131,17 +134,7 @@ export function renderWorkflow(
       : [`      ${name}: ${quoted(value)}`],
   );
   return [
-    `name: ${name}`,
-    '',
-    'on:',
-    '  push:',
-    `    branches: [${base}]`,
-    '  pull_request:',
-    '',
-    'permissions:',
-    '  contents: read',
-    '',
-    'jobs:',
+    ...workflowHead(name, base),
     '  ci:',
     `    uses: ${sharedWorkflow}@${options.ref}`,
     ...(inputs.length > 0 ? ['    with:', ...inputs] : []),
@@ -159,12 +152,7 @@ function ciWorkflow(
   options: AdoptOptions & { ref: string },
   report: AdoptionReport,
 ): string | undefined {
-  let contract: RepoContract | undefined;
-  try {
-    contract = findContract(root)?.contract;
-  } catch {
-    contract = undefined;
-  }
+  const contract = readContract(root);
   const install = options.install ?? contract?.install;
   // A vacuous test command is no CI test step.
   const test = options.test ?? (contract?.vacuous ? undefined : contract?.test);
@@ -263,21 +251,27 @@ function upsertRules(current: string): string {
   return current === '' ? block : `${current.replace(/\n*$/u, '\n')}\n${block}`;
 }
 
+/** The text of every test file under the repository's test directories, paired with its path. */
+function testSources(root: string): string[] {
+  return ['test', 'tests', '__tests__'].flatMap((dir) => {
+    const base = join(root, dir);
+    return existsSync(base)
+      ? filesUnder(base)
+          .filter((file) => /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file))
+          .map((file) => readFileSync(join(base, file), 'utf8'))
+      : [];
+  });
+}
+
 /**
  * The byte cap a test of the repository puts on an instruction file (`statSync(...).size <= 3072`
  * beside a mention of the file), or null when no test caps it.
  */
 function sizeCap(root: string, relative: string): number | null {
   const cap = /\.(?:size|length)\s*<=?\s*(\d[\d_]*)/u;
-  for (const dir of ['test', 'tests', '__tests__']) {
-    const base = join(root, dir);
-    if (!existsSync(base)) continue;
-    for (const file of filesUnder(base)) {
-      if (!/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file)) continue;
-      const text = readFileSync(join(base, file), 'utf8');
-      const match = text.includes(relative) ? cap.exec(text) : null;
-      if (match?.[1] !== undefined) return Number(match[1].replace(/_/gu, ''));
-    }
+  for (const text of testSources(root)) {
+    const match = text.includes(relative) ? cap.exec(text) : null;
+    if (match?.[1] !== undefined) return Number(match[1].replace(/_/gu, ''));
   }
   return null;
 }
@@ -314,15 +308,11 @@ function writeRuleFile(
 function forbidsClaudeFile(root: string): boolean {
   const absent =
     /\bfalse\b|\.not\b|not\.exist|doesNotExist|refute|assert\.ok\(\s*!|toBe\(false\)/u;
-  for (const dir of ['test', 'tests', '__tests__']) {
-    const base = join(root, dir);
-    if (!existsSync(base)) continue;
-    for (const file of filesUnder(base))
-      if (/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(file))
-        for (const line of readFileSync(join(base, file), 'utf8').split('\n'))
-          if (line.includes('CLAUDE.md') && absent.test(line)) return true;
-  }
-  return false;
+  return testSources(root).some((text) =>
+    text
+      .split('\n')
+      .some((line) => line.includes('CLAUDE.md') && absent.test(line)),
+  );
 }
 
 /** Rules and standards go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the blocks too. A repository whose tests forbid CLAUDE.md gets none. */
@@ -373,16 +363,12 @@ function ignoreAgentState(root: string, report: AdoptionReport): void {
 }
 
 function contractCommands(root: string): { install: string; all: string } {
-  try {
-    const contract = findContract(root)?.contract;
-    const install = contract?.install ?? '';
-    return {
-      install,
-      all: [contract?.test, contract?.related, install].join(' '),
-    };
-  } catch {
-    return { install: '', all: '' };
-  }
+  const contract = readContract(root);
+  const install = contract?.install ?? '';
+  return {
+    install,
+    all: [contract?.test, contract?.related, install].join(' '),
+  };
 }
 
 /** Build output the stack's test command leaves in every worktree: never a tracked input. */

@@ -1,13 +1,39 @@
 // Which contract gate commands the repository's existing workflows already run: adopt fills only the gaps.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { findContract } from '../repo/contract.ts';
+import { findContract, type RepoContract } from '../repo/contract.ts';
 
 export const GATE_KEYS = ['lint', 'typecheck', 'test'] as const;
 export type GateKey = (typeof GATE_KEYS)[number];
 export type GateCommands = Partial<Record<GateKey, string | undefined>>;
 
 const WORKFLOWS = '.github/workflows';
+
+/** The lines every generated workflow starts with: its name, the push and pull request triggers, and read-only permissions. */
+export function workflowHead(name: string, base: string): string[] {
+  return [
+    `name: ${name}`,
+    '',
+    'on:',
+    '  push:',
+    `    branches: [${base}]`,
+    '  pull_request:',
+    '',
+    'permissions:',
+    '  contents: read',
+    '',
+    'jobs:',
+  ];
+}
+
+/** The repository contract, or undefined when none is found or krn.json is unreadable. */
+export function readContract(root: string): RepoContract | undefined {
+  try {
+    return findContract(root)?.contract;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface WorkflowGates {
   /** Per gate key with a command, the workflow files (repository-relative) that run it. */
@@ -165,8 +191,7 @@ export function ciGateProblem(root: string): string | undefined {
   const workflows = readWorkflows(root);
   if (!workflows.some(({ text }) => /pull_request|merge_request/u.test(text)))
     return 'no workflow runs on pull requests';
-  const found = findContract(root);
-  const contract = found?.contract;
+  const contract = readContract(root);
   const gates = workflowGates(root, {
     lint: contract?.lint,
     typecheck: contract?.typecheck,

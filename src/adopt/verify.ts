@@ -30,7 +30,12 @@ import { ghApiSync } from '../repo/gh.ts';
 import { requiredContexts } from '../repo/required-check.ts';
 import { deployRemedy, deployWorkflows } from './deploy.ts';
 import { isKrnStopCommand } from './stop-hook.ts';
-import { GATE_KEYS, type GateKey, workflowGates } from './workflow-gates.ts';
+import {
+  GATE_KEYS,
+  type GateKey,
+  readContract,
+  workflowGates,
+} from './workflow-gates.ts';
 
 const repoSchema = z.object({
   default_branch: z.string().min(1),
@@ -95,7 +100,7 @@ export function defaultBranch(repoBody: string): string {
 }
 
 /** Where the KRN delivery GitHub App is installed on a repository. */
-export const APP_INSTALL_URL =
+const APP_INSTALL_URL =
   'https://github.com/apps/krn-works-delivery/installations/new';
 /** Exit of a repository the GitHub App cannot see. */
 export const APP_NOT_INSTALLED_EXIT = 67;
@@ -167,14 +172,15 @@ export function verifyRepository(root: string): VerifyReport {
   const deploying = deployWorkflows(root, base);
   if (deploying.length > 0 && !contractDeployAcknowledged(root))
     gaps.push(deployRemedy(deploying, base));
+  const ok = gaps.length === 0;
   return origin === undefined
     ? {
-        ok: gaps.length === 0,
+        ok,
         gaps,
         skipped:
           'no origin: the required gate (required check and auto-merge) was not checked',
       }
-    : { ok: gaps.length === 0, gaps };
+    : { ok, gaps };
 }
 
 /** One contract gate command that two or more workflows run, and the files that run it. */
@@ -190,17 +196,12 @@ export interface DuplicateCi {
  * readable contract has no gate commands to compare and reports none.
  */
 export function duplicateCi(root: string): DuplicateCi[] {
-  let contract: ReturnType<typeof findContract>;
-  try {
-    contract = findContract(root);
-  } catch {
-    return [];
-  }
+  const contract = readContract(root);
   if (contract === undefined) return [];
   const commands = {
-    lint: contract.contract.lint,
-    typecheck: contract.contract.typecheck,
-    test: contract.contract.vacuous ? undefined : contract.contract.test,
+    lint: contract.lint,
+    typecheck: contract.typecheck,
+    test: contract.vacuous ? undefined : contract.test,
   };
   const gates = workflowGates(root, commands);
   return GATE_KEYS.filter((gate) => gates.duplicated.includes(gate)).map(
@@ -236,7 +237,7 @@ const TEST_FILE = [
 ];
 
 /** The whole canary may run this long (KRN_CANARY_TIMEOUT_MS overrides); a slow install or test suite ends it with outcome timeout. */
-export const CANARY_TIMEOUT_MS = 180_000;
+const CANARY_TIMEOUT_MS = 180_000;
 
 class CanaryTimeout extends Error {}
 
@@ -661,19 +662,11 @@ function canary(root: string): CanaryResult {
   );
   if (files.length === 0)
     return skipped('no test file the canary can break (js, ts, py, go, rs)');
-  const baseRef =
-    run(root, 'git', [
-      'rev-parse',
-      '--verify',
-      '-q',
-      `${contract.base}^{commit}`,
-    ]).status === 0
-      ? contract.base
-      : 'HEAD';
-  if (
-    run(root, 'git', ['rev-parse', '--verify', '-q', `${baseRef}^{commit}`])
-      .status !== 0
-  )
+  const hasCommit = (ref: string) =>
+    run(root, 'git', ['rev-parse', '--verify', '-q', `${ref}^{commit}`])
+      .status === 0;
+  const baseRef = hasCommit(contract.base) ? contract.base : 'HEAD';
+  if (!hasCommit(baseRef))
     return skipped('the repository has no commit to branch the canary from');
 
   const parent = mkdtempSync(join(tmpdir(), 'krn-canary-'));
@@ -795,14 +788,8 @@ function canary(root: string): CanaryResult {
     };
   } finally {
     // Cleanup ignores the deadline: a timed-out canary still removes its worktree.
-    spawnSync('git', ['worktree', 'remove', '--force', tree], { cwd: root });
-    spawnSync(
-      'git',
-      ['worktree', 'remove', '--force', join(parent, 'with-adoption')],
-      {
-        cwd: root,
-      },
-    );
+    for (const dir of [tree, join(parent, 'with-adoption')])
+      spawnSync('git', ['worktree', 'remove', '--force', dir], { cwd: root });
     spawnSync('git', ['branch', '-D', branch], { cwd: root });
     rmSync(parent, { recursive: true, force: true });
   }
