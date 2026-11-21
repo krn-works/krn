@@ -31,7 +31,7 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-function fixture(trailer: string, tail = '') {
+function fixture(trailer: string, tail = '', ids = task) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-finish-')));
   const origin = join(base, 'origin.git');
   const repo = join(base, 'repo');
@@ -75,7 +75,7 @@ function fixture(trailer: string, tail = '') {
     worktree,
     'commit',
     '-qm',
-    `feat(lane): a stopped lane ships (${task})\n\n${trailer}: ${task}${tail}`,
+    `feat(lane): a stopped lane ships (${task})\n\n${trailer}: ${ids}${tail}`,
   );
   git(worktree, 'push', '-q', 'origin', 'stopped');
   return { base, repo, worktree };
@@ -198,6 +198,48 @@ test('finish reads Refs above a separate Co-Authored-By paragraph', async () => 
     }).catch((error: unknown) => assert.fail(String(error)));
     assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
     assert.match(bodyOf(bodies), /Refs: t-abc1234/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('finish reads a comma list of Refs ids', async () => {
+  const { base, repo, worktree } = fixture('Refs', '', `${task}, t-1kn5yb8`);
+  try {
+    writeVerified(worktree);
+    const { gh, bodies } = fakeGh(worktree);
+    const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
+      gh,
+      sleep,
+    }).catch((error: unknown) => assert.fail(String(error)));
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+    assert.match(bodyOf(bodies), /Refs: t-abc1234/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('finish reads a Refs trailer under a commit message larger than the default git buffer', async () => {
+  const { base, repo, worktree } = fixture('Refs', '', task);
+  try {
+    // The message goes through stdin: 2 MB does not fit one argument.
+    const amended = spawnSync(
+      'git',
+      ['-C', worktree, 'commit', '--amend', '-q', '-F', '-'],
+      {
+        input: `feat(lane): big (${task})\n\n${'x'.repeat(2 * 1024 * 1024)}\n\nRefs: ${task}\n`,
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(amended.status, 0, amended.stderr);
+    git(worktree, 'push', '-q', '--force', 'origin', 'stopped');
+    writeVerified(worktree);
+    const { gh } = fakeGh(worktree);
+    const out = await finishLane(['stopped', '--repo', 'o/r', '--root', repo], {
+      gh,
+      sleep,
+    }).catch((error: unknown) => assert.fail(String(error)));
+    assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

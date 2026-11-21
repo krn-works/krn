@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { syncLockfile } from '../../adopt/init.ts';
 import { findContract } from '../../repo/contract.ts';
+import { parseTickets } from '../../repo/protocol-lines.ts';
 import { receiverEnv } from '../../repo/receiver-env.ts';
 import { git } from '../git-with.ts';
 import { baseIsVacuous, bootstrapProof, isBootstrapTask } from './bootstrap.ts';
@@ -16,15 +17,11 @@ export function ticketCommitTitle(
   task: string,
   trailer: 'Ticket' | 'Refs' = 'Ticket',
 ): string | undefined {
-  const trailerLine = new RegExp(`^${trailer}:\\s*(.+)$`, 'u');
   for (const entry of log.split('\x1e')) {
     const [subject, body] = entry.trim().split('\x1f');
-    // A `Ticket:` line anywhere in the body counts: agents often put Co-Authored-By in its own
-    // paragraph, which leaves Ticket outside git's trailer block.
-    const tickets = (body ?? '')
-      .split('\n')
-      .flatMap((line) => trailerLine.exec(line.trim())?.[1]?.split(',') ?? [])
-      .map((item) => item.trim());
+    const tickets = parseTickets(`${subject ?? ''}\n\n${body ?? ''}`)
+      .filter((line) => line.key === trailer)
+      .flatMap((line) => line.ids);
     if (subject && tickets.includes(task))
       return subject.endsWith(`(${task})`) ? subject : `${subject} (${task})`;
   }

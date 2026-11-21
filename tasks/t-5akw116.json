@@ -1,0 +1,18 @@
+{
+  "id": "t-5akw116",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "parseTickets in src/repo/protocol-lines.ts replaces four readers; round-trip tests per form"
+  },
+  "created": "2026-11-20",
+  "priority": 2,
+  "title": "One Ticket and Refs trailer parser reads comma lists for every reader",
+  "after": [],
+  "body": [
+    "Evidence: 2026-11-20 krn lane finish hooks-pretool exit 64: HEAD trailer 'Refs: t-w2bsagz, t-1kn5yb8' was read as naming no task; ADR 0028 'Protocol lines' records that Ticket/Refs comma lists are parsed differently by lane run, task-merge and CI.\nOutcome: one parseTickets(message) in src/repo/protocol-lines.ts (ADR 0028 step 6) returns every id of a comma-list Ticket or Refs trailer, and lane finish, lane run, task-merge and branch-tickets use it.\nProof: a round-trip test of format/parse for single, comma-list and paragraph trailers; lane finish on a branch whose HEAD carries 'Refs: t-a, t-b' resolves the claimed task.\nFiles: src/repo/protocol-lines.ts, src/cli/lane-finish.ts, test/repo/"
+  ],
+  "kind": "defect",
+  "area": "repo"
+}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseTickets } from '../repo/protocol-lines.ts';
 
 /** One merged PR of a branch, as `gh pr list --json number,title,body,mergeCommit` prints it. */
 const mergedRow = z.object({
@@ -15,8 +16,8 @@ export const taskMergeFields = 'number,title,body,mergeCommit';
 /** True when the PR's squash subject or its trailers name the task. */
 function namesTask(row: z.infer<typeof mergedRow>, task: string): boolean {
   if (row.title.trimEnd().endsWith(`(${task})`)) return true;
-  return new RegExp(`^(?:Ticket|Refs):\\s*${task}\\s*$`, 'mu').test(
-    row.body ?? '',
+  return parseTickets(`${row.title}\n\n${row.body ?? ''}`).some((line) =>
+    line.ids.includes(task),
   );
 }
 

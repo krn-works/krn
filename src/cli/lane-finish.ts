@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { shipCommand } from '../ci/ship.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { parseTickets } from '../repo/protocol-lines.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
@@ -50,36 +51,14 @@ const gitText = gitWith((message) => new CliUsageError(message));
 function trailerOf(
   worktree: string,
 ): { key: 'Ticket' | 'Refs'; id: string } | undefined {
+  const lines = parseTickets(gitText(worktree, ['log', '-1', '--format=%B']));
   for (const key of ['Ticket', 'Refs'] as const) {
-    const id = gitText(worktree, [
-      'log',
-      '-1',
-      `--format=%(trailers:key=${key},valueonly,unfold)`,
-    ])
-      .split('\n')
-      .map((line) => line.trim())
-      .find((line) => isTaskId(line));
+    const id = lines
+      .filter((line) => line.key === key)
+      .flatMap((line) => line.ids)
+      .find((candidate) => isTaskId(candidate));
     if (id !== undefined) return { key, id };
   }
-  // The harness attribution ends a commit with its own Co-Authored-By paragraph, so git's
-  // trailer block can miss a Ticket/Refs line in the trailer-only paragraphs above it.
-  const paragraphs = gitText(worktree, ['log', '-1', '--format=%b'])
-    .trim()
-    .split(/\n\s*\n/u)
-    .reverse();
-  const trailing: string[] = [];
-  for (const paragraph of paragraphs) {
-    const lines = paragraph.split('\n').map((line) => line.trim());
-    if (!lines.every((line) => /^[A-Za-z][\w-]*: \S/u.test(line))) break;
-    trailing.push(...lines);
-  }
-  for (const key of ['Ticket', 'Refs'] as const)
-    for (const line of trailing) {
-      const id = line.startsWith(`${key}: `)
-        ? line.slice(key.length + 2).trim()
-        : undefined;
-      if (id !== undefined && isTaskId(id)) return { key, id };
-    }
   return undefined;
 }
 
