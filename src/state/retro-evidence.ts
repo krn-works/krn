@@ -1,9 +1,7 @@
 // The evidence `krn state retro --sessions N` ranks: typed items read from
-// Claude session transcripts (tool errors, refusals, operator corrections) and
+// Claude session transcript lines (tool errors, refusals, operator corrections) and
 // from `krn-review:` pull request comments (findings). Read-only; every item
 // carries a pointer (`<transcript>:<line>` or `PR#<n>:<file:line>`).
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, join } from 'node:path';
 
 export type EvidenceKind =
   | 'tool-error'
@@ -49,10 +47,9 @@ function blockText(content: unknown): string {
     .join('\n');
 }
 
-/** Reads one Claude transcript (JSONL); malformed lines are skipped. */
-export function readTranscript(path: string, name = basename(path)) {
+/** Parses the lines of one Claude transcript (JSONL); malformed lines are skipped. */
+export function readTranscript(lines: readonly string[], name: string) {
   const items: EvidenceItem[] = [];
-  const lines = readFileSync(path, 'utf8').split('\n');
   let prompts = 0;
   lines.forEach((raw, index) => {
     if (!raw.trim()) return;
@@ -116,35 +113,4 @@ export function parseReviewComment(
     });
   }
   return items;
-}
-
-/** The Claude project directory name of a working directory (the same encoding as src/harness/transcript-prefix.ts, which state cannot import). */
-const projectDirectory = (cwd: string): string =>
-  cwd.replaceAll(/[^A-Za-z0-9]/gu, '-');
-
-/** The newest `limit` transcripts of the given working directories (the repository's checkouts) under a Claude projects directory. */
-export function recentTranscripts(
-  roots: string | readonly string[],
-  limit: number,
-  projects: string,
-): string[] {
-  const names = new Set(
-    (typeof roots === 'string' ? [roots] : roots).map(projectDirectory),
-  );
-  let dirs: string[];
-  try {
-    dirs = readdirSync(projects).filter((d) => names.has(d));
-  } catch {
-    return [];
-  }
-  return dirs
-    .flatMap((dir) =>
-      readdirSync(join(projects, dir), { withFileTypes: true })
-        .filter((file) => file.isFile() && file.name.endsWith('.jsonl'))
-        .map((file) => join(projects, dir, file.name)),
-    )
-    .map((path) => ({ path, at: statSync(path).mtimeMs }))
-    .sort((a, b) => b.at - a.at)
-    .slice(0, limit)
-    .map((entry) => entry.path);
 }

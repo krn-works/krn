@@ -1,13 +1,17 @@
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { configHome } from '../harness/claude.ts';
+import {
+  recentTranscriptFiles,
+  transcriptLinesSync,
+} from '../harness/transcripts.ts';
 import { collectWindow, renderWindow } from '../outcome/window.ts';
 import { inspectState } from '../state/check.ts';
 import { applyTidy, planTidy } from '../state/layout.ts';
 import { resumeBrief } from '../state/resume.ts';
 import { renderRetro } from '../state/retro.ts';
-import { renderRetroCauses } from '../state/retro-causes.ts';
+import { checkouts, renderRetroCauses } from '../state/retro-causes.ts';
 import { resolveRepositoryRoot } from '../state/runs.ts';
 import {
   acceptCriterion,
@@ -191,15 +195,22 @@ export async function stateCommand(args: string[]): Promise<void> {
       const causes =
         sessions === undefined
           ? undefined
-          : renderRetroCauses(
-              resolveRepositoryRoot(root ?? process.cwd()).root,
-              Number(sessions),
-              join(configHome(), 'projects'),
-              readReviewComments(
-                resolveRepositoryRoot(root ?? process.cwd()).root,
-                30,
-              ),
-            );
+          : (() => {
+              const repository = resolveRepositoryRoot(
+                root ?? process.cwd(),
+              ).root;
+              return renderRetroCauses(
+                recentTranscriptFiles(
+                  checkouts(repository),
+                  Number(sessions),
+                  join(configHome(), 'projects'),
+                ).map((path) => ({
+                  name: basename(path),
+                  lines: transcriptLinesSync(path),
+                })),
+                readReviewComments(repository, 30),
+              );
+            })();
       process.stdout.write(
         `${[causes, skeleton].filter(Boolean).join('\n\n')}\n`,
       );

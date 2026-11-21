@@ -13,8 +13,9 @@ import { rankCauses, renderCauses } from '../../src/state/retro-rank.ts';
 // lines naming a refusal or an operator correction) and one krn-review comment
 // of PR #1565 (KRN-12: the receiver reads the real output shapes).
 const fixtures = join(import.meta.dirname, '..', 'fixtures', 'retro');
-const sessionA = join(fixtures, 'session-a.jsonl');
-const sessionB = join(fixtures, 'session-b.jsonl');
+const lines = (path: string) => readFileSync(path, 'utf8').split('\n');
+const sessionA = lines(join(fixtures, 'session-a.jsonl'));
+const sessionB = lines(join(fixtures, 'session-b.jsonl'));
 const comment = readFileSync(join(fixtures, 'krn-review-comment.md'), 'utf8');
 
 test('the transcript reader types refusals and operator corrections with pointers', () => {
@@ -64,11 +65,11 @@ test('the ranked causes put the refusal seen in two sources above the review mod
 
 test('renderRetroCauses prints the evidence count and the ranking', () => {
   const text = renderRetroCauses(
-    '/nonexistent',
-    2,
-    '/nonexistent',
+    [
+      { name: 'a', lines: sessionA },
+      { name: 'b', lines: sessionB },
+    ],
     parseReviewComment(comment, 1565, 2),
-    [sessionA, sessionB],
   );
   assert.match(text, /^Evidence: 2 transcript\(s\), 3 review finding\(s\)/);
   assert.match(text, /\[refusal\] Blocked: sleep <n>: 2x in 2 source/);

@@ -6,13 +6,13 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { reviewComment } from '../../src/ci/review.ts';
 import { projectSlug } from '../../src/harness/transcript-prefix.ts';
+import { recentTranscriptFiles } from '../../src/harness/transcripts.ts';
 import { git } from '../../src/state/git.ts';
-import { renderRetroCauses } from '../../src/state/retro-causes.ts';
+import { checkouts } from '../../src/state/retro-causes.ts';
 import {
   normalizeLine,
   parseReviewComment,
   readTranscript,
-  recentTranscripts,
 } from '../../src/state/retro-evidence.ts';
 
 function scratch(t: TestContext) {
@@ -53,14 +53,13 @@ test('nonblocking-review-row', () => {
   );
 });
 
-test('null-transcript-entry', (t) => {
-  const path = join(scratch(t), 'session.jsonl');
-  writeFileSync(
-    path,
-    'null\n{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"disk error"}]}}\n',
-  );
+test('null-transcript-entry', () => {
+  const lines = [
+    'null',
+    '{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"disk error"}]}}',
+  ];
   assert.deepEqual(
-    readTranscript(path).map((item) => item.text),
+    readTranscript(lines, 's').map((item) => item.text),
     ['disk error'],
   );
 });
@@ -69,13 +68,13 @@ test('encoded-project-directory', (t) => {
   const projects = scratch(t);
   const cwd = '/workspace/my_repo';
   const expected = transcript(projects, cwd);
-  assert.deepEqual(recentTranscripts(cwd, 1, projects), [expected]);
+  assert.deepEqual(recentTranscriptFiles([cwd], 1, projects), [expected]);
 });
 
 test('unrelated-project-with-shared-prefix', (t) => {
   const projects = scratch(t);
   transcript(projects, '/workspace/app2');
-  assert.deepEqual(recentTranscripts('/workspace/app', 1, projects), []);
+  assert.deepEqual(recentTranscriptFiles(['/workspace/app'], 1, projects), []);
 });
 
 test('external-linked-worktree', (t) => {
@@ -105,10 +104,7 @@ test('external-linked-worktree', (t) => {
     true,
   );
   transcript(projects, linked);
-  assert.match(
-    renderRetroCauses(linked, 1, projects, []),
-    /^Evidence: 1 transcript/,
-  );
+  assert.equal(recentTranscriptFiles(checkouts(linked), 1, projects).length, 1);
 });
 
 test('directory-with-jsonl-suffix', (t) => {
@@ -116,7 +112,7 @@ test('directory-with-jsonl-suffix', (t) => {
   const cwd = '/workspace/app';
   const expected = transcript(projects, cwd);
   mkdirSync(join(projects, projectSlug(cwd), 'backup.jsonl'));
-  assert.deepEqual(recentTranscripts(cwd, 2, projects), [expected]);
+  assert.deepEqual(recentTranscriptFiles([cwd], 2, projects), [expected]);
 });
 
 test('same-error-with-different-quoted-paths', () => {
