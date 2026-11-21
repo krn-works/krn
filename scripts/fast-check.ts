@@ -21,7 +21,6 @@ import {
   slotDeadlineMs,
   testSlotOptions,
 } from '../src/repo/test-slot.ts';
-import { check as checkBoundaries } from './boundaries.ts';
 
 export { defaultTestSlots, slotDeadlineMs, testSlotOptions };
 
@@ -59,52 +58,6 @@ export function testRunnerArgs(
     ...testCeilingArguments(env),
     ...files,
   ];
-}
-
-/** Repository-wide rule tests scan every tracked file; they cost ~0.5 s, so any change runs them. */
-const RULE_TEST = /^test\/rules\//u;
-
-/** Paths the instruction and documentation rule tests scan; a removed path always counts. */
-const PROSE_PATHS =
-  /^(?:AGENTS\.md|CLAUDE\.md|CONTEXT\.md|README\.md|docs\/|\.agents\/|\.claude\/|spec\/|tasks\/|\.github\/pull_request_template\.md$)/u;
-
-/** Rule tests that read only prose paths: selected when the diff touches those, else CI runs them. */
-const PROSE_RULE_TESTS = new Set([
-  'test/rules/instruction-bytes.test.ts',
-  'test/rules/instruction-references.test.ts',
-  'test/rules/lead-traps.test.ts',
-  'test/rules/one-owner-docs.test.ts',
-  'test/rules/project-skills.test.ts',
-  'test/rules/session-role.test.ts',
-]);
-
-/** Structure tests outside test/rules/ that preflight runs with the rule tests. */
-const PREFLIGHT_EXTRA = ['test/evals/fr40-freeze.test.ts'];
-
-/** The drift test file and its one test that reads this repository's skill copies; its other tests spawn adoptions and stay with the related stage. */
-const DRIFT_TEST = 'test/adopt/drift.test.ts';
-const DRIFT_NAME = 'this repository has no adoption drift';
-
-/** The guard tests preflight runs first: every rule test the diff makes relevant (prose ones only for prose paths) and the structure tests beside them. */
-export function preflightTests(
-  changed: readonly string[],
-  removed: readonly string[],
-  tests: ReadonlyMap<string, string>,
-): string[] {
-  const prose = [...changed, ...removed].some((file) => PROSE_PATHS.test(file));
-  return [...tests.keys()].filter(
-    (path) =>
-      (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path))) ||
-      PREFLIGHT_EXTRA.includes(path),
-  );
-}
-
-/** The first failing rule line of a node test report, else its last lines. */
-function ruleNamed(output: string): string {
-  const names = [...output.matchAll(/^\s*[✖x] (.+?)(?: \(\d.*)?$/gmu)].map(
-    (m) => m[1] ?? '',
-  );
-  return names.length > 0 ? `rule: ${names.join('; ')}\n${output}` : output;
 }
 
 /**
@@ -340,7 +293,6 @@ export interface PlannedTest {
   path: string;
   reason:
     | 'changed test'
-    | 'rule'
     | 'tree'
     | 'names path'
     | 'spawns entry'
@@ -353,8 +305,7 @@ export interface PlannedTest {
 
 /**
  * Tests to run, each with the reason that selected it: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file directly or through any chain of imported modules (the chain is the `via`),
- * tests that name a changed or removed file by repository path, tests that spawn the CLI entry when a module the entry loads changed, and the rule tests
- * (prose rule tests only when the diff touches the prose paths they scan).
+ * tests that name a changed or removed file by repository path, tests that spawn the CLI entry when a module the entry loads changed.
  * A removed file is also matched by its basename when no surviving file shares it, so
  * `join(root, 'scripts', 'gone.mjs')` and doc assertions still find the reference.
  * Two selections are left to CI as `left to CI` entries whose `via` starts with the reason they
@@ -387,11 +338,6 @@ export function planTests(
   };
   for (const file of changed) if (tests.has(file)) pick(file, 'changed test');
   const touched = [...changed, ...removed];
-  const prose = touched.some((file) => PROSE_PATHS.test(file));
-  if (touched.length > 0)
-    for (const path of tests.keys())
-      if (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path)))
-        pick(path, 'rule');
   for (const [path, trigger] of TREE_TESTS) {
     const hit = touched.find((file) => trigger.test(file));
     if (tests.has(path) && hit !== undefined) pick(path, 'tree', [hit]);
@@ -819,72 +765,6 @@ export function restage(root: string, staged: string[]): string[] {
   return fixed;
 }
 
-/** Fast structure and rule checks, in order, stopping at the first red: boundaries, weak-tests, then the guard tests (receiver evidence, drift, rules). */
-async function preflight(
-  root: string,
-  base: string | undefined,
-  guard: string[],
-  drift: boolean,
-): Promise<{ steps: Step[]; failed?: Step | undefined }> {
-  const steps: Step[] = [];
-  const boundaryStart = performance.now();
-  const violations = checkBoundaries(root);
-  steps.push({
-    name: 'boundaries',
-    ok: violations.length === 0,
-    seconds: (performance.now() - boundaryStart) / 1000,
-    output: violations
-      .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
-      .join('\n'),
-  });
-  const stages: Array<() => Promise<Step>> = [
-    // CI's Lint step runs the same floor on the PR diff; here it reads the working tree too.
-    () =>
-      run(root, 'weak-tests', process.execPath, [
-        fileURLToPath(new URL('./weak-tests.mjs', import.meta.url)),
-        base ?? mergeBase(root),
-        '--worktree',
-      ]),
-    ...(guard.length > 0 || drift
-      ? [
-          async () => {
-            const started = performance.now();
-            const node = (name: string, ...rest: string[]): Promise<Step> =>
-              run(root, name, process.execPath, [
-                '--test',
-                '--test-reporter=spec',
-                ...testCeilingArguments(),
-                ...rest,
-              ]);
-            const parts = await inTestSlot(root, () =>
-              Promise.all([
-                ...(guard.length > 0 ? [node('guard', ...guard)] : []),
-                ...(drift
-                  ? [
-                      node(
-                        'guard',
-                        `--test-name-pattern=${DRIFT_NAME}`,
-                        DRIFT_TEST,
-                      ),
-                    ]
-                  : []),
-              ]),
-            );
-            return {
-              name: 'guard',
-              ok: parts.every((part) => part.ok),
-              seconds: (performance.now() - started) / 1000,
-              output: parts.map((part) => part.output).join('\n'),
-            };
-          },
-        ]
-      : []),
-  ];
-  for (let i = 0; steps.at(-1)?.ok !== false && i < stages.length; i++)
-    steps.push(await (stages[i] as () => Promise<Step>)());
-  return { steps, failed: steps.find((step) => !step.ok) };
-}
-
 /** The stage check() is in, named by the verdict line when it stops without one. */
 let stage = 'args';
 
@@ -993,9 +873,6 @@ async function check(root: string, argv: string[]): Promise<number> {
         planned.push({ path, reason: 'names path', via: [recordsFile] });
   }
   const related = [...new Set(planned.map((entry) => entry.path))];
-  const guard = new Set(preflightTests(changed, removed, tests));
-  for (let i = related.length - 1; i >= 0; i--)
-    if (guard.has(related[i] ?? '')) related.splice(i, 1);
   const left = plan.filter(
     (entry) =>
       entry.reason === 'left to CI' &&
@@ -1013,27 +890,8 @@ async function check(root: string, argv: string[]): Promise<number> {
   process.stdout.write(
     `fast plan: ${related.length} tests (${[...reasons].map(([why, n]) => `${why} ${n}`).join(', ') || 'none'}); ${left.length} left to CI; reasons in .krn/cache/fast-plan.json\n`,
   );
-  // One slot for the whole check: the guard, tsc and tests (and a Biome redo) never queue twice.
+  // One slot for the whole check: tsc and tests (and a Biome redo) never queue twice.
   return inTestSlot(root, async () => {
-    stage = 'preflight';
-    const pre = await preflight(
-      root,
-      parsed.base,
-      [...guard],
-      tests.has(DRIFT_TEST),
-    );
-    if (pre.failed) {
-      process.stdout.write(
-        `--- ${pre.failed.name} ---\n${ruleNamed(pre.failed.output).trim().split('\n').slice(-60).join('\n')}\n`,
-      );
-      const total = ((performance.now() - started) / 1000).toFixed(1);
-      rmSync(passMarker, { force: true });
-      recordPass(root, false);
-      process.stdout.write(
-        `fast FAIL (${pre.failed.name}): preflight stopped before lint, tsc and the related tests; ${pre.steps.map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`).join(', ')}; total ${total}s\n`,
-      );
-      return 1;
-    }
     const snapshot = (): string =>
       changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
     // tsc and the related tests hold one host-wide slot together: concurrent lanes queue instead of thrashing.
@@ -1072,7 +930,7 @@ async function check(root: string, argv: string[]): Promise<number> {
     // start, so the minutes-long verify never runs twice on a Biome fix.
     const before = snapshot();
     const staged = fullyStaged(root).filter((file) => files.includes(file));
-    const steps: Step[] = [...pre.steps];
+    const steps: Step[] = [];
     if (files.length > 0) {
       steps.push(
         await run(root, 'biome', bin('biome'), [

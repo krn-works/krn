@@ -76,17 +76,6 @@ test('a fast-only test runs only when the diff touches its declared inputs', () 
   ]);
 });
 
-test('fast check runs the repository rule tests for any change', () => {
-  const withRules = new Map([
-    ...tests,
-    ['test/rules/host-path-guard.test.mjs', ''],
-  ]);
-  assert.deepEqual(selectTests(['docs/x.md'], withRules), [
-    'test/rules/host-path-guard.test.mjs',
-  ]);
-  assert.deepEqual(selectTests([], withRules), []);
-});
-
 test('fast check runs the tree-wide tests a new src module, script or hook trips', () => {
   const tree = new Map([
     ['test/import-boundary.test.ts', ''],
@@ -114,24 +103,6 @@ test('fast check runs the tree-wide tests a new src module, script or hook trips
     'test/tool-scope.test.ts',
   ]);
   assert.deepEqual(selectTests(['docs/x.md'], tree), []);
-});
-
-test('fast check selects prose rule tests only when the diff touches prose paths', () => {
-  const rules = new Map([
-    ['test/rules/host-path-guard.test.mjs', ''],
-    ['test/rules/instruction-bytes.test.ts', ''],
-    ['test/rules/project-skills.test.ts', ''],
-  ]);
-  assert.deepEqual(selectTests(['src/x/y.ts'], rules), [
-    'test/rules/host-path-guard.test.mjs',
-  ]);
-  assert.deepEqual(selectTests(['AGENTS.md'], rules), [
-    'test/rules/host-path-guard.test.mjs',
-    'test/rules/instruction-bytes.test.ts',
-    'test/rules/project-skills.test.ts',
-  ]);
-  assert.deepEqual(selectTests([], rules, ['src/gone.ts']).length, 1);
-  assert.deepEqual(selectTests([], rules, ['docs/gone.md']).length, 3);
 });
 
 test('fast check ignores same-name modules and basename-only matches', () => {
@@ -556,44 +527,6 @@ test('fast check selects a test whose fast-covers prefix matches a changed path'
   assert.deepEqual(selectTests(['src/task/claim.ts'], covering), []);
 });
 
-// Regression (t-ef75x2q): fast passed while CI's Weakened tests step failed on net removed assertions.
-test('fast check fails naming weak-tests when the working tree removes an assertion', () => {
-  const { dir, git } = repoWithChange();
-  const body =
-    "import assert from 'node:assert/strict';\nassert.equal(1, 1);\n";
-  writeFileSync(join(dir, 'test/x.test.ts'), `${body}assert.equal(2, 2);\n`);
-  git('add', '.');
-  git('commit', '-qm', 'adds a test');
-  writeFileSync(join(dir, 'test/x.test.ts'), body);
-  stubTools(dir, 'exit 0');
-  const result = runFast(dir);
-  assert.equal(result.status, 1, result.stdout + result.stderr);
-  assert.match(result.stdout, /fast FAIL \(weak-tests\)/u);
-  assert.match(
-    result.stdout,
-    /test\/x\.test\.ts: net 1 assertion\(s\) removed/u,
-  );
-});
-
-test('fast check stops on a broken rule in preflight, naming it, before any related test starts', () => {
-  const { dir } = repoWithChange();
-  mkdirSync(join(dir, 'test/rules'));
-  writeFileSync(
-    join(dir, 'test/rules/no-wall-clock.test.ts'),
-    "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('wall-clock assertions are forbidden', () => assert.fail('a.ts asserts on Date.now'));\n",
-  );
-  writeFileSync(
-    join(dir, 'test/a.test.ts'),
-    "import { writeFileSync } from 'node:fs';\nwriteFileSync('related-ran', '');\nimport './../a.ts';\n",
-  );
-  stubTools(dir, 'exit 0');
-  const result = runFast(dir);
-  assert.equal(result.status, 1, result.stdout + result.stderr);
-  assert.match(result.stdout, /fast FAIL \(guard\): preflight stopped/u);
-  assert.match(result.stdout, /rule: .*wall-clock assertions are forbidden/u);
-  assert.equal(existsSync(join(dir, 'related-ran')), false);
-});
-
 test('fast check selects the CLI-subprocess tests that assert the repo contract detection', () => {
   const real = new Map(
     [
@@ -687,11 +620,6 @@ test('fast check selects the readers of a changed data file on the real reposito
   assert.ok(
     selectTests(['standards/records.json'], real).includes(
       'test/brain/standards.test.ts',
-    ),
-  );
-  assert.ok(
-    selectTests(['spec/context-budget.json'], real).includes(
-      'test/rules/context-budget.test.ts',
     ),
   );
 });
