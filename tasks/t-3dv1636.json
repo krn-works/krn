@@ -1,0 +1,18 @@
+{
+  "id": "t-3dv1636",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast preflight deleted; npm run fast PASS"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "npm run fast is biome, tsc and related tests; guards run only in CI",
+  "after": [],
+  "body": [
+    "Evidence: .krn/runs/prune/gates.md (2026-11-21 gate audit): no refusal caught a defect present on main; operator 2026-11-21 'zamiast robić bramki realna inżynieria' (memory no-gates-just-code: CI Check is the only gate).\nOutcome: fast runs no preflight guard (boundaries, receivers, byte budgets, literal bans) and prints one verdict; the guards still run in CI Check (~132 lines moved or deleted).\nProof: the named command prints the stated count; npm run fast PASS; CI Check green.\nFiles: see .krn/runs/prune/gates.md row"
+  ],
+  "kind": "debt",
+  "area": "ci"
+}
