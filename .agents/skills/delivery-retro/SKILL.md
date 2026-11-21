@@ -32,7 +32,7 @@ Each candidate becomes, in this order of preference:
 2. a code fix with its regression test;
 3. a `krn task create` task with observable acceptance.
 
-Never add a hook, guard, check or `AGENTS.md` rule unless the operator asked: the CI `Check` is the only gate.
+Never add a hook, guard, check or `AGENTS.md` rule unless the repository owner asked: the CI `Check` is the only gate.
 
 A trap lesson (a known defect that cost a step) also needs its steering fix as a task unless the file holding the workaround is in scope.
 
