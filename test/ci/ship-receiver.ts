@@ -79,7 +79,6 @@ export async function shipWith(
         time += ms;
       },
       now: () => time,
-      hasFile: () => false,
       readBody: () => body,
     },
   ).then(

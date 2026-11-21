@@ -12,7 +12,6 @@ import {
 import { rootRepository } from '../repo/gh.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
 import { outsideCredentialArgs, productRepository } from './outside-git.ts';
-import { kindOfTitle, proofOfTitle } from './pr-body.ts';
 
 /**
  * A runner whose git calls carry the origin's App credential helper when the origin is an outside repository: the
@@ -55,8 +54,6 @@ export function outsideRunner(
 export const cliShipRuntime: NonNullable<Parameters<typeof shipCommand>[1]> = {
   run: outsideRunner(),
   baseOf: contractBase,
-  proofOf: proofOfTitle,
-  kindOf: kindOfTitle,
   completeClose: completeCloseExposure,
   releaseClaim: (main, worktree, task) => {
     releaseClosedClaims(main, worktree, task);

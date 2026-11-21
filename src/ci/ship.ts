@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { delimiter, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
@@ -18,22 +18,15 @@ import {
 } from '../repo/required-check.ts';
 import { gitLockError } from '../repo/shell-text.ts';
 import { recordShip } from '../repo/ship-record.ts';
-import { baseRedProof, baseRedRefusal } from './base-red.ts';
 import { CommandFailure, checked, type Runner, run } from './command.ts';
 import { titleProblem } from './commit-title.ts';
 import { assertNoConflict } from './conflict-check.ts';
-import { readFastPass } from './fast-pass.ts';
 import { type ReviewHandle, startReview } from './review.ts';
 import { clearShipLive, markShipLive } from './ship-live.ts';
 import { taskMerge, taskMergeFields } from './task-merge.ts';
-import {
-  exitHostLoadFlake,
-  hostLoadFlake,
-  timeoutOnly,
-} from './test-failures.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 70 a push refused, or any other failure the message names (a gh call GitHub answered with an error, a PR url missing), 69 the Check never started within 300s of the push or branch update, 65 the instruction-bytes rule failed before the push, 78 the scoped checks failed with timeouts only on different tests in a run and its rerun (host load; rerun ship), 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push, or the changed tests of a defect task do not fail by assertion on the base source of the changed files (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title; a tier 2 diff (src/hook, src/ci, .github, src/cli/lane*, the gate frame, or more than 150 changed lines outside tests, docs and records) is read by krn.json `review` of the base beside the Check in a scratch worktree; its verdict is advisory, never an exit code: a merged ship posts it as a krn-review PR comment and keeps it in .krn/runs/review/<patch-id>.json';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--drop] [--worktree <path>] [--base <branch>] [--detach]; --detach runs the ship as its own session with its log and pid under <worktree>/.krn/tmp (ship.log, ship.pid) so it outlives the agent that started it, and prints the pid at once (see `krn lane status`); the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree): pushes the branch, creates (or reuses) the PR, waits for a green Check, rebases onto the base when the base moved since (a fresh Check runs), then merges explicitly with --match-head-commit and waits through the merge, then records the merge, fast-forwards a clean main checkout that is on the base (a `main sync:` line), then, with --drop (a lead ship), removes the worktree and branch unless another process still works inside the worktree or it holds an uncommitted change (the ship process itself may run there); without --drop, or when refused, the next `krn lane start` prunes the merged lane; prints the gate, merge and `verdict:` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh still exits 0 with a warning); a rerun after the merge only records it; otherwise 70 a push refused, or any other failure the message names (a gh call GitHub answered with an error, a PR url missing), 69 the Check never started within 300s of the push or branch update, 66 empty diff against the base, 74 failed gate, 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict with the base, before the push or after the base moved during the wait, 77 head moved, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title; a tier 2 diff (src/hook, src/ci, .github, src/cli/lane*, the gate frame, or more than 150 changed lines outside tests, docs and records) is read by krn.json `review` of the base beside the Check in a scratch worktree; its verdict is advisory, never an exit code: a merged ship posts it as a krn-review PR comment and keeps it in .krn/runs/review/<patch-id>.json';
 
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
@@ -115,26 +108,9 @@ export function newestCheck(
 const gitLockAttempts = 5;
 /** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
 const workflowsRejection = /without `?workflows`? permission/u;
-const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
-/** The repository's own scoped check: Biome on changed files, tsc, and the tests the changed paths select. */
-const scopedCheck = 'scripts/fast-check.ts';
 
 function usageError(message: string): Error {
   return Object.assign(new Error(message), { exitCode: 64 });
-}
-
-/**
- * The environment a Proof command runs in: PR_BODY as CI sets it, and the worktree's bin/ first on
- * PATH so a leading `krn` runs the code under review, not the main checkout's.
- */
-export function proofEnvironment(cwd: string, prBody: string): string[] {
-  const own = join(cwd, 'bin');
-  return [
-    `PR_BODY=${prBody}`,
-    ...(existsSync(join(own, 'krn'))
-      ? [`PATH=${own}${delimiter}${process.env.PATH ?? ''}`]
-      : []),
-  ];
 }
 
 async function shipRun(
@@ -147,20 +123,8 @@ async function shipRun(
     now?: () => number;
     /** The repo contract base for a worktree; the cli supplies it, the default is main. */
     baseOf?: (cwd: string) => string;
-    /** Whether `path` exists under `cwd`; the default reads the file system. */
-    hasFile?: (cwd: string, path: string) => boolean;
-    /** The tree hash of the recorded clean fast PASS for `cwd`; the default reads the worktree's record. */
-    fastPass?: (cwd: string) => string | undefined;
     /** The remedy text when the worktree deploys on a push to `base` and krn.json does not acknowledge it, else undefined; the cli supplies it. */
     deployRefusal?: (cwd: string, base: string) => string | undefined;
-    /** The runnable Proof commands of the task the title names, read from the worktree; the cli supplies it. */
-    proofOf?: (cwd: string, title: string) => string[];
-    /** The kind of the task the title names, read from the worktree; the cli supplies it. A `defect` ships only with a test that is red on the base source. */
-    kindOf?: (cwd: string, title: string) => string | undefined;
-    /** Runs the branch's tests on the base source of its changed files; the default does it in `cwd`. */
-    baseRed?: typeof baseRedProof;
-    /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
-    publish?: (cwd: string, text: string) => string;
     /** Reads the body file; the default reads the disk. */
     readBody?: (path: string) => string;
     /** The pids of other processes working inside a path; the default reads /proc. */
@@ -198,7 +162,7 @@ async function shipRun(
   const cwd =
     values.worktree === undefined ? caller : resolve(caller, values.worktree);
   const body = resolve(caller, bodyFile);
-  const readBody = runtime.readBody ?? ((path) => readFileSync(path, 'utf8'));
+  const _readBody = runtime.readBody ?? ((path) => readFileSync(path, 'utf8'));
   const runner = runtime.run ?? run;
   const wait = runtime.sleep ?? sleep;
   // Every GitHub call that names a repository uses an App token minted for that repository.
@@ -499,160 +463,8 @@ ${synced}`;
       exitCode: 82,
     });
 
-  // The rule is KRN's own; an adopted repository without it ships without it.
-  const hasFile =
-    runtime.hasFile ?? ((at, path) => existsSync(resolve(at, path)));
-  const rule = hasFile(cwd, instructionBytesRule)
-    ? runner('node', ['--test', instructionBytesRule], cwd)
-    : { code: 0, stdout: '', stderr: '' };
-  if (rule.code !== 0)
-    throw Object.assign(
-      new Error(
-        `refused push: ${instructionBytesRule} failed\n${(rule.stderr.trim() || rule.stdout.trim()).slice(-4000)}`,
-      ),
-      { exitCode: 65 },
-    );
-
-  // The checks `npm run fast` scopes to the changed paths run before the push, so a rule the
-  // repository already enforces fails here and not in a CI round. Biome rewrites files in
-  // place; a rewrite that is not committed would never reach the push, so it refuses too.
-  const tree = hasFile(cwd, scopedCheck)
-    ? runner('git', ['rev-parse', 'HEAD^{tree}'], cwd).stdout.trim()
-    : '';
-  // PR_BODY as CI sets it: a check that reads the body sees the same text before the
-  // push as on the PR, in the scoped check and in every Proof command.
-  let bodyText: string | undefined;
-  const prBody = (): string => {
-    bodyText ??= readBody(body);
-    return bodyText;
-  };
-  const recorded = (runtime.fastPass ?? readFastPass)(cwd);
-  if (tree !== '' && recorded === tree && git(['status', '--porcelain']) === '')
-    process.stdout.write(`pre-push: fast PASS reused for tree ${tree}\n`);
-  else if (hasFile(cwd, scopedCheck)) {
-    const runScoped = () => {
-      return runner(
-        'env',
-        [
-          ...proofEnvironment(cwd, prBody()),
-          'node',
-          scopedCheck,
-          '--base',
-          `origin/${target}`,
-        ],
-        cwd,
-      );
-    };
-    const outputOf = (r: { stdout: string; stderr: string }) =>
-      `${r.stdout}\n${r.stderr}`;
-    let scoped = runScoped();
-    // A failure made only of timeouts is host load until a rerun says otherwise: the rerun
-    // passes (flaky), repeats on other files (named flake exit) or repeats on the same ones (red).
-    if (scoped.code !== 0 && timeoutOnly(outputOf(scoped))) {
-      const first = scoped;
-      scoped = runScoped();
-      if (scoped.code !== 0 && hostLoadFlake(outputOf(first), outputOf(scoped)))
-        throw Object.assign(
-          new Error(
-            `refused push: host load: the scoped checks (${scopedCheck}) failed with timeouts only, on different tests each run; rerun ship\n${(scoped.stdout.trim() || scoped.stderr.trim()).slice(-4000)}`,
-          ),
-          { exitCode: exitHostLoadFlake },
-        );
-    }
-    let rewritten = scoped.code === 0 ? git(['status', '--porcelain']) : '';
-    // A format-only rewrite of tracked files is the scoped check's own output: ship commits it
-    // instead of refusing a push over whitespace. Anything else left in the tree still refuses.
-    if (
-      rewritten !== '' &&
-      rewritten
-        .split('\n')
-        .filter((entry) => entry !== '')
-        .every((entry) => !entry.startsWith('??'))
-    ) {
-      git(['add', '-u']);
-      git(['commit', '-m', 'style: apply the scoped check formatting rewrite']);
-      process.stdout.write(
-        `pre-push: the scoped check rewrote files; committed\n${rewritten}\n`,
-      );
-      rewritten = git(['status', '--porcelain']);
-    }
-    if (scoped.code !== 0 || rewritten !== '')
-      throw Object.assign(
-        new Error(
-          scoped.code !== 0
-            ? `refused push: the scoped checks (${scopedCheck}) failed\n${(scoped.stdout.trim() || scoped.stderr.trim()).slice(-4000)}`
-            : `refused push: the scoped checks rewrote files; commit them and ship again\n${rewritten}`,
-        ),
-        { exitCode: 65 },
-      );
-  }
-
-  // A pull request that only adds or edits task records proves nothing a Proof command could
-  // run: the record names work another PR delivers, so its Proof never runs here.
-  const recordsOnly = changed
-    .split('\n')
-    .every((file) => /^tasks\/[^/]+\.json$/.test(file));
-  const proofCommands = recordsOnly
-    ? []
-    : (runtime.proofOf ?? (() => []))(cwd, title);
-  const proofs = proofCommands.map((command) => ({
-    command,
-    result: runner(
-      'env',
-      [...proofEnvironment(cwd, prBody()), 'sh', '-c', command],
-      cwd,
-    ),
-  }));
-  const failedProof = proofs.find(({ result }) => result.code !== 0);
-  if (failedProof !== undefined)
-    throw Object.assign(
-      new Error(
-        `refused push: Proof command \`${failedProof.command}\` exited ${failedProof.result.code}\n${(failedProof.result.stderr.trim() || failedProof.result.stdout.trim()).slice(-4000)}`,
-      ),
-      { exitCode: 81 },
-    );
-  // KRN-14: a defect's regression test is red on the pre-fix source, shown before the push.
-  const baseRedLines: string[] = [];
-  if (
-    !recordsOnly &&
-    (runtime.kindOf ?? (() => undefined))(cwd, title) === 'defect'
-  ) {
-    const verdict = (runtime.baseRed ?? baseRedProof)(
-      cwd,
-      `origin/${target}`,
-      runner,
-      proofEnvironment(cwd, prBody()),
-    );
-    const refusal = baseRedRefusal(verdict);
-    if (refusal !== undefined)
-      throw Object.assign(new Error(`refused push: ${refusal}`), {
-        exitCode: 81,
-      });
-    if (verdict.kind === 'red')
-      baseRedLines.push(
-        '## Base red proof',
-        '',
-        ...verdict.cases.map((name) => `- fails on the base source: ${name}`),
-      );
-  }
-  const proofRun =
-    proofs.length === 0
-      ? []
-      : [
-          '## Proof run',
-          '',
-          ...proofs.map(
-            ({ command, result }) => `- \`${command}\`: exit ${result.code}`,
-          ),
-        ];
-  const sections = [proofRun, baseRedLines].filter((lines) => lines.length > 0);
-  const publishedBody =
-    sections.length === 0
-      ? body
-      : (runtime.publish ?? publishBody)(
-          cwd,
-          `${prBody().trimEnd()}\n\n${sections.map((lines) => lines.join('\n')).join('\n\n')}\n`,
-        );
+  // No local pre-push gate: the CI Check runs every test and rule on the pushed head.
+  const publishedBody = body;
 
   const pushed = runner(
     'git',
@@ -1197,14 +1009,6 @@ function refreshAfterMerge(
       .filter((line) => line !== '')
       .map((line) => `release: ${line}`),
   ];
-}
-
-function publishBody(cwd: string, text: string): string {
-  const dir = resolve(cwd, '.krn/tmp');
-  mkdirSync(dir, { recursive: true });
-  const file = resolve(dir, 'ship-body.md');
-  writeFileSync(file, text);
-  return file;
 }
 
 function parse(args: string[]) {
