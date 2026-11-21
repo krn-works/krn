@@ -1050,9 +1050,7 @@
     },
     "provenance": {
       "origin": "krn pack",
-      "evidence": [
-        "spec/rules.json#KRN-08"
-      ],
+      "evidence": ["spec/rules.json#KRN-08"],
       "proposals": []
     },
     "status": "accepted",
