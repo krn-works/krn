@@ -32,6 +32,12 @@ test('a blocked manifest write does not leave a half-dropped lane', async (t) =>
     '-qm',
     'seed',
   );
+  // The lane holds no commit of its own, and the seed is on a remote, so the drop guard passes.
+  const origin = `${repo}-origin.git`;
+  t.after(() => rmSync(origin, { recursive: true, force: true }));
+  git(repo, 'init', '-q', '--bare', origin);
+  git(repo, 'remote', 'add', 'origin', origin);
+  git(repo, 'push', '-q', 'origin', 'main');
   const path = join(repo, '.krn', 'worktrees', 'blocked');
   git(repo, 'worktree', 'add', '-qb', 'blocked', path);
   const manifest = createManifest(

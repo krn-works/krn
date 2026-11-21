@@ -3,7 +3,6 @@ import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import {
   chmodSync,
-  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -628,19 +627,17 @@ test('the lane brief lists the acceptance lines of the task record and requires 
   }
 });
 
-test('lane drop refuses while the worktree holds the only copy of a task record', () => {
+test('lane drop refuses while the worktree holds an uncommitted task record, until --force', () => {
   const { base, repo } = fixture();
   try {
     const path = laneWithOnlyCopy(repo, 't-only123', 'only');
     const refused = lane(repo, 'drop', 'only');
-    assert.equal(refused.status, 64);
-    assert.match(refused.stderr, /only copy of t-only123/u);
+    assert.equal(refused.status, 65);
+    assert.match(refused.stderr, /tasks\/t-only123\.json/u);
+    assert.match(refused.stderr, /--force/u);
     assert.ok(existsSync(join(path, 'tasks', 't-only123.json')));
-    copyFileSync(
-      join(path, 'tasks', 't-only123.json'),
-      join(repo, 'tasks', 't-only123.json'),
-    );
-    assert.equal(lane(repo, 'drop', 'only').status, 0);
+    const forced = lane(repo, 'drop', 'only', '--force');
+    assert.equal(forced.status, 0, forced.stderr);
     assert.equal(existsSync(path), false);
   } finally {
     rmSync(base, { recursive: true, force: true });

@@ -14,13 +14,13 @@ export const publishUsage =
 
 /**
  * A publish that failed before its branch reached the origin leaves a worktree and branch that
- * make the retry exit 64 "already exists": drop them. The records stay on the pending ref.
+ * make the retry exit 64 "already exists": drop them with --force, since the lane commit is the copy the pending ref also holds.
  * A pushed branch may carry an open PR, so it stays for `krn pr ship` to reuse.
  */
 async function dropUnpushedLane(main: string, slug: string): Promise<void> {
   if (branchOnOrigin(main, slug)) return;
   try {
-    await dropLane([slug, '--root', main]);
+    await dropLane([slug, '--root', main, '--force']);
   } catch {
     // The original failure is the one to report.
   }
