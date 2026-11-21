@@ -5,7 +5,7 @@
 //
 // Not asserted yet, because main gets them wrong; the ADR step named adds each case:
 // - D3: a worker with no commit stops on another lane's ship record or merged sha (step 4).
-// - D7: `krn lane drop` refuses a lane whose only task change is a staged deletion (step 2b).
+// - D7: covered by test/task/lane-only-records.test.ts, which drops a lane whose only task change is a staged deletion (step 2b).
 // - D8: dep on a published record with a pending edit; a start whose task depends on a pending record (2a).
 // - The manifest phase after ship (step 5): that snapshot omits manifests; drop retires the manifest.
 import assert from 'node:assert/strict';

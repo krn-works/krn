@@ -64,6 +64,7 @@ import {
   type CarriedRecord,
   carryTaskRecord,
   dropCarriedCopy,
+  laneOnlyRecords,
   takePendingRecord,
 } from '../task/storage.ts';
 import { readTask, repositoryRoot } from '../task/store.ts';
@@ -454,24 +455,6 @@ function claimsFrom(main: string, worktree: string): string[] {
   return ids;
 }
 
-/** Task records in the worktree that are uncommitted there and absent from the main checkout. */
-function soleTaskRecords(main: string, worktree: string): string[] {
-  const status = spawnSync(
-    'git',
-    ['-C', worktree, 'status', '--porcelain', '-uall', '--', 'tasks'],
-    { encoding: 'utf8' },
-  );
-  if (status.status !== 0) return [];
-  const ids: string[] = [];
-  for (const line of status.stdout.split('\n')) {
-    const match = /tasks\/(t-[a-z0-9]+)\.json$/u.exec(line);
-    if (match?.[1] === undefined || line.startsWith(' D')) continue;
-    if (!existsSync(join(main, 'tasks', `${match[1]}.json`)))
-      ids.push(match[1]);
-  }
-  return ids;
-}
-
 /** Drop a dead lane: release its claims, remove the worktree and delete the branch. */
 export async function dropLane(rest: string[]): Promise<string> {
   let slug: string | undefined;
@@ -509,12 +492,11 @@ export async function dropLane(rest: string[]): Promise<string> {
   const released: string[] = [];
   const hasWorktree = existsSync(path);
   if (hasWorktree) {
-    const only = soleTaskRecords(main, path);
+    const only = laneOnlyRecords(main, slug);
     if (only.length > 0)
       throw new CliUsageError(
-        `lane ${slug} holds the only copy of ${only.join(', ')}; commit it on the lane branch or copy it to the main checkout, then drop again`,
+        `lane ${slug} holds the only copy of ${only.join(', ')}; push it or copy it to the main checkout, then drop again`,
       );
-    const real = realpathSync(path);
     const ship = liveShipPid(path);
     if (ship !== undefined)
       throw new CliUsageError(
@@ -525,6 +507,7 @@ export async function dropLane(rest: string[]): Promise<string> {
       throw new CliUsageError(
         `lane ${slug} is in use: ${users === undefined ? 'this host cannot list process cwds' : `process ${users.slice(0, 3).join(', ')} works inside it`}; end that process, then drop again`,
       );
+    const real = realpathSync(path);
     for (const id of claimsFrom(main, real)) {
       await releaseClaim(main, id);
       released.push(id);

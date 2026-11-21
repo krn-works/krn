@@ -203,6 +203,10 @@
       "receivers": ["git"],
       "real": "test/task/pending-records.test.ts"
     },
+    "src/task/storage.ts": {
+      "receivers": ["git"],
+      "real": "test/task/lane-only-records.test.ts"
+    },
     "src/task/store.ts": {
       "receivers": ["git"],
       "real": "test/task/task.test.ts"

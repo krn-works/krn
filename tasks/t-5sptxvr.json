@@ -1,7 +1,11 @@
 {
   "id": "t-5sptxvr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "laneOnlyRecords in src/task/storage.ts replaces soleTaskRecords in lane drop; test/task/lane-only-records.test.ts covers staged deletion, edited version, merge arrival, branch tip and merged bypass on real git"
+  },
   "created": "2026-11-20",
   "priority": 0,
   "title": "fix(lane): lane drop ignores a staged task deletion when it looks for the only copy of a record",
