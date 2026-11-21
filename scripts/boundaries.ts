@@ -217,6 +217,8 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/cli/doctor-claims.ts',
     // The one reader of lane state (ADR 0028): ship records, the lane tip and the merge on the base.
     'src/lane/state.ts',
+    // Stop's lane readers: the base a ship merged on, and the worktree and tip they judge.
+    'src/lane/session.ts',
     'src/repo/lane-removal.ts',
     'src/repo/test-slot.ts',
     // Reads the root's origin to scope the App token of a gh read to that repository.
