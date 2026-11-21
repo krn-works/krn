@@ -143,13 +143,14 @@ export function createTaskRecord(
 /**
  * Copies the pending record of `id` into the checkout's `tasks/` for a lane start to carry; the
  * pending ref keeps its copy. `restore` puts the checkout back as it was. Undefined when nothing
- * is pending for `id`.
+ * is pending for `id` or a lane already carries it.
  */
 export function takePendingRecord(
   root: string,
   id: TaskId,
 ): { restore: () => void } | undefined {
-  if (!pendingTaskFiles(root).has(id)) return undefined;
+  if (!pendingTaskFiles(root).has(id) || pendingHold(root, id) !== undefined)
+    return undefined;
   const file = join(root, 'tasks', `${id}.json`);
   const before = existsSync(file) ? readFileSync(file) : undefined;
   takePendingTask(root, id);

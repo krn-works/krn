@@ -279,7 +279,8 @@ export function pendingHold(root: string, id: string): LaneHold | undefined {
  */
 export function holdPendingTask(root: string, id: string, branch: string) {
   const name = `${id}.json`;
-  const entries = liveEntries(root);
+  // The checkout holds a transient copy while the lane start runs, so the raw entries are used.
+  const entries = refEntries(root);
   const entry = entries.find((e) => e.name === name);
   if (entry === undefined) return;
   const base = baseRef(root);

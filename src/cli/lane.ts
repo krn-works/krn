@@ -730,6 +730,10 @@ export async function startLane(
           claimed = true;
         }
       }
+      // The pending ref keeps its copy for main readers and names the lane that carries it; a
+      // failed start removes the branch, which ends the hold.
+      if (taken !== undefined && task !== undefined)
+        holdTaskForLane(origin, task, slug);
       // A task-records publish holds no agent session, so it is no lane and records none.
       if (laneId !== undefined)
         transition(
@@ -766,8 +770,6 @@ export async function startLane(
     if (copied && carried !== undefined && task !== undefined) {
       if (carried.tracked) git(origin, ['checkout', '--', taskFile(task)]);
       else dropCarriedCopy(carried);
-      // The pending ref keeps its copy for main readers; it names the lane that now carries it.
-      if (taken !== undefined) holdTaskForLane(origin, task, slug);
     }
     return { path: realpathSync(path), slug };
   } catch (error) {

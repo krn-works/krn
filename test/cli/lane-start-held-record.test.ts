@@ -138,3 +138,27 @@ test('a hold whose lane branch vanished leaves a plain pending record that publi
     ['t-heldaa1', 't-heldbb2'],
   );
 });
+
+test('a rejected pending-ref write fails the start without leaving a lane, and a retry succeeds', async (t) => {
+  const { repo } = fixture(t);
+  const lock = join(repo, '.git', 'refs', 'krn', 'pending-tasks.lock');
+  writeFileSync(lock, '');
+  await assert.rejects(
+    startLane(['held-lane', '--task', 't-heldaa1', '--root', repo]),
+  );
+  assert.equal(git(repo, 'branch', '--list', 'held-lane'), '');
+  assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'held-lane')), false);
+  assert.equal(git(repo, 'status', '--porcelain'), '');
+  rmSync(lock);
+  await startLane(['held-lane', '--task', 't-heldaa1', '--root', repo]);
+  assert.equal(locateTask(repo, 't-heldaa1').heldBy?.branch, 'held-lane');
+});
+
+test('a second lane for a held task does not take the hold from the first', async (t) => {
+  const { repo } = fixture(t);
+  await startLane(['held-lane', '--task', 't-heldaa1', '--root', repo]);
+  await startLane(['second-lane', '--task', 't-heldaa1', '--root', repo]).catch(
+    () => undefined,
+  );
+  assert.equal(locateTask(repo, 't-heldaa1').heldBy?.branch, 'held-lane');
+});
