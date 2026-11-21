@@ -77,7 +77,7 @@ import { outsideCredentialArgs } from './outside-git.ts';
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--lane LANE_ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; any lane is refused with exit 75 while host load per core reaches KRN_LANE_LOAD_PER_CORE (default 1.25), available memory is below KRN_LANE_MIN_MB (default 2048) or the host heavy-job gate is full; prints the path and branch',
   'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]  run `krn doctor --unattended` (the vault window is --window-hours, default 8; a failure stops before any claim), then deliver up to N ready tasks one after another with the single-task run, printing one `id slug exit=N Ns` line per task; stops when two consecutive runs end with the same non-zero exit\n  krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session the worktree links the node_modules of the main checkout when git ignores the link (or the nested worktree resolves it), else the krn.json `install` command runs in it, and a failed install exits 71 with the claim released and no session started; the session runs with `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model` and `--setting-sources project`, and a session stopped at its cap exits 75, as does a start the host has no free capacity for; a session that ends unfinished after three identical Stop refusals with no edit between them exits 79 with a no-progress verdict naming the repeated refusal',
-  'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
+  'krn lane drop SLUG [--force] [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree; exit 65 naming the commit or task path when HEAD (branch or detached) has a commit no remote ref holds or the index or worktree changes anything under tasks/, unless --force',
   laneFinishUsage,
   'krn lane status [--root DIR]  one line per lane worktree: `live` (its `krn pr ship` runs, pid alive), `merged` (its ship merged on the base), `orphaned` (committed past the base, no pull request and no live ship: run `krn pr ship` or `krn lane finish`), `pr-open` (a pull request exists, no live ship), `empty` (no commit past the base) or `unknown` (gh cannot say)',
   'krn lane brief [--file PATH] [--task ID [--slug SLUG] [--actor NAME]] [--as-of YYYY-MM-DD] [--root DIR]  with --task, reserve the lane (a `reserved` manifest) and print its `bin/krn lane start SLUG --task ID --lane LANE_ID --actor NAME` line first (slug defaults to the task id, actor to `lane`); print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records, followed by the in-force worker standards of .agents/standards.json (inherited ones marked)',
@@ -455,28 +455,35 @@ function claimsFrom(main: string, worktree: string): string[] {
   return ids;
 }
 
-/** Task records in the worktree that are uncommitted there and absent from the main checkout. */
-function soleTaskRecords(main: string, worktree: string): string[] {
+/** A lane drop that would lose work only the lane holds; exit 65 (invalid state): push or copy it, or pass --force. */
+export class LaneDropRefusal extends Error {
+  readonly exitCode = 65;
+}
+
+/** What the worktree holds that no remote has: a commit unreachable from every remote ref, or any change under tasks/. */
+function unsavedLaneWork(worktree: string): string | undefined {
+  const commit = spawnSync(
+    'git',
+    ['-C', worktree, 'rev-list', '--max-count=1', 'HEAD', '--not', '--remotes'],
+    { encoding: 'utf8' },
+  );
+  const sha = commit.status === 0 ? commit.stdout.trim() : '';
+  if (sha !== '') return `commit ${sha.slice(0, 12)} that no remote ref holds`;
   const status = spawnSync(
     'git',
     ['-C', worktree, 'status', '--porcelain', '-uall', '--', 'tasks'],
     { encoding: 'utf8' },
   );
-  if (status.status !== 0) return [];
-  const ids: string[] = [];
-  for (const line of status.stdout.split('\n')) {
-    const match = /tasks\/(t-[a-z0-9]+)\.json$/u.exec(line);
-    if (match?.[1] === undefined || line.startsWith(' D')) continue;
-    if (!existsSync(join(main, 'tasks', `${match[1]}.json`)))
-      ids.push(match[1]);
-  }
-  return ids;
+  const line = status.status === 0 ? status.stdout.split('\n')[0] : undefined;
+  if (line === undefined || line === '') return undefined;
+  return `the uncommitted task change ${line.slice(3)}`;
 }
 
 /** Drop a dead lane: release its claims, remove the worktree and delete the branch. */
 export async function dropLane(rest: string[]): Promise<string> {
   let slug: string | undefined;
   let root: string | undefined;
+  let force = false;
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index] as string;
     if (arg === '--root')
@@ -485,6 +492,7 @@ export async function dropLane(rest: string[]): Promise<string> {
         index++,
         () => new CliUsageError('--root requires a value'),
       );
+    else if (arg === '--force') force = true;
     else if (arg.startsWith('--') || slug !== undefined)
       throw new CliUsageError(laneUsage);
     else slug = arg;
@@ -510,10 +518,10 @@ export async function dropLane(rest: string[]): Promise<string> {
   const released: string[] = [];
   const hasWorktree = existsSync(path);
   if (hasWorktree) {
-    const only = soleTaskRecords(main, path);
-    if (only.length > 0)
-      throw new CliUsageError(
-        `lane ${slug} holds the only copy of ${only.join(', ')}; commit it on the lane branch or copy it to the main checkout, then drop again`,
+    const unsaved = force ? undefined : unsavedLaneWork(path);
+    if (unsaved !== undefined)
+      throw new LaneDropRefusal(
+        `lane ${slug} holds ${unsaved}; push it, or pass --force to drop the lane and lose it`,
       );
     const real = realpathSync(path);
     const ship = liveShipPid(path);

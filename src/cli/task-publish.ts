@@ -6,6 +6,7 @@ import { mainCheckoutRoot } from '../task/claims.ts';
 import { branchOnOrigin, publishableTaskFiles } from '../task/pending.ts';
 import { publishPendingRecords, settlePublished } from '../task/storage.ts';
 import { repositoryRoot } from '../task/store.ts';
+import { git } from './git-with.ts';
 import { dropLane, startLane } from './lane.ts';
 import { cliShipRuntime } from './pr.ts';
 
@@ -15,11 +16,24 @@ export const publishUsage =
 /**
  * A publish that failed before its branch reached the origin leaves a worktree and branch that
  * make the retry exit 64 "already exists": drop them. The records stay on the pending ref.
- * A pushed branch may carry an open PR, so it stays for `krn pr ship` to reuse.
+ * A pushed branch may carry an open PR, so it stays for `krn pr ship` to reuse. The publish
+ * commit is the one commit the lane may lose, so it is undone first; any change left under tasks/
+ * (a record a commit hook wrote, a rejected commit) is work only the lane holds, and the lane stays.
  */
 async function dropUnpushedLane(main: string, slug: string): Promise<void> {
   if (branchOnOrigin(main, slug)) return;
+  const path = join(main, '.krn', 'worktrees', slug);
   try {
+    if (git(path, ['status', '--porcelain', '-uall', '--', 'tasks']) !== '')
+      return;
+    const ahead = git(path, [
+      'rev-list',
+      '--count',
+      'HEAD',
+      '--not',
+      '--remotes',
+    ]);
+    if (ahead === '1') git(path, ['reset', '-q', '--hard', 'HEAD^']);
     await dropLane([slug, '--root', main]);
   } catch {
     // The original failure is the one to report.

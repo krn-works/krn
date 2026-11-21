@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { liveGate, recoveryScenario } from '../../evals/adoption/recovery.ts';
+import { admitLanesOnAnyHost } from '../helpers/lane-host.ts';
+
+admitLanesOnAnyHost();
 
 // KRN-12: the real drain, lane run and ship deliver a scratch outside repository; only the GitHub
 // API (a stand-in at the gh boundary writing squash merges into the bare origin), the App mint and

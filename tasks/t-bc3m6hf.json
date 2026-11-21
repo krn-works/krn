@@ -1,0 +1,18 @@
+{
+  "id": "t-bc3m6hf",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane drop refuses (exit 65, names commit or tasks/ path and --force) on a commit no remote ref holds (branch or detached) or any index/worktree change under tasks/; laneOnlyRecords comparison gone; real-git tests in test/lane/drop-refusal.test.ts"
+  },
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "lane drop refuses any unpushed lane commit or task change instead of comparing record versions",
+  "after": [],
+  "body": [
+    "Evidence: #1569 (branch drop-guard, head d8bfd8f, task record t-5sptxvr on that branch) parked after 4 review rounds; each round found another way a content comparison of lane record versions (tip, index, worktree, detached HEAD, pending ref, history) misses or over-counts (.krn/runs/review/ for d8bfd8f: detached-staged-deletion, pending-shadows-copy, historical-record).\nOutcome: lane drop refuses (exit 65) whenever the lane's HEAD (branch or detached) has a commit not reachable from any remote ref, or its index or worktree has any change under tasks/, unless --force; no record-content comparison remains (laneOnlyRecords deleted or reduced to that rule). The three reproductions above give the conservative verdict.\nProof: real-git tests for: unpushed commit, detached HEAD commit, staged deletion, untracked task file, clean pushed lane drops.\nFiles: src/cli/lane.ts, src/task/storage.ts, test/lane/"
+  ],
+  "kind": "defect",
+  "area": "lane"
+}
