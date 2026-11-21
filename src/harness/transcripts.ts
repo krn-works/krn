@@ -1,8 +1,9 @@
-import { createReadStream } from 'node:fs';
+import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join, sep } from 'node:path';
 import { createInterface } from 'node:readline';
+import { projectSlug } from './transcript-prefix.ts';
 
 /** The only reader of agent-harness transcript files: locates them and iterates their lines. */
 
@@ -94,4 +95,36 @@ export async function transcriptDirs(
 /** The directory holding every project's transcripts and auto memory; a missing HOME maps to a path that never exists. */
 export function projectsStore(): string {
   return join(process.env.HOME ?? '/nonexistent', '.claude/projects');
+}
+
+/** The newest `limit` transcripts of the given working directories (a repository's checkouts), by exact project directory name. */
+export function recentTranscriptFiles(
+  cwds: readonly string[],
+  limit: number,
+  projects: string = projectsStore(),
+): string[] {
+  const names = new Set(cwds.map(projectSlug));
+  let dirs: string[];
+  try {
+    dirs = readdirSync(projects).filter((d) => names.has(d));
+  } catch {
+    return [];
+  }
+  return dirs
+    .flatMap((dir) => jsonlFilesSync(join(projects, dir)))
+    .map((path) => ({ path, at: statSync(path).mtimeMs }))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, limit)
+    .map((entry) => entry.path);
+}
+
+function jsonlFilesSync(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(EXTENSION))
+    .map((e) => join(directory, e.name));
+}
+
+/** A transcript's lines, read whole. */
+export function transcriptLinesSync(path: string): string[] {
+  return readFileSync(path, 'utf8').split('\n');
 }

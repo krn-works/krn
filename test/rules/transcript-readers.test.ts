@@ -40,7 +40,11 @@ test('no source outside src/harness reads transcript files', async () => {
     const text = await readFile(file, 'utf8');
     if (/agent_transcript_path|\btranscript_path\b|transcriptPath/u.test(text))
       payloadReaders.push(file.slice(src.length));
-    if (/\.claude\/projects|createInterface|['"`]subagents['"`]/u.test(text))
+    if (
+      /\.claude\/projects|readdir(?:Sync)?\(\s*projects\b|createInterface|['"`]subagents['"`]/u.test(
+        text,
+      )
+    )
       readers.push(file.slice(src.length));
   }
   assert.deepEqual(readers, []);

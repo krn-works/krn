@@ -6,11 +6,11 @@ compatibility: Requires the krn CLI on PATH and git; works in any repository sta
 
 # Delivery retro
 
-Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed now, with its regression test. Another lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`. Never open a separate retro pull request. Cite evidence by pointer. Read the test and fast commands from `krn repo contract`.
+Goal: the next slice is cheaper. A defect with an obvious few-line fix is fixed now, with its regression test. Another lesson inside the task scope ships in the slice pull request; one outside it becomes `krn task create`. Never open a separate retro pull request. Cite evidence by pointer.
 
 ## Measure first
 
-List the commits naming the task, the wall time, merged pull requests, CI reruns and user interventions; one line per category below beats a narrative.
+Start from the ranked causes recurring across recent transcripts and review comments, if the repository prints them, then list the task's commits, wall time, PRs, CI reruns and interventions.
 
 If the slice hit a workaround or a tool refusal, write each (with evidence paths) to `.krn/tmp/friction.md` and run the repository's critique script on it, if any. Each finding gets a task or a disposition.
 

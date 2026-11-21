@@ -1,11 +1,17 @@
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { flagValue } from '../cli-kit/flag-value.ts';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { configHome } from '../harness/claude.ts';
+import {
+  recentTranscriptFiles,
+  transcriptLinesSync,
+} from '../harness/transcripts.ts';
 import { collectWindow, renderWindow } from '../outcome/window.ts';
 import { inspectState } from '../state/check.ts';
 import { applyTidy, planTidy } from '../state/layout.ts';
 import { resumeBrief } from '../state/resume.ts';
 import { renderRetro } from '../state/retro.ts';
+import { checkouts, renderRetroCauses } from '../state/retro-causes.ts';
 import { resolveRepositoryRoot } from '../state/runs.ts';
 import {
   acceptCriterion,
@@ -16,6 +22,7 @@ import {
   writeRunIndex,
 } from '../state/write.ts';
 import { releaseClosedClaims } from '../task/claims.ts';
+import { readReviewComments } from './retro-review.ts';
 
 const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +
@@ -25,7 +32,7 @@ const usage =
   'krn state accept <criterion> todo|pass|drop:<why> [--capsule ID] [--root DIR]  upsert an acceptance ledger entry\n' +
   'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md (Resume, Merged since the previous SHA)\n' +
   'krn state tidy [--dry-run] [--root DIR]  move entries outside the .krn/ layout to .krn/tmp/stray, delete data past retention, regenerate .krn/INDEX.md; --dry-run only prints\n' +
-  'krn state retro --task ID [--root DIR]  print the retro skeleton: commits, wall time and PRs naming the task, one line per candidate category';
+  'krn state retro [--task ID] [--sessions N] [--root DIR]  print the retro skeleton (commits, wall time and PRs naming the task, one line per candidate category) and, with --sessions, the ranked recurring causes from the last N session transcripts and krn-review comments';
 
 const VALUE_FLAGS = [
   '--capsule',
@@ -157,28 +164,56 @@ export async function stateCommand(args: string[]): Promise<void> {
   if (verb === 'retro') {
     let task: string | undefined;
     let root: string | undefined;
+    let sessions: string | undefined;
     const rest = args.slice(1);
     for (let index = 0; index < rest.length; index += 1) {
       const arg = rest[index] as string;
-      if (arg !== '--task' && arg !== '--root') throw new CliUsageError(usage);
+      if (arg !== '--task' && arg !== '--root' && arg !== '--sessions')
+        throw new CliUsageError(usage);
       const value = flagValue(
         rest,
         index,
         () => new CliUsageError(`${arg} requires a value`),
       );
       if (arg === '--task') task = value;
+      else if (arg === '--sessions') sessions = value;
       else root = value;
       index += 1;
     }
-    if (!task) throw new CliUsageError(usage);
+    if (!task && !sessions) throw new CliUsageError(usage);
+    if (sessions !== undefined && !/^[1-9]\d*$/.test(sessions))
+      throw new CliUsageError('--sessions requires a positive integer');
     try {
-      const text = await renderRetro(
-        root ?? process.cwd(),
-        task,
-        async (from, to, main) =>
-          renderWindow(await collectWindow({ from, to, root: main })),
+      const skeleton = task
+        ? await renderRetro(
+            root ?? process.cwd(),
+            task,
+            async (from, to, main) =>
+              renderWindow(await collectWindow({ from, to, root: main })),
+          )
+        : undefined;
+      const causes =
+        sessions === undefined
+          ? undefined
+          : (() => {
+              const repository = resolveRepositoryRoot(
+                root ?? process.cwd(),
+              ).root;
+              return renderRetroCauses(
+                recentTranscriptFiles(
+                  checkouts(repository),
+                  Number(sessions),
+                  join(configHome(), 'projects'),
+                ).map((path) => ({
+                  name: basename(path),
+                  lines: transcriptLinesSync(path),
+                })),
+                readReviewComments(repository, 30),
+              );
+            })();
+      process.stdout.write(
+        `${[causes, skeleton].filter(Boolean).join('\n\n')}\n`,
       );
-      process.stdout.write(`${text}\n`);
     } catch (error) {
       throw new CliUsageError(
         error instanceof Error ? error.message : String(error),
