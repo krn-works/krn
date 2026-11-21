@@ -2,13 +2,13 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import type { ArmId } from './arms.ts';
+import type { RowArm } from './arms.ts';
 import type { Verdict } from './attempt.ts';
 import type { TokenCounts } from './token-cost.ts';
 
 export interface Row {
   unit: string;
-  arm: ArmId;
+  arm: RowArm;
   rep: number;
   pass: boolean | null;
   /** USD for the session; null when the session reported none (unknown, never 0) and for a dry row. */

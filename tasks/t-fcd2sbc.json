@@ -1,0 +1,18 @@
+{
+  "id": "t-fcd2sbc",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "matrix runs A,B,C,A' per (unit,rep) in a seeded order; report prints A'-A flip rate and paired pass/cost differences outside Holm, miscalibrated flag; tests in replay-matrix and replay-abc pass"
+  },
+  "created": "2026-11-20",
+  "priority": 0,
+  "title": "Replay interleaves arms per unit and rep and runs an A/A replicate arm outside the Holm family",
+  "after": [],
+  "body": [
+    "Source: t-1dfwa0h (ADR 0021 point 12, operator grant 2026-11-19 memory s8-prereg-amendment-grant); evals/replay/abc.prereg.md \"Noise and integrity\" rules.\nEvidence: evals/replay/matrix.ts:97-98 nests arms outside reps (A x3, then B x3, then C x3 per unit); evals/replay/arms.ts knows only A, B, C; no flip-rate computation exists.\nOutcome: for each unit and rep the matrix runs A, B, C and A' back to back in an order drawn from a seeded shuffle of (unit, rep); A' is arm A's configuration under its own id; the report prints the A'-A flip rate (share of unit-reps whose pass differs) and the A'-A paired difference with its 95% CI for pass rate and token-priced cost, outside the Holm family of the confirmatory contrasts, and flags the run miscalibrated when A'-A is shown at alpha.\nProof: a matrix test asserts the order per (unit, rep) is a permutation of the four arms and differs across reps; a report test on fixture rows prints the flip rate and refuses to put A' in the Holm family."
+  ],
+  "kind": "feature",
+  "area": "evals"
+}

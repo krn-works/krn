@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { armOrder } from '../../evals/replay/arms.ts';
 import { DiskBudgetError } from '../../evals/replay/live.ts';
 import { runMatrix } from '../../evals/replay/matrix.ts';
 import { harnessSha } from '../../evals/replay/rows.ts';
@@ -106,27 +107,79 @@ const matrixRun = (
 const lines = (file: string) =>
   readFileSync(file, 'utf8').split('\n').filter(Boolean);
 
-test('--prereg runs arms A, B and C with no --screen, then resumes without rerunning a written row', () => {
+test("--prereg runs A, B, C and A' per (unit, rep) back to back in a seeded order that differs across reps", () => {
+  const root = mkdtempSync(join(tmpdir(), 'replay-matrix-'));
+  try {
+    const f = fixture(root);
+    writeFileSync(
+      f.prereg,
+      readFileSync(f.prereg, 'utf8').replace('reps: 1', 'reps: 3'),
+    );
+    const run = matrixRun(root, f);
+    assert.equal(run.status, 0, run.stderr);
+    const rows = lines(join(root, 'rows.jsonl')).map((l) => JSON.parse(l));
+    assert.equal(rows.length, 12);
+    const orders = [1, 2, 3].map((rep) => {
+      const group = rows.slice((rep - 1) * 4, rep * 4);
+      assert.ok(
+        group.every((r) => r.rep === rep),
+        'a rep is run back to back',
+      );
+      return group.map((r) => r.arm);
+    });
+    for (const order of orders)
+      assert.deepEqual([...order].sort(), ['A', "A'", 'B', 'C']);
+    assert.ok(
+      new Set(orders.map((o) => o.join())).size > 1,
+      orders.join(' | '),
+    );
+    assert.deepEqual(
+      orders.map((o) => o.join()),
+      [1, 2, 3].map((rep) => armOrder(['A', 'B', 'C', "A'"], f.id, rep).join()),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the arm order is a pure function of the seed, the unit and the rep', () => {
+  const arms = ['A', 'B', 'C', "A'"];
+  assert.deepEqual(armOrder(arms, 't-1', 2), armOrder(arms, 't-1', 2));
+  assert.deepEqual(armOrder(arms, 't-1', 2).sort(), [...arms].sort());
+  const seen = new Set(
+    [1, 2, 3, 4, 5, 6].map((rep) => armOrder(arms, 't-1', rep).join()),
+  );
+  assert.ok(seen.size > 1);
+  assert.ok(
+    [1, 2, 3, 4, 5, 6].some(
+      (rep) =>
+        armOrder(arms, 't-1', rep, 'other').join() !==
+        armOrder(arms, 't-1', rep).join(),
+    ),
+  );
+});
+
+test("--prereg runs arms A, B, C and A' with no --screen, then resumes without rerunning a written row", () => {
   const root = mkdtempSync(join(tmpdir(), 'replay-matrix-'));
   try {
     const f = fixture(root);
     const first = matrixRun(root, f);
     assert.equal(first.status, 0, first.stderr);
-    assert.match(first.stdout, /verdict: 3 rows written, 3 graded, 3 pass/);
+    assert.match(first.stdout, /verdict: 4 rows written, 4 graded, 4 pass/);
     const rowsFile = join(root, 'rows.jsonl');
     const rows = lines(rowsFile).map((l) => JSON.parse(l));
-    assert.deepEqual(rows.map((r) => r.arm).sort(), ['A', 'B', 'C']);
+    assert.deepEqual(rows.map((r) => r.arm).sort(), ['A', "A'", 'B', 'C']);
     assert.ok(rows.every((r) => r.pass === true && r.unit === f.id));
     assert.equal(new Set(rows.map((r) => r.harness)).size, 1);
     // a stop after the second row leaves two rows; the rerun runs only the missing cell
-    writeFileSync(rowsFile, `${lines(rowsFile).slice(0, 2).join('\n')}\n`);
+    writeFileSync(rowsFile, `${lines(rowsFile).slice(0, 3).join('\n')}\n`);
     const resumed = matrixRun(root, f);
     assert.equal(resumed.status, 0, resumed.stderr);
     assert.match(resumed.stdout, /verdict: 1 rows written, 1 graded, 1 pass/);
-    assert.equal(lines(rowsFile).length, 3);
+    assert.equal(lines(rowsFile).length, 4);
     const again = matrixRun(root, f);
     assert.match(again.stdout, /verdict: 0 rows written/);
-    assert.equal(lines(rowsFile).length, 3);
+    assert.equal(lines(rowsFile).length, 4);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -199,7 +252,10 @@ test('the budget is checked before each unit: rows written so far stay, the run 
       DiskBudgetError,
     );
     assert.equal(lines(rowsFile).length, 1);
-    assert.equal(JSON.parse(lines(rowsFile)[0] as string).arm, 'A');
+    assert.equal(
+      JSON.parse(lines(rowsFile)[0] as string).arm,
+      armOrder(['A', 'B', 'C', "A'"], 't-aaaaaaa', 1)[0],
+    );
     // the finished cell's checkout is gone with its row
     assert.deepEqual(
       readdirSync(scratch).filter((n) => n.startsWith('session-')),

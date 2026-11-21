@@ -13,7 +13,7 @@ import {
   parsePrereg,
   reportLines,
 } from '../../evals/replay/abc.ts';
-import type { ArmId } from '../../evals/replay/arms.ts';
+import type { ArmId, RowArm } from '../../evals/replay/arms.ts';
 import type { Row } from '../../evals/replay/rows.ts';
 import { eligible, type ScreenUnit } from '../../evals/replay/screen.ts';
 import { loadUnits } from '../../evals/units/unit.ts';
@@ -26,7 +26,7 @@ const close = (a: number, b: number) =>
   assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`);
 
 /** Three reps of one arm on one unit: `passes` of them pass, each costing `cost`. */
-const reps = (unit: string, arm: ArmId, passes: number, cost: number): Row[] =>
+const reps = (unit: string, arm: RowArm, passes: number, cost: number): Row[] =>
   [1, 2, 3].map((rep) => ({
     unit,
     arm,
@@ -336,4 +336,81 @@ test('a strict report over a partial matrix names only incomplete', () => {
   assert.equal(out.status, 65);
   assert.match(out.stderr, /verdict: matrix incomplete \(\d+ problems\)/);
   assert.doesNotMatch(out.stderr, /mixed|duplicate|harness|model/);
+});
+
+/** The first test's rows (C beats A and B on every unit) plus A' passing `aaPasses` of 3 on each unit. */
+const withReplicate = (aaPasses: number, aaCost = 1): Row[] => {
+  const base = frozen.units.flatMap((u, i) => [
+    ...reps(u, 'C', 3, 1),
+    ...reps(u, 'A', [0, 0, 1, 1][i] as number, 1),
+    ...reps(u, 'B', [1, 1, 2, 2][i] as number, 1),
+  ]);
+  return [
+    ...base,
+    ...frozen.units.flatMap((u) => reps(u, "A'", aaPasses, aaCost)),
+  ];
+};
+
+test("A'-A prints the flip rate and the paired difference, and A' stays out of the Holm family", () => {
+  const plain = analyze(
+    withReplicate(0).filter((r) => r.arm !== "A'"),
+    frozen,
+  );
+  // A' repeats A exactly: passes [0,0,1,1] of 3 per unit.
+  const rows = frozen.units.flatMap((u, i) => [
+    ...withReplicate(0).filter((r) => r.unit === u && r.arm !== "A'"),
+    ...reps(u, "A'", [0, 0, 1, 1][i] as number, 1),
+  ]);
+  const r = analyze(rows, frozen);
+  assert.equal(r.aa?.flips, 0);
+  assert.equal(r.aa?.pairs, 12);
+  assert.equal(r.aa?.shown, false);
+  // Holm m is still the two confirmatory contrasts: A' rows change none of their adjusted p.
+  assert.deepEqual(
+    r.contrasts.map((c) => [c.name, c.rawP, c.adjustedP, c.shown]),
+    plain.contrasts.map((c) => [c.name, c.rawP, c.adjustedP, c.shown]),
+  );
+  const lines = reportLines(r, frozen);
+  assert.ok(
+    lines.some((l) => /^noise: A'-A flip rate 0\.0% \(0 of 12/.test(l)),
+  );
+  assert.ok(
+    lines.some((l) =>
+      /^noise: A'-A pass rate \+0\.0 pp, 95% CI .*outside the Holm family/.test(
+        l,
+      ),
+    ),
+  );
+  assert.ok(lines.some((l) => /^noise: A'-A cost ratio 1\.00 /.test(l)));
+  assert.ok(!lines.some((l) => l.includes('miscalibrated')));
+});
+
+test("A'-A shown at alpha flags the run miscalibrated and reads every contrast as not shown", () => {
+  // A passes [0,0,1,1] of 3, A' passes 3 of 3 everywhere, at twice the cost: the replicate differs from A.
+  const r = analyze(withReplicate(3, 2), frozen);
+  assert.equal(r.aa?.shown, true);
+  assert.ok((r.aa?.flipRate as number) > 0.5);
+  assert.ok(r.contrasts.every((c) => !c.shown && !c.costShown));
+  const lines = reportLines(r, frozen);
+  assert.ok(
+    lines.some((l) => /^noise: A'-A flip rate 83\.3% \(10 of 12/.test(l)),
+  );
+  assert.ok(lines.some((l) => /^verdict: miscalibrated/.test(l)));
+  assert.ok(
+    lines
+      .filter((l) => l.startsWith('secondary: pass rate'))
+      .every((l) => /, not shown /.test(l)),
+  );
+  // Without A' rows the report states it was not measured and the contrasts keep their verdicts.
+  const none = analyze(
+    withReplicate(3).filter((x) => x.arm !== "A'"),
+    frozen,
+  );
+  assert.equal(none.aa, undefined);
+  assert.equal(none.contrasts[0]?.shown, true);
+  assert.ok(
+    reportLines(none, frozen).some((l) =>
+      l.startsWith("noise: A'-A not measured"),
+    ),
+  );
 });

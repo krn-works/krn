@@ -1,4 +1,5 @@
-// The frozen A/B/C matrix in one run: every (unit, arm, rep) cell of the preregistration on one harness sha, each
+// The frozen A/B/C matrix in one run: every (unit, arm, rep) cell of the preregistration on one harness sha, plus the
+// A/A replicate A', the four arms of one (unit, rep) back to back in a seeded order (arms.ts armOrder), each
 // finished row appended at once, a rerun skipping the cells that already hold a graded or settled row. Units of one
 // repository run oldest commit first, so arm C carries what its earlier failures taught (memory.ts); repositories run
 // side by side, at most KRN_EVAL_MAX_SESSIONS at a time. Each cell checks the disk budget (src/repo/disk-budget.ts)
@@ -9,7 +10,7 @@ import { budgetShortfall } from '../../src/repo/disk-budget.ts';
 import { armBRow, formatTokens } from './arm-b.ts';
 import { armCRow } from './arm-c.ts';
 import { type ArmOptions, armRow } from './arm-session.ts';
-import { ARMS, type ArmId } from './arms.ts';
+import { ARMS, armOrder, ORDER_SEED, type RowArm } from './arms.ts';
 import { DiskBudgetError, type LiveUnit } from './live.ts';
 import { commitDateOrder, RepoMemory } from './memory.ts';
 import { formatRow, type Row } from './rows.ts';
@@ -18,7 +19,9 @@ import { readRows } from './screen.ts';
 export interface MatrixOptions extends ArmOptions {
   rowsFile: string;
   reps: number;
-  arms?: ArmId[];
+  arms?: RowArm[];
+  /** Seed of the per-(unit, rep) arm order; defaults to ORDER_SEED. */
+  orderSeed?: string;
   /** Free-space probe in GB per directory (tests pass a stub); defaults to the host's statfs. */
   freeGb?: ((dir: string) => number | undefined) | undefined;
   /** Called with each row once it is appended, and with arm B's token line. */
@@ -39,9 +42,13 @@ const finished = (r: Row): boolean =>
 const cell = (r: Pick<Row, 'unit' | 'arm' | 'rep'>): string =>
   `${r.unit}/${r.arm}/${r.rep}`;
 
-/** Arm A on the shared session path: the plain checkout and the task text, no preparation. */
-export const armARow = (lu: LiveUnit, o: ArmOptions, rep: number) =>
-  armRow(ARMS.A, lu, o, rep, () => undefined);
+/** Arm A (or its replicate A') on the shared session path: the plain checkout and the task text, no preparation. */
+export const armARow = (
+  lu: LiveUnit,
+  o: ArmOptions,
+  rep: number,
+  arm: 'A' | "A'" = 'A',
+) => armRow(ARMS[arm], lu, o, rep, () => undefined);
 
 /** Runs the missing cells of `units` x arms x 1..reps; returns the rows this run wrote. */
 export async function runMatrix(
@@ -69,7 +76,7 @@ export async function runMatrix(
     renameSync(tmp, o.rowsFile);
   }
   const done = new Map(existing.filter(finished).map((r) => [cell(r), r]));
-  const arms = o.arms ?? (['A', 'B', 'C'] as ArmId[]);
+  const arms = o.arms ?? (['A', 'B', 'C', "A'"] as RowArm[]);
   const today = o.today ?? new Date().toISOString().slice(0, 10);
   const written: Row[] = [];
   let stopped: DiskBudgetError | undefined;
@@ -94,8 +101,13 @@ export async function runMatrix(
   const runRepo = async (repoUnits: LiveUnit[]) => {
     const memory = new RepoMemory();
     for (const lu of repoUnits)
-      for (const arm of arms)
-        for (let rep = 1; rep <= o.reps; rep++) {
+      for (let rep = 1; rep <= o.reps; rep++)
+        for (const arm of armOrder(
+          arms,
+          lu.unit.id,
+          rep,
+          o.orderSeed ?? ORDER_SEED,
+        )) {
           if (stopped) return;
           const have = done.get(cell({ unit: lu.unit.id, arm, rep }));
           if (have) {
@@ -110,7 +122,8 @@ export async function runMatrix(
             return;
           }
           const options = { ...o, memory: memory.forRepo(lu.unit.repo) };
-          if (arm === 'A') append((await armARow(lu, options, rep)).row);
+          if (arm === 'A' || arm === "A'")
+            append((await armARow(lu, options, rep, arm)).row);
           else if (arm === 'B') {
             const b = await armBRow(lu, options, rep, today);
             append(b.row, b.tokens && formatTokens(lu.unit.id, b.tokens));
