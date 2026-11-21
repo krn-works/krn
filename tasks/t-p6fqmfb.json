@@ -1,0 +1,14 @@
+{
+  "id": "t-p6fqmfb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-21",
+  "priority": 0,
+  "title": "Stop and claim readers read the lane manifest (ADR 0029 step 4)",
+  "after": [],
+  "body": [
+    "Evidence: ADR 0029 migration step 4 (docs/adr/0029-lane-manifest-and-task-writer.md, \"Stop and claims on the manifest\"); steps 1-3 merged (#1565 38d1399, #1572 5f52930). Today Stop and claim readers infer lane state from transcripts and raw claim files.\nOutcome: recordedShip, laneRecords, laneWorktreeIn, claimedWorktree and ownerCheckout read the lane manifest (src/lane/manifest.ts); the manifest writer claims and releases through src/task/claims.ts; their transcript and raw claim reads are deleted (grep for the old readers prints 0 matches outside src/lane and src/task/claims.ts).\nProof: real-git tests: a lane started, shipped and dropped gives the same Stop verdicts as before through the manifest; a lane with no manifest keeps the legacy verdict.\nFiles: src/hook/stop.ts, src/lane/manifest.ts, src/task/claims.ts, test/hook/, test/lane/"
+  ],
+  "kind": "debt",
+  "area": "lane"
+}
