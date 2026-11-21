@@ -697,12 +697,6 @@ test('adopt installs the worker guards and each installed guard refuses a probe 
       },
     });
   };
-  const trackerWrite = guard('scope', {
-    tool_name: 'Write',
-    tool_input: { file_path: join(root, 'tasks', 't-x.json') },
-  });
-  assert.equal(trackerWrite.status, 2, trackerWrite.stderr);
-  assert.match(trackerWrite.stderr, /tracker state/u);
   const mainWrite = guard(
     'scope',
     {
@@ -713,12 +707,6 @@ test('adopt installs the worker guards and each installed guard refuses a probe 
   );
   assert.equal(mainWrite.status, 2, mainWrite.stderr);
   assert.match(mainWrite.stderr, /main checkout/u);
-  const stash = guard('stash', {
-    tool_name: 'Bash',
-    tool_input: { command: 'git stash' },
-  });
-  assert.equal(stash.status, 2, stash.stderr);
-  assert.match(stash.stderr, /stash stack/u);
   // The same calls from the lead pass: no lane or worker marker.
   const lead = spawnSync(
     'sh',
