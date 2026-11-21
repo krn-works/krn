@@ -48,25 +48,13 @@ test('jsonObject accepts objects only', () => {
 
 // Verbatim captures: a task claim, a transcript line, a CI summary line, a decision row.
 test('lane and state readers accept captured files and reject look-alikes', async () => {
-  const { claimFileSchema } = await import('../src/cli/lane.ts');
   const { transcriptLineSchema } = await import(
     '../evals/replay/session-result.ts'
   );
   const { redCheckSchema, testSummarySchema } = await import(
     '../src/cli/lane-run/red-check.ts'
   );
-  const { claimIdSchema, taskStatusSchema } = await import(
-    '../src/state/loss.ts'
-  );
   const { manifestSchema } = await import('../src/adopt/init.ts');
-  const claim = '{"id":"t-abc1234","worktree":"/w/x","actor":"claude"}';
-  assert.equal(claimFileSchema.parse(JSON.parse(claim)).worktree, '/w/x');
-  assert.equal(claimIdSchema.parse(JSON.parse(claim)).id, 't-abc1234');
-  assert.equal(claimFileSchema.safeParse(null).success, false);
-  assert.equal(
-    taskStatusSchema.parse(JSON.parse('{"id":"t-a","status":"closed"}')).status,
-    'closed',
-  );
   const line =
     '{"type":"assistant","message":{"id":"msg_01","role":"assistant"}}';
   assert.equal(

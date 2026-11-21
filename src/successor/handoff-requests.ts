@@ -1,12 +1,13 @@
 // Handoff request check.
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { resumeProblems } from '../memory/handoff-resume.ts';
 import {
   markHandoff,
   oneLine,
   openEntries,
 } from '../memory/operator-inbox-store.ts';
+import { listTaskFields } from '../task/store.ts';
 
 // The inbox-to-task invariant: no operator prompt lacks a disposition, and every open task that records an
 // operator request is named in the handoff. The handoff's prose layout is not checked.
@@ -32,25 +33,11 @@ const operatorPattern =
   /\bverbatim\b|\bOperator\b[^.\n]{0,80}?(?:\basked\b|\bsaid\b|\brequested\b|\):|:\s*["“])/u;
 
 function operatorTasks(root: string): string[] {
-  const directory = join(root, 'tasks');
-  let names: string[];
-  try {
-    names = readdirSync(directory);
-  } catch {
-    return [];
-  }
   const ids: string[] = [];
-  for (const name of names.sort()) {
-    if (!/^t-[a-z0-9]{7}\.json$/u.test(name)) continue;
-    let task: { id?: unknown; status?: unknown; body?: unknown };
-    try {
-      task = JSON.parse(readFileSync(join(directory, name), 'utf8'));
-    } catch {
-      continue;
-    }
+  for (const { id, fields: task } of listTaskFields(root)) {
+    if (!/^t-[a-z0-9]{7}$/u.test(id)) continue;
     if (task.status !== 'open' || !Array.isArray(task.body)) continue;
-    if (operatorPattern.test(task.body.join('\n')))
-      ids.push(name.slice(0, -'.json'.length));
+    if (operatorPattern.test(task.body.join('\n'))) ids.push(id);
   }
   return ids;
 }

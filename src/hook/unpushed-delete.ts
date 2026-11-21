@@ -1,8 +1,8 @@
 // Unpushed-delete hook.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { findArchived } from '../task/archive.ts';
+import { readClaim, readTaskText } from '../task/store.ts';
 import { commandsOf, gitCall, resolveCommand } from './shell-reader.ts';
 
 // PreToolUse hook for Bash: refuses `git branch -D` and `git worktree remove` when the
@@ -112,11 +112,8 @@ function squashMerged(cwd: At, tip: string): boolean {
 
 // `krn task edit` on a claimed task writes into the claiming worktree's copy.
 function claimTask(root: string, id: string): string {
-  const claim = JSON.parse(
-    readFileSync(join(root, '.krn', 'task-claims', `${id}.json`), 'utf8'),
-  ) as { worktree?: unknown };
-  if (typeof claim.worktree !== 'string') return '';
-  return readFileSync(join(claim.worktree, 'tasks', `${id}.json`), 'utf8');
+  const worktree = readClaim(root, id)?.worktree;
+  return typeof worktree === 'string' ? (readTaskText(worktree, id) ?? '') : '';
 }
 
 const read = (load: () => string) => {
@@ -189,9 +186,7 @@ export function decide(payload: unknown): string | undefined {
       const root = dirname(
         git(at, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
       );
-      let task = read(() =>
-        readFileSync(join(root, 'tasks', `${id}.json`), 'utf8'),
-      );
+      let task = readTaskText(root, id) ?? '';
       if (task === '') {
         // Closed and archived on main: that state wins over a stale open copy on the tip.
         if (read(() => findArchived(root, id)?.status ?? '') !== '') continue;

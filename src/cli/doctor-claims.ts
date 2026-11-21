@@ -1,9 +1,8 @@
 // `krn doctor` claim section: each task claim older than N hours whose branch holds no commit beyond the base.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { contractBase } from '../repo/contract.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
+import { listClaims } from '../task/store.ts';
 
 export const CLAIM_STALE_EXIT = 66;
 export const defaultClaimHours = 6;
@@ -49,25 +48,19 @@ export function staleClaimsReport(
   const hours = options.hours ?? defaultClaimHours;
   const now = options.now ?? Date.now();
   const probe = options.probe ?? gitCommitProbe;
-  const dir = join(root, '.krn', 'task-claims');
   const lines: string[] = [];
-  const names = existsSync(dir) ? readdirSync(dir).sort() : [];
   const base = contractBase(root);
-  for (const name of names) {
-    if (!name.endsWith('.json')) continue;
-    let claim: { id?: string; branch?: string; claimed?: string };
-    try {
-      claim = JSON.parse(readFileSync(join(dir, name), 'utf8'));
-    } catch {
-      continue;
-    }
-    const claimed = Date.parse(claim.claimed ?? '');
+  for (const { id, claim } of listClaims(root)) {
+    const name = `${id}.json`;
+    const claimed = Date.parse(
+      typeof claim.claimed === 'string' ? claim.claimed : '',
+    );
     if (!Number.isFinite(claimed) || typeof claim.branch !== 'string') continue;
     const age = (now - claimed) / 3_600_000;
     if (age < hours) continue;
     if ((probe(root, claim.branch, base) ?? 0) > 0) continue;
     lines.push(
-      `claim-stale=${claim.id ?? name} claimed ${age.toFixed(1)}h ago on ${claim.branch} with no commit`,
+      `claim-stale=${typeof claim.id === 'string' ? claim.id : name} claimed ${age.toFixed(1)}h ago on ${claim.branch} with no commit`,
     );
   }
   if (lines.length === 0) lines.push('claims=live');

@@ -16,18 +16,11 @@ import {
   recordSessionClass,
 } from '../memory/operator-inbox-store.ts';
 import { stateLoss } from '../state/loss.ts';
-import { object } from './io.ts';
+import { listClaims, readTaskFields } from '../task/store.ts';
 
 function closed(project: string, id: unknown): boolean {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/u.test(id)) return false;
-  try {
-    const task = object(
-      JSON.parse(readFileSync(join(project, 'tasks', `${id}.json`), 'utf8')),
-    );
-    return task.status === 'closed';
-  } catch {
-    return false;
-  }
+  return readTaskFields(project, id)?.status === 'closed';
 }
 
 function resumeTaskId(handoff: string): string | undefined {
@@ -78,16 +71,11 @@ export function taskBrief(
 ): string | undefined {
   const id = resumeTaskId(handoff);
   if (!id) return undefined;
-  try {
-    const task = object(
-      JSON.parse(readFileSync(join(project, 'tasks', `${id}.json`), 'utf8')),
-    );
-    const body = Array.isArray(task.body) ? task.body.join('\n') : '';
-    const text = `Task ${id} (${String(task.status)}, P${String(task.priority)}): ${String(task.title)}\n${body}`;
-    return text.length > limit ? `${cutText(text, limit - 1)}…` : text;
-  } catch {
-    return undefined; // A missing or unreadable record leaves the Resume line.
-  }
+  const task = readTaskFields(project, id);
+  if (task === undefined) return undefined; // A missing or unreadable record leaves the Resume line.
+  const body = Array.isArray(task.body) ? task.body.join('\n') : '';
+  const text = `Task ${id} (${String(task.status)}, P${String(task.priority)}): ${String(task.title)}\n${body}`;
+  return text.length > limit ? `${cutText(text, limit - 1)}…` : text;
 }
 
 // An entry idle for longer than this window is dead weight in the restart block.
@@ -155,28 +143,16 @@ export function restartText(
   const lines = [`Branch: ${branch}; HEAD: ${sha.slice(0, 7)}`];
   const now = Date.now();
   const liveClaims = new Set<string>();
-  const claims = join(main, '.krn/task-claims');
-  if (existsSync(claims)) {
-    for (const entry of readdirSync(claims, { withFileTypes: true }).sort(
-      (a, b) => a.name.localeCompare(b.name),
-    )) {
-      if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-      const path = join(claims, entry.name);
-      let claim: Record<string, unknown>;
-      try {
-        claim = object(JSON.parse(readFileSync(path, 'utf8')));
-      } catch {
-        continue; // One unreadable claim must not hide the rest.
-      }
-      // A claim on a closed task is stale; a missing record stays visible.
-      if (closed(project, claim.id)) continue;
-      // An idle claim is stale; it stays out of the model's context.
-      if (now - claimActivity(path, claim) > idleWindow) continue;
-      liveClaims.add(`.krn/task-claims/${entry.name}`);
-      lines.push(
-        `Open claim: ${entry.name} ${JSON.stringify({ id: claim.id, actor: claim.actor, branch: claim.branch }).slice(0, 160)}`,
-      );
-    }
+  // An unreadable claim is skipped: it must not hide the rest.
+  for (const { id, path, claim } of listClaims(main)) {
+    // A claim on a closed task is stale; a missing record stays visible.
+    if (closed(project, claim.id)) continue;
+    // An idle claim is stale; it stays out of the model's context.
+    if (now - claimActivity(path, claim) > idleWindow) continue;
+    liveClaims.add(`.krn/task-claims/${id}.json`);
+    lines.push(
+      `Open claim: ${id}.json ${JSON.stringify({ id: claim.id, actor: claim.actor, branch: claim.branch }).slice(0, 160)}`,
+    );
   }
   let newest: { path: string; mtime: number } | undefined;
   function visit(directory: string) {

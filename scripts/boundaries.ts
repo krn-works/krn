@@ -11,12 +11,12 @@ import { fileURLToPath } from 'node:url';
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   core: [],
   memory: ['harness'],
-  context: ['harness', 'hook', 'memory', 'state'],
+  context: ['harness', 'hook', 'memory', 'state', 'task'],
   successor: ['harness', 'memory', 'task', 'repo'],
   fs: [],
   harness: [],
   outcome: ['harness', 'repo', 'task'],
-  state: [],
+  state: ['task'],
   ci: ['repo', 'lane'],
   // The lane lifecycle reader (ADR 0028) and the lane's own session reads (ADR 0029 step 4); a lane with no manifest
   // is found through its task claim, read through src/task/claims.ts.
@@ -29,7 +29,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   // Scope and the start-command binding ask the lane manifest which lane a caller belongs to (ADR 0029).
   hook: ['brain', 'harness', 'lane', 'repo', 'state', 'task'],
   dispatch: ['context', 'harness', 'hook', 'root:scripts'],
-  brain: ['cli-kit', 'harness', 'repo'],
+  brain: ['cli-kit', 'harness', 'repo', 'task'],
   cli: [
     'cli-kit',
     'harness',

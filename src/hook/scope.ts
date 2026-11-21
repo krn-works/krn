@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, readFileSync, readlinkSync } from 'node:fs';
+import { lstatSync, readlinkSync } from 'node:fs';
 import {
   basename,
   dirname,
@@ -12,6 +12,7 @@ import {
 import { fileURLToPath } from 'node:url';
 import { harnessPaths, hookProjectDir, hookStdin } from '../harness/claude.ts';
 import { type LaneManifest, laneOfSession } from '../lane/manifest.ts';
+import { readTaskFields, type TaskFields } from '../task/store.ts';
 import { bindOnLaneStart } from './lane-binding.ts';
 import {
   gitCall,
@@ -80,15 +81,14 @@ export interface Worker {
 export const UNIDENTIFIED_LANE =
   'this lane session names no task: KRN_TASK (or KRN_LANE for a goal lane) is unset, so it cannot be told from the lead. Start it with `krn lane run`.';
 
+/** The body lines of a task record, joined; empty when the record has none. */
+function bodyText(task: TaskFields): string {
+  return Array.isArray(task.body) ? task.body.join('\n') : '';
+}
+
 function taskScope(root: string, id: string): string[] | undefined {
-  try {
-    const task = JSON.parse(
-      readFileSync(resolve(root, 'tasks', `${id}.json`), 'utf8'),
-    ) as { body?: string[] };
-    return parseScope((task.body ?? []).join('\n'));
-  } catch {
-    return undefined;
-  }
+  const task = readTaskFields(root, id);
+  return task === undefined ? undefined : parseScope(bodyText(task));
 }
 
 /**
@@ -103,17 +103,13 @@ export function laneTargets(
   const found = (env.KRN_LANE_TARGET ?? '').split(',');
   const id = env.KRN_TASK ?? taskId(branch) ?? taskId(basename(root));
   if (id !== undefined) {
-    try {
-      const task = JSON.parse(
-        readFileSync(resolve(root, 'tasks', `${id}.json`), 'utf8'),
-      ) as { body?: string[] };
-      for (const match of (task.body ?? [])
-        .join('\n')
-        .matchAll(/^\s*lane-target:\s*(\S+)/gimu))
+    // No task record: no admitted target.
+    const task = readTaskFields(root, id);
+    if (task !== undefined)
+      for (const match of bodyText(task).matchAll(
+        /^\s*lane-target:\s*(\S+)/gimu,
+      ))
         found.push(match[1] as string);
-    } catch {
-      // no task record: no admitted target
-    }
   }
   return found
     .map((entry) => entry.trim())
