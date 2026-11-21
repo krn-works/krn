@@ -31,6 +31,7 @@ export function normalizeLine(text: string): string {
     .replace(/<\/?tool_use_error>/g, '')
     .split(/ followed by|\. /)[0] as string;
   return first
+    .replace(/(?:\/[^\s'"`:,;)]+)+/g, '<path>')
     .replace(/\b[0-9a-f]{7,40}\b/g, '<sha>')
     .replace(/\d+/g, '<n>')
     .slice(0, 100);
@@ -55,13 +56,14 @@ export function readTranscript(path: string, name = basename(path)) {
   let prompts = 0;
   lines.forEach((raw, index) => {
     if (!raw.trim()) return;
-    let entry: { type?: string; message?: { content?: unknown } };
+    let entry: { type?: string; message?: { content?: unknown } } | null;
     try {
       entry = JSON.parse(raw);
     } catch {
       return;
     }
-    if (entry.type !== 'user') return;
+    if (entry === null || typeof entry !== 'object' || entry.type !== 'user')
+      return;
     const pointer = `${name}:${index + 1}`;
     const content = entry.message?.content;
     if (typeof content === 'string') {
@@ -103,14 +105,12 @@ export function parseReviewComment(
 ): EvidenceItem[] {
   if (!body.startsWith('krn-review:')) return [];
   const items: EvidenceItem[] = [];
-  for (const match of body.matchAll(
-    /^- \*\*(?:not )?reproduced\*\* (.+?) \(([^)]+)\)$/gm,
-  )) {
-    const where = (match[2] as string).split(',')[0]?.trim() ?? '';
+  for (const match of body.matchAll(/^- \*\*([^*]+)\*\* (.+) \((.*)\)$/gm)) {
+    const where = (match[3] as string).split(', ')[0]?.trim() ?? '';
     items.push({
       kind: 'review-finding',
       subject: where.replace(/:\d+$/, ''),
-      text: match[1] as string,
+      text: match[2] as string,
       pointer: `PR#${pr}:${where}`,
       round,
     });
@@ -118,24 +118,30 @@ export function parseReviewComment(
   return items;
 }
 
-/** The newest `limit` transcripts of this repository (and its worktrees) under a Claude projects directory. */
+/** The Claude project directory name of a working directory (the same encoding as src/harness/transcript-prefix.ts, which state cannot import). */
+const projectDirectory = (cwd: string): string =>
+  cwd.replaceAll(/[^A-Za-z0-9]/gu, '-');
+
+/** The newest `limit` transcripts of the given working directories (the repository's checkouts) under a Claude projects directory. */
 export function recentTranscripts(
-  root: string,
+  roots: string | readonly string[],
   limit: number,
   projects: string,
 ): string[] {
-  const slug = root.replace(/[/.]/g, '-');
+  const names = new Set(
+    (typeof roots === 'string' ? [roots] : roots).map(projectDirectory),
+  );
   let dirs: string[];
   try {
-    dirs = readdirSync(projects).filter((d) => d.startsWith(slug));
+    dirs = readdirSync(projects).filter((d) => names.has(d));
   } catch {
     return [];
   }
   return dirs
     .flatMap((dir) =>
-      readdirSync(join(projects, dir))
-        .filter((file) => file.endsWith('.jsonl'))
-        .map((file) => join(projects, dir, file)),
+      readdirSync(join(projects, dir), { withFileTypes: true })
+        .filter((file) => file.isFile() && file.name.endsWith('.jsonl'))
+        .map((file) => join(projects, dir, file.name)),
     )
     .map((path) => ({ path, at: statSync(path).mtimeMs }))
     .sort((a, b) => b.at - a.at)

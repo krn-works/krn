@@ -9,10 +9,13 @@ import {
 } from './retro-evidence.ts';
 import { rankCauses, renderCauses } from './retro-rank.ts';
 
-/** Transcripts are filed under the main checkout's path, never a linked worktree's. */
-function mainCheckout(root: string): string {
+/** Every checkout of the repository (main and linked worktrees): transcripts are filed under each one's path. */
+function checkouts(root: string): string[] {
   const list = git(root, ['worktree', 'list', '--porcelain']);
-  return (list.ok ? /^worktree (.+)$/m.exec(list.out)?.[1] : undefined) ?? root;
+  const paths = list.ok
+    ? [...list.out.matchAll(/^worktree (.+)$/gm)].map((m) => m[1] as string)
+    : [];
+  return [...new Set([root, ...paths])];
 }
 
 export function renderRetroCauses(
@@ -20,7 +23,7 @@ export function renderRetroCauses(
   sessions: number,
   projects: string,
   review: EvidenceItem[],
-  transcripts = recentTranscripts(mainCheckout(root), sessions, projects),
+  transcripts = recentTranscripts(checkouts(root), sessions, projects),
 ): string {
   const items = [
     ...transcripts.flatMap((path) => readTranscript(path)),
